@@ -1,5 +1,5 @@
 {
-  "name": "br3eze-backend",
+  "name": "agentos",
   "version": "2026.3.27",
   "description": "Network Intelligence Operating System",
   "main": "src/core/gateway.js",
