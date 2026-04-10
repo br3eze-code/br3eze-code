@@ -2,6 +2,15 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
+app.use('/v1', v1Routes);
+app.use('/v2', v2Routes);
+
+// Version in WebSocket protocol
+const wss = new WebSocket.Server({
+  server,
+  path: '/ws/v1'
+});
+
 const { createApp } = require('./server');
 const { WebSocketGateway } = require('./websocket');
 const { AgentOSBot } = require('./telegram');
