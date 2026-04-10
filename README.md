@@ -1,4 +1,5 @@
 ## AgentOS Architecture
+```bash
 
 ┌─────────────────────────────────────────────────────────────┐
 │                    🤖 AgentOS Gateway                       │
@@ -38,9 +39,9 @@
                     │  MikroTik Router │
                     │   (192.168.88.1) │
                     └─────────────────┘
-
+```
 ## Folder Structure
-
+```
 agentos/
 ├── bin/
 │   └── agentos.js              # CLI entry point
@@ -67,9 +68,9 @@ agentos/
 │       └── config-manager.js   # Config file operations
 ├── package.json
 └── README.md
-
+```
 ## Command Line Interface Tree
-
+```
 agentos
 ├── onboard              Interactive setup wizard
 ├── gateway              Run WebSocket gateway
@@ -107,3 +108,4 @@ agentos
 ├── --help               Show help
 ├── --dev                Development profile
 └── --profile <name>     Named profile
+```
