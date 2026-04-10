@@ -1,11 +1,24 @@
 /**
  * Structured Logger with Winston
  */
-
+import { v4 as uuidv4 } from 'uuid';
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
+const correlationId = (req, res, next) => {
+  const id = req.headers['x-correlation-id'] || uuidv4();
+  req.correlationId = id;
+  res.setHeader('x-correlation-id', id);
+  next();
+};
+format: winston.format.combine(
+  winston.format((info) => {
+    info.correlationId = asyncLocalStorage.getStore()?.get('correlationId');
+    return info;
+  })(),
+  winston.format.json()
+)
 // Ensure log directory exists
 const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
