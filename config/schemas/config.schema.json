@@ -1,0 +1,152 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://agentos.ai/schemas/config.schema.json",
+    "title": "AgentOS Configuration",
+    "description": "Configuration schema for AgentOS Gateway",
+    "type": "object",
+    "required": [
+        "agentos",
+        "gateway",
+        "engine"
+    ],
+    "properties": {
+        "agentos": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "const": "AgentOS"
+                },
+                "version": {
+                    "type": "string",
+                    "pattern": "^\\d{4}\\.\\d+\\.\\d+$"
+                },
+                "profile": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "environment": {
+                    "enum": [
+                        "development",
+                        "production",
+                        "test"
+                    ]
+                }
+            },
+            "required": [
+                "name",
+                "version"
+            ]
+        },
+        "gateway": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string",
+                    "format": "hostname"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 65535
+                },
+                "websocket": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "pattern": "^/[a-zA-Z0-9_-]+$"
+                        },
+                        "token": {
+                            "type": "string",
+                            "minLength": 32
+                        },
+                        "heartbeat": {
+                            "type": "integer",
+                            "minimum": 1000
+                        }
+                    }
+                }
+            }
+        },
+        "engine": {
+            "type": "object",
+            "properties": {
+                "toolTimeout": {
+                    "type": "integer",
+                    "minimum": 1000
+                },
+                "maxConcurrentTools": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                },
+                "sandbox": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "isolateFilesystem": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            }
+        },
+        "skills": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-z0-9-]+$": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "autoStart": {
+                            "type": "boolean"
+                        },
+                        "config": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "tools": {
+            "type": "object",
+            "properties": {
+                "mikrotik": {
+                    "type": "object",
+                    "properties": {
+                        "connection": {
+                            "type": "object",
+                            "properties": {
+                                "host": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": "integer"
+                                },
+                                "username": {
+                                    "type": "string"
+                                },
+                                "password": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "host",
+                                "username",
+                                "password"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>AgentOS Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff00;
+            padding: 20px;
+        }
+
+        #log {
+            background: #111;
+            border: 1px solid #333;
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+
+        .input-line {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        input {
+            flex: 1;
+            background: #222;
+            border: 1px solid #444;
+            color: #0f0;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #004400;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #006600;
+        }
+
+        .status {
+            padding: 10px;
+            background: #330000;
+            border: 1px solid #f00;
+            margin-bottom: 10px;
+        }
+
+        .status.connected {
+            background: #003300;
+            border-color: #0f0;
+        }
+
+        .cmd {
+            color: #0ff;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .cmd:hover {
+            color: #fff;
+        }
+
+        .error {
+            color: #f44;
+        }
+
+        .success {
+            color: #4f4;
+        }
+
+        .info {
+            color: #ff0;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>🤖 AgentOS Web Control</h2>
+
+    <div id="status" class="status">🔴 Disconnected</div>
+
+    <div>
+        <strong>Quick Commands:</strong>
+        <span class="cmd" onclick="sendCmd('status')">status</span> |
+        <span class="cmd" onclick="sendCmd('active')">active</span> |
+        <span class="cmd" onclick="sendCmd('users')">users</span> |
+        <span class="cmd" onclick="sendCmd('logs 10')">logs</span> |
+        <span class="cmd" onclick="sendCmd('dhcp')">dhcp</span> |
+        <span class="cmd" onclick="sendCmd('voucher 1Day')">voucher 1Day</span> |
+        <span class="cmd" onclick="sendCmd('help')">help</span>
+    </div>
+
+    <div id="log">Waiting for connection...</div>
+
+    <div class="input-line">
+        <span style="padding: 10px;">AgentOS></span>
+        <input type="text" id="cmdInput" placeholder="Enter command..."
+            onkeypress="if(event.key==='Enter')sendCommand()">
+        <button onclick="sendCommand()">Send</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <input type="text" id="wsToken" placeholder="WebSocket Token" style="width: 300px;">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectTimer = null;
+
+        function log(msg, cls = '') {
+            const el = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            el.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        function connect() {
+            const token = document.getElementById('wsToken').value || 'YOUR_TOKEN_HERE';
+            const wsUrl = `ws://${window.location.hostname}:19876/ws?token=${token}`;
+
+            log('Connecting to ' + wsUrl, 'info');
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                log('✅ Connected!', 'success');
+                updateStatus(true);
+                // Start CLI session automatically
+                ws.send(JSON.stringify({ type: 'cli.start' }));
+            };
+
+            ws.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                handleMsg(msg);
+            };
+
+            ws.onclose = () => {
+                log('❌ Connection closed', 'error');
+                updateStatus(false);
+                // Auto-reconnect
+                reconnectTimer = setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (e) => {
+                log('❌ WebSocket error', 'error');
+            };
+        }
+
+        function handleMsg(msg) {
+            switch (msg.type) {
+                case 'hello':
+                    log(`Connected to ${msg.payload.service} v${msg.payload.version}`);
+                    break;
+
+                case 'cli.output':
+                    if (msg.text) log(msg.text);
+                    if (msg.message) log(msg.message, msg.type === 'error' ? 'error' : 'success');
+                    if (msg.title) {
+                        log(`\n=== ${msg.title} ===`, 'info');
+                        if (msg.items) msg.items.forEach(i => log('  ' + i));
+                        if (msg.data) Object.entries(msg.data).forEach(([k, v]) => log(`  ${k}: ${v}`));
+                    }
+                    break;
+
+                case 'cli.started':
+                    log('CLI Session started. Type commands below.', 'success');
+                    break;
+
+                case 'tool.result':
+                case 'result':
+                    log(JSON.stringify(msg.data || msg.result, null, 2));
+                    break;
+
+                case 'error':
+                    log('Error: ' + (msg.error || msg.message), 'error');
+                    break;
+
+                case 'pong':
+                    break;
+
+                default:
+                    log(JSON.stringify(msg));
+            }
+        }
+
+        function sendCommand() {
+            const input = document.getElementById('cmdInput');
+            const cmd = input.value.trim();
+            if (!cmd || !ws) return;
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'cli.input',
+                    input: cmd + '\n'
+                }));
+                input.value = '';
+            } else {
+                log('Not connected', 'error');
+            }
+        }
+
+        function sendCmd(cmd) {
+            document.getElementById('cmdInput').value = cmd;
+            sendCommand();
+        }
+
+        function disconnect() {
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            if (ws) ws.close();
+        }
+
+        function updateStatus(connected) {
+            const el = document.getElementById('status');
+            if (connected) {
+                el.className = 'status connected';
+                el.innerHTML = '🟢 Connected to AgentOS';
+            } else {
+                el.className = 'status';
+                el.innerHTML = '🔴 Disconnected';
+            }
+        }
+
+        // Auto-connect on load
+        window.onload = () => {
+            // Try to connect after 1 second
+            setTimeout(connect, 1000);
+        };
+    </script>
+</body>
+
+</html>

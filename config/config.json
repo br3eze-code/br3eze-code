@@ -1,0 +1,181 @@
+{
+    "$schema": "./schemas/config.schema.json",
+    "agentos": {
+        "name": "AgentOS",
+        "version": "2026.3.27",
+        "profile": "default",
+        "environment": "production"
+    },
+    "gateway": {
+        "enabled": true,
+        "host": "[IP_ADDRESS]",
+        "port": 19876,
+        "websocket": {
+            "path": "/ws",
+            "token": "${AGENTOS_GATEWAY_TOKEN}",
+            "heartbeat": 30000,
+            "compression": true
+        },
+        "http": {
+            "enabled": true,
+            "cors": {
+                "origins": [
+                    "http://localhost:3000",
+                    "https://dashboard.agentos.ai"
+                ],
+                "credentials": true
+            },
+            "rateLimit": {
+                "windowMs": 900000,
+                "maxRequests": 100
+            }
+        }
+    },
+    "engine": {
+        "toolTimeout": 30000,
+        "maxConcurrentTools": 10,
+        "queueEnabled": true,
+        "sandbox": {
+            "enabled": false,
+            "isolateFilesystem": false
+        }
+    },
+    "registry": {
+        "autoLoad": true,
+        "paths": [
+            "./src/tools",
+            "./src/skills",
+            "./src/adapters"
+        ],
+        "hotReload": false,
+        "verifySignatures": false
+    },
+    "logging": {
+        "level": "info",
+        "format": "json",
+        "outputs": [
+            {
+                "type": "file",
+                "path": "./logs/agentos.log",
+                "maxSize": "10MB",
+                "maxFiles": 5
+            },
+            {
+                "type": "console",
+                "colorize": true
+            }
+        ]
+    },
+    "features": {
+        "telegramBot": true,
+        "webDashboard": true,
+        "voucherSystem": true,
+        "autoBackup": true,
+        "metrics": true
+    },
+    "adapters": {
+        "telegram": {
+            "enabled": true,
+            "token": "${TELEGRAM_BOT_TOKEN}",
+            "webhook": {
+                "enabled": false,
+                "url": null,
+                "secret": null
+            },
+            "polling": {
+                "enabled": true,
+                "interval": 300,
+                "autoStart": true
+            },
+            "allowedChats": [
+                "${TELEGRAM_ADMIN_CHAT_ID}"
+            ],
+            "commands": {
+                "enabled": true,
+                "inlineButtons": true,
+                "menuKeyboard": true
+            }
+        },
+        "whatsapp": {
+            "enabled": false
+        },
+        "discord": {
+            "enabled": false
+        }
+    },
+    "skills": {
+        "hotspot-manager": {
+            "enabled": true,
+            "autoStart": true,
+            "config": {
+                "defaultPlan": "1hour",
+                "voucherPrefix": "AGENT",
+                "qrEnabled": true
+            }
+        },
+        "network-monitor": {
+            "enabled": true,
+            "autoStart": true,
+            "config": {
+                "pingInterval": 60,
+                "alertThreshold": 3
+            }
+        },
+        "security-guard": {
+            "enabled": false,
+            "autoStart": false
+        }
+    },
+    "tools": {
+        "mikrotik": {
+            "connection": {
+                "host": "${MIKROTIK_IP}",
+                "port": 8728,
+                "username": "${MIKROTIK_USER}",
+                "password": "${MIKROTIK_PASS}",
+                "timeout": 10000,
+                "reconnect": {
+                    "enabled": true,
+                    "interval": 5000,
+                    "maxAttempts": 10
+                }
+            },
+            "profiles": [
+                {
+                    "name": "default",
+                    "rateLimit": "2M/2M",
+                    "sessionTimeout": ""
+                },
+                {
+                    "name": "30Day",
+                    "rateLimit": "5M/5M",
+                    "sessionTimeout": "30d"
+                },
+                {
+                    "name": "1day",
+                    "rateLimit": "10M/10M",
+                    "sessionTimeout": "1d"
+                },
+                {
+                    "name": "7Day",
+                    "rateLimit": "20M/20M",
+                    "sessionTimeout": "7d"
+                }
+            ]
+        },
+        "voucher": {
+            "codeLength": 6,
+            "prefix": "STAR",
+            "charset": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        }
+    },
+    "security": {
+        "encryption": {
+            "algorithm": "aes-256-gcm",
+            "keyRotation": false
+        },
+        "auditLog": true,
+        "maxLoginAttempts": 5,
+        "sessionTimeout": 3600
+    }
+}
