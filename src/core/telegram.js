@@ -15,7 +15,9 @@ class AgentOSBot {
         this.config = config;
         this.pendingActions = new Map();
         this.setupHandlers();
-    }
+   this.rateLimiter = new Map();
+  this.RATE_LIMIT = 30; 
+}
 
     setupHandlers() {
         // Commands
@@ -45,8 +47,33 @@ class AgentOSBot {
         }
         return true;
     }
-
+checkRateLimit(chatId) {
+  const now = Date.now();
+  const windowStart = now - 60000; // 1 minute window
+  
+  if (!this.rateLimiter.has(chatId)) {
+    this.rateLimiter.set(chatId, { count: 1, resetTime: now + 60000 });
+    return true;
+  }
+  
+  const limit = this.rateLimiter.get(chatId);
+  if (now > limit.resetTime) {
+    limit.count = 1;
+    limit.resetTime = now + 60000;
+    return true;
+  }
+  
+  if (limit.count >= this.RATE_LIMIT) {
+    return false;
+  }
+  
+  limit.count++;
+  return true;
+}
+    
     async handleStart(msg) {
+          if (!this.checkRateLimit(msg.chat.id)) {
+    return this.bot.sendMessage(msg.chat.id, "⏳ Rate limit exceeded. Please slow down.");
         if (!this.checkAuth(msg)) return;
 
         const keyboard = {
