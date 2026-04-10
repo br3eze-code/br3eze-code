@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        id="cordova-plugin-aicore"
+        version="1.0.1">
+    <name>AI Core</name>
+
+    <description>Secure Cordova plugin for on-device Gemini Nano (via ML Kit GenAI) and Pose Detection access. Prioritizes privacy with no cloud fallbacks.</description>
+
+    <author>Brighton Mzacana / Br3eze Team</author>
+    <license>Apache-2.0</license>
+    <keywords>cordova, android, ai, gemini, nano, aicore, mlkit, genai, pose-detection, on-device</keywords>
+
+    <repo>https://github.com/br3eze.africa/cordova-plugin-aicore</repo>
+    <issue>https://github.com/br3eze.africa/cordova-plugin-aicore/issues</issue>
+
+    <js-module src="www/AICore.js" name="AICore">
+        <clobbers target="window.AICore" />
+    </js-module>
+
+    <platform name="android">
+        <!-- Required permissions -->
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-permission android:name="android.permission.INTERNET" /> <!-- For potential model updates via Play Services -->
+        </config-file>
+
+        <!-- Register the native plugin -->
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="AICorePlugin">
+                <param name="android-package" value="zw.power.www.AICorePlugin" />
+            </feature>
+        </config-file>
+
+        <!-- Java source files -->
+        <source-file src="src/android/AICorePlugin.java" target-dir="src/zw/power/www" />
+        <source-file src="src/android/AiCapabilityDetector.java" target-dir="src/zw/power/www" />
+        <source-file src="src/android/AiRouter.java" target-dir="src/zw/power/www" />
+
+        <!-- ML Kit Dependencies (as of December 2025) -->
+        <!-- GenAI Prompt API for Gemini Nano (still in beta/alpha in late 2025) -->
+        <framework src="com.google.mlkit:genai-prompt:1.0.0-alpha09" /> <!-- Use latest alpha; check Google Maven for updates -->
+
+        <!-- Pose Detection (beta) -->
+        <framework src="com.google.mlkit:pose-detection:18.0.0-beta5" />
+        <!-- Optional accurate mode (larger model, better precision) -->
+        <!-- <framework src="com.google.mlkit:pose-detection-accurate:18.0.0-beta5" /> -->
+
+        <!-- Required for async futures -->
+        <framework src="com.google.guava:guava:33.0.0-android" />
+    </platform>
+</plugin>

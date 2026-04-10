@@ -1,0 +1,19 @@
+{
+  "name": "cordova-plugin-aicore",
+  "version": "1.0.1",
+  "description": "On-device Gemini Nano and Pose Detection bridge",
+  "cordova": {
+    "id": "cordova-plugin-aicore",
+    "platforms": [
+      "android"
+    ]
+  },
+  "keywords": [
+    "ecosystem:cordova",
+    "cordova-android",
+    "ai",
+    "gemini"
+  ],
+  "author": "Brighton Mzacana / Br3eze Team",
+  "license": "Apache-2.0"
+}

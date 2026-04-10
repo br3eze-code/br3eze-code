@@ -1,0 +1,32 @@
+# AgentOS gateway — Podman Quadlet (rootless)
+# Installed by scripts/podman/setup.sh into the current user's ~/.config/containers/systemd/
+# {{AGENT_HOME}}, {{AGENT_CONFIG_DIR}}, {{AGENT_WORKSPACE_DIR}},
+# {{IMAGE_NAME}}, and {{CONTAINER_NAME}} are replaced at install time.
+
+[Unit]
+Description=AgentOS gateway (rootless Podman)
+
+[Container]
+Image={{IMAGE_NAME}}
+ContainerName={{CONTAINER_NAME}}
+UserNS=keep-id
+# Keep container UID/GID aligned with the invoking user so mounted config is readable.
+User=%U:%G
+Volume={{AGENT_CONFIG_DIR}}:/home/node/.agentos:Z
+Volume={{AGENT_WORKSPACE_DIR}}:/home/node/.agentos/workspace:Z
+EnvironmentFile={{AGENT_CONFIG_DIR}}/.env
+Environment=HOME=/home/node
+Environment=TERM=xterm-256color
+Environment=NPM_CONFIG_CACHE=/home/node/.agentos/.npm
+Environment=AGENT_NO_RESPAWN=1
+PublishPort=127.0.0.1:19876:19876
+PublishPort=127.0.0.1:19877:19877
+Pull=never
+Exec=node dist/index.js gateway --bind lan --port 19876
+
+[Service]
+TimeoutStartSec=300
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
