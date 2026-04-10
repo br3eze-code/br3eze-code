@@ -58,6 +58,33 @@ class ToolExecutionError extends MikroTikError {
   }
 }
 
+class MikroTikPool {
+  constructor() {
+    this.connections = new Map(); 
+    this.defaultRouter = null;
+  }
+  
+  async addRouter(id, config) {
+    const manager = new MikroTikManager(config);
+    await manager.connect();
+    this.connections.set(id, manager);
+    return manager;
+  }
+  
+  getRouter(id = 'default') {
+    return this.connections.get(id) || this.defaultRouter;
+  }
+  
+  async executeOnAll(tool, params) {
+    const results = await Promise.allSettled(
+      Array.from(this.connections.values()).map(conn => 
+        conn.executeTool(tool, params)
+      )
+    );
+    return results;
+  }
+}
+module.exports = { MikroTikPool };
 // ============================================================================
 // MIKROTIK MANAGER CLASS
 // ============================================================================
