@@ -100,7 +100,25 @@ if (!token) return false;
     }
 
     async handleToolInvoke(client, message) {
-        const { tool, params, id } = message;
+        const { tool, params, id , stream} = message;
+
+        if (stream && tool === 'users.all') {
+    // Stream large datasets in chunks
+    const users = await mikrotik.getAllHotspotUsers();
+    const chunkSize = 50;
+                for (let i = 0; i < users.length; i += chunkSize) {
+      const chunk = users.slice(i, i + chunkSize);
+      this.send(client.ws, {
+        type: 'tool.result.chunk',
+        id,
+        chunk: i / chunkSize,
+        total: Math.ceil(users.length / chunkSize),
+        data: chunk
+      });
+    }
+    
+    this.send(client.ws, { type: 'tool.result.done', id });
+  } else {
 
         try {
             const mikrotik = await getMikroTikClient();
