@@ -120,10 +120,7 @@ tail -f logs/agentos.log
 
 > **AI-powered MikroTik management with multi-channel control via Telegram, WhatsApp, and WebSocket CLI**
 
-[![Version](https://img.shields.io/badge/version-2026.5.2-blue)](...)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Tests](https://github.com/br3eze-code/br3ezeclaw/workflows/Tests/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue)
+
 
 ## ✨ Features
 
@@ -134,28 +131,6 @@ tail -f logs/agentos.log
 - 📊 **Real-time Monitoring** — System stats, alerts, and financial reporting
 - 🔒 **Enterprise Security** — CVE-2026-1526 patched, rate-limited, audit trails
 
- ```bash
-# 1. Clone
-git clone https://github.com/br3eze-code/br3ezeclaw.git
-cd br3ezeclaw
-
-# 2. Install
-npm install
-
-# 3. Configure
-cp .env.example .env
-# Edit .env with your MikroTik credentials
-
-# 4. Start
-npm run dev        # Daemon mode
-npm run cli        # Interactive CLI
-```
-## 📖 Documentation
-
--Installation Guide
--API Reference
--Telegram Bot Setup
--WhatsApp Integration
 
 ## 🛠️ Tech Stack
 | Component  | Technology                            |
@@ -208,6 +183,31 @@ npm run cli        # Interactive CLI
                     │  MikroTik Router │
                     │   (192.168.88.1) │
                     └─────────────────┘
+```
+```bash
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Telegram Bot  │     │  WhatsApp (WA)  │     │  WebSocket CLI  │
+│   (node-telegram) │     │   (Baileys)     │     │   (Browser)     │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │      AgentOS Core       │
+                    │  ┌─────────────────┐    │
+                    │  │  AskEngine (AI) │    │
+                    │  │  Gemini 2.5 Flash│   │
+                    │  └─────────────────┘    │
+                    │  ┌─────────────────┐    │
+                    │  │  Node Registry  │    │
+                    │  │  (Multi-router) │    │
+                    │  └─────────────────┘    │
+                    └────────────┬────────────┘
+                                 │
+                    ┌────────────▼────────────┐
+                    │    MikroTik Manager     │
+                    │   (routeros-client)     │
+                    └─────────────────────────┘
 ```
 ## Folder Structure
 ```
