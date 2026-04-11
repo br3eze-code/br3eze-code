@@ -29,7 +29,7 @@ class Gateway {
     }
 
     async start() {
-        const port = this.options.port || this.config.gateway.port || 18789;
+        const port = this.options.port || this.config.gateway.port || 19876;
         const host = this.config.gateway.host || '127.0.0.1';
 
         logger.info(`Starting AgentOS Gateway v${this.config.version}...`);
