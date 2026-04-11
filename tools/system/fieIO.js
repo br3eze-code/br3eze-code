@@ -124,248 +124,54 @@ function getFilePermissionsSymbolic(filePath) {
     const resolved = resolvePath(filePath);
     return fs.statSync(resolved).mode;
 }
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsOctal(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
-}
-
-function getFilePermissionsSymbolic(filePath) {
-    const resolved = resolvePath(filePath);
-    return fs.statSync(resolved).mode;
+export function writeFile(filePath, data) {
+    try {
+        const fullPath = resolvePath(filePath);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(fullPath, JSON.stringify(data, null, 2), "utf-8");
+        return true;
+    } catch (err) {
+        logger.error("File write failed", { filePath, error: err.message });
+        return false;
+    }
 }
 export function readFile(filePath, fallback = null) {
     try {
         const fullPath = resolvePath(filePath);
-
-        if (!fs.existsSync(fullPath)) {
-            return fallback;
-        }
-
-        const data = fs.readFileSync(fullPath, "utf-8");
-
-        return JSON.parse(data);
+        if (!fs.existsSync(fullPath)) return fallback;
+        return JSON.parse(fs.readFileSync(fullPath, "utf-8"));
     } catch (err) {
-        logger.error("File read failed", {
-            filePath,
-            error: err.message
-        });
-
+        logger.error("File read failed", { filePath, error: err.message });
         return fallback;
     }
 }
 
-export function writeFile(filePath, data) {
-    try {
-        const fullPath = resolvePath(filePath);
-
-        const dir = path.dirname(fullPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-
-        const jsonString = JSON.stringify(data, null, 2);
-        fs.writeFileSync(fullPath, jsonString, "utf-8");
-
-        return true;
-    } catch (err) {
-        logger.error("File write failed", {
-            filePath,
-            error: err.message
-        });
-
-        return false;
-    }
-}
 
 export function appendJson(filePath, record) {
     try {
         const fullPath = resolvePath(filePath);
-
         const dir = path.dirname(fullPath);
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-
-        let existingData = [];
-        if (fs.existsSync(fullPath)) {
-            const data = fs.readFileSync(fullPath, "utf-8");
-            existingData = JSON.parse(data);
-        }
-
-        existingData.push(record);
-
-        const jsonString = JSON.stringify(existingData, null, 2);
-        fs.writeFileSync(fullPath, jsonString, "utf-8");
-
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        let existing = [];
+        if (fs.existsSync(fullPath)) existing = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
+        existing.push(record);
+        fs.writeFileSync(fullPath, JSON.stringify(existing, null, 2), "utf-8");
         return true;
     } catch (err) {
-        logger.error("File append failed", {
-            filePath,
-            error: err.message
-        });
-
+        logger.error("File append failed", { filePath, error: err.message });
         return false;
     }
 }
 const memoryCache = {};
 
 export function setCache(key, value) {
-    memoryCache[key] = {
-        value,
-        time: Date.now()
-    };
+    memoryCache[key] = { value, time: Date.now() };
 }
 
 export function getCache(key, ttl = 60000) {
     const item = memoryCache[key];
-
     if (!item) return null;
-
-    if (Date.now() - item.time > ttl) {
-        delete memoryCache[key];
-        return null;
-    }
-
+    if (Date.now() - item.time > ttl) { delete memoryCache[key]; return null; }
     return item.value;
 }
