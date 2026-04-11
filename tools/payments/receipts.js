@@ -114,10 +114,6 @@ export function getReceiptsByCurrency(currency) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE currency = ? ORDER BY createdAt DESC");
     return stmt.all(currency);
 }
-export function getReceiptsByDateRange(startDate, endDate) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE createdAt BETWEEN ? AND ? ORDER BY createdAt DESC");
-    return stmt.all(startDate, endDate);
-}
 export function formatReceipt(reference) {
     const r = getReceipt(reference);
 
