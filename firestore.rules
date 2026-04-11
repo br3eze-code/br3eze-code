@@ -30,36 +30,43 @@ service cloud.firestore {
     }
     
     // Sessions collection
-    match /sessions/{sessionId} {
-      allow read: if isAuthenticated() && 
+match /sessions/{sessionId} {
+    allow read: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if true; // Allow creation during auth
-      allow update: if isAuthenticated() && 
+    allow create: if isAuthenticated();  // must be signed in to create session
+    allow update: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isAdmin();
-    }
-    
-    // Auth logs (admin only)
-    match /auth_logs/{logId} {
-      allow read: if isAdmin();
-      allow create: if true;
-      allow update, delete: if false;
-    }
-    
-    // Hotspot events
-    match /hotspot_events/{eventId} {
-      allow read: if isAdmin();
-      allow create: if true;
-      allow update, delete: if false;
-    }
-    
-    // Usage statistics
-    match /usage_stats/{statId} {
-      allow read: if isAuthenticated() && 
+    allow delete: if isAdmin();
+}
+
+match /auth_logs/{logId} {
+    allow read: if isAdmin();
+    allow create: if isAuthenticated();  // only authenticated callers write logs
+    allow update, delete: if false;
+}
+
+match /hotspot_events/{eventId} {
+    allow read: if isAdmin();
+    allow create: if isAuthenticated();
+    allow update, delete: if false;
+}
+
+match /usage_stats/{statId} {
+    allow read: if isAuthenticated() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if true;
-      allow update, delete: if false;
-    }
+    allow create: if isAuthenticated();
+    allow update, delete: if false;
+}
+
+// Missing collections — add explicit deny
+match /vouchers/{voucherId} {
+    allow read, write: if isAdmin();
+}
+
+match /wallets/{userId}/{document=**} {
+    allow read: if isAuthenticated() && isOwner(userId);
+    allow write: if isAdmin();
+}
     
     // System configuration (admin only)
     match /config/{document} {
