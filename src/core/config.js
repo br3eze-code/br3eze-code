@@ -54,11 +54,12 @@ const DEFAULT_CONFIG = {
         allowedChats: [],
         botUsername: 'AgentOSBot'
     },
-    gateway: {
-        port: 19876,
-        host: '127.0.0.1',
-        token: require('crypto').randomBytes(32).toString('hex')
-    },
+   gateway: {
+    port: 19876,
+    host: '127.0.0.1',
+    token: process.env.AGENTOS_GATEWAY_TOKEN
+        || require('crypto').randomBytes(32).toString('hex')
+},
     server: {
         port: 3000,
         host: '0.0.0.0'
