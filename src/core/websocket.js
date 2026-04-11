@@ -35,10 +35,12 @@ if (!token) return false;
   } catch {
     return false;
   }
-        if (token !== config.gateway.token) {
-            logger.warn('WebSocket auth failed');
-            return false;
-        }
+  const results = await this.state.conn.write([
+    '/tool/ping',
+    `=address=${host}`,
+    `=count=${Math.max(1, Math.min(count, 100)).toString()}`
+]);
+return Array.isArray(results) ? results : (results ? [results] : []);
         return true;
     }
 
