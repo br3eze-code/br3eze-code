@@ -1,120 +1,140 @@
-// src/channels/whatsapp.js 
-const makeWASocket = require('@whiskeysockets/baileys').default;
-const { DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 
-class WhatsAppChannel {
-  constructor() {
+/**
+ * WhatsApp Channel
+ */
+
+const { 
+  default: makeWASocket, 
+  DisconnectReason, 
+  useMultiFileAuthState,
+  Browsers
+} = require('@whiskeysockets/baileys');
+const { BaseChannel } = require('./base');
+const { Logger } = require('../utils/logger');
+const QRCode = require('qrcode-terminal');
+const path = require('path');
+
+class WhatsAppChannel extends BaseChannel {
+  constructor(options = {}) {
+    super(options);
+    this.name = 'whatsapp';
+    this.sessionName = options.sessionName || process.env.WHATSAPP_SESSION_NAME || 'agentos-session';
+    this.enabled = options.enabled !== undefined ? options.enabled : process.env.WHATSAPP_ENABLED === 'true';
+    this.logger = new Logger('WhatsAppChannel');
     this.sock = null;
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 10;
-    this.messageQueue = []; // Queue messages during disconnect
-    this.isConnected = false;
-    this.connectionState = 'disconnected';
+    this.authState = null;
+    this.qrCode = null;
   }
-
+  
   async connect() {
-    const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
-    
-    this.sock = makeWASocket({
-      auth: state,
-      printQRInTerminal: false,
-      syncFullHistory: false,    
-      markOnlineOnConnect: false,    
-      keepAliveIntervalMs: 15000,     
-      connectTimeoutMs: 60000,
-      defaultQueryTimeoutMs: 60000,
-      retryRequestDelayMs: 250,
-      browser: ['AgentOS', 'Chrome', '120.0.0'],
-      logger: require('pino')({ 
-        level: 'warn',
-        redact: ['creds.noiseKey', 'creds.signedPreKey']
-      })
-    });
-
-    this.sock.ev.on('connection.update', async (update) => {
-      const { connection, lastDisconnect, qr } = update;
-      
-      if (qr) {
-        this.emit('qr', qr);
-      }
-      
-      if (connection === 'close') {
-        const statusCode = lastDisconnect?.error?.output?.statusCode;
-        this.isConnected = false;
-        this.connectionState = 'disconnected';
-        
-        console.log('WhatsApp disconnected:', statusCode);
-        
-        if (statusCode === DisconnectReason.loggedOut) {
-          console.error('WhatsApp session logged out - needs re-authentication');
-          this.emit('auth_required');
-          return; 
-        }
-        
-        if (statusCode === DisconnectReason.connectionReplaced) {
-          console.error('Connection replaced - another session active');
-          this.emit('connection_replaced');
-          return;
-        }
-        
-
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.reconnectAttempts++;
-          const delay = Math.min(1000 * this.reconnectAttempts, 30000);
-          console.log(`Reconnecting in ${delay}ms... (attempt ${this.reconnectAttempts})`);
-          setTimeout(() => this.connect(), delay);
-        }
-      } else if (connection === 'open') {
-        this.isConnected = true;
-        this.connectionState = 'connected';
-        this.reconnectAttempts = 0;
-        this.emit('connected');
-        
-        await this.flushMessageQueue();
-      }
-    });
-
-    this.sock.ev.on('creds.update', saveCreds);
-    
-    this.sock.ws.on('CB:ib,,downgrade_webclient', () => {
-      console.error('Multi-device not enabled on phone');
-      this.emit('multidevice_required');
-    });
-  }
-
-  async sendMessage(jid, message) {
-    if (!this.isConnected) {
-
-      this.messageQueue.push({ jid, message, timestamp: Date.now() });
-      return { queued: true };
+    if (!this.enabled) {
+      this.logger.info('WhatsApp disabled');
+      return;
     }
+    
+    this.logger.info('Connecting to WhatsApp...');
+    
+    // Setup auth state
+    const authPath = path.join(process.cwd(), 'data', 'whatsapp-auth', this.sessionName);
+    this.authState = await useMultiFileAuthState(authPath);
+    
+    // Create socket
+    this.sock = makeWASocket({
+      auth: this.authState.state,
+      printQRInTerminal: true,
+      browser: Browsers.macOS('Desktop'),
+      logger: { level: 'silent' }
+    });
+    
+    // Setup event handlers
+    this.sock.ev.on('connection.update', (update) => this.handleConnectionUpdate(update));
+    this.sock.ev.on('messages.upsert', (m) => this.handleMessages(m));
+    this.sock.ev.on('creds.update', this.authState.saveCreds);
+  }
+  
+  handleConnectionUpdate(update) {
+    const { connection, lastDisconnect, qr } = update;
+    
+    if (qr) {
+      this.qrCode = qr;
+      this.logger.info('QR Code received, scan with WhatsApp');
+      QRCode.generate(qr, { small: true });
+    }
+    
+    if (connection === 'close') {
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      this.logger.info('WhatsApp disconnected, reconnecting:', shouldReconnect);
+      
+      if (shouldReconnect) {
+        this.connect();
+      }
+    } else if (connection === 'open') {
+      this.connected = true;
+      this.qrCode = null;
+      this.logger.info('WhatsApp connected');
+    }
+  }
+  
+  handleMessages({ messages, type }) {
+    if (type !== 'notify') return;
+    
+    for (const msg of messages) {
+      if (!msg.message) continue;
+      
+      const chatId = msg.key.remoteJid;
+      const isDM = chatId.endsWith('@s.whatsapp.net');
+      const sender = msg.key.participant || chatId;
+      
+      // Extract text
+      let content = '';
+      if (msg.message.conversation) {
+        content = msg.message.conversation;
+      } else if (msg.message.extendedTextMessage) {
+        content = msg.message.extendedTextMessage.text;
+      }
+      
+      if (!content) continue;
+      
+      const frame = this.createFrame({
+        sender: chatId,
+        senderName: msg.pushName || sender,
+        content,
+        isDM,
+        metadata: {
+          messageId: msg.key.id,
+          timestamp: msg.messageTimestamp
+        }
+      });
+      
+      this.emit('message', frame);
+    }
+  }
+  
+  async disconnect() {
+    if (this.sock) {
+      await this.sock.logout();
+    }
+    this.connected = false;
+  }
+  
+  async send(recipient, message) {
+    if (!this.connected || !this.sock) {
+      throw new Error('WhatsApp not connected');
+    }
+    
+    const formatted = this.formatMessage(message);
     
     try {
-      const result = await this.sock.sendMessage(jid, message);
-      return { success: true, id: result.key.id };
+      await this.sock.sendMessage(recipient, {
+        text: formatted.text || formatted
+      });
     } catch (error) {
-  
-      this.messageQueue.push({ jid, message, timestamp: Date.now() });
-      return { queued: true, error: error.message };
-    }
-  }
-
-  async flushMessageQueue() {
-    while (this.messageQueue.length > 0) {
-      const item = this.messageQueue.shift();
-      
-      if (Date.now() - item.timestamp > 300000) continue;
-      
-      try {
-        await this.sock.sendMessage(item.jid, item.message);
-      } catch (error) {
-        console.error('Failed to send queued message:', error);
-  
-        if (this.messageQueue.length < 100) {
-          this.messageQueue.unshift(item);
-        }
-        break;
-      }
+      this.logger.error('Send error:', error);
+      throw error;
     }
   }
 }
+
+module.exports = { WhatsAppChannel };
+
+
