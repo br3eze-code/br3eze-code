@@ -1,49 +1,264 @@
-// src/core/tool-registry.js
+
+/**
+ * Tool Registry
+
+ */
+
+const fs = require('fs').promises;
+const path = require('path');
+const yaml = require('js-yaml');
+const { Logger } = require('../utils/logger');
+
 class ToolRegistry {
-  constructor() {
+  constructor(options = {}) {
+    this.skillsPath = options.skillsPath || path.join(process.cwd(), 'src/skills');
     this.tools = new Map();
-    this.manifest = null;
+    this.skills = new Map();
+    this.hooks = new Map();
+    this.logger = new Logger('ToolRegistry');
+    this.manifestCache = null;
   }
   
-  // Register domain-agnostic tools
-  register(name, schema, handler) {
-    this.tools.set(name, {
-      schema: {
-        name,
-        description: schema.description,
-        parameters: schema.parameters,
-        returns: schema.returns
-      },
-      handler
-    });
-    this.rebuildManifest();
-  }
-  
-  registerMikroTikSkill() {
-    this.register('mikrotik.user.kick', {
-      description: 'Disconnect a user from hotspot',
-      parameters: { user: 'string' },
-      returns: 'boolean'
-    }, this.mikrotikHandlers.kick);
+  /**
+   * Load all skills from skills directory
+   */
+  async loadSkills() {
+    this.logger.info(`Loading skills from: ${this.skillsPath}`);
     
-    this.register('mikrotik.system.reboot', {
-      description: 'Reboot router',
-      parameters: {},
-      returns: 'boolean'
-    }, this.mikrotikHandlers.reboot);
+    try {
+      const skillDirs = await fs.readdir(this.skillsPath, { withFileTypes: true });
+      
+      for (const dir of skillDirs) {
+        if (dir.isDirectory()) {
+          await this.loadSkill(dir.name);
+        }
+      }
+      
+      this.logger.info(`Loaded ${this.skills.size} skills with ${this.tools.size} tools`);
+    } catch (error) {
+      this.logger.error('Failed to load skills:', error);
+    }
   }
   
-// Generic system skills
-  registerSystemSkills() {
-    this.register('file.read', fileReadSchema, fileReadHandler);
-    this.register('shell.exec', shellExecSchema, shellExecHandler);
-    this.register('web.fetch', webFetchSchema, webFetchHandler);
+  /**
+   * Load a single skill
+   */
+  async loadSkill(skillName) {
+    const skillPath = path.join(this.skillsPath, skillName);
+    const manifestPath = path.join(skillPath, 'manifest.yaml');
+    
+    try {
+      // Check if manifest exists
+      await fs.access(manifestPath);
+      
+      // Parse manifest
+      const manifestContent = await fs.readFile(manifestPath, 'utf8');
+      const manifest = yaml.load(manifestContent);
+      
+      this.logger.info(`Loading skill: ${manifest.name} v${manifest.version}`);
+      
+      // Load tools
+      const tools = new Map();
+      if (manifest.tools) {
+        for (const toolDef of manifest.tools) {
+          const toolPath = path.join(skillPath, 'tools', `${toolDef.name.replace(/\\./g, '-')}.js`);
+          
+          try {
+            // Clear require cache for hot reload
+            delete require.cache[require.resolve(toolPath)];
+            const toolModule = require(toolPath);
+            
+            tools.set(toolDef.name, {
+              schema: toolDef,
+              handler: toolModule.handler || toolModule.default,
+              skill: manifest.name
+            });
+            
+            // Register in global registry with namespaced name
+            const fullName = `${manifest.name}.${toolDef.name}`;
+            this.tools.set(fullName, {
+              schema: toolDef,
+              handler: toolModule.handler || toolModule.default,
+              skill: manifest.name
+            });
+            
+          } catch (error) {
+            this.logger.error(`Failed to load tool ${toolDef.name}:`, error.message);
+          }
+        }
+      }
+      
+      // Load hooks
+      const hooks = {};
+      const hooksPath = path.join(skillPath, 'hooks');
+      try {
+        const hookFiles = await fs.readdir(hooksPath);
+        for (const hookFile of hookFiles) {
+          if (hookFile.endsWith('.js')) {
+            const hookName = path.basename(hookFile, '.js');
+            const hookPath = path.join(hooksPath, hookFile);
+            delete require.cache[require.resolve(hookPath)];
+            hooks[hookName] = require(hookPath);
+          }
+        }
+      } catch (e) {
+        // No hooks directory is fine
+      }
+      
+      // Store skill
+      this.skills.set(manifest.name, {
+        manifest,
+        tools,
+        hooks,
+        path: skillPath,
+        enabled: true
+      });
+      
+      // Run on-enable hook
+      if (hooks['on-enable']) {
+        try {
+          await hooks['on-enable']({ config: manifest.config || {} });
+        } catch (error) {
+          this.logger.error(`on-enable hook failed for ${manifest.name}:`, error);
+        }
+      }
+      
+      this.manifestCache = null; // Invalidate cache
+      return true;
+      
+    } catch (error) {
+      this.logger.error(`Failed to load skill ${skillName}:`, error.message);
+      return false;
+    }
   }
   
+  /**
+   * Unload a skill
+   */
+  async unloadSkill(skillName) {
+    const skill = this.skills.get(skillName);
+    if (!skill) return false;
+    
+    // Run on-disable hook
+    if (skill.hooks['on-disable']) {
+      try {
+        await skill.hooks['on-disable']();
+      } catch (error) {
+        this.logger.error(`on-disable hook failed for ${skillName}:`, error);
+      }
+    }
+    
+    // Remove tools
+    for (const [name, tool] of this.tools) {
+      if (tool.skill === skillName) {
+        this.tools.delete(name);
+      }
+    }
+    
+    // Remove skill
+    this.skills.delete(skillName);
+    this.manifestCache = null;
+    
+    this.logger.info(`Unloaded skill: ${skillName}`);
+    return true;
+  }
+  
+  /**
+   * Reload a skill
+   */
+  async reloadSkill(skillName) {
+    await this.unloadSkill(skillName);
+    return await this.loadSkill(skillName);
+  }
+  
+  /**
+   * Get a tool by name
+   */
+  getTool(name) {
+    return this.tools.get(name);
+  }
+  
+  /**
+   * Get all tools
+   */
+  getAllTools() {
+    return Array.from(this.tools.values());
+  }
+  
+  /**
+   * Get tools by skill
+   */
+  getToolsBySkill(skillName) {
+    const skill = this.skills.get(skillName);
+    return skill ? Array.from(skill.tools.values()) : [];
+  }
+  
+  /**
+   * Get capability manifest (OpenClaw standard)
+   */
   getManifest() {
+    if (this.manifestCache) return this.manifestCache;
+    
+    const tools = Array.from(this.tools.values()).map(tool => ({
+      name: tool.schema.name,
+      description: tool.schema.description,
+      parameters: tool.schema.parameters || [],
+      returns: tool.schema.returns || 'any',
+      skill: tool.skill
+    }));
+    
+    this.manifestCache = {
+      version: '2.0.0',
+      agent: 'AgentOS OpenClaw',
+      skills: Array.from(this.skills.keys()),
+      tools,
+      safety: {
+        maxToolsPerRequest: 10,
+        allowedOperations: tools.map(t => t.name)
+      }
+    };
+    
+    return this.manifestCache;
+  }
+  
+  /**
+   * Get skill names
+   */
+  getSkillNames() {
+    return Array.from(this.skills.keys());
+  }
+  
+  /**
+   * Get skill info
+   */
+  getSkillInfo(skillName) {
+    const skill = this.skills.get(skillName);
+    if (!skill) return null;
+    
     return {
-      tools: Array.from(this.tools.values()).map(t => t.schema),
-      safety: this.safetyEnvelope.getLimits()
+      ...skill.manifest,
+      toolCount: skill.tools.size,
+      enabled: skill.enabled
     };
   }
+  
+  /**
+   * Get total tool count
+   */
+  getToolCount() {
+    return this.tools.size;
+  }
+  
+  /**
+   * Enable/disable skill
+   */
+  setSkillEnabled(skillName, enabled) {
+    const skill = this.skills.get(skillName);
+    if (skill) {
+      skill.enabled = enabled;
+    }
+  }
 }
+
+module.exports = { ToolRegistry };
+
