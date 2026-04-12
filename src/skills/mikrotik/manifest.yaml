@@ -1,0 +1,108 @@
+name: mikrotik
+version: 1.0.0
+description: MikroTik RouterOS management and network operations
+author: br3eze
+license: Apache-2.0
+
+tools:
+  - name: user.kick
+    description: Disconnect a user from the hotspot
+    parameters:
+      - name: user
+        type: string
+        required: true
+        description: Username or MAC address to kick
+    returns: boolean
+    
+  - name: user.add
+    description: Add a new hotspot user
+    parameters:
+      - name: username
+        type: string
+        required: true
+      - name: password
+        type: string
+        required: true
+      - name: profile
+        type: string
+        required: false
+        description: User profile (default, 1Day, etc)
+    returns: object
+    
+  - name: users.active
+    description: List active hotspot users
+    parameters:
+      - name: limit
+        type: number
+        required: false
+        description: Maximum number of users to return
+    returns: array
+    
+  - name: system.stats
+    description: Get router system statistics
+    parameters: []
+    returns: object
+    
+  - name: system.reboot
+    description: Reboot the router
+    parameters: []
+    returns: boolean
+    
+  - name: network.ping
+    description: Ping a host
+    parameters:
+      - name: host
+        type: string
+        required: true
+      - name: count
+        type: number
+        required: false
+        default: 4
+    returns: object
+    
+  - name: network.traceroute
+    description: Traceroute to a host
+    parameters:
+      - name: host
+        type: string
+        required: true
+    returns: array
+    
+  - name: firewall.list
+    description: List firewall rules
+    parameters:
+      - name: chain
+        type: string
+        required: false
+        description: Filter by chain (input, forward, output)
+    returns: array
+
+config:
+  - name: host
+    type: string
+    default: 192.168.88.1
+    description: Router IP address
+    
+  - name: port
+    type: number
+    default: 8728
+    description: API port
+    
+  - name: username
+    type: string
+    required: true
+    description: API username
+    
+  - name: password
+    type: string
+    required: true
+    secret: true
+    description: API password
+    
+  - name: timeout
+    type: number
+    default: 5000
+    description: Connection timeout in milliseconds
+
+dependencies: []
+
