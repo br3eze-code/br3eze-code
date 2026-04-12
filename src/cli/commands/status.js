@@ -1,73 +1,143 @@
 // ==========================================
-// AGENTOS STATUS COMMAND
-// Quick system overview
+// AGENTOS STATUS COMMAND - FIXED
+// Quick system overview with proper error handling
 // ==========================================
 
 const chalk = require('chalk');
 const fs = require('fs');
+const ora = require('ora');
 
 module.exports = (program) => {
+  program
+    .command('status')
+    .description('Show system status')
+    .alias('s')
+    .option('--json', 'Output as JSON')
+    .action(async (options) => {
+      const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
+      
+      const statusData = {
+        agentos: {},
+        gateway: {},
+        router: {},
+        timestamp: new Date().toISOString()
+      };
 
-        program
-  .command('dashboard')
-  .description('Show dashboard overview')
-  .action(async () => {
-    // Aggregate data from multiple sources
-    const mikrotik = await getMikroTikClient();
-    const [stats, activeUsers] = await Promise.all([
-      mikrotik.getSystemStats(),
-      mikrotik.getActiveUsers()
-    ]);
-    
-    console.log(chalk.cyan('\n📊 Dashboard\n'));
-    console.log(`CPU: ${stats['cpu-load']}% | Uptime: ${stats.uptime}`);
-    console.log(`Active Users: ${activeUsers.length}`);
-  });
-    program
-        .command('status')
-        .description('Show system status')
-        .alias('s')
-        .action(async () => {
-            const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
+      try {
+        // Config info
+        if (fs.existsSync(CONFIG_PATH)) {
+          const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+          statusData.agentos = {
+            profile: global.AGENTOS.PROFILE_DIR,
+            version: cfg.version,
+            created: new Date(cfg.createdAt).toLocaleDateString()
+          };
+        } else {
+          console.log(chalk.yellow('⚠ Not configured - run: agentos onboard'));
+          return;
+        }
 
-            console.log(chalk.cyan(`\n${BRAND.emoji} ${BRAND.name} Status\n`));
+        // Gateway status
+        const pidFile = `${STATE_PATH}/gateway.pid`;
+        if (fs.existsSync(pidFile)) {
+          try {
+            const pid = fs.readFileSync(pidFile, 'utf8').trim();
+            process.kill(parseInt(pid), 0); // Check if process exists
+            statusData.gateway = { 
+              status: 'running', 
+              pid: parseInt(pid),
+              color: 'green'
+            };
+          } catch (e) {
+            statusData.gateway = { 
+              status: 'stale', 
+              error: 'PID file exists but process not running',
+              color: 'yellow'
+            };
+          }
+        } else {
+          statusData.gateway = { 
+            status: 'stopped',
+            color: 'red'
+          };
+        }
 
-            // Config info
-            if (fs.existsSync(CONFIG_PATH)) {
-                const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-                console.log(chalk.gray('Profile:'), global.AGENTOS.PROFILE_DIR);
-                console.log(chalk.gray('Version:'), cfg.version);
-                console.log(chalk.gray('Created:'), new Date(cfg.createdAt).toLocaleDateString());
-            } else {
-                console.log(chalk.yellow('⚠ Not configured - run: agentos onboard'));
-                return;
-            }
+        // MikroTik status with spinner
+        const spinner = ora('Connecting to router...').start();
+        try {
+          const { getMikroTikClient } = require('../../core/mikrotik');
+          const mikrotik = await getMikroTikClient();
+          const stats = await mikrotik.getSystemStats();
+          
+          spinner.stop();
+          
+          // FIXED: Properly access normalized stats
+          const cpuLoad = stats['cpu-load'] || '0';
+          const uptime = stats['uptime'] || 'unknown';
+          const version = stats['version'] || 'unknown';
+          const memoryUsage = stats['memory-usage-percent'] || '0';
+          
+          statusData.router = {
+            status: 'connected',
+            cpu: `${cpuLoad}%`,
+            memory: `${memoryUsage}%`,
+            uptime: uptime,
+            version: version,
+            color: 'green'
+          };
+        } catch (e) {
+          spinner.stop();
+          statusData.router = { 
+            status: 'disconnected', 
+            error: e.message,
+            color: 'red'
+          };
+        }
 
-            // Gateway status
-            const pidFile = `${STATE_PATH}/gateway.pid`;
-            let gatewayStatus = chalk.red('stopped');
-            if (fs.existsSync(pidFile)) {
-                try {
-                    const pid = fs.readFileSync(pidFile, 'utf8');
-                    process.kill(parseInt(pid), 0);
-                    gatewayStatus = chalk.green(`running (PID: ${pid})`);
-                } catch (e) {
-                    gatewayStatus = chalk.yellow('stale PID file');
-                }
-            }
-            console.log(chalk.gray('Gateway:'), gatewayStatus);
+        // Output
+        if (options.json) {
+          console.log(JSON.stringify(statusData, null, 2));
+        } else {
+          renderStatus(statusData, BRAND);
+        }
 
-            // MikroTik status
-            try {
-                const { getMikroTikClient } = require('../../core/mikrotik');
-                const mikrotik = await getMikroTikClient();
-             const stats = await mikrotik.getSystemStats();
-const cpuLoad = stats?.['cpu-load'] || stats?.['cpu-load'] || 'N/A';
-console.log(chalk.gray('Router:'), chalk.green(`connected (${cpuLoad}% CPU)`));
-            } catch (e) {
-                console.log(chalk.gray('Router:'), chalk.red('disconnected'));
-            }
-
-            console.log('');
-        });
+      } catch (error) {
+        console.error(chalk.red('Error:'), error.message);
+        process.exit(1);
+      }
+    });
 };
+
+function renderStatus(data, brand) {
+  console.log(chalk.cyan(`\n${brand.emoji} ${brand.name} Status\n`));
+  
+  // AgentOS section
+  if (data.agentos.version) {
+    console.log(chalk.gray('Profile:'), data.agentos.profile);
+    console.log(chalk.gray('Version:'), data.agentos.version);
+    console.log(chalk.gray('Created:'), data.agentos.created);
+  }
+  
+  // Gateway section
+  const gatewayColor = data.gateway.color === 'green' ? chalk.green : 
+                       data.gateway.color === 'yellow' ? chalk.yellow : chalk.red;
+  console.log(chalk.gray('Gateway:'), gatewayColor(
+    data.gateway.status === 'running' ? `running (PID: ${data.gateway.pid})` : data.gateway.status
+  ));
+  
+  // Router section
+  if (data.router.status === 'connected') {
+    console.log(chalk.gray('Router:'), chalk.green(
+      `connected (CPU: ${data.router.cpu}, Memory: ${data.router.memory})`
+    ));
+    console.log(chalk.gray('Uptime:'), data.router.uptime);
+    console.log(chalk.gray('RouterOS:'), data.router.version);
+  } else {
+    console.log(chalk.gray('Router:'), chalk.red('disconnected'));
+    if (data.router.error) {
+      console.log(chalk.gray('Error:'), chalk.red(data.router.error));
+    }
+  }
+  
+  console.log('');
+}
