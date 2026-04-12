@@ -1,0 +1,59 @@
+# agentos.yaml - Domain-agnostic configuration
+version: "2.0"
+workspace:
+  name: "Production Infrastructure"
+  domain: hybrid  # network, cloud, container, iot, hybrid
+  
+  adapters:
+    - type: mikrotik
+      name: "Main Router"
+      config:
+        host: 192.168.88.1
+        user: admin
+        password: ${MIKROTIK_PASS}
+        
+    - type: aws
+      name: "AWS Production"
+      config:
+        region: us-east-1
+        accessKeyId: ${AWS_ACCESS_KEY}
+        secretAccessKey: ${AWS_SECRET_KEY}
+        
+    - type: docker
+      name: "Local Docker"
+      config:
+        host: localhost
+        port: 2375
+        
+  billing:
+    enabled: true
+    provider: stripe
+    currency: USD
+    voucherTypes:
+      - name: "WiFi Access"
+        resourceType: network
+        plans:
+          - id: 1hour
+            price: 2.00
+            value: 1  # hours
+          - id: 1day
+            price: 10.00
+            value: 24
+            
+      - name: "Compute Credits"
+        resourceType: compute
+        plans:
+          - id: starter
+            price: 20.00
+            value: 100  # credits
+
+  ai:
+    model: gemini-2.5-flash
+    domainPrompts:
+      network: "You are a network administrator..."
+      cloud: "You are a DevOps engineer..."
+      
+  security:
+    rateLimit: 100
+    requireConfirmation: ["reboot", "delete", "terminate"]
+    auditLog: true
