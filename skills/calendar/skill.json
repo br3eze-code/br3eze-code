@@ -1,0 +1,29 @@
+// skills/calendar/skill.json
+{
+  "name": "calendar",
+  "version": "1.0.0",
+  "description": "Manage calendar events across providers",
+  "domain": "productivity",
+  "entry": "index.js",
+  "parameters": {
+    "action": {
+      "type": "string",
+      "enum": ["create", "list", "delete", "update"],
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["google", "outlook", "local"],
+      "default": "local"
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "start": { "type": "string" },
+        "end": { "type": "string" },
+        "attendees": { "type": "array" }
+      }
+    }
+  }
+}
