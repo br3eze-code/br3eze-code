@@ -10,7 +10,7 @@
 'use strict';
 
 // ── import  ───────────────────────────────
-const ChaosMonkey = require('./core/ChaosMonkey');
+const ChaosMonkey = require('./core/chaosMonkey');
 
 // ── Tool Schema (Gemini / Anthropic / OpenAI compatible) ──────
 // ─────────────────────────────────────────────────────────────
