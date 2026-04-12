@@ -1,0 +1,16 @@
+{
+  "name": "backup-and-notify",
+  "steps": [
+    {
+      "pipe": "mikrotik.users list > users",
+      "context": { "router": "main" }
+    },
+    {
+      "pipe": "file.save path=/backups/users-$(date +%Y%m%d).json data=$users"
+    },
+    {
+      "pipe": "telegram.send message='Backup complete: $(echo $users | wc -l) users backed up'"
+    }
+  ],
+  "onError": "rollback"
+}
