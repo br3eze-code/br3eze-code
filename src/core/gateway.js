@@ -1,224 +1,312 @@
 /**
- * ╔══════════════════════════════════════════════════════════════════╗
- * ║   AgentOS — Gateway.js                                           ║
- * ║                                                                  ║
- * ╚══════════════════════════════════════════════════════════════════╝
- *
-
+ * Gateway
+ 
  */
 
-'use strict';
+const EventEmitter = require('events');
+const express = require('express');
+const { WebSocketServer } = require('ws');
+const helmet = require('helmet');
+const path = require('path');
+const fs = require('fs').promises;
 
-// ── import  ───────────────────────────────
-const ChaosMonkey = require('./core/chaosMonkey');
+const { AgentRuntime } = require('./agent-runtime');
+const { ToolRegistry } = require('./tool-registry');
+const { SessionManager } = require('./session-manager');
+const { MemoryStore } = require('./memory-store');
+const { ProviderManager } = require('./provider-manager');
+const { SafetyEnvelope } = require('./safety-envelope');
+const { Heartbeat } = require('./heartbeat');
+const { Logger } = require('../utils/logger');
 
-// ── Tool Schema (Gemini / Anthropic / OpenAI compatible) ──────
-// ─────────────────────────────────────────────────────────────
-
-const CHAOS_TOOLS = [
-
-  // ── Networking ─────────────────────────────────────────────
-
-  {
-    name:        'chaos_drop_firewall_rules',
-    description: 'CHAOS: Randomly disable 3 MikroTik firewall filter rules to test Sentinel self-healing.',
-    parameters: {
-      type: 'object',
-      properties: {
-        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
-      },
-    },
-    handler: async ({ recovery_window } = {}) => {
-      const rosCfg = {
-        host:     process.env.ROS_HOST,
-        user:     process.env.ROS_USER,
-        password: process.env.ROS_PASS,
-      };
-      return ChaosMonkey.Networking.dropFirewallRules(rosCfg, {
-        recovery_window: recovery_window ?? 60_000,
-        sentinelCheck: async (chaos_id) => {
-          return false; 
-        },
+class Gateway extends EventEmitter {
+  constructor(options = {}) {
+    super();
+    
+    this.options = {
+      port: options.port || process.env.GATEWAY_PORT || 3000,
+      host: options.host || process.env.GATEWAY_HOST || '0.0.0.0',
+      heartbeatInterval: options.heartbeatInterval || parseInt(process.env.HEARTBEAT_INTERVAL) || 1800000,
+      skillsPath: options.skillsPath || process.env.SKILLS_PATH || path.join(process.cwd(), 'src/skills'),
+      memoryPath: options.memoryPath || process.env.MEMORY_BASE_PATH || path.join(process.cwd(), 'data/sessions'),
+      sessionMode: options.sessionMode || process.env.SESSION_MODE || 'isolated',
+      ...options
+    };
+    
+    this.logger = new Logger('Gateway');
+    this.app = null;
+    this.wss = null;
+    this.server = null;
+    
+    // Core components
+    this.toolRegistry = new ToolRegistry({ skillsPath: this.options.skillsPath });
+    this.sessionManager = new SessionManager({
+      basePath: this.options.memoryPath,
+      mode: this.options.sessionMode
+    });
+    this.memoryStore = new MemoryStore({ basePath: this.options.memoryPath });
+    this.providerManager = new ProviderManager();
+    this.safetyEnvelope = new SafetyEnvelope();
+    
+    // Agent runtime orchestrates everything
+    this.agentRuntime = new AgentRuntime({
+      toolRegistry: this.toolRegistry,
+      sessionManager: this.sessionManager,
+      memoryStore: this.memoryStore,
+      providerManager: this.providerManager,
+      safetyEnvelope: this.safetyEnvelope
+    });
+    
+    // Heartbeat for autonomous operation
+    this.heartbeat = new Heartbeat({
+      interval: this.options.heartbeatInterval,
+      agentRuntime: this.agentRuntime
+    });
+    
+    // Channel adapters
+    this.channels = new Map();
+    this.clients = new Map();
+  }
+  
+  async initialize() {
+    this.logger.info('Initializing OpenClaw Gateway...');
+    
+    // Load all skills
+    await this.toolRegistry.loadSkills();
+    
+    // Initialize session manager
+    await this.sessionManager.initialize();
+    
+    // Setup Express app
+    this.app = express();
+    this.app.use(helmet());
+    this.app.use(express.json());
+    
+    // Health check endpoint
+    this.app.get('/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        version: '2.0.0',
+        skills: this.toolRegistry.getSkillNames(),
+        providers: this.providerManager.getAvailableProviders(),
+        channels: Array.from(this.channels.keys()),
+        uptime: process.uptime()
       });
-    },
-  },
-
-  {
-    name:        'chaos_throttle_bandwidth',
-    description: 'CHAOS: Apply a 64k global simple queue on MikroTik to simulate bandwidth bottleneck.',
-    parameters: {
-      type: 'object',
-      properties: {
-        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
-      },
-    },
-    handler: async ({ recovery_window } = {}) => {
-      const rosCfg = {
-        host:     process.env.ROS_HOST,
-        user:     process.env.ROS_USER,
-        password: process.env.ROS_PASS,
-      };
-      return ChaosMonkey.Networking.throttleBandwidth(rosCfg, {
-        recovery_window: recovery_window ?? 60_000,
-      });
-    },
-  },
-
-  {
-    name:        'chaos_ghost_api',
-    description: 'CHAOS: Open ghost sockets to the RouterOS API port to simulate Kernel interrupt / connection pool exhaustion.',
-    parameters: {
-      type: 'object',
-      properties: {
-        count:           { type: 'number',  description: 'Number of ghost sockets (default 3).' },
-        recovery_window: { type: 'number',  description: 'Recovery window in ms (default 60000).' },
-      },
-    },
-    handler: async ({ count, recovery_window } = {}) => {
-      const rosCfg = {
-        host: process.env.ROS_HOST,
-        port: parseInt(process.env.ROS_PORT ?? '8728', 10),
-      };
-      return ChaosMonkey.Networking.ghostAPI(rosCfg, {
-        count:           count           ?? 3,
-        recovery_window: recovery_window ?? 60_000,
-      });
-    },
-  },
-
-  // ── Commerce ───────────────────────────────────────────────
-
-  {
-    name:        'chaos_corrupt_indexeddb',
-    description: 'CHAOS: Inject a malformed JSON record into the local commerce catalog IDB store.',
-    parameters: {
-      type: 'object',
-      properties: {
-        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
-      },
-    },
-    handler: async ({ recovery_window } = {}) => {
-      return ChaosMonkey.Commerce.corruptIndexedDB({
-        recovery_window: recovery_window ?? 60_000,
-      });
-    },
-  },
-
-  {
-    name:        'chaos_latencies',
-    description: 'CHAOS: Add a 5000ms latency shim to all Firestore sync calls.',
-    parameters: {
-      type: 'object',
-      properties: {
-        delayMs:         { type: 'number', description: 'Delay in ms (default 5000).' },
-        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
-      },
-    },
-    handler: async ({ delayMs, recovery_window } = {}) => {
-      return ChaosMonkey.Commerce.latencies({
-        delayMs:         delayMs         ?? 5000,
-        recovery_window: recovery_window ?? 60_000,
-      });
-    },
-  },
-
-  // ── Safety ────────────────────────────────────────────────
-
-  {
-    name:        'chaos_panic_button',
-    description: 'SAFETY: Instantly restore all AgentOS systems to last known Good State. Reverses all active chaos disruptions.',
-    parameters:  { type: 'object', properties: {} },
-    handler: async () => {
-      const rosCfg = {
-        host:     process.env.ROS_HOST,
-        user:     process.env.ROS_USER,
-        password: process.env.ROS_PASS,
-      };
-      return ChaosMonkey.panicButton(rosCfg);
-    },
-  },
-
-  // ── Meta ──────────────────────────────────────────────────
-
-  {
-    name:        'chaos_status',
-    description: 'Return the list of currently active chaos disruptions.',
-    parameters:  { type: 'object', properties: {} },
-    handler:     async () => ChaosMonkey.status(),
-  },
-
-  {
-    name:        'chaos_list',
-    description: 'List all registered chaos domains and their available disruption functions.',
-    parameters:  { type: 'object', properties: {} },
-    handler:     async () => ChaosMonkey.list(),
-  },
-];
-
-// ══════════════════════════════════════════════════════════════
-//  Gateway.js — registration 
-//  ────────────────────────────────────────────────────────────
-
-
-
-function registerChaosTools(gateway) {
-  for (const tool of CHAOS_TOOLS) {
-    // ── Pattern A: array push ────
-    if (Array.isArray(gateway.tools)) {
-      gateway.tools.push(tool);
-    }
-
-    // ── Pattern B: registerTool() method ─────────────────
-    if (typeof gateway.registerTool === 'function') {
-      gateway.registerTool(tool.name, tool.handler, {
-        description: tool.description,
-        parameters:  tool.parameters,
-      });
-    }
-
-    // ── Pattern C: toolRegistry Map ──────────────────────
-    if (gateway.toolRegistry instanceof Map) {
-      gateway.toolRegistry.set(tool.name, tool);
+    });
+    
+    // Capability manifest endpoint (OpenClaw standard)
+    this.app.get('/manifest', (req, res) => {
+      res.json(this.toolRegistry.getManifest());
+    });
+    
+    // Execute endpoint (REST API)
+    this.app.post('/execute', async (req, res) => {
+      try {
+        const result = await this.handleFrame({
+          sender: req.body.sender || 'rest-api',
+          channel: 'rest',
+          content: req.body.input,
+          metadata: req.body.metadata || {}
+        });
+        res.json(result);
+      } catch (error) {
+        this.logger.error('Execute error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Start HTTP server
+    this.server = this.app.listen(this.options.port, this.options.host, () => {
+      this.logger.info(`Gateway listening on ${this.options.host}:${this.options.port}`);
+    });
+    
+    // Setup WebSocket server
+    this.wss = new WebSocketServer({ server: this.server });
+    this.wss.on('connection', (ws, req) => this.handleWebSocket(ws, req));
+    
+    // Start heartbeat
+    this.heartbeat.start();
+    
+    this.emit('ready');
+    return this;
+  }
+  
+  /**
+   * Register a channel adapter
+   */
+  registerChannel(name, adapter) {
+    this.channels.set(name, adapter);
+    adapter.on('message', (frame) => this.handleFrame(frame));
+    adapter.on('error', (error) => this.logger.error(`Channel ${name} error:`, error));
+    this.logger.info(`Registered channel: ${name}`);
+  }
+  
+  /**
+   * Handle incoming message frame from any channel
+   */
+  async handleFrame(frame) {
+    try {
+      this.logger.debug(`Frame from ${frame.channel}/${frame.sender}: ${frame.content}`);
+      
+      // Normalize frame
+      const normalized = this.normalizeFrame(frame);
+      
+      // Check rate limits
+      if (!this.safetyEnvelope.checkRateLimit(normalized.sender)) {
+        return { error: 'Rate limit exceeded. Please slow down.' };
+      }
+      
+      // Execute through agent runtime
+      const result = await this.agentRuntime.execute(normalized);
+      
+      // Send response back through originating channel
+      await this.sendResponse(frame, result);
+      
+      return result;
+    } catch (error) {
+      this.logger.error('Frame handling error:', error);
+      const errorResponse = { error: error.message, type: 'execution_error' };
+      await this.sendResponse(frame, errorResponse);
+      return errorResponse;
     }
   }
-
-  ChaosMonkey.on('recovered', data => {
-    if (typeof gateway.emit === 'function') gateway.emit('sentinel:recovered', data);
-  });
-  ChaosMonkey.on('timeout', data => {
-    if (typeof gateway.emit === 'function') gateway.emit('sentinel:timeout', data);
-  });
-  ChaosMonkey.on('panic', data => {
-    if (typeof gateway.emit === 'function') gateway.emit('chaos:restored', data);
-  });
-
-  console.log(`[Gateway] ChaosMonkey registered — ${CHAOS_TOOLS.length} tools active.`);
-  return CHAOS_TOOLS.length;
+  
+  /**
+   * Normalize frame from any channel to canonical format
+   */
+  normalizeFrame(frame) {
+    return {
+      id: frame.id || this.generateId(),
+      sender: frame.sender,
+      senderName: frame.senderName || frame.sender,
+      channel: frame.channel,
+      content: frame.content,
+      timestamp: frame.timestamp || Date.now(),
+      isDM: frame.isDM !== undefined ? frame.isDM : true,
+      metadata: frame.metadata || {},
+      agentId: frame.agentId || 'default'
+    };
+  }
+  
+  /**
+   * Send response back through appropriate channel
+   */
+  async sendResponse(originalFrame, result) {
+    const channel = this.channels.get(originalFrame.channel);
+    if (channel && channel.send) {
+      await channel.send(originalFrame.sender, result);
+    }
+  }
+  
+  /**
+   * Handle WebSocket connections
+   */
+  handleWebSocket(ws, req) {
+    const clientId = this.generateId();
+    this.clients.set(clientId, ws);
+    
+    this.logger.info(`WebSocket client connected: ${clientId}`);
+    
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data);
+        const result = await this.handleFrame({
+          id: message.id,
+          sender: clientId,
+          channel: 'websocket',
+          content: message.content,
+          metadata: message.metadata || {}
+        });
+        ws.send(JSON.stringify(result));
+      } catch (error) {
+        ws.send(JSON.stringify({ error: error.message }));
+      }
+    });
+    
+    ws.on('close', () => {
+      this.clients.delete(clientId);
+      this.logger.info(`WebSocket client disconnected: ${clientId}`);
+    });
+    
+    ws.on('error', (error) => {
+      this.logger.error(`WebSocket error for ${clientId}:`, error);
+    });
+    
+    // Send welcome message
+    ws.send(JSON.stringify({
+      type: 'connected',
+      clientId,
+      message: 'Connected to AgentOS OpenClaw Gateway'
+    }));
+  }
+  
+  /**
+   * Execute tool directly (for CLI commands)
+   */
+  async executeTool(toolName, params, options = {}) {
+    return await this.agentRuntime.executeTool(toolName, params, options);
+  }
+  
+  /**
+   * Get system status
+   */
+  async getStatus() {
+    return {
+      gateway: {
+        running: this.server !== null,
+        port: this.options.port,
+        connections: this.clients.size
+      },
+      skills: {
+        loaded: this.toolRegistry.getSkillNames(),
+        toolCount: this.toolRegistry.getToolCount()
+      },
+      providers: this.providerManager.getAvailableProviders(),
+      channels: Array.from(this.channels.keys()),
+      sessions: await this.sessionManager.getStats(),
+      uptime: process.uptime()
+    };
+  }
+  
+  async printStatus() {
+    const status = await this.getStatus();
+    console.log('\\n🤖 AgentOS OpenClaw Status');
+    console.log('═══════════════════════════════════════');
+    console.log(`Gateway: ${status.gateway.running ? '🟢 Running' : '🔴 Stopped'}`);
+    console.log(`Port: ${status.gateway.port}`);
+    console.log(`WebSocket Clients: ${status.gateway.connections}`);
+    console.log(`\\n📦 Skills Loaded: ${status.skills.loaded.join(', ')}`);
+    console.log(`🔧 Total Tools: ${status.skills.toolCount}`);
+    console.log(`\\n🤖 AI Providers: ${status.providers.join(', ')}`);
+    console.log(`📡 Channels: ${status.channels.join(', ')}`);
+    console.log(`\\n⏱️  Uptime: ${Math.floor(status.uptime / 60)}m ${Math.floor(status.uptime % 60)}s`);
+    console.log('═══════════════════════════════════════\\n');
+  }
+  
+  generateId() {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  }
+  
+  async stop() {
+    this.logger.info('Stopping Gateway...');
+    
+    this.heartbeat.stop();
+    
+    for (const [name, channel] of this.channels) {
+      if (channel.stop) await channel.stop();
+    }
+    
+    if (this.wss) {
+      this.wss.close();
+    }
+    
+    if (this.server) {
+      this.server.close();
+    }
+    
+    this.emit('stopped');
+  }
 }
 
-// ══════════════════════════════════════════════════════════════
-//  Minimal self-contained usage example (standalone test)
-// ══════════════════════════════════════════════════════════════
+module.exports = { Gateway };
 
-if (require.main === module) {
-  (async () => {
-    console.log('\n[ChaosMonkey Test] Available disruptions:');
-    console.log(JSON.stringify(ChaosMonkey.list(), null, 2));
-
-    console.log('\n[ChaosMonkey Test] Triggering latency chaos (no real Firestore needed)…');
-    const result = await CHAOS_TOOLS
-      .find(t => t.name === 'chaos_latencies')
-      .handler({ delayMs: 2000, recovery_window: 10_000 });
-
-    console.log('\n[ChaosMonkey Test] Result:', result);
-
-    console.log('\n[ChaosMonkey Test] Panic button…');
-    const panic = await CHAOS_TOOLS
-      .find(t => t.name === 'chaos_panic_button')
-      .handler();
-
-    console.log('[ChaosMonkey Test] Panic result:', panic);
-  })();
-}
-
-module.exports = { CHAOS_TOOLS, registerChaosTools };
