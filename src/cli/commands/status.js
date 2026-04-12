@@ -45,8 +45,9 @@ module.exports = (program) => {
             try {
                 const { getMikroTikClient } = require('../../core/mikrotik');
                 const mikrotik = await getMikroTikClient();
-                const stats = await mikrotik.getSystemStats();
-                console.log(chalk.gray('Router:'), chalk.green(`connected (${stats['cpu-load']}% CPU)`));
+             const stats = await mikrotik.getSystemStats();
+const cpuLoad = stats?.['cpu-load'] || stats?.['cpu-load'] || 'N/A';
+console.log(chalk.gray('Router:'), chalk.green(`connected (${cpuLoad}% CPU)`));
             } catch (e) {
                 console.log(chalk.gray('Router:'), chalk.red('disconnected'));
             }
