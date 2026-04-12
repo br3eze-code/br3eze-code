@@ -21,6 +21,13 @@
     "preuninstall": "node scripts/preuninstall.js",
     "clean":       "rm -rf dist"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+    "repository": {
+    "type": "git",
+    "url": "https://github.com/br3eze-code/br3ezeclaw.git"
+  },
   "files": [
     "bin/",
     "src/",
