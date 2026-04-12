@@ -1,116 +1,224 @@
-'use strict';
 /**
- * AgentOS Gateway
- * @module core/gateway
- * @version 2026.04 
+ * ╔══════════════════════════════════════════════════════════════════╗
+ * ║   AgentOS — Gateway.js                                           ║
+ * ║                                                                  ║
+ * ╚══════════════════════════════════════════════════════════════════╝
+ *
+
  */
 
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
+'use strict';
 
-const { createApp }             = require('./server');
-const { WebSocketGateway }      = require('./websocket');
-const { AgentOSBot }            = require('./telegram');
-const { getMikroTikClient }     = require('./mikrotik');
-const { getAgentRuntime }       = require('./agentRuntime');
-const { getConfig, STATE_PATH } = require('./config');
-const { logger }                = require('./logger');
-const { PermissionMode }        = require('./permissions');
+// ── import  ───────────────────────────────
+const ChaosMonkey = require('./core/ChaosMonkey');
 
-class Gateway {
-    constructor(options = {}) {
-        this.config        = getConfig();
-        this.options       = options;
-        this.server        = null;
-        this.wss           = null;
-        this.bot           = null;
-        this.runtime       = null;
-        this.pidFile       = path.join(STATE_PATH, 'gateway.pid');
-        this._shuttingDown = false;
+// ── Tool Schema (Gemini / Anthropic / OpenAI compatible) ──────
+// ─────────────────────────────────────────────────────────────
+
+const CHAOS_TOOLS = [
+
+  // ── Networking ─────────────────────────────────────────────
+
+  {
+    name:        'chaos_drop_firewall_rules',
+    description: 'CHAOS: Randomly disable 3 MikroTik firewall filter rules to test Sentinel self-healing.',
+    parameters: {
+      type: 'object',
+      properties: {
+        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
+      },
+    },
+    handler: async ({ recovery_window } = {}) => {
+      const rosCfg = {
+        host:     process.env.ROS_HOST,
+        user:     process.env.ROS_USER,
+        password: process.env.ROS_PASS,
+      };
+      return ChaosMonkey.Networking.dropFirewallRules(rosCfg, {
+        recovery_window: recovery_window ?? 60_000,
+        sentinelCheck: async (chaos_id) => {
+          return false; 
+        },
+      });
+    },
+  },
+
+  {
+    name:        'chaos_throttle_bandwidth',
+    description: 'CHAOS: Apply a 64k global simple queue on MikroTik to simulate bandwidth bottleneck.',
+    parameters: {
+      type: 'object',
+      properties: {
+        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
+      },
+    },
+    handler: async ({ recovery_window } = {}) => {
+      const rosCfg = {
+        host:     process.env.ROS_HOST,
+        user:     process.env.ROS_USER,
+        password: process.env.ROS_PASS,
+      };
+      return ChaosMonkey.Networking.throttleBandwidth(rosCfg, {
+        recovery_window: recovery_window ?? 60_000,
+      });
+    },
+  },
+
+  {
+    name:        'chaos_ghost_api',
+    description: 'CHAOS: Open ghost sockets to the RouterOS API port to simulate Kernel interrupt / connection pool exhaustion.',
+    parameters: {
+      type: 'object',
+      properties: {
+        count:           { type: 'number',  description: 'Number of ghost sockets (default 3).' },
+        recovery_window: { type: 'number',  description: 'Recovery window in ms (default 60000).' },
+      },
+    },
+    handler: async ({ count, recovery_window } = {}) => {
+      const rosCfg = {
+        host: process.env.ROS_HOST,
+        port: parseInt(process.env.ROS_PORT ?? '8728', 10),
+      };
+      return ChaosMonkey.Networking.ghostAPI(rosCfg, {
+        count:           count           ?? 3,
+        recovery_window: recovery_window ?? 60_000,
+      });
+    },
+  },
+
+  // ── Commerce ───────────────────────────────────────────────
+
+  {
+    name:        'chaos_corrupt_indexeddb',
+    description: 'CHAOS: Inject a malformed JSON record into the local commerce catalog IDB store.',
+    parameters: {
+      type: 'object',
+      properties: {
+        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
+      },
+    },
+    handler: async ({ recovery_window } = {}) => {
+      return ChaosMonkey.Commerce.corruptIndexedDB({
+        recovery_window: recovery_window ?? 60_000,
+      });
+    },
+  },
+
+  {
+    name:        'chaos_latencies',
+    description: 'CHAOS: Add a 5000ms latency shim to all Firestore sync calls.',
+    parameters: {
+      type: 'object',
+      properties: {
+        delayMs:         { type: 'number', description: 'Delay in ms (default 5000).' },
+        recovery_window: { type: 'number', description: 'Recovery window in ms (default 60000).' },
+      },
+    },
+    handler: async ({ delayMs, recovery_window } = {}) => {
+      return ChaosMonkey.Commerce.latencies({
+        delayMs:         delayMs         ?? 5000,
+        recovery_window: recovery_window ?? 60_000,
+      });
+    },
+  },
+
+  // ── Safety ────────────────────────────────────────────────
+
+  {
+    name:        'chaos_panic_button',
+    description: 'SAFETY: Instantly restore all AgentOS systems to last known Good State. Reverses all active chaos disruptions.',
+    parameters:  { type: 'object', properties: {} },
+    handler: async () => {
+      const rosCfg = {
+        host:     process.env.ROS_HOST,
+        user:     process.env.ROS_USER,
+        password: process.env.ROS_PASS,
+      };
+      return ChaosMonkey.panicButton(rosCfg);
+    },
+  },
+
+  // ── Meta ──────────────────────────────────────────────────
+
+  {
+    name:        'chaos_status',
+    description: 'Return the list of currently active chaos disruptions.',
+    parameters:  { type: 'object', properties: {} },
+    handler:     async () => ChaosMonkey.status(),
+  },
+
+  {
+    name:        'chaos_list',
+    description: 'List all registered chaos domains and their available disruption functions.',
+    parameters:  { type: 'object', properties: {} },
+    handler:     async () => ChaosMonkey.list(),
+  },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  Gateway.js — registration 
+//  ────────────────────────────────────────────────────────────
+
+
+
+function registerChaosTools(gateway) {
+  for (const tool of CHAOS_TOOLS) {
+    // ── Pattern A: array push ────
+    if (Array.isArray(gateway.tools)) {
+      gateway.tools.push(tool);
     }
 
-    async start() {
-        const port = this.options.port || this.config.gateway?.port || 19876;
-        const host = this.config.gateway?.host || '127.0.0.1';
-
-        logger.info(`Starting AgentOS Gateway v${this.config.version}...`);
-
-        // ── Bootstrap AgentRuntime ──
-        this.runtime = getAgentRuntime({
-            permissionMode:    this.config.agent?.permissionMode || PermissionMode.PROMPT,
-            maxTurns:          this.config.agent?.maxTurns       || 8,
-            maxBudgetTokens:   this.config.agent?.maxBudgetTokens || 4000,
-            compactAfterTurns: this.config.agent?.compactAfterTurns || 12
-        });
-        logger.info(`AgentRuntime ready — mode: ${this.runtime.defaultConfig.permissionMode}, maxTurns: ${this.runtime.defaultConfig.maxTurns}`);
-
-        // ── Connect MikroTik ──
-        logger.info('Connecting to MikroTik...');
-        try {
-            await getMikroTikClient().connect();
-        } catch (err) {
-            logger.warn(`MikroTik offline at startup: ${err.message} — gateway still starting`);
-        }
-
-        // ── HTTP server ──
-        const app   = createApp();
-        this.server = http.createServer(app);
-
-        // ── WebSocket ──
-        this.wss = new WebSocketGateway(this.server);
-
-        // ── Telegram bot ──
-        if (this.config.telegram?.token) {
-            logger.info('Starting Telegram bot...');
-            this.bot = new AgentOSBot();
-        }
-
-        await new Promise((resolve, reject) => {
-            this.server.listen(port, host, (err) => { if (err) reject(err); else resolve(); });
-        });
-
-        fs.writeFileSync(this.pidFile, String(process.pid));
-
-        logger.info(`✅ Gateway running on ${host}:${port}`);
-        logger.info(`   WebSocket    : ws://${host}:${port}/ws`);
-        logger.info(`   HTTP API     : http://${host}:${port}/health`);
-        logger.info(`   Permission   : ${this.runtime.defaultConfig.permissionMode}`);
-
-        this._registerSignalHandlers();
-        return this;
+    // ── Pattern B: registerTool() method ─────────────────
+    if (typeof gateway.registerTool === 'function') {
+      gateway.registerTool(tool.name, tool.handler, {
+        description: tool.description,
+        parameters:  tool.parameters,
+      });
     }
 
-    async stop() {
-        if (this.bot)    this.bot.stop();
-        if (this.wss)    this.wss.close();
-        if (this.server) await new Promise(resolve => this.server.close(resolve));
-        if (fs.existsSync(this.pidFile)) fs.unlinkSync(this.pidFile);
+    // ── Pattern C: toolRegistry Map ──────────────────────
+    if (gateway.toolRegistry instanceof Map) {
+      gateway.toolRegistry.set(tool.name, tool);
     }
+  }
 
-    async shutdown(signal) {
-        if (this._shuttingDown) return;
-        this._shuttingDown = true;
-        logger.info(`${signal} received — shutting down...`);
-        const forceTimer = setTimeout(() => { logger.error('Forced shutdown'); process.exit(1); }, 10_000);
-        forceTimer.unref();
-        try { await this.stop(); logger.info('Gateway stopped cleanly'); }
-        catch (err) { logger.error('Shutdown error:', err.message); }
-        finally { clearTimeout(forceTimer); process.exit(signal === 'ERROR' ? 1 : 0); }
-    }
+  ChaosMonkey.on('recovered', data => {
+    if (typeof gateway.emit === 'function') gateway.emit('sentinel:recovered', data);
+  });
+  ChaosMonkey.on('timeout', data => {
+    if (typeof gateway.emit === 'function') gateway.emit('sentinel:timeout', data);
+  });
+  ChaosMonkey.on('panic', data => {
+    if (typeof gateway.emit === 'function') gateway.emit('chaos:restored', data);
+  });
 
-    _registerSignalHandlers() {
-        process.once('SIGTERM',          () => this.shutdown('SIGTERM'));
-        process.once('SIGINT',           () => this.shutdown('SIGINT'));
-        process.on('uncaughtException',  (err) => { logger.error('Uncaught Exception:', err); this.shutdown('ERROR'); });
-        process.on('unhandledRejection', (r)   => { logger.error('Unhandled Rejection:', r);  this.shutdown('ERROR'); });
-    }
+  console.log(`[Gateway] ChaosMonkey registered — ${CHAOS_TOOLS.length} tools active.`);
+  return CHAOS_TOOLS.length;
 }
 
-async function startGateway(options = {}) {
-    const gateway = new Gateway(options);
-    await gateway.start();
-    return gateway;
+// ══════════════════════════════════════════════════════════════
+//  Minimal self-contained usage example (standalone test)
+// ══════════════════════════════════════════════════════════════
+
+if (require.main === module) {
+  (async () => {
+    console.log('\n[ChaosMonkey Test] Available disruptions:');
+    console.log(JSON.stringify(ChaosMonkey.list(), null, 2));
+
+    console.log('\n[ChaosMonkey Test] Triggering latency chaos (no real Firestore needed)…');
+    const result = await CHAOS_TOOLS
+      .find(t => t.name === 'chaos_latencies')
+      .handler({ delayMs: 2000, recovery_window: 10_000 });
+
+    console.log('\n[ChaosMonkey Test] Result:', result);
+
+    console.log('\n[ChaosMonkey Test] Panic button…');
+    const panic = await CHAOS_TOOLS
+      .find(t => t.name === 'chaos_panic_button')
+      .handler();
+
+    console.log('[ChaosMonkey Test] Panic result:', panic);
+  })();
 }
 
-module.exports = { Gateway, startGateway };
+module.exports = { CHAOS_TOOLS, registerChaosTools };
