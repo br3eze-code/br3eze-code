@@ -158,9 +158,4 @@ class ProviderManager {
 }
 
 module.exports = { ProviderManager };
-'''
 
-with open(f"{base_path}/src/core/provider-manager.js", "w") as f:
-    f.write(provider_manager_js)
-
-print("✓ src/core/provider-manager.js")
