@@ -103,6 +103,12 @@ program.on('--help', () => {
     console.log(chalk.gray('Docs: https://docs.agentos.ai/cli'));
 });
 
+// Error handlers
+process.on('unhandledRejection', (reason) => {
+  console.error(chalk.red('Error:'), reason);
+  process.exit(1);
+});
+
 // Parse arguments
 program.parse();
 
