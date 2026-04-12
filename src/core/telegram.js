@@ -2,8 +2,7 @@
 /**
  * AgentOS Telegram Bot
  * @module core/telegram
- * @version 2026.04 
- *
+ * @version 2026.04
  */
 
 const TelegramBot        = require('node-telegram-bot-api');
@@ -267,7 +266,6 @@ class AgentOSBot {
         await this.bot.sendMessage(msg.chat.id, lines.join('\n'), { parse_mode: 'Markdown' });
     }
 
- 
     async handleSession(msg) {
         if (!this.checkAuth(msg)) return;
         const engine = AgentRuntime._sharedEngine;
