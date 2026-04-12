@@ -1,0 +1,50 @@
+
+{
+  "id": "production-agent-01",
+  "skillsPath": "./skills",
+  "memoryAdapter": "firebase",
+  "llmProvider": "gemini",
+  "llmConfig": {
+    "apiKey": "${GEMINI_API_KEY}",
+    "model": "gemini-2.5-flash"
+  },
+  "channels": [
+    {
+      "type": "telegram",
+      "config": {
+        "token": "${TELEGRAM_BOT_TOKEN}",
+        "polling": true
+      }
+    },
+    {
+      "type": "whatsapp",
+      "config": {
+        "authPath": "./auth/whatsapp",
+        "syncFullHistory": false
+      }
+    },
+    {
+      "type": "websocket",
+      "config": {
+        "port": 8080,
+        "path": "/ws"
+      }
+    }
+  ],
+  "workflows": {
+    "onboarding": {
+      "steps": [
+        { "skill": "user.create", "output": "user" },
+        { "skill": "welcome.send", "params": { "user": "$user" } },
+        { "skill": "tutorial.start", "condition": { "var": "user.isNew", "op": "eq", "value": true } }
+      ]
+    }
+  },
+  "security": {
+    "rateLimit": {
+      "windowMs": 60000,
+      "maxRequests": 100
+    },
+    "allowedOrigins": ["https://dashboard.agentos.dev"]
+  }
+}
