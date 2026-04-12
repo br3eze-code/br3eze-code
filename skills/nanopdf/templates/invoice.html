@@ -1,0 +1,60 @@
+<!-- skills/nanopdf/templates/invoice.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .company { font-size: 24px; font-weight: bold; }
+    .invoice-title { font-size: 18px; color: #666; margin-top: 10px; }
+    .details { margin: 20px 0; }
+    .details-row { display: flex; justify-content: space-between; margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #f5f5f5; }
+    .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company">{{companyName}}</div>
+    <div class="invoice-title">INVOICE #{{invoiceNumber}}</div>
+  </div>
+  
+  <div class="details">
+    <div class="details-row">
+      <span>Bill To: {{customerName}}</span>
+      <span>Date: {{date}}</span>
+    </div>
+    <div class="details-row">
+      <span>{{customerAddress}}</span>
+      <span>Due Date: {{dueDate}}</span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>Quantity</th>
+        <th>Price</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#items}}
+      <tr>
+        <td>{{description}}</td>
+        <td>{{quantity}}</td>
+        <td>${{price}}</td>
+        <td>${{total}}</td>
+      </tr>
+      {{/items}}
+    </tbody>
+  </table>
+
+  <div class="total">
+    Total: ${{totalAmount}}
+  </div>
+</body>
+</html>
