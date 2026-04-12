@@ -1,0 +1,33 @@
+// skills/tasks/skill.json
+{
+  "name": "tasks",
+  "version": "1.0.0",
+  "description": "Task and project management",
+  "domain": "productivity",
+  "entry": "index.js",
+  "parameters": {
+    "action": {
+      "type": "string",
+      "enum": ["create", "list", "update", "delete", "assign", "complete"],
+      "required": true
+    },
+    "provider": {
+      "type": "string",
+      "enum": ["local", "todoist", "asana", "trello", "notion"],
+      "default": "local"
+    },
+    "task": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+        "dueDate": { "type": "string" },
+        "assignee": { "type": "string" },
+        "tags": { "type": "array" },
+        "project": { "type": "string" }
+      }
+    }
+  }
+}
