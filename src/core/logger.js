@@ -1,10 +1,15 @@
 /**
  * Structured Logger with Winston
+ * @module core/logger
  */
 const { v4: uuidv4 } = require('uuid');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
+const { AsyncLocalStorage } = require('async_hooks');
+
+// Create async local storage for correlation IDs
+const asyncLocalStorage = new AsyncLocalStorage();
 
 const correlationId = (req, res, next) => {
   const id = req.headers['x-correlation-id'] || uuidv4();
@@ -19,6 +24,12 @@ format: winston.format.combine(
   })(),
   winston.format.json()
 )
+  // Run request in async context with correlation ID
+  asyncLocalStorage.run(new Map(), () => {
+    asyncLocalStorage.getStore().set('correlationId', id);
+    next();
+  });
+};
 // Ensure log directory exists
 const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
@@ -51,6 +62,13 @@ const logger = winston.createLogger({
   
   format: combine(
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+   winston.format((info) => {
+      const store = asyncLocalStorage.getStore();
+      if (store) {
+        info.correlationId = store.get('correlationId');
+      }
+      return info;
+    })(),
     errors({ stack: true })
   ),
   
@@ -65,6 +83,12 @@ const logger = winston.createLogger({
     // Combined log
     new winston.transports.File({
       filename: path.join(logDir, 'combined.log'),
+      format: json()
+    }),
+      // Audit log
+    new winston.transports.File({
+      filename: path.join(logDir, 'audit.log'),
+      level: 'info',
       format: json()
     }),
     
@@ -84,8 +108,23 @@ const logger = winston.createLogger({
   ],
   
   // Handle unhandled promise rejections
+  
   rejectionHandlers: [
     new winston.transports.File({ filename: path.join(logDir, 'rejections.log') })
+  ]
+});
+
+// Audit logger for security events
+
+const auditLogger = winston.createLogger({
+  level: 'info',
+  format: combine(
+    timestamp(),
+    json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: path.join(logDir, 'audit.log') }),
+    new winston.transports.Console({ format: winston.format.simple() })
   ]
 });
 
@@ -94,4 +133,13 @@ logger.child = (meta) => {
   return logger.child(meta);
 };
 
-module.exports = { logger };
+// Helper to log audit events
+logger.audit = (event, details) => {
+  auditLogger.info(event, { ...details, type: 'audit' });
+};
+
+module.exports = { 
+  logger, 
+  correlationIdMiddleware,
+  asyncLocalStorage 
+};
