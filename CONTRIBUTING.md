@@ -110,3 +110,22 @@ See also: Dockerfile, docker-compose.yml, flake.nix
 
 ```bash
 agentos gateway --telegram
+
+Features:
+
+Natural language commands
+Inline keyboards for confirmations
+Voucher delivery with QR code
+
+**`docs/whatsapp.md`**
+
+```markdown
+# WhatsApp Integration (Baileys)
+
+Uses multi-device Baileys library.
+
+1. Set `WHATSAPP_ENABLED=true` in `.env`
+2. Run the gateway
+3. Scan the QR code from the terminal (first time only)
+
+Supports the same natural language commands as Telegram.
