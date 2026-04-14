@@ -4,8 +4,9 @@
 // List, run, and manage agent skills
 // ==========================================
 
-const chalk = require('chalk');
-const path  = require('path');
+const _chalk = require('chalk');
+const chalk  = _chalk.default || _chalk;
+const path   = require('path');
 
 module.exports = (program) => {
   const skill = program
