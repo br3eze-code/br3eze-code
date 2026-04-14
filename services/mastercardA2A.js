@@ -243,7 +243,18 @@ class MastercardA2AService {
      * Check payment status
      */
     async getPaymentStatus(paymentId) {
-        const url = `${this.config.baseURL}${this.basePath}/${this.config.partnerId}/payments/${paymentId}`;
+        const normalizedPaymentId = String(paymentId || '').trim();
+
+        // Allow-list expected Mastercard payment ID characters to prevent URL/path injection
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(normalizedPaymentId)) {
+            return {
+                success: false,
+                error: 'Invalid paymentId format',
+            };
+        }
+
+        const safePaymentId = encodeURIComponent(normalizedPaymentId);
+        const url = `${this.config.baseURL}${this.basePath}/${this.config.partnerId}/payments/${safePaymentId}`;
 
         const headers = {
             'Authorization': this.generateOAuthSignature('GET', url),
