@@ -64,7 +64,7 @@ class SkillRegistry extends EventEmitter {
 
       let impl;
       if (fss.existsSync(implPath)) {
-        impl = require(implPath);
+        impl = require(path.resolve(implPath));
       } else {
         // Stub implementation — skill is metadata-only
         impl = {};
@@ -97,15 +97,19 @@ class SkillRegistry extends EventEmitter {
     }
   }
 
-  /** Tiny YAML scalar parser — handles top-level string/number fields only */
+  /** Tiny YAML scalar parser — handles ONLY top-level (non-indented) string/number fields */
   _parseSimpleYaml(raw) {
     const result = {};
     for (const line of raw.split('\n')) {
+      // Skip blank lines, comments, and indented lines (arrays/nested maps)
+      if (!line.trim() || line.startsWith('#') || /^\s/.test(line)) continue;
       const m = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.+)$/);
       if (m) {
         const [, key, val] = m;
-        const trimmed = val.trim().replace(/^['"]|['"]$/g, '');
-        result[key] = isNaN(trimmed) ? trimmed : Number(trimmed);
+        const trimmed = val.trim().replace(/^['"\[].*/, '').trim() // skip arrays/objects
+                        || val.trim().replace(/^['"](.*)['"]$/, '$1');
+        if (!trimmed) continue;
+        result[key] = isNaN(trimmed) ? val.trim().replace(/^['"](.*)['"]$/, '$1') : Number(trimmed);
       }
     }
     return result;
