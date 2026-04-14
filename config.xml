@@ -137,4 +137,6 @@
     </intent>
 </queries>
     </platform>
+
+    <plugin name="cordova-plugin-wifiwizard2" />
 </widget>
