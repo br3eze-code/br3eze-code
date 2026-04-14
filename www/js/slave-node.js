@@ -444,6 +444,8 @@ class SlaveNode {
                 return await this.wifiDisconnect();
             case 'wifi.scan':
                 return await this.wifiScan();
+            case 'wifi.suggest':
+                return await this.wifiSuggest(params.ssid, params.password);
             case 'ping':
                 return await this.pingHost(params.host, params.count);
             case 'dns':
@@ -457,7 +459,38 @@ class SlaveNode {
         if (!this.capabilities.wifi) {
             throw new Error('WiFi control not available on this platform');
         }
+        
+        // Use WifiWizard2 if available (Android/iOS)
+        if (window.WifiWizard2) {
+            return new Promise((resolve, reject) => {
+                window.WifiWizard2.connect(ssid, true, password, 'WPA', (result) => {
+                    resolve({ ssid, connected: true, result });
+                }, (error) => {
+                    reject(new Error(`WiFi connection failed: ${error}`));
+                });
+            });
+        }
+
         return { ssid, connected: true, message: 'WiFi connection simulated' };
+    }
+
+    async wifiSuggest(ssid, password) {
+        if (this.platform !== 'android') {
+            throw new Error('WiFi Suggestion is only available on Android 10+');
+        }
+
+        if (!window.WifiWizard2) {
+            throw new Error('WifiWizard2 plugin not available');
+        }
+
+        return new Promise((resolve, reject) => {
+            // suggestConnection(ssid, password, algorithm, isHiddenSSID)
+            window.WifiWizard2.suggestConnection(ssid, password, 'WPA', false, (result) => {
+                resolve({ ssid, suggested: true, result });
+            }, (error) => {
+                reject(new Error(`WiFi Suggestion failed: ${error}`));
+            });
+        });
     }
 
     async wifiDisconnect() {
