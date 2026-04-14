@@ -7,11 +7,11 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { BaseProvider } = require('./base');
 
 class GeminiProvider extends BaseProvider {
-  constructor(options = {}) {
-    super(options);
+  constructor(config = {}) {
+    super(config);
     this.name = 'gemini';
-    this.apiKey = options.apiKey || process.env.GEMINI_API_KEY;
-    this.modelName = options.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash-preview-05-20';
+    this.apiKey = config.apiKey || process.env.GEMINI_API_KEY;
+    this.modelName = config.model || process.env.GEMINI_MODEL;
     
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured');
@@ -116,7 +116,7 @@ class GeminiProvider extends BaseProvider {
   }
 }
 
-module.exports = { GeminiProvider };
+module.exports = GeminiProvider;
 
 
 
