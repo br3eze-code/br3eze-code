@@ -804,6 +804,70 @@ html, body {
     }
 }
 
+/* WhatsApp Integration */
+.whatsapp-status-card {
+    background: var(--bg);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.status-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.status-dot.disconnected {
+    background: var(--error);
+}
+
+.status-dot.connected {
+    background: var(--success);
+}
+
+.status-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.qr-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 0;
+}
+
+.qr-container p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.qr-image {
+    max-width: 250px;
+    height: auto;
+    border: 8px solid white;
+    box-shadow: var(--shadow);
+    border-radius: var(--radius-sm);
+}
+
+.btn-small {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    width: auto !important;
+}
+
 /* Loading Spinner */
 .loading-spinner {
     text-align: center;
