@@ -1,0 +1,22 @@
+[
+  {
+    "id": "core-rtr-01",
+    "name": "Main",
+    "host": "192.168.88.1",
+    "user": "admin",
+    "password": "ChangeMe123!",
+    "wan_interface": "ether1",
+    "lan_ip": "192.168.88.1/24",
+    "role": "core"
+  },
+  {
+    "id": "branch-rtr-02",
+    "name": "Branch RB5009",
+    "host": "192.168.1.1",
+    "user": "admin",
+    "password": "ChangeMe123!",
+    "wan_interface": "ether1",
+    "lan_ip": "10.5.50.1/16",
+    "role": "branch"
+  }
+]
