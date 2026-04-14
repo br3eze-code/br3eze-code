@@ -1,4 +1,3 @@
-// skills/freeze.js - CommonJS version
 const fs = require('fs/promises');
 
 const freeze = {
@@ -20,7 +19,7 @@ const freeze = {
       const frozen = soul.includes('self_edit enabled: false');
       return {
         success: true,
-        message: frozen ? 
+        message: frozen?
           `🛑 *FROZEN*: Self-modification disabled. AgentOS cannot edit itself or create skills.` :
           `✅ *ACTIVE*: Self-modification enabled. AgentOS can self-edit and create skills.`
       };
@@ -31,10 +30,7 @@ const freeze = {
       soul = soul.replace(/skill_create enabled: true/g, 'skill_create enabled: false');
       await fs.writeFile(soulPath, soul);
       await fs.appendFile(soulPath, `\n## FREEZE ${new Date().toISOString()}\nUser executed /freeze. Self-modification disabled.\n`);
-      return {
-        success: true,
-        message: `🛑 *FROZEN*: AgentOS self-modification disabled.\n\nself_edit: false\nskill_create: false\n\nUse \`freeze unfreeze\` to re-enable.`
-      };
+      return { success: true, message: `🛑 *FROZEN*: Self-modification disabled.\n\nself_edit: false\nskill_create: false\n\nUse \`freeze unfreeze\` to re-enable.` };
     }
 
     if (action === 'unfreeze') {
@@ -42,10 +38,7 @@ const freeze = {
       soul = soul.replace(/skill_create enabled: false/g, 'skill_create enabled: true');
       await fs.writeFile(soulPath, soul);
       await fs.appendFile(soulPath, `\n## UNFREEZE ${new Date().toISOString()}\nUser executed /unfreeze. Self-modification re-enabled.\n`);
-      return {
-        success: true,
-        message: `✅ *UNFROZEN*: AgentOS self-modification re-enabled.\n\nself_edit: true\nskill_create: true\n\nAgentOS can now self-edit and create skills.`
-      };
+      return { success: true, message: `✅ *UNFROZEN*: Self-modification re-enabled.\n\nself_edit: true\nskill_create: true` };
     }
   }
 };
