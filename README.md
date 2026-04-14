@@ -21,10 +21,10 @@
 
 <p align="center">
   <a href="#features">Features</a> •
-  <a href="#quick-start">[**Quick Start**](#quick-start)</a> •
-  <a href="#documentation">[**Docs**](docs/)</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#documentation">docs/</a> •
   <a href="#demo">Demo</a> •
-  <a href="#contributing">[**Contributing**](CONTRIBUTING.md)</a>
+  <a href="#contributing">CONTRIBUTING.md</a>
 </p>
 
 ---
