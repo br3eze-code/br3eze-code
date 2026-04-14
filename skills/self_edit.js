@@ -3,11 +3,11 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const SAFE_DIRS = ['./skills', './agents', './knowledge'];
-const FORBIDDEN = ['/system', '/etc', 'package.json', 'node_modules', '.env'];
+const FORBIDDEN = ['/system', '/etc', 'package.json', 'node_modules', '.env', 'server/gateway.js'];
 
 const self_edit = {
   name: "self_edit",
-  description: "CRITICAL: Modify AgentOS source files to fix bugs or add features.",
+  description: "CRITICAL: Modify AgentOS source files to fix bugs or add features. Requires soul.md authorization.",
   parameters: {
     type: "object",
     properties: {
@@ -22,7 +22,7 @@ const self_edit = {
   run: async ({ file, reason, operation, code }, { logger, gemini }) => {
     const soul = await fs.readFile('./knowledge/soul.md', 'utf8');
     if (!soul.includes('self_edit enabled: true')) {
-      throw new Error('Blocked: self_edit not authorized. Run /freeze unfreeze first.');
+      throw new Error('Blocked by soul.md: self_edit not authorized. Run freeze unfreeze first.');
     }
 
     const absPath = path.resolve(file);
@@ -31,7 +31,7 @@ const self_edit = {
     if (!isSafe || isForbidden) throw new Error(`Blocked: Cannot edit ${file}`);
 
     const review = await gemini.generate({
-      prompt: `Review this self-edit. Is it safe per soul.md?\nFile: ${file}\nReason: ${reason}\nCode:\n${code.slice(0, 2000)}\nReply: SAFE or UNSAFE`
+      prompt: `Review self-edit for safety per soul.md rules.\nFile: ${file}\nReason: ${reason}\nCode:\n${code.slice(0, 2000)}\nReply: SAFE or UNSAFE: <reason>`
     });
     if (!review.text.includes('SAFE')) throw new Error(`Blocked by Gemini: ${review.text}`);
 
@@ -51,7 +51,8 @@ const self_edit = {
         throw new Error(`Syntax error. Rolled back. ${e.message}`);
       }
     }
-    return { success: true, file, backup, warning: 'Restart required' };
+    logger.info(`SELF_EDIT: ${file} modified`);
+    return { success: true, file, backup, warning: 'Restart AgentOS to apply changes' };
   }
 };
 
