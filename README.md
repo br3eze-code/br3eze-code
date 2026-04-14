@@ -1,4 +1,10 @@
-
+<div align="center">
+█████╗  ██████╗ ███████╗███╗   ██╗████████╗ ██████╗ ███████╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔═══██╗██╔════╝
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ██║   ██║███████╗
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ██║   ██║╚════██║
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ╚██████╔╝███████║
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚══════╝
 <p align="center">
   <img src="https://img.shields.io/badge/AgentOS-2026.5.2-blue?style=for-the-badge&logo=router&logoColor=white" alt="Version">
   <img src="https://img.shields.io/badge/MikroTik-RouterOS-green?style=for-the-badge&logo=mikrotik" alt="MikroTik">
@@ -6,6 +12,7 @@
 </p>
 <h1 align="center">🤖 AgentOS</h1>
 <p align="center"><strong>Network Intelligence Platform — AI-powered MikroTik management via Telegram, WhatsApp & CLI</strong></p>
+
 <p align="center">
   <a href="#features">Features</a> •
   <a href="#quick-start">Quick Start</a> •
@@ -33,15 +40,14 @@ Managing MikroTik routers shouldn't require memorizing CLI commands or keeping W
 <td width="50%">
 
 ### 🤖 AI Coordinator
-- Natural language router management
-- Gemini 2.5 ReAct reasoning engine
-- Context-aware command suggestions
-
-### 💬 Multi-Channel Control
-- **Telegram Bot** — Rich inline keyboards
-- **WhatsApp** — Baileys-powered messaging
-- **WebSocket CLI** — Terminal-like experience in browser
-- **REST API** — Programmatic access
+- **Natural language router management via Gemini 2.5 Flash
+- **ReAct reasoning engine with 5-turn depth
+- **Context-aware command suggestions and error recovery
+- **AgentMemory for persistent session state
+💬 Multi-Channel Control
+```
+ChannelStatusNotesTelegram Bot✅ ProductionInline keyboards, button menusWhatsApp✅ ProductionBaileys-powered, no Meta API neededWebSocket CLI✅ ProductionBrowser terminal experienceREST API✅ ProductionProgrammatic/webhook accessRouterOS Native✅ ProductionOn-device Sentinel agent (.rsc)
+```
 
 </td>
 <td width="50%">
@@ -198,34 +204,34 @@ tail -f logs/agentos.log
                     │   (routeros-client)     │
                     └─────────────────────────┘
 ```
-## Folder Structure
+Repository Structure
 ```
-agentos/
-├── bin/
-│   └── agentos.js              # CLI entry point
+br3eze-code/
+├── agentos.mjs              Main entry (ESM)
+├── agentos-sentinel.rsc     RouterOS native agent
+├── mikro.rsc                RouterOS bootstrap scripts
+├── bin/agentos.js           CLI entry point
 ├── src/
-│   ├── cli/
-│   │   ├── program.js          # Commander setup
-│   │   ├── commands/
-│   │   │   ├── gateway.js      # agentos gateway (run|stop|status)
-│   │   │   ├── network.js      # agentos network (ping|scan|firewall)
-│   │   │   ├── users.js        # agentos users (list|kick|add)
-│   │   │   ├── voucher.js      # agentos voucher (create|list|revoke)
-│   │   │   ├── onboard.js      # agentos onboard (interactive setup)
-│   │   │   ├── config.js       # agentos config (get|set)
-│   │   │   └── doctor.js       # agentos doctor (health check)
-│   │   └── hooks/
-│   │       └── init.js         # Pre-command checks
 │   ├── core/
-│   │   ├── gateway.js          # WebSocket server
-│   │   ├── mikrotik.js         # RouterOS manager
-│   │   ├── database.js         # Firebase/local storage
-│   │   └── logger.js           # Winston logger
-│   └── utils/
-│       ├── helpers.js          # Formatters, validators
-│       └── config-manager.js   # Config file operations
-├── package.json
-└── README.md
+│   │   ├── mikrotik.js      RouterOS manager
+│   │   ├── gateway.js       WebSocket server
+│   │   ├── database.js      Firebase/local DB
+│   │   └── logger.js        Winston logger
+│   └── cli/
+│       ├── program.js       Commander setup
+│       └── commands/        CLI subcommands
+├── agents/                  AI agent modules
+├── services/                Billing, voucher, payment
+├── adapters/                Channel adapters (TG, WA)
+├── skills/                  Agent skill definitions
+├── workflows/               Automation workflows
+├── apps/shared/AgentOSkit/  Shared SDK
+├── custom-plugins/          Cordova plugin: aicore
+├── vscode-extension/        VS Code extension
+├── www/                     Web UI (cyberpunk portal)
+├── docs/                    Documentation
+├── tests/                   Test suites
+└── scripts/                 Deployment scripts
 ```
 ## Command Line Interface Tree
 ```
@@ -300,8 +306,10 @@ Quick Contributions
 💡 Suggest features via Discussions
 📖 Improve documentation
 🔧 Submit PRs for good first issues
-📜 License
-Apache © 2026 [Brighton Mzacana]
+
+📜License
+Apache 2.0 © 2026 Brighton Mzacana · br3eze.africa
+
 <p align="center">
   <a href="https://github.com/br3eze-code/br3ezeclaw/stargazers">
     <img src="https://img.shields.io/github/stars/br3eze-code/br3ezeclaw?style=social" alt="Stars">
@@ -310,6 +318,11 @@ Apache © 2026 [Brighton Mzacana]
     <img src="https://img.shields.io/github/forks/br3eze-code/br3ezeclaw?style=social" alt="Forks">
   </a>
 </p>
-<p align="center"><strong>⭐ Star this repo if it helps you manage your network!</strong></p>
+<p align="center">
+  <strong>⭐ Star this repo if it helps you manage your network!</strong></p>
+
+<div align="center">
+<sub>Built for Africa's community networks · Powered by AI · Controlled via Telegram</sub>
+</div
 
 
