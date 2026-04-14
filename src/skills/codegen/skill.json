@@ -1,0 +1,41 @@
+{
+  "name": "codegen",
+  "version": "1.0.0",
+  "description": "Generate code from natural language using the configured AI provider",
+  "entry": "index.js",
+  "parameters": {
+    "prompt": {
+      "type": "string",
+      "required": true,
+      "description": "Natural language description of the code to generate"
+    },
+    "language": {
+      "type": "string",
+      "required": false,
+      "description": "Target programming language (e.g. javascript, python, bash)",
+      "enum": ["javascript", "typescript", "python", "bash", "go", "rust", "auto"],
+      "default": "auto"
+    },
+    "framework": {
+      "type": "string",
+      "required": false,
+      "description": "Framework or library context (e.g. express, react, fastapi)"
+    },
+    "outputFile": {
+      "type": "string",
+      "required": false,
+      "description": "Optional file path to write the generated code to"
+    }
+  },
+  "examples": [
+    {
+      "description": "Generate a Node.js Express route",
+      "params": { "prompt": "REST endpoint to list users from SQLite", "language": "javascript", "framework": "express" }
+    },
+    {
+      "description": "Generate a Python FastAPI endpoint",
+      "params": { "prompt": "POST /upload endpoint with file validation", "language": "python", "framework": "fastapi" }
+    }
+  ],
+  "tags": ["developer", "ai", "codegen"]
+}
