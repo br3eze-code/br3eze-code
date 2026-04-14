@@ -35,17 +35,4 @@ async function metricsHandler(req, res) {
 
 module.exports = { registry, mikrotikCommands, activeConnections, metricsMiddleware, metricsHandler };
 
-// Export middleware for Express
-export function metricsMiddleware(req, res, next) {
-  res.locals.startTime = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - res.locals.startTime;
-    // Record metrics...
-  });
-  next();
-}
 
-app.get('/metrics', (req, res) => {
-  res.set('Content-Type', registry.contentType);
-  res.end(registry.metrics());
-});
