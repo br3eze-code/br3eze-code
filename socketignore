@@ -1,0 +1,27 @@
+# Socket.dev ignore file
+# Excludes non-production paths from supply chain analysis
+
+# RouterOS scripts — not executed by Node.js
+*.rsc
+
+# Test infrastructure
+test-planner/
+tests/
+test-*.js
+*.test.js
+
+# Dev tooling
+scripts/completion.sh
+setup-podman.sh
+flake.nix
+*.ps1
+
+# Cordova mobile app (separate runtime)
+www/
+config.xml
+
+# Docs and assets
+docs/
+*.md
+*.yaml
+*.yml
