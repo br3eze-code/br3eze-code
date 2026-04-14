@@ -158,21 +158,21 @@ module.exports = (program) => {
             }
 
             // Save configuration
+            const existingToken = fs.existsSync(CONFIG_PATH)
+                ? JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))?.gateway?.token
+                : null;
+
             const config = {
                 name: BRAND.name,
                 version: BRAND.version,
                 createdAt: new Date().toISOString(),
                 mikrotik: mikrotikConfig,
                 telegram: telegramConfig,
-         const existingToken = fs.existsSync(CONFIG_PATH)
-    ? JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))?.gateway?.token
-    : null;
                 gateway: {
                     ...gatewayConfig,
                     host: '127.0.0.1',
-                  token: existingToken || process.env.AGENTOS_GATEWAY_TOKEN
-        || require('crypto').randomBytes(32).toString('hex')
-},
+                    token: existingToken || process.env.AGENTOS_GATEWAY_TOKEN || require('crypto').randomBytes(32).toString('hex')
+                },
                 plans,
                 features: {
                     vouchers: true,
