@@ -1,0 +1,12 @@
+{
+  "en": {
+    "BUY_DATA": ["buy", "purchase", "top up", "topup", "data", "add data", "buy data", "load", "credits"],
+    "FIX_CONNECTION": ["fix", "problem", "issue", "slow", "disconnect", "cannot connect", "no internet", "not working", "connection error"],
+    "CHECK_BALANCE": ["balance", "check balance", "how much", "remaining", "credit", "status", "usage"],
+    "GET_HELP": ["help", "support", "contact", "customer service", "assist", "how to", "guide"],
+    "CREATE_VOUCHER": ["create voucher", "new voucher", "generate", "make voucher", "voucher"],
+    "CHECK_USERS": ["users", "active users", "online", "connected", "who is online"],
+    "SYSTEM_STATUS": ["status", "system", "health", "router", "network status"],
+    "REBOOT": ["reboot", "restart", "reset", "power cycle"]
+  }
+}
