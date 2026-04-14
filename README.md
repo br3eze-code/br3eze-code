@@ -34,14 +34,14 @@ Managing MikroTik routers shouldn't require memorizing CLI commands or keeping W
 ### The Problem AgentOS Solves
 Managing community WiFi infrastructure across multiple MikroTik nodes is painful. WinBox requires a desktop. RouterOS CLI requires memorizing commands. Hotspot billing requires manual voucher generation. Payment collection is disconnected from provisioning.
 AgentOS collapses this into one intelligent agent you control from Telegram.
-
+```
 Before AgentOS:                    After AgentOS:
 ─────────────────                  ──────────────
 Open WinBox          ──┐           Send "kick john"
 Navigate menus         │    →      ✅ Done in 2 seconds
 Find user              │
 Right-click → Kick   ──┘
-
+```
 ---
 
 ## 🚀 Features
@@ -336,7 +336,8 @@ agentos
     ├── edit                  Open in $EDITOR
     └── show                  Display full config
 ```
-Telegram Commands
+### Telegram Commands
+```
 /start      Authenticate and show menu
 /status     Router status overview
 /users      Active user list with kick buttons
@@ -346,7 +347,7 @@ Telegram Commands
 /ping       Ping a host
 /firewall   Show firewall rules
 /help       Full command list
-
+```
 ## 📖 Full Documentation
 
 - [Installation Guide](docs/install.md)
@@ -397,7 +398,7 @@ RouterOS Sentinel
 /system/scheduler print
 ```
 
-🤝 Contributing
+### 🤝 Contributing
 We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 
 ### Quick Contributions 
@@ -408,7 +409,7 @@ We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 -📖 Improve documentation
 -🔧 Submit PRs for good first issues
 
-📜License
+### 📜License
 Apache 2.0 © 2026 Brighton Mzacana · br3eze.africa
 
 <p align="center">
