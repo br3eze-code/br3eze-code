@@ -196,7 +196,7 @@ tail -f logs/agentos.log
 - 📊 **Real-time Monitoring** — System stats, alerts, and financial reporting
 - 🔒 **Enterprise Security** — CVE-2026-1526 patched, rate-limited, audit trails
 
-🏗️ Architecture
+## 🏗️ Architecture
 ```bash
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -239,7 +239,7 @@ tail -f logs/agentos.log
                     └─────────────────┘
 ```
 ```bash
-┌──────────────────────────────────┐
+                    ┌──────────────────────────────────┐
                     │         Inbound Channels          │
                     │  Telegram │ WhatsApp │ REST │ WS  │
                     └────────────────┬─────────────────┘
@@ -270,7 +270,7 @@ tail -f logs/agentos.log
    │   + Sentinel .rsc   │  └────────────────┘
    └─────────────────────┘
 ```
-Repository Structure
+## Repository Structure
 ```
 br3eze-code/
 ├── agentos.mjs              Main entry (ESM)
@@ -336,7 +336,7 @@ agentos
     ├── edit                  Open in $EDITOR
     └── show                  Display full config
 ```
-### Telegram Commands
+## Telegram Commands
 ```
 /start      Authenticate and show menu
 /status     Router status overview
@@ -359,7 +359,7 @@ agentos
 - [Getting Started](START_HERE.md)
 - [Contributing](CONTRIBUTING.md)
 
-🛠️ Tech Stack
+## 🛠️ Tech Stack
 | Layer          | Technology                                      |
 | -------------- | ----------------------------------------------- |
 | **Runtime**    | Node.js 20 ESM                                  |
@@ -374,7 +374,7 @@ agentos
 | **Security**   | Helmet, Rate-limit, Joi                         |
 | **Logging**    | Winston                                         |
 
-Deployment
+## Deployment
 Docker
 ```bash
 docker compose up -d
@@ -399,15 +399,14 @@ RouterOS Sentinel
 ```
 
 ### 🤝 Contributing
-We welcome contributions! Please see CONTRIBUTING.md for guidelines.
+> **We welcome contributions! Please see CONTRIBUTING.md for guidelines.**
 
 ### Quick Contributions 
-
--⭐ Star this repository
--🐛 Report bugs via Issues
--💡 Suggest features via Discussions
--📖 Improve documentation
--🔧 Submit PRs for good first issues
+- ⭐ Star this repository
+- 🐛 Report bugs via Issues
+- 💡 Suggest features via Discussions
+- 📖 Improve documentation
+- 🔧 Submit PRs for good first issues
 
 ### 📜License
 Apache 2.0 © 2026 Brighton Mzacana · br3eze.africa
