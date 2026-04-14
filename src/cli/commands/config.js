@@ -3,9 +3,11 @@
 // Configuration management
 // ==========================================
 
-const chalk = require('chalk');
+const _chalk = require('chalk');
+const chalk  = _chalk.default || _chalk;
 const fs = require('fs');
-const inquirer = require('inquirer');
+const _inquirer = require('inquirer');
+const inquirer  = _inquirer.default || _inquirer;
 
 module.exports = (program) => {
     const config = program
