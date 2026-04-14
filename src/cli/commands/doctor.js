@@ -78,23 +78,31 @@ module.exports = (program) => {
             // Check 4: Dependencies (deep scan)
             if (options.deep) {
                 const depCheck = ora('Checking dependencies...').start();
-                const deps = ['node', 'npm'];
+                const os = require('os');
+                const isWin = os.platform() === 'win32';
+                const cmd = isWin ? 'where' : 'which';
+                
+                const binaries = ['node', 'npm', 'agentos'];
                 const missing = [];
 
-                deps.forEach(dep => {
+                binaries.forEach(bin => {
                     try {
-                        execSync(`which ${dep}`, { stdio: 'pipe' });
+                        execSync(`${cmd} ${bin}`, { stdio: 'pipe' });
                     } catch (e) {
-                        missing.push(dep);
+                        missing.push(bin);
                     }
                 });
 
                 if (missing.length === 0) {
-                    depCheck.succeed('All dependencies present');
-                    checks.push({ name: 'Dependencies', status: 'ok' });
+                    depCheck.succeed('All system binaries present and in PATH');
+                    checks.push({ name: 'Binaries', status: 'ok', details: binaries.join(', ') });
                 } else {
-                    depCheck.fail(`Missing: ${missing.join(', ')}`);
-                    checks.push({ name: 'Dependencies', status: 'error', details: missing.join(', ') });
+                    depCheck.fail(`Missing in PATH: ${missing.join(', ')}`);
+                    checks.push({ name: 'Binaries', status: 'error', details: `Missing: ${missing.join(', ')}` });
+                    
+                    if (isWin && missing.includes('agentos')) {
+                        console.log(chalk.gray('\n  💡 Tip: Run "npm link" in the project root to fix the "agentos" path on Windows.'));
+                    }
                 }
             }
 
