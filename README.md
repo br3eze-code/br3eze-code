@@ -248,6 +248,31 @@ tail -f logs/agentos.log
                     │   (192.168.88.1) │
                     └─────────────────┘
 ```
+### Key Subsystems
+ 
+| Module | File | Role |
+|--------|------|------|
+| Core Engine | `agentos.mjs` | Entry point, boot sequence |
+| Gateway | `server/gateway.js` | WebSocket + HTTP server |
+| MikroTik Manager | `src/core/mikrotik.js` | RouterOS API adapter |
+| AI Engine | `agents/ask-engine.js` | Gemini ReAct loop |
+| Billing | `services/billing.js` | Voucher + payment flow |
+| Sentinel | `agentos-sentinel.rsc` | On-router native agent |
+| CLI | `bin/agentos.js` | Commander.js entry |
+ 
+---
+ 
+## Billing Plans
+ 
+| Plan | Duration | Data Quota | Expires On |
+|------|----------|------------|------------|
+| 1Day | 24 hours | 7 GB | Time OR quota (first) |
+| 7Day | 7 days | 21 GB | Time OR quota (first) |
+| 30Day | 30 days | 60 GB | Time OR quota (first) |
+ 
+Payment flow: **Mastercard A2A → Firebase → Voucher Generation → MikroTik Hotspot User**
+ 
+---
 ```bash
                     ┌──────────────────────────────────┐
                     │         Inbound Channels          │
@@ -280,6 +305,8 @@ tail -f logs/agentos.log
    │   + Sentinel .rsc   │  └────────────────┘
    └─────────────────────┘
 ```
+---
+
 ## Repository Structure
 ```
 br3eze-code/
@@ -309,6 +336,7 @@ br3eze-code/
 ├── tests/                   Test suites
 └── scripts/                 Deployment scripts
 ```
+---
 ## Command Line Interface Tree
 ```
 agentos
@@ -407,19 +435,24 @@ systemctl start agentos
 # Verify
 /system/scheduler print
 ```
+---
 
 ## 🤝 Contributing
-> **We welcome contributions! Please see CONTRIBUTING.md for guidelines.**
+> **See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.**
 
 ### Quick Contributions 
 - ⭐ Star this repository
-- 🐛 Report bugs via Issues
-- 💡 Suggest features via Discussions
+- 🐛 [Open an issue](https://github.com/br3eze-code/br3eze-code/issues)
+- 💡 [Start a discussion](https://github.com/br3eze-code/br3eze-code/discussions)
 - 📖 Improve documentation
-- 🔧 Submit PRs for good first issues
+- 🔧 Submit a PR tagged `good-first-issue`
+
+---
 
 ## 📜License
 Apache 2.0 © 2026 Brighton Mzacana · br3eze.africa
+
+---
 
 <p align="center">
   <a href="https://github.com/br3eze-code/br3ezeclaw/stargazers">
