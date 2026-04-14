@@ -1,4 +1,6 @@
-// src/core/channels/BaseChannel.js
+const EventEmitter = require('events');
+const crypto = require('crypto');
+
 class BaseChannel extends EventEmitter {
   constructor(config, agent) {
     super();
