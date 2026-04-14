@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AgentOS Control Panel
+Comment=Manage AgentOS fleet
+Exec=/home/YOUR_USER/agentos-launcher.sh
+Icon=C:/Users/user/br3eze-code/extensions/chrome/logo.png
+Terminal=false
+Categories=Utility;
