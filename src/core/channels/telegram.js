@@ -1,16 +1,13 @@
-// ==========================================
-// TELEGRAM CHANNEL 
-// ==========================================
-
 const TelegramBot = require('node-telegram-bot-api');
 const https = require('https');
-const logger = require('../core/logger');
+const logger = require('../logger'); // Corrected path if logger is in src/core/logger
+const { BaseChannel } = require('./BaseChannel');
 
-class TelegramChannel {
-  constructor(token, askEngine, mikrotikManager) {
-    this.token = token;
-    this.askEngine = askEngine;
-    this.mikrotik = mikrotikManager;
+class TelegramChannel extends BaseChannel {
+  constructor(config, agent) {
+    super(config, agent);
+    this.token = config.token;
+    // this.mikrotik = agent.mikrotik; // Assuming agent has mikrotik or it's in config
     
     this.bot = new TelegramBot(token, {
       polling: {
@@ -131,16 +128,17 @@ class TelegramChannel {
     this.bot.sendChatAction(chatId, 'typing');
     
     try {
-      const result = await this.askEngine.processQuery(text, {
-        user: msg.from.username,
-        chat: chatId
+      const result = await this.agent.processInteraction(text, {
+        userId: msg.from.id,
+        username: msg.from.username,
+        channel: 'telegram',
+        channelId: chatId
       });
       
-      if (result.error) {
+      if (!result.success) {
         await this.bot.sendMessage(chatId, 
-          `⚠️ ${result.message}\n\n` +
-          `*Available commands:*\n` +
-          result.suggestions.map(s => `• ${s}`).join('\n'),
+          `⚠️ ${result.error || 'Interaction failed'}\n\n` +
+          `*Try using manual commands:*`,
           { parse_mode: 'Markdown' }
         );
         return;
