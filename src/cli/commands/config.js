@@ -15,8 +15,7 @@ module.exports = (program) => {
     // Subcommand: config get
     config
         .command('get <path>')
-        .description('Get configuration value (dot notation)')
-        .example('config get mikrotik.ip')
+        .description('Get a config value by dot-notation path  (e.g. mikrotik.ip)')
         .action((path) => {
             const { CONFIG_PATH } = global.AGENTOS;
 
@@ -38,8 +37,7 @@ module.exports = (program) => {
     // Subcommand: config set
     config
         .command('set <path> <value>')
-        .description('Set configuration value')
-        .example('config set mikrotik.port 8729')
+        .description('Set a config value by dot-notation path  (e.g. mikrotik.port 8729)')
         .action((path, value) => {
             const { CONFIG_PATH } = global.AGENTOS;
 
