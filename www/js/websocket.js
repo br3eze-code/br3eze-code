@@ -30,9 +30,9 @@ class AgentOSWebSocket {
         }
 
         return new Promise((resolve, reject) => {
-            const wsUrl = `${this.serverUrl}/ws`;
+            const wsUrl = `${this.serverUrl}/ws?token=${encodeURIComponent(this.token)}`;
 
-            console.log('[WebSocket] Connecting to:', wsUrl);
+            console.log('[WebSocket] Connecting to:', wsUrl.split('?')[0] + '?token=***');
 
             try {
                 this.ws = new WebSocket(wsUrl);
@@ -41,12 +41,6 @@ class AgentOSWebSocket {
                     console.log('[WebSocket] Connected');
                     this.connected = true;
                     this.reconnectAttempts = 0;
-
-                    // Authenticate
-                    this.send({
-                        type: 'auth',
-                        token: this.token
-                    });
 
                     // Start heartbeat
                     this.startHeartbeat();
@@ -117,6 +111,11 @@ class AgentOSWebSocket {
 
             case 'broadcast':
                 this.emit('broadcast', data);
+                break;
+            
+            case 'qr':
+                console.log('[WebSocket] QR code received');
+                this.emit('qr', data.payload);
                 break;
 
             case 'subscribed':
