@@ -1,7 +1,7 @@
 /**
  * AgentOS
  * @module core/mikrotik
- * @version 2026.03.27
+ * @version 2026.04.14
  */
 // ── Imports ───────────────────────────────────────────────────────────────────
 const { RouterOSClient } = require('routeros-client');
@@ -294,7 +294,7 @@ class MikroTikManager extends EventEmitter {
   }
 
 // ── Tool Execution ────────────────────────────────────────────────────────
-
+ 
   async executeTool(toolName, params = {}) {
         const schema = toolSchemas[toolName];
         if (schema) {
@@ -352,7 +352,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     // ── Hotspot User Management ───────────────────────────────────────────────
-
+ 
   async addHotspotUser(username, password, profile = 'default') {
         this._ensureConnected();
         if (!username || !password) {
@@ -438,7 +438,7 @@ class MikroTikManager extends EventEmitter {
     }
 
 // ── System Tools ──────────────────────────────────────────────────────────
-
+ 
  async getSystemStats(force = false) {
         this._ensureConnected();
  
@@ -482,7 +482,7 @@ class MikroTikManager extends EventEmitter {
     const totalMem = parseInt(normalized['total-memory']) || 1;
     const freeMem = parseInt(normalized['free-memory']) || 0;
     normalized['memory-usage-percent'] = Math.round(((totalMem - freeMem) / totalMem) * 100).toString();
-
+ 
     this.cache.set(cacheKey, normalized);
     return normalized;
   } catch (error) {
@@ -507,6 +507,7 @@ class MikroTikManager extends EventEmitter {
     }
 
 // ── Network Tools ─────────────────────────────────────────────────────────
+    
  async ping(host, count = 4) {
         this._ensureConnected();
         if (!host || !host.match(/^[\w.-]+$/)) {
@@ -531,7 +532,7 @@ class MikroTikManager extends EventEmitter {
  
 
 // ── Firewall Tools ────────────────────────────────────────────────────────
-
+    
   async getFirewallRules(type = 'filter') {
         this._ensureConnected();
         const validTypes = ['filter', 'nat', 'mangle', 'raw'];
@@ -577,6 +578,7 @@ class MikroTikManager extends EventEmitter {
 
    // ── DHCP & Network Discovery ──────────────────────────────────────────────
  
+   
     async getDhcpLeases() {
         this._ensureConnected();
         return this.state.conn.menu('/ip/dhcp-server/lease').get();
