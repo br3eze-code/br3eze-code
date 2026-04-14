@@ -50,7 +50,7 @@ class RuntimeSession {
         this.taskId            = taskId;
         this.createdAt         = new Date().toISOString();
     }
-
+ 
     asMarkdown() {
         const lines = [
             `# Runtime Session`,
@@ -143,20 +143,20 @@ class AgentRuntime extends EventEmitter {
         const engine = sessionId
             ? AgentEngine.fromSession(sessionId)
             : AgentEngine.create({ ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode });
-
+ 
         const matchedTools = this.routePrompt(prompt);
-
+ 
         const denials = this._inferDenials(matchedTools, engine);
-
+ 
         logger.info(`AgentRuntime bootstrap — tools: [${matchedTools.join(', ')}] denials: ${denials.length}`);
-
+ 
         const session = new RuntimeSession({
             prompt,
             engine,
             matchedTools,
             permissionDenials: denials
         });
-
+ 
         this.emit('session:created', session);
         return session;
     }
@@ -168,7 +168,7 @@ class AgentRuntime extends EventEmitter {
         const { engine, matchedTools, permissionDenials } = session;
         const turns    = maxTurns || this.defaultConfig.maxTurns;
         const results  = [];
-
+ 
         for (let i = 0; i < turns; i++) {
             const turnPrompt = i === 0 ? prompt : `${prompt} [turn ${i + 1}]`;
             const result     = await engine.submitMessage(turnPrompt, matchedTools, permissionDenials);
@@ -176,32 +176,31 @@ class AgentRuntime extends EventEmitter {
             this.emit('turn', result);
             if (result.stopReason !== 'completed') break;
         }
-
+ 
         const sessionPath = engine.persistSession();
         logger.info(`Session persisted → ${sessionPath}`);
-
+ 
         return { results, session, sessionPath };
     }
-
     // ── Async task dispatch ───────────────────────────────────────────────────
   
-
+ 
     async dispatchTask(prompt, opts = {}) {
         const registry = getTaskRegistry();
         const task     = registry.create(prompt, { description: opts.description });
-
+ 
         registry.setStatus(task.taskId, TaskStatus.RUNNING);
         this.emit('task:dispatched', task);
-
+ 
       
         this._executeTask(task.taskId, prompt, opts).catch(err => {
             registry.setStatus(task.taskId, TaskStatus.FAILED, err.message);
             logger.error(`Task ${task.taskId} failed:`, err.message);
         });
-
+ 
         return task;
     }
-
+ 
     async _executeTask(taskId, prompt, opts) {
         const registry = getTaskRegistry();
         const { results } = await this.runTurnLoop(prompt, opts);
@@ -213,8 +212,8 @@ class AgentRuntime extends EventEmitter {
     }
 
     // ── Permission denial inference ───────────────────────────────────────────
-
-
+ 
+ 
     _inferDenials(toolNames, engine) {
         const denials = [];
         for (const name of toolNames) {
@@ -227,11 +226,11 @@ class AgentRuntime extends EventEmitter {
     }
 
     // ── Tool manifest info (for /tools Telegram command) ─────────────────────
-
+ 
     listTools() {
         return TOOL_MANIFEST.map(t => t.name);
     }
-
+ 
     findTools(query) {
         const needle = query.toLowerCase();
         return TOOL_MANIFEST
@@ -241,11 +240,11 @@ class AgentRuntime extends EventEmitter {
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
-
+ 
 let _runtime = null;
 function getAgentRuntime(config = {}) {
     if (!_runtime) _runtime = new AgentRuntime(config);
     return _runtime;
 }
-
+ 
 module.exports = { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
