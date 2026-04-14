@@ -1,250 +1,1357 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AgentOS Control</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: monospace;
-        }
-
-        body {
-            background: #0a0a0a;
-            color: #00ff00;
-            padding: 20px;
-        }
-
-        #log {
-            background: #111;
-            border: 1px solid #333;
-            height: 400px;
-            overflow-y: auto;
-            padding: 10px;
-            margin: 10px 0;
-            white-space: pre-wrap;
-        }
-
-        .input-line {
-            display: flex;
-            gap: 10px;
-            margin: 10px 0;
-        }
-
-        input {
-            flex: 1;
-            background: #222;
-            border: 1px solid #444;
-            color: #0f0;
-            padding: 10px;
-            font-size: 14px;
-        }
-
-        button {
-            background: #004400;
-            color: #0f0;
-            border: 1px solid #0f0;
-            padding: 10px 20px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #006600;
-        }
-
-        .status {
-            padding: 10px;
-            background: #330000;
-            border: 1px solid #f00;
-            margin-bottom: 10px;
-        }
-
-        .status.connected {
-            background: #003300;
-            border-color: #0f0;
-        }
-
-        .cmd {
-            color: #0ff;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-
-        .cmd:hover {
-            color: #fff;
-        }
-
-        .error {
-            color: #f44;
-        }
-
-        .success {
-            color: #4f4;
-        }
-
-        .info {
-            color: #ff0;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https:; connect-src 'self' ws: wss: https:; img-src 'self' data: https:;">
+    <title>AgentOS WiFi Manager</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-
 <body>
-    <h2>🤖 AgentOS Web Control</h2>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="logo">🤖</span>
+                <h1>AgentOS</h1>
+            </div>
+            <div class="header-right">
+                <button id="connectionStatus" class="status-indicator offline">
+                    <span class="dot"></span>
+                    <span class="status-text">Offline</span>
+                </button>
+            </div>
+        </header>
 
-    <div id="status" class="status">🔴 Disconnected</div>
+        <!-- Main Content -->
+        <main class="app-content">
+            <!-- Dashboard Tab -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="dashboard-grid">
+                    <div class="card router-status-card" onclick="App.navigateTo('router')">
+                        <div class="card-icon">🖥️</div>
+                        <div class="card-content">
+                            <h3>Router Status</h3>
+                            <p id="router-status-text">Loading...</p>
+                        </div>
+                    </div>
 
-    <div>
-        <strong>Quick Commands:</strong>
-        <span class="cmd" onclick="sendCmd('status')">status</span> |
-        <span class="cmd" onclick="sendCmd('active')">active</span> |
-        <span class="cmd" onclick="sendCmd('users')">users</span> |
-        <span class="cmd" onclick="sendCmd('logs 10')">logs</span> |
-        <span class="cmd" onclick="sendCmd('dhcp')">dhcp</span> |
-        <span class="cmd" onclick="sendCmd('voucher 1Day')">voucher 1Day</span> |
-        <span class="cmd" onclick="sendCmd('help')">help</span>
+                    <div class="card voucher-stats-card" onclick="App.navigateTo('vouchers')">
+                        <div class="card-icon">🎟️</div>
+                        <div class="card-content">
+                            <h3>Vouchers</h3>
+                            <p id="voucher-stats-text">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="card active-users-card" onclick="App.navigateTo('users')">
+                        <div class="card-icon">👥</div>
+                        <div class="card-content">
+                            <h3>Active Users</h3>
+                            <p id="active-users-text">Loading...</p>
+                        </div>
+                    </div>
+
+                    <div class="card system-health-card" onclick="App.showSystemHealth()">
+                        <div class="card-icon">💚</div>
+                        <div class="card-content">
+                            <h3>System Health</h3>
+                            <p id="system-health-text">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <h3>Quick Actions</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn primary" onclick="App.createVoucherPrompt()">
+                            <span>➕</span> Create Voucher
+                        </button>
+                        <button class="action-btn secondary" onclick="App.showRouterCommands()">
+                            <span>🖥️</span> Router Commands
+                        </button>
+                        <button class="action-btn secondary" onclick="App.showNetworkTools()">
+                            <span>🌐</span> Network Tools
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <ul id="activity-list" class="activity-list">
+                        <li class="activity-item empty">No recent activity</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Vouchers Tab -->
+            <section id="tab-vouchers" class="tab-content">
+                <div class="voucher-controls">
+                    <div class="search-box">
+                        <input type="text" id="voucher-search" placeholder="Search vouchers..." oninput="App.filterVouchers(this.value)">
+                    </div>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all" onclick="App.filterVouchersByStatus('all')">All</button>
+                        <button class="filter-btn" data-filter="active" onclick="App.filterVouchersByStatus('active')">Active</button>
+                        <button class="filter-btn" data-filter="used" onclick="App.filterVouchersByStatus('used')">Used</button>
+                        <button class="filter-btn" data-filter="expired" onclick="App.filterVouchersByStatus('expired')">Expired</button>
+                    </div>
+                </div>
+
+                <div class="voucher-list" id="voucher-list">
+                    <div class="loading-spinner">Loading vouchers...</div>
+                </div>
+
+                <div class="create-voucher-fab" onclick="App.createVoucherPrompt()">
+                    <span>➕</span>
+                </div>
+            </section>
+
+            <!-- Users Tab -->
+            <section id="tab-users" class="tab-content">
+                <div class="users-header">
+                    <h3>Hotspot Users</h3>
+                    <button class="refresh-btn" onclick="App.refreshUsers()">
+                        <span>🔄</span> Refresh
+                    </button>
+                </div>
+
+                <div class="users-sections">
+                    <!-- Active Users -->
+                    <div class="user-section">
+                        <h4>🟢 Active Sessions</h4>
+                        <div id="active-users-list" class="user-list">
+                            <div class="loading-spinner">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- All Users -->
+                    <div class="user-section">
+                        <h4>📋 All Users</h4>
+                        <div id="all-users-list" class="user-list">
+                            <div class="loading-spinner">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Omni-Agent Tab -->
+            <section id="tab-omni" class="tab-content">
+                <div class="omni-header">
+                    <h3>🤖 Omni-Agent Control Center</h3>
+                    <p class="subtitle">Distributed Agent Runtime</p>
+                </div>
+
+                <!-- Node Status -->
+                <div class="omni-section">
+                    <h4>🔗 Connected Nodes</h4>
+                    <div id="node-list" class="node-list">
+                        <div class="empty-state"><span>🌐</span><p>No nodes connected</p></div>
+                    </div>
+                    <div class="node-actions">
+                        <button class="btn secondary" onclick="App.scanForNodes()">
+                            <span>🔍</span> Scan Network
+                        </button>
+                        <button class="btn secondary" onclick="App.discoverServices()">
+                            <span>📡</span> Discover Services
+                        </button>
+                    </div>
+                </div>
+
+                <!-- OAuth Connections -->
+                <div class="omni-section">
+                    <h4>🔐 OAuth Services</h4>
+                    <div id="oauth-status" class="oauth-list">
+                        <div class="service-item">
+                            <span class="service-icon">🐙</span>
+                            <span class="service-name">GitHub</span>
+                            <button class="btn-small" onclick="App.connectOAuth('github')">Connect</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command Execution -->
+                <div class="omni-section">
+                    <h4>⚡ Execute Command</h4>
+                    <div class="command-form">
+                        <div class="form-group">
+                            <label>Target</label>
+                            <select id="command-target">
+                                <option value="all">All Nodes</option>
+                                <option value="master">Master Only</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Command</label>
+                            <input type="text" id="command-input" placeholder="e.g., shell.run git status">
+                        </div>
+                        <button class="btn primary" onclick="App.executeNodeCommand()">
+                            <span>▶️</span> Execute
+                        </button>
+                    </div>
+                    <div id="command-output" class="command-output">
+                        <pre>Command output will appear here...</pre>
+                    </div>
+                </div>
+
+                <!-- AskEngine -->
+                <div class="omni-section">
+                    <h4>🧠 ReAct AskEngine</h4>
+                    <div class="ask-form">
+                        <textarea id="ask-input" placeholder="Enter your goal... (e.g., 'Deploy latest MikroTik patch to all nodes and update GitHub repo')" rows="3"></textarea>
+                        <button class="btn primary" onclick="App.askEngine()">
+                            <span>💡</span> Execute Plan
+                        </button>
+                    </div>
+                    <div id="ask-output" class="ask-output">
+                        <pre>Plan output will appear here...</pre>
+                    </div>
+                </div>
+
+                <!-- NanoAI Status -->
+                <div class="omni-section">
+                    <h4>⚛️ NanoAI Engine</h4>
+                    <div id="nanoai-status" class="nanoai-status">
+                        <div class="status-grid">
+                            <div class="status-item">
+                                <span class="label">Version</span>
+                                <span class="value" id="nanoai-version">27.5.0</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Quantum Dims</span>
+                                <span class="value" id="nanoai-quantum">4096</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Neural Layers</span>
+                                <span class="value" id="nanoai-layers">4</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">Hot-Swap</span>
+                                <span class="value" id="nanoai-hotswap">Enabled</span>
+                            </div>
+                        </div>
+                        <button class="btn secondary" onclick="App.runNanoAIDiagnostics()">
+                            <span>🔬</span> Run Diagnostics
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tools Tab -->
+            <section id="tab-tools" class="tab-content">
+                <div class="tools-grid">
+                    <div class="tool-category">
+                        <h3>🔧 Router Tools</h3>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="App.executeTool('router.status')">
+                                <span>📊</span> Status
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('router.users')">
+                                <span>👥</span> Users
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('router.active')">
+                                <span>🟢</span> Active
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('router.backup')">
+                                <span>💾</span> Backup
+                            </button>
+                            <button class="tool-btn danger" onclick="App.executeTool('router.reboot')">
+                                <span>🔄</span> Reboot
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tool-category">
+                        <h3>🌐 Network Tools</h3>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="App.pingPrompt()">
+                                <span>🏓</span> Ping
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('network.interfaces')">
+                                <span>🔌</span> Interfaces
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tool-category">
+                        <h3>📈 System</h3>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="App.executeTool('system.stats')">
+                                <span>📊</span> Stats
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('system.health')">
+                                <span>💚</span> Health
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('audit.list')">
+                                <span>📜</span> Audit Log
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tool-category">
+                        <h3>🎟️ Vouchers</h3>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="App.executeTool('voucher.stats')">
+                                <span>📊</span> Stats
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('voucher.plans')">
+                                <span>📋</span> Plans
+                            </button>
+                            <button class="tool-btn" onclick="App.executeTool('voucher.list')">
+                                <span>📋</span> List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tool Output -->
+                <div class="tool-output">
+                    <h3>Tool Output</h3>
+                    <pre id="tool-output-content">Execute a tool to see output here...</pre>
+                </div>
+            </section>
+
+            <!-- Settings Tab -->
+            <section id="tab-settings" class="tab-content">
+                <div class="settings-section">
+                    <h3>🔗 Server Connection</h3>
+                    <div class="setting-item">
+                        <label>Server URL</label>
+                        <input type="text" id="server-url" placeholder="https://your-server.com" value="http://localhost:3000">
+                    </div>
+                    <div class="setting-item">
+                        <label>API Token</label>
+                        <input type="password" id="api-token" placeholder="Enter your API token">
+                    </div>
+                    <button class="btn primary" onclick="App.saveSettings()">Save Settings</button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>🔐 Security</h3>
+                    <div class="setting-item">
+                        <label>Quantum Ledger Status</label>
+                        <p id="ledger-status" class="status-text">Checking...</p>
+                    </div>
+                    <button class="btn secondary" onclick="App.verifyLedger()">Verify Ledger Integrity</button>
+                </div>
+
+                <div class="settings-section">
+                    <h3>📊 About</h3>
+                    <p><strong>AgentOS WiFi Manager</strong></p>
+                    <p>Version: <span id="app-version">2026.5.0</span></p>
+                    <p>Architecture: AgentOS Monolith Pattern</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="dashboard" onclick="App.switchTab('dashboard')">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Dashboard</span>
+            </button>
+            <button class="nav-btn" data-tab="vouchers" onclick="App.switchTab('vouchers')">
+                <span class="nav-icon">🎟️</span>
+                <span class="nav-label">Vouchers</span>
+            </button>
+            <button class="nav-btn" data-tab="users" onclick="App.switchTab('users')">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Users</span>
+            </button>
+            <button class="nav-btn" data-tab="omni" onclick="App.switchTab('omni')">
+                <span class="nav-icon">🤖</span>
+                <span class="nav-label">Omni-Agent</span>
+            </button>
+            <button class="nav-btn" data-tab="settings" onclick="App.switchTab('settings')">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Settings</span>
+            </button>
+        </nav>
     </div>
 
-    <div id="log">Waiting for connection...</div>
-
-    <div class="input-line">
-        <span style="padding: 10px;">AgentOS></span>
-        <input type="text" id="cmdInput" placeholder="Enter command..."
-            onkeypress="if(event.key==='Enter')sendCommand()">
-        <button onclick="sendCommand()">Send</button>
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal Title</h3>
+                <button class="modal-close" onclick="App.closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
     </div>
 
-    <div style="margin-top: 20px;">
-        <input type="text" id="wsToken" placeholder="WebSocket Token" style="width: 300px;">
-        <button onclick="connect()">Connect</button>
-        <button onclick="disconnect()">Disconnect</button>
-    </div>
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
 
-    <script>
-        let ws = null;
-        let reconnectTimer = null;
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/security.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/ledger.js"></script>
+    <script src="js/nanoai.js"></script>
+    <script src="js/oauth-vault.js"></script>
+    <script src="js/slave-node.js"></script>
+    <script src="js/react-engine.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/tools.js"></script>
+    <script src="js/client.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
 
-        function log(msg, cls = '') {
-            const el = document.getElementById('log');
-            const time = new Date().toLocaleTimeString();
-            el.innerHTML += `<div class="${cls}">[${time}] ${msg}</div>`;
-            el.scrollTop = el.scrollHeight;
+<script>
+/**
+ * Iframe 元素高亮注入脚本
+ * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
+ *
+ * 使用方法：
+ * 1. 将此脚本添加到目标网站的 HTML 中
+ * 2. 或通过浏览器扩展、用户脚本等方式注入
+ */
+
+(function () {
+  "use strict";
+
+  // 检查是否在 iframe 中
+  if (window.self === window.top) {
+    return; // 不在 iframe 中，不执行
+  }
+
+  // 检查是否已经初始化过
+  if (window.__iframeHighlightInitialized) {
+    return;
+  }
+  window.__iframeHighlightInitialized = true;
+  console.log("Iframe 高亮脚本已加载");
+
+  // 创建高亮覆盖层
+  var overlay = document.createElement("div");
+  overlay.id = "iframe-highlight-overlay";
+  overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
+
+  // 创建悬停高亮框（虚线边框）
+  var highlightBox = document.createElement("div");
+  highlightBox.id = "iframe-highlight-box";
+  highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
+
+  // 创建选中节点的常驻高亮框（实线边框）
+  var selectedBox = document.createElement("div");
+  selectedBox.id = "iframe-selected-box";
+  selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
+
+  // 创建悬停标签显示
+  var tagLabel = document.createElement("div");
+  tagLabel.id = "iframe-tag-label";
+  tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
+
+  // 创建选中节点标签
+  var selectedLabel = document.createElement("div");
+  selectedLabel.id = "iframe-selected-label";
+  selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
+  overlay.appendChild(highlightBox);
+  overlay.appendChild(selectedBox);
+  overlay.appendChild(tagLabel);
+  overlay.appendChild(selectedLabel);
+  document.body.appendChild(overlay);
+
+  // 存储当前选中的元素
+  var selectedElement = null;
+  var highlightEnabled = false;
+
+  // 更新选中元素的高亮显示
+  function updateSelectedHighlight(element) {
+    console.log("updateSelectedHighlight called with:", element);
+    if (!element) {
+      selectedBox.style.display = "none";
+      selectedLabel.style.display = "none";
+      selectedElement = null;
+      console.log("Cleared selected highlight");
+      return;
+    }
+    selectedElement = element;
+    var rect = element.getBoundingClientRect();
+    console.log("Selected element rect:", rect);
+
+    // 更新选中高亮框位置
+    selectedBox.style.display = "block";
+    selectedBox.style.left = "".concat(rect.left - 2, "px");
+    selectedBox.style.top = "".concat(rect.top - 2, "px");
+    selectedBox.style.width = "".concat(rect.width + 4, "px");
+    selectedBox.style.height = "".concat(rect.height + 4, "px");
+
+    // 更新选中标签位置和内容
+    selectedLabel.style.display = "block";
+    selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
+
+    // 计算标签位置，确保不超出视窗
+    var labelTop = rect.top - 28;
+    var labelLeft = rect.left;
+
+    // 如果标签会超出顶部，显示在元素下方
+    if (labelTop < 5) {
+      labelTop = rect.bottom + 5;
+    }
+
+    // 如果标签会超出右侧，向左调整
+    var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
+    if (labelLeft + labelWidth > window.innerWidth - 10) {
+      labelLeft = window.innerWidth - labelWidth - 10;
+    }
+    selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
+    selectedLabel.style.top = "".concat(labelTop, "px");
+    console.log("Selected highlight positioned at:", {
+      left: selectedBox.style.left,
+      top: selectedBox.style.top,
+      width: selectedBox.style.width,
+      height: selectedBox.style.height
+    });
+  }
+  function getElementSelector(element) {
+    if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
+    var segments = [];
+    var current = element;
+    while (current !== document.documentElement) {
+      var selector = '';
+      // 优先检查唯一ID
+      if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
+        segments.unshift("#".concat(current.id));
+        break; // ID唯一，无需继续向上
+      }
+
+      // 生成类名选择器（取第一个有效类名）
+      var classes = Array.from(current.classList).filter(function (c) {
+        return !c.startsWith('js-');
+      });
+      var className = classes.length > 0 ? ".".concat(classes[0]) : '';
+
+      // 生成位置索引（nth-child）
+      var tag = current.tagName.toLowerCase();
+      if (!className) {
+        var siblings = Array.from(current.parentNode.children);
+        var index = siblings.findIndex(function (el) {
+          return el === current;
+        }) + 1;
+        selector = "".concat(tag, ":nth-child(").concat(index, ")");
+      } else {
+        selector = className;
+      }
+      segments.unshift(selector);
+      current = current.parentElement;
+    }
+
+    // 处理根元素
+    if (current === document.documentElement) {
+      segments.unshift('html');
+    }
+    return segments.join(' > ');
+  }
+
+  // 获取元素文本内容
+  function getElementText(element) {
+    var _element$textContent;
+    if (element.tagName === "INPUT") {
+      return element.value || element.placeholder || "";
+    }
+    if (element.tagName === "TEXTAREA") {
+      return element.value || element.placeholder || "";
+    }
+    var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
+    return text.length > 50 ? text.substring(0, 50) + "..." : text;
+  }
+
+  // 获取元素属性信息
+  function getElementAttributes(element) {
+    var attrs = {};
+    for (var i = 0; i < element.attributes.length; i++) {
+      var attr = element.attributes[i];
+      attrs[attr.name] = attr.value;
+    }
+    return attrs;
+  }
+
+  // 鼠标悬停事件处理
+  function handleMouseOver(e) {
+    if (!highlightEnabled) return;
+    var target = e.target;
+    if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
+      return;
+    }
+
+    // 避免高亮 html 和 body 元素
+    if (target === document.documentElement || target === document.body) {
+      return;
+    }
+
+    // 如果是已选中的元素，不显示悬停高亮
+    if (target === selectedElement) {
+      highlightBox.style.display = "none";
+      tagLabel.style.display = "none";
+      return;
+    }
+    var rect = target.getBoundingClientRect();
+    var selector = getElementSelector(target);
+    var text = getElementText(target);
+    var attributes = getElementAttributes(target);
+
+    // 更新悬停高亮框位置
+    highlightBox.style.display = "block";
+    highlightBox.style.left = "".concat(rect.left - 2, "px");
+    highlightBox.style.top = "".concat(rect.top - 2, "px");
+    highlightBox.style.width = "".concat(rect.width + 4, "px");
+    highlightBox.style.height = "".concat(rect.height + 4, "px");
+
+    // 更新标签位置和内容
+    tagLabel.style.display = "block";
+    tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
+
+    // 计算标签位置，确保不超出视窗
+    var labelTop = rect.top - 22;
+    var labelLeft = rect.left;
+
+    // 如果标签会超出顶部，显示在元素下方
+    if (labelTop < 0) {
+      labelTop = rect.bottom + 5;
+    }
+
+    // 如果标签会超出右侧，向左调整
+    if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
+      labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
+    }
+    tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
+    tagLabel.style.top = "".concat(labelTop, "px");
+
+    // 发送消息到父窗口
+    var elementInfo = {
+      tagName: target.tagName.toLowerCase(),
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y
+      },
+      selector: selector,
+      text: text,
+      attributes: attributes,
+      url: window.location.href,
+      path: window.location.pathname,
+      timestamp: Date.now()
+    };
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-hover",
+        data: elementInfo,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 鼠标离开事件处理
+  function handleMouseOut(e) {
+    if (!highlightEnabled) return;
+    var relatedTarget = e.relatedTarget;
+
+    // 如果鼠标移动到高亮相关元素上，不隐藏高亮
+    if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
+      return;
+    }
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-hover",
+        data: null,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 点击事件处理
+  function handleClick(e) {
+    var target = e.target;
+    if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
+      return;
+    }
+
+    // 避免处理 html 和 body 元素
+    if (target === document.documentElement || target === document.body) {
+      return;
+    }
+
+    // 检查是否是交互元素，这些元素需要保留默认行为
+    var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
+
+    // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
+    if (highlightEnabled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    var rect = target.getBoundingClientRect();
+    var selector = getElementSelector(target);
+    var text = getElementText(target);
+    var attributes = getElementAttributes(target);
+    console.log("Element clicked:", {
+      tagName: target.tagName,
+      selector: selector,
+      rect: rect
+    });
+
+    // 立即更新选中高亮
+    updateSelectedHighlight(target);
+
+    // 隐藏悬停高亮，因为现在是选中状态
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    var elementInfo = {
+      tagName: target.tagName.toLowerCase(),
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y
+      },
+      selector: selector,
+      text: text,
+      attributes: attributes,
+      url: window.location.href,
+      path: window.location.pathname,
+      timestamp: Date.now()
+    };
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-click",
+        data: elementInfo,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 监听来自父窗口的消息
+  function handleParentMessage(event) {
+    console.log("Received message from parent:", event.data);
+    if (event.data.type === "iframe-highlight-toggle") {
+      var enabled = event.data.enabled;
+      console.log("Highlight toggle:", enabled);
+      if (enabled) {
+        enableHighlight();
+      } else {
+        disableHighlight();
+      }
+    } else if (event.data.type === "enable-iframe-highlight") {
+      console.log("Enable iframe highlight");
+      enableHighlight();
+    } else if (event.data.type === "disable-iframe-highlight") {
+      console.log("Disable iframe highlight");
+      disableHighlight();
+    } else if (event.data.type === "toggle-iframe-highlight") {
+      var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
+      console.log("Toggle iframe highlight to:", _enabled);
+      if (_enabled) {
+        enableHighlight();
+      } else {
+        disableHighlight();
+      }
+    } else if (event.data.type === "update-selected-element") {
+      var selector = event.data.selector;
+      console.log("Update selected element with selector:", selector);
+      if (selector) {
+        try {
+          var element = document.querySelector(selector);
+          console.log("Found element by selector:", element);
+          updateSelectedHighlight(element);
+        } catch (error) {
+          console.warn("Failed to select element:", error);
+          updateSelectedHighlight(null);
         }
+      } else {
+        updateSelectedHighlight(null);
+      }
+    } else if (event.data.type === "clear-selected-element") {
+      console.log("Clear selected element");
+      updateSelectedHighlight(null);
+    }
+  }
 
-        function connect() {
-            const token = document.getElementById('wsToken').value || 'YOUR_TOKEN_HERE';
-            const wsUrl = `ws://${window.location.hostname}:19876/ws?token=${token}`;
+  // 启用高亮功能
+  function enableHighlight() {
+    console.log("Enabling highlight");
+    document.addEventListener("mouseover", handleMouseOver, true);
+    document.addEventListener("mouseout", handleMouseOut, true);
+    document.addEventListener("click", handleClick, true);
+    highlightEnabled = true;
+    overlay.style.display = "block";
+  }
 
-            log('Connecting to ' + wsUrl, 'info');
+  // 禁用高亮功能
+  function disableHighlight() {
+    console.log("Disabling highlight");
+    highlightEnabled = false;
+    // 保持事件监听器，但通过 highlightEnabled 变量控制行为
+    // 这样可以保留选中状态的显示
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
+  }
 
-            ws = new WebSocket(wsUrl);
+  // 完全禁用高亮功能（移除所有监听器）
+  function fullyDisableHighlight() {
+    console.log("Fully disabling highlight");
+    highlightEnabled = false;
+    document.removeEventListener("mouseover", handleMouseOver, true);
+    document.removeEventListener("mouseout", handleMouseOut, true);
+    document.removeEventListener("click", handleClick, true);
+    overlay.style.display = "none";
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    selectedBox.style.display = "none";
+    selectedLabel.style.display = "none";
+  }
 
-            ws.onopen = () => {
-                log('✅ Connected!', 'success');
-                updateStatus(true);
-                // Start CLI session automatically
-                ws.send(JSON.stringify({ type: 'cli.start' }));
-            };
+  // 添加事件监听
+  enableHighlight();
+  window.addEventListener("message", handleParentMessage);
 
-            ws.onmessage = (e) => {
-                const msg = JSON.parse(e.data);
-                handleMsg(msg);
-            };
+  // 暴露全局函数供外部调用
+  window.__iframeHighlightControl = {
+    enable: enableHighlight,
+    disable: disableHighlight,
+    fullyDisable: fullyDisableHighlight,
+    isEnabled: function isEnabled() {
+      return highlightEnabled;
+    },
+    getSelectedElement: function getSelectedElement() {
+      return selectedElement;
+    },
+    updateSelected: updateSelectedHighlight,
+    // 通过消息发送开关控制
+    sendToggleMessage: function sendToggleMessage(enabled) {
+      window.parent.postMessage({
+        type: 'iframe-highlight-status',
+        enabled: enabled || highlightEnabled,
+        source: 'iframe-highlight-injector'
+      }, '*');
+    }
+  };
 
-            ws.onclose = () => {
-                log('❌ Connection closed', 'error');
-                updateStatus(false);
-                // Auto-reconnect
-                reconnectTimer = setTimeout(connect, 3000);
-            };
+  // 通知父窗口脚本已加载
+  try {
+    window.parent.postMessage({
+      type: "iframe-highlight-ready",
+      data: {
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now()
+      },
+      source: "iframe-highlight-injector"
+    }, "*");
+  } catch (error) {
+    console.warn("无法发送就绪消息到父窗口:", error);
+  }
 
-            ws.onerror = (e) => {
-                log('❌ WebSocket error', 'error');
-            };
+  // 清理函数
+  window.__iframeHighlightCleanup = function () {
+    fullyDisableHighlight();
+    window.removeEventListener("message", handleParentMessage);
+    if (overlay.parentElement) {
+      overlay.parentElement.removeChild(overlay);
+    }
+    delete window.__iframeHighlightInitialized;
+    delete window.__iframeHighlightCleanup;
+  };
+})();
+
+</script>
+
+<script>
+/**
+ * Iframe 元素高亮注入脚本
+ * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
+ *
+ * 使用方法：
+ * 1. 将此脚本添加到目标网站的 HTML 中
+ * 2. 或通过浏览器扩展、用户脚本等方式注入
+ */
+
+(function () {
+  "use strict";
+
+  // 检查是否在 iframe 中
+  if (window.self === window.top) {
+    return; // 不在 iframe 中，不执行
+  }
+
+  // 检查是否已经初始化过
+  if (window.__iframeHighlightInitialized) {
+    return;
+  }
+  window.__iframeHighlightInitialized = true;
+  console.log("Iframe 高亮脚本已加载");
+
+  // 创建高亮覆盖层
+  var overlay = document.createElement("div");
+  overlay.id = "iframe-highlight-overlay";
+  overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
+
+  // 创建悬停高亮框（虚线边框）
+  var highlightBox = document.createElement("div");
+  highlightBox.id = "iframe-highlight-box";
+  highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
+
+  // 创建选中节点的常驻高亮框（实线边框）
+  var selectedBox = document.createElement("div");
+  selectedBox.id = "iframe-selected-box";
+  selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
+
+  // 创建悬停标签显示
+  var tagLabel = document.createElement("div");
+  tagLabel.id = "iframe-tag-label";
+  tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
+
+  // 创建选中节点标签
+  var selectedLabel = document.createElement("div");
+  selectedLabel.id = "iframe-selected-label";
+  selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
+  overlay.appendChild(highlightBox);
+  overlay.appendChild(selectedBox);
+  overlay.appendChild(tagLabel);
+  overlay.appendChild(selectedLabel);
+  document.body.appendChild(overlay);
+
+  // 存储当前选中的元素
+  var selectedElement = null;
+  var highlightEnabled = false;
+
+  // 更新选中元素的高亮显示
+  function updateSelectedHighlight(element) {
+    console.log("updateSelectedHighlight called with:", element);
+    if (!element) {
+      selectedBox.style.display = "none";
+      selectedLabel.style.display = "none";
+      selectedElement = null;
+      console.log("Cleared selected highlight");
+      return;
+    }
+    selectedElement = element;
+    var rect = element.getBoundingClientRect();
+    console.log("Selected element rect:", rect);
+
+    // 更新选中高亮框位置
+    selectedBox.style.display = "block";
+    selectedBox.style.left = "".concat(rect.left - 2, "px");
+    selectedBox.style.top = "".concat(rect.top - 2, "px");
+    selectedBox.style.width = "".concat(rect.width + 4, "px");
+    selectedBox.style.height = "".concat(rect.height + 4, "px");
+
+    // 更新选中标签位置和内容
+    selectedLabel.style.display = "block";
+    selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
+
+    // 计算标签位置，确保不超出视窗
+    var labelTop = rect.top - 28;
+    var labelLeft = rect.left;
+
+    // 如果标签会超出顶部，显示在元素下方
+    if (labelTop < 5) {
+      labelTop = rect.bottom + 5;
+    }
+
+    // 如果标签会超出右侧，向左调整
+    var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
+    if (labelLeft + labelWidth > window.innerWidth - 10) {
+      labelLeft = window.innerWidth - labelWidth - 10;
+    }
+    selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
+    selectedLabel.style.top = "".concat(labelTop, "px");
+    console.log("Selected highlight positioned at:", {
+      left: selectedBox.style.left,
+      top: selectedBox.style.top,
+      width: selectedBox.style.width,
+      height: selectedBox.style.height
+    });
+  }
+  function getElementSelector(element) {
+    if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
+    var segments = [];
+    var current = element;
+    while (current !== document.documentElement) {
+      var selector = '';
+      // 优先检查唯一ID
+      if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
+        segments.unshift("#".concat(current.id));
+        break; // ID唯一，无需继续向上
+      }
+
+      // 生成类名选择器（取第一个有效类名）
+      var classes = Array.from(current.classList).filter(function (c) {
+        return !c.startsWith('js-');
+      });
+      var className = classes.length > 0 ? ".".concat(classes[0]) : '';
+
+      // 生成位置索引（nth-child）
+      var tag = current.tagName.toLowerCase();
+      if (!className) {
+        var siblings = Array.from(current.parentNode.children);
+        var index = siblings.findIndex(function (el) {
+          return el === current;
+        }) + 1;
+        selector = "".concat(tag, ":nth-child(").concat(index, ")");
+      } else {
+        selector = className;
+      }
+      segments.unshift(selector);
+      current = current.parentElement;
+    }
+
+    // 处理根元素
+    if (current === document.documentElement) {
+      segments.unshift('html');
+    }
+    return segments.join(' > ');
+  }
+
+  // 获取元素文本内容
+  function getElementText(element) {
+    var _element$textContent;
+    if (element.tagName === "INPUT") {
+      return element.value || element.placeholder || "";
+    }
+    if (element.tagName === "TEXTAREA") {
+      return element.value || element.placeholder || "";
+    }
+    var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
+    return text.length > 50 ? text.substring(0, 50) + "..." : text;
+  }
+
+  // 获取元素属性信息
+  function getElementAttributes(element) {
+    var attrs = {};
+    for (var i = 0; i < element.attributes.length; i++) {
+      var attr = element.attributes[i];
+      attrs[attr.name] = attr.value;
+    }
+    return attrs;
+  }
+
+  // 鼠标悬停事件处理
+  function handleMouseOver(e) {
+    if (!highlightEnabled) return;
+    var target = e.target;
+    if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
+      return;
+    }
+
+    // 避免高亮 html 和 body 元素
+    if (target === document.documentElement || target === document.body) {
+      return;
+    }
+
+    // 如果是已选中的元素，不显示悬停高亮
+    if (target === selectedElement) {
+      highlightBox.style.display = "none";
+      tagLabel.style.display = "none";
+      return;
+    }
+    var rect = target.getBoundingClientRect();
+    var selector = getElementSelector(target);
+    var text = getElementText(target);
+    var attributes = getElementAttributes(target);
+
+    // 更新悬停高亮框位置
+    highlightBox.style.display = "block";
+    highlightBox.style.left = "".concat(rect.left - 2, "px");
+    highlightBox.style.top = "".concat(rect.top - 2, "px");
+    highlightBox.style.width = "".concat(rect.width + 4, "px");
+    highlightBox.style.height = "".concat(rect.height + 4, "px");
+
+    // 更新标签位置和内容
+    tagLabel.style.display = "block";
+    tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
+
+    // 计算标签位置，确保不超出视窗
+    var labelTop = rect.top - 22;
+    var labelLeft = rect.left;
+
+    // 如果标签会超出顶部，显示在元素下方
+    if (labelTop < 0) {
+      labelTop = rect.bottom + 5;
+    }
+
+    // 如果标签会超出右侧，向左调整
+    if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
+      labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
+    }
+    tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
+    tagLabel.style.top = "".concat(labelTop, "px");
+
+    // 发送消息到父窗口
+    var elementInfo = {
+      tagName: target.tagName.toLowerCase(),
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y
+      },
+      selector: selector,
+      text: text,
+      attributes: attributes,
+      url: window.location.href,
+      path: window.location.pathname,
+      timestamp: Date.now()
+    };
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-hover",
+        data: elementInfo,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 鼠标离开事件处理
+  function handleMouseOut(e) {
+    if (!highlightEnabled) return;
+    var relatedTarget = e.relatedTarget;
+
+    // 如果鼠标移动到高亮相关元素上，不隐藏高亮
+    if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
+      return;
+    }
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-hover",
+        data: null,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 点击事件处理
+  function handleClick(e) {
+    var target = e.target;
+    if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
+      return;
+    }
+
+    // 避免处理 html 和 body 元素
+    if (target === document.documentElement || target === document.body) {
+      return;
+    }
+
+    // 检查是否是交互元素，这些元素需要保留默认行为
+    var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
+
+    // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
+    if (highlightEnabled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    var rect = target.getBoundingClientRect();
+    var selector = getElementSelector(target);
+    var text = getElementText(target);
+    var attributes = getElementAttributes(target);
+    console.log("Element clicked:", {
+      tagName: target.tagName,
+      selector: selector,
+      rect: rect
+    });
+
+    // 立即更新选中高亮
+    updateSelectedHighlight(target);
+
+    // 隐藏悬停高亮，因为现在是选中状态
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    var elementInfo = {
+      tagName: target.tagName.toLowerCase(),
+      rect: {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        x: rect.x,
+        y: rect.y
+      },
+      selector: selector,
+      text: text,
+      attributes: attributes,
+      url: window.location.href,
+      path: window.location.pathname,
+      timestamp: Date.now()
+    };
+    try {
+      window.parent.postMessage({
+        type: "iframe-element-click",
+        data: elementInfo,
+        source: "iframe-highlight-injector"
+      }, "*");
+    } catch (error) {
+      console.warn("无法发送消息到父窗口:", error);
+    }
+  }
+
+  // 监听来自父窗口的消息
+  function handleParentMessage(event) {
+    console.log("Received message from parent:", event.data);
+    if (event.data.type === "iframe-highlight-toggle") {
+      var enabled = event.data.enabled;
+      console.log("Highlight toggle:", enabled);
+      if (enabled) {
+        enableHighlight();
+      } else {
+        disableHighlight();
+      }
+    } else if (event.data.type === "enable-iframe-highlight") {
+      console.log("Enable iframe highlight");
+      enableHighlight();
+    } else if (event.data.type === "disable-iframe-highlight") {
+      console.log("Disable iframe highlight");
+      disableHighlight();
+    } else if (event.data.type === "toggle-iframe-highlight") {
+      var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
+      console.log("Toggle iframe highlight to:", _enabled);
+      if (_enabled) {
+        enableHighlight();
+      } else {
+        disableHighlight();
+      }
+    } else if (event.data.type === "update-selected-element") {
+      var selector = event.data.selector;
+      console.log("Update selected element with selector:", selector);
+      if (selector) {
+        try {
+          var element = document.querySelector(selector);
+          console.log("Found element by selector:", element);
+          updateSelectedHighlight(element);
+        } catch (error) {
+          console.warn("Failed to select element:", error);
+          updateSelectedHighlight(null);
         }
+      } else {
+        updateSelectedHighlight(null);
+      }
+    } else if (event.data.type === "clear-selected-element") {
+      console.log("Clear selected element");
+      updateSelectedHighlight(null);
+    }
+  }
 
-        function handleMsg(msg) {
-            switch (msg.type) {
-                case 'hello':
-                    log(`Connected to ${msg.payload.service} v${msg.payload.version}`);
-                    break;
+  // 启用高亮功能
+  function enableHighlight() {
+    console.log("Enabling highlight");
+    document.addEventListener("mouseover", handleMouseOver, true);
+    document.addEventListener("mouseout", handleMouseOut, true);
+    document.addEventListener("click", handleClick, true);
+    highlightEnabled = true;
+    overlay.style.display = "block";
+  }
 
-                case 'cli.output':
-                    if (msg.text) log(msg.text);
-                    if (msg.message) log(msg.message, msg.type === 'error' ? 'error' : 'success');
-                    if (msg.title) {
-                        log(`\n=== ${msg.title} ===`, 'info');
-                        if (msg.items) msg.items.forEach(i => log('  ' + i));
-                        if (msg.data) Object.entries(msg.data).forEach(([k, v]) => log(`  ${k}: ${v}`));
-                    }
-                    break;
+  // 禁用高亮功能
+  function disableHighlight() {
+    console.log("Disabling highlight");
+    highlightEnabled = false;
+    // 保持事件监听器，但通过 highlightEnabled 变量控制行为
+    // 这样可以保留选中状态的显示
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
+  }
 
-                case 'cli.started':
-                    log('CLI Session started. Type commands below.', 'success');
-                    break;
+  // 完全禁用高亮功能（移除所有监听器）
+  function fullyDisableHighlight() {
+    console.log("Fully disabling highlight");
+    highlightEnabled = false;
+    document.removeEventListener("mouseover", handleMouseOver, true);
+    document.removeEventListener("mouseout", handleMouseOut, true);
+    document.removeEventListener("click", handleClick, true);
+    overlay.style.display = "none";
+    highlightBox.style.display = "none";
+    tagLabel.style.display = "none";
+    selectedBox.style.display = "none";
+    selectedLabel.style.display = "none";
+  }
 
-                case 'tool.result':
-                case 'result':
-                    log(JSON.stringify(msg.data || msg.result, null, 2));
-                    break;
+  // 添加事件监听
+  enableHighlight();
+  window.addEventListener("message", handleParentMessage);
 
-                case 'error':
-                    log('Error: ' + (msg.error || msg.message), 'error');
-                    break;
+  // 暴露全局函数供外部调用
+  window.__iframeHighlightControl = {
+    enable: enableHighlight,
+    disable: disableHighlight,
+    fullyDisable: fullyDisableHighlight,
+    isEnabled: function isEnabled() {
+      return highlightEnabled;
+    },
+    getSelectedElement: function getSelectedElement() {
+      return selectedElement;
+    },
+    updateSelected: updateSelectedHighlight,
+    // 通过消息发送开关控制
+    sendToggleMessage: function sendToggleMessage(enabled) {
+      window.parent.postMessage({
+        type: 'iframe-highlight-status',
+        enabled: enabled || highlightEnabled,
+        source: 'iframe-highlight-injector'
+      }, '*');
+    }
+  };
 
-                case 'pong':
-                    break;
+  // 通知父窗口脚本已加载
+  try {
+    window.parent.postMessage({
+      type: "iframe-highlight-ready",
+      data: {
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: Date.now()
+      },
+      source: "iframe-highlight-injector"
+    }, "*");
+  } catch (error) {
+    console.warn("无法发送就绪消息到父窗口:", error);
+  }
 
-                default:
-                    log(JSON.stringify(msg));
-            }
-        }
+  // 清理函数
+  window.__iframeHighlightCleanup = function () {
+    fullyDisableHighlight();
+    window.removeEventListener("message", handleParentMessage);
+    if (overlay.parentElement) {
+      overlay.parentElement.removeChild(overlay);
+    }
+    delete window.__iframeHighlightInitialized;
+    delete window.__iframeHighlightCleanup;
+  };
+})();
 
-        function sendCommand() {
-            const input = document.getElementById('cmdInput');
-            const cmd = input.value.trim();
-            if (!cmd || !ws) return;
-
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'cli.input',
-                    input: cmd + '\n'
-                }));
-                input.value = '';
-            } else {
-                log('Not connected', 'error');
-            }
-        }
-
-        function sendCmd(cmd) {
-            document.getElementById('cmdInput').value = cmd;
-            sendCommand();
-        }
-
-        function disconnect() {
-            if (reconnectTimer) clearTimeout(reconnectTimer);
-            if (ws) ws.close();
-        }
-
-        function updateStatus(connected) {
-            const el = document.getElementById('status');
-            if (connected) {
-                el.className = 'status connected';
-                el.innerHTML = '🟢 Connected to AgentOS';
-            } else {
-                el.className = 'status';
-                el.innerHTML = '🔴 Disconnected';
-            }
-        }
-
-        // Auto-connect on load
-        window.onload = () => {
-            // Try to connect after 1 second
-            setTimeout(connect, 1000);
-        };
-    </script>
+</script>
 </body>
-
 </html>
