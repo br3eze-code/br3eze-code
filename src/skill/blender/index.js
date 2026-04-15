@@ -16,6 +16,44 @@ class BlenderSkill extends BaseSkill {
   }
 
   static getTools() {
+    // Add to static getTools() return object:
+'blender.sim.run': {
+  risk: 'high',
+  description: 'Run physics sim: cloth, fluid, smoke, rigid body. Export cache. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      sim_type: { type: 'string', enum: ['cloth', 'fluid', 'smoke', 'rigid_body', 'soft_body'] },
+      frame_start: { type: 'number', default: 1 },
+      frame_end: { type: 'number', default: 250 },
+      objects: { type: 'array', items: { type: 'string' }, description: 'objects with sim modifiers' },
+      cache_format: { type: 'string', enum: ['abc', 'vdb', 'blendcache'], default: 'abc' },
+      reason: { type: 'string' }
+    },
+    required: ['file', 'sim_type', 'objects', 'reason']
+  }
+},
+'blender.cloud.render': {
+  risk: 'high',
+  description: 'Burst render to AWS Batch farm. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      frame_start: { type: 'number' },
+      frame_end: { type: 'number' },
+      job_queue: { type: 'string', default: 'blender-gpu-queue' },
+      instances: { type: 'number', default: 10, maximum: 100 },
+      instance_type: { type: 'string', default: 'g5.2xlarge' },
+      s3_output: { type: 'string', description: 's3://bucket/prefix/' },
+      resolution: { type: 'string', enum: ['1080p', '4k'], default: '1080p' },
+      samples: { type: 'number', default: 256 },
+      reason: { type: 'string' }
+    },
+    required: ['file', 'frame_start', 'frame_end', 's3_output', 'reason']
+  }
+}
     return {
 'blender.ai.texture': {
   risk: 'medium',
