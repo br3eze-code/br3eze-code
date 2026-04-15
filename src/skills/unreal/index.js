@@ -22,6 +22,65 @@ class UnrealSkill extends BaseSkill {
 
   static getTools() {
     return {
+'ue.multiplayer.deploy': {
+  risk: 'high',
+  description: 'Deploy dedicated server to Agones/K8s for playtest. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      image: { type: 'string', description: 'docker image: game-server:1.2.3' },
+      map: { type: 'string', default: '/Game/Maps/TestMap' },
+      max_players: { type: 'number', default: 16 },
+      region: { type: 'string', enum: ['us-west-2', 'eu-central-1', 'ap-northeast-1'], default: 'us-west-2' },
+      ttl: { type: 'number', default: 3600, description: 'auto-shutdown seconds' },
+      password: { type: 'string', description: 'server password' },
+      reason: { type: 'string' }
+    },
+    required: ['project', 'image', 'reason']
+  }
+},
+'ue.multiplayer.stop': {
+  risk: 'medium',
+  description: 'Stop Agones fleet/game servers',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      fleet: { type: 'string', description: 'fleet name or "all"' }
+    },
+    required: ['project']
+  }
+},
+'ue.loc.gather': {
+  risk: 'low',
+  description: 'Run Loc gather: text from Blueprints/C++/UMG to.po files',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      config: { type: 'string', default: 'Game', description: 'Localization target name' },
+      preview: { type: 'boolean', default: false, description: 'dry run, no write' }
+    },
+    required: ['project']
+  }
+},
+'ue.loc.sync': {
+  risk: 'medium',
+  description: 'Sync.po files to OneSky/POEditor. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      config: { type: 'string', default: 'Game' },
+      service: { type: 'string', enum: ['onesky', 'poeditor'], default: 'onesky' },
+      push_source: { type: 'boolean', default: true },
+      pull_translations: { type: 'boolean', default: true },
+      reason: { type: 'string' }
+    },
+    required: ['project', 'reason']
+  }
+}
 'ue.insights.query': {
   risk: 'low',
   description: 'Query Unreal Insights trace: CPU, GPU, memory, bookmarks',
@@ -241,6 +300,66 @@ class UnrealSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+          // Add to static getTools() return object:
+'ue.multiplayer.deploy': {
+  risk: 'high',
+  description: 'Deploy dedicated server to Agones/K8s for playtest. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      image: { type: 'string', description: 'docker image: game-server:1.2.3' },
+      map: { type: 'string', default: '/Game/Maps/TestMap' },
+      max_players: { type: 'number', default: 16 },
+      region: { type: 'string', enum: ['us-west-2', 'eu-central-1', 'ap-northeast-1'], default: 'us-west-2' },
+      ttl: { type: 'number', default: 3600, description: 'auto-shutdown seconds' },
+      password: { type: 'string', description: 'server password' },
+      reason: { type: 'string' }
+    },
+    required: ['project', 'image', 'reason']
+  }
+},
+'ue.multiplayer.stop': {
+  risk: 'medium',
+  description: 'Stop Agones fleet/game servers',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      fleet: { type: 'string', description: 'fleet name or "all"' }
+    },
+    required: ['project']
+  }
+},
+'ue.loc.gather': {
+  risk: 'low',
+  description: 'Run Loc gather: text from Blueprints/C++/UMG to.po files',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      config: { type: 'string', default: 'Game', description: 'Localization target name' },
+      preview: { type: 'boolean', default: false, description: 'dry run, no write' }
+    },
+    required: ['project']
+  }
+},
+'ue.loc.sync': {
+  risk: 'medium',
+  description: 'Sync.po files to OneSky/POEditor. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      config: { type: 'string', default: 'Game' },
+      service: { type: 'string', enum: ['onesky', 'poeditor'], default: 'onesky' },
+      push_source: { type: 'boolean', default: true },
+      pull_translations: { type: 'boolean', default: true },
+      reason: { type: 'string' }
+    },
+    required: ['project', 'reason']
+  }
+}
           case 'ue.insights.query':
   this.logger.info(`UE INSIGHTS QUERY ${args.trace} ${args.query}`, { user: ctx.userId })
   const tracePath = path.resolve(this.projectRoot, args.trace)
