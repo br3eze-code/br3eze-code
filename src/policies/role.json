@@ -1,0 +1,20 @@
+{
+  "users": {
+    "telegram:123456": { "role": "user", "routers": ["site-a", "site-b"] },
+    "telegram:789012": { "role": "admin", "routers": ["*"] }
+  },
+  "roles": {
+    "user": {
+      "tools": ["users.list", "user.status", "user.kick", "voucher.create", "system.stats"],
+      "limits": { "voucher.create": { "durationDays": 1 } },
+      "requireApproval": []
+    },
+    "admin": {
+      "tools": ["*"],
+      "requireApproval": ["system.reboot", "firewall.block", "user.add", "system.script"]
+    },
+    "readonly": {
+      "tools": ["system.stats", "users.list"]
+    }
+  }
+}
