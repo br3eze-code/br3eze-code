@@ -1,0 +1,258 @@
+const { PythonShell } = require('python-shell')
+const path = require('path')
+const fs = require('fs/promises')
+const { BaseSkill } = require('../base.js')
+
+class BlenderSkill extends BaseSkill {
+  static id = 'blender'
+  static name = 'Blender 3D'
+  static description = 'Render, model, export 3D assets with Blender'
+
+  constructor(config, logger, workspace) {
+    super(config, logger, workspace)
+    this.blenderPath = config.blenderPath || 'blender'
+    this.scriptsDir = path.join(__dirname, 'scripts')
+    this.outputDir = config.outputDir || '/tmp/blender_output'
+  }
+
+  static getTools() {
+    return {
+      'blender.render': {
+        risk: 'medium',
+        description: 'Render .blend file to image/video. Requires approval for long jobs.',
+        parameters: {
+          type: 'object',
+          properties: {
+            file: { type: 'string', description: 'path relative to workspace/blender/' },
+            frame: { type: 'number', description: 'single frame, omit for animation' },
+            start: { type: 'number', description: 'animation start frame' },
+            end: { type: 'number', description: 'animation end frame' },
+            format: { type: 'string', enum: ['PNG', 'JPEG', 'MP4'], default: 'PNG' },
+            resolution: { type: 'string', enum: ['1080p', '4k', '720p'], default: '1080p' },
+            samples: { type: 'number', default: 128, maximum: 4096 },
+            reason: { type: 'string' }
+          },
+          required: ['file', 'reason']
+        }
+      },
+      'blender.info': {
+        risk: 'low',
+        description: 'Get scene info: objects, materials, cameras',
+        parameters: {
+          type: 'object',
+          properties: { file: { type: 'string' } },
+          required: ['file']
+        }
+      },
+      'blender.script': {
+        risk: 'high',
+        description: 'Run custom Python script in Blender. Requires approval.',
+        parameters: {
+          type: 'object',
+          properties: {
+            file: { type: 'string', description: '.blend to load first, optional' },
+            script: { type: 'string', description: 'Python code' },
+            timeout: { type: 'number', default: 60, maximum: 300 },
+            reason: { type: 'string' }
+          },
+          required: ['script', 'reason']
+        }
+      },
+      'blender.export': {
+        risk: 'medium',
+        description: 'Export scene to glTF, USD, OBJ, FBX. Requires approval.',
+        parameters: {
+          type: 'object',
+          properties: {
+            file: { type: 'string' },
+            format: { type: 'string', enum: ['glb', 'gltf', 'usd', 'usda', 'obj', 'fbx'], default: 'glb' },
+            selection_only: { type: 'boolean', default: false },
+            reason: { type: 'string' }
+          },
+          required: ['file', 'reason']
+        }
+      }
+    }
+  }
+
+  _safeBlendPath(p) {
+    const base = path.resolve(this.workspace.blender_root || 'workspace/blender')
+    const full = path.resolve(base, p)
+    if (!full.startsWith(base)) throw new Error(`Path ${p} escapes blender_root`)
+    return full
+  }
+
+  async _runBlender(args, timeout = 60000) {
+    await fs.mkdir(this.outputDir, { recursive: true })
+    return new Promise((resolve, reject) => {
+      const opts = {
+        mode: 'text',
+        pythonOptions: ['-u'],
+        args: args,
+        timeout: timeout * 1000
+      }
+      const pyshell = new PythonShell(this._pythonBridge(), opts)
+      let output = ''
+      let error = ''
+
+      pyshell.on('message', msg => output += msg + '\n')
+      pyshell.on('stderr', err => error += err + '\n')
+      pyshell.on('error', reject)
+      pyshell.on('close', () => {
+        if (error && !output) reject(new Error(error))
+        else resolve({ output, error })
+      })
+    })
+  }
+
+  _pythonBridge() {
+    // Write bridge script once
+    const bridge = path.join(this.scriptsDir, 'bridge.py')
+    return bridge
+  }
+
+  async init() {
+    await fs.mkdir(this.scriptsDir, { recursive: true })
+    const bridgeCode = `
+import bpy
+import sys
+import json
+import os
+
+def main():
+    req = json.loads(sys.argv[1])
+    out_dir = req['out_dir']
+    
+    if req.get('blend_file'):
+        bpy.ops.wm.open_mainfile(filepath=req['blend_file'])
+    
+    if req['action'] == 'info':
+        data = {
+            'objects': [o.name for o in bpy.data.objects],
+            'materials': [m.name for m in bpy.data.materials],
+            'cameras': [c.name for c in bpy.data.cameras],
+            'scenes': [s.name for s in bpy.data.scenes],
+            'frame_start': bpy.context.scene.frame_start,
+            'frame_end': bpy.context.scene.frame_end
+        }
+        print(json.dumps(data))
+    
+    elif req['action'] == 'render':
+        scene = bpy.context.scene
+        scene.render.image_settings.file_format = req.get('format', 'PNG')
+        if req.get('resolution') == '4k':
+            scene.render.resolution_x, scene.render.resolution_y = 3840, 2160
+        elif req.get('resolution') == '720p':
+            scene.render.resolution_x, scene.render.resolution_y = 1280, 720
+        else:
+            scene.render.resolution_x, scene.render.resolution_y = 1920, 1080
+        
+        if bpy.context.scene.render.engine == 'CYCLES':
+            scene.cycles.samples = req.get('samples', 128)
+        
+        out_path = os.path.join(out_dir, f"render_{os.getpid()}")
+        scene.render.filepath = out_path
+        
+        if req.get('frame'):
+            scene.frame_set(req['frame'])
+            bpy.ops.render.render(write_still=True)
+            print(json.dumps({'file': out_path + '.png', 'frame': req['frame']}))
+        else:
+            scene.frame_start = req.get('start', scene.frame_start)
+            scene.frame_end = req.get('end', scene.frame_end)
+            bpy.ops.render.render(animation=True)
+            print(json.dumps({'dir': out_dir, 'start': scene.frame_start, 'end': scene.frame_end}))
+    
+    elif req['action'] == 'export':
+        out_path = os.path.join(out_dir, f"export_{os.getpid()}.{req['format']}")
+        if req['format'] in ['glb', 'gltf']:
+            bpy.ops.export_scene.gltf(filepath=out_path, export_format='GLB' if req['format']=='glb' else 'GLTF_SEPARATE', use_selection=req.get('selection_only', False))
+        elif req['format'] in ['usd', 'usda']:
+            bpy.ops.wm.usd_export(filepath=out_path, selected_objects_only=req.get('selection_only', False))
+        elif req['format'] == 'obj':
+            bpy.ops.wm.obj_export(filepath=out_path, export_selected_objects=req.get('selection_only', False))
+        elif req['format'] == 'fbx':
+            bpy.ops.export_scene.fbx(filepath=out_path, use_selection=req.get('selection_only', False))
+        print(json.dumps({'file': out_path}))
+    
+    elif req['action'] == 'script':
+        exec(req['script'], {'bpy': bpy})
+        print(json.dumps({'status': 'ok'}))
+
+if __name__ == '__main__':
+    main()
+`
+    await fs.writeFile(path.join(this.scriptsDir, 'bridge.py'), bridgeCode)
+  }
+
+  async healthCheck() {
+    const { error } = await this._runBlender([this.blenderPath, '--version'])
+    if (error) throw new Error(`Blender not found: ${error}`)
+    return { status: 'ok', blender: this.blenderPath }
+  }
+
+  async execute(toolName, args, ctx) {
+    try {
+      switch (toolName) {
+        case 'blender.info':
+          const blend1 = this._safeBlendPath(args.file)
+          const req1 = { action: 'info', blend_file: blend1, out_dir: this.outputDir }
+          const { output: out1 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req1)])
+          return JSON.parse(out1.trim().split('\n').pop())
+
+        case 'blender.render':
+          this.logger.warn(`BLENDER RENDER ${args.file}`, { user: ctx.userId, frames: args.frame || `${args.start}-${args.end}`, reason: args.reason })
+          const blend2 = this._safeBlendPath(args.file)
+          const req2 = {
+            action: 'render',
+            blend_file: blend2,
+            out_dir: this.outputDir,
+            frame: args.frame,
+            start: args.start,
+            end: args.end,
+            format: args.format,
+            resolution: args.resolution,
+            samples: args.samples
+          }
+          const { output: out2 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req2)], 600)
+          const result = JSON.parse(out2.trim().split('\n').pop())
+          if (result.file) {
+            const buf = await fs.readFile(result.file)
+            return { ...result, base64: buf.toString('base64'), size: buf.length }
+          }
+          return result
+
+        case 'blender.script':
+          this.logger.warn(`BLENDER SCRIPT on ${args.file || 'empty'}`, { user: ctx.userId, reason: args.reason })
+          const blend3 = args.file ? this._safeBlendPath(args.file) : null
+          const req3 = { action: 'script', blend_file: blend3, out_dir: this.outputDir, script: args.script }
+          const { output: out3, error } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req3)], args.timeout)
+          if (error) throw new Error(error)
+          return JSON.parse(out3.trim().split('\n').pop())
+
+        case 'blender.export':
+          this.logger.warn(`BLENDER EXPORT ${args.file} -> ${args.format}`, { user: ctx.userId, reason: args.reason })
+          const blend4 = this._safeBlendPath(args.file)
+          const req4 = {
+            action: 'export',
+            blend_file: blend4,
+            out_dir: this.outputDir,
+            format: args.format,
+            selection_only: args.selection_only
+          }
+          const { output: out4 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req4)], 300)
+          const res = JSON.parse(out4.trim().split('\n').pop())
+          const buf = await fs.readFile(res.file)
+          return { ...res, base64: buf.toString('base64'), size: buf.length }
+
+        default:
+          throw new Error(`Unknown tool ${toolName}`)
+      }
+    } catch (e) {
+      this.logger.error(`Blender ${toolName} failed: ${e.message}`)
+      throw e
+    }
+  }
+}
+
+module.exports = BlenderSkill
