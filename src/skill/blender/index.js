@@ -17,6 +17,40 @@ class BlenderSkill extends BaseSkill {
 
   static getTools() {
     return {
+'blender.ai.texture': {
+  risk: 'medium',
+  description: 'Generate texture with Stable Diffusion + apply to material. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string', description: '.blend file' },
+      material: { type: 'string', description: 'material name' },
+      prompt: { type: 'string', description: 'e.g. "worn leather, 4k, seamless"' },
+      negative: { type: 'string', default: 'blurry, lowres, text' },
+      size: { type: 'number', enum: [512, 1024, 2048], default: 1024 },
+      model: { type: 'string', default: 'sdxl' },
+      reason: { type: 'string' }
+    },
+    required: ['file', 'material', 'prompt', 'reason']
+  }
+},
+'blender.pipeline.bake': {
+  risk: 'high',
+  description: 'Bake textures, export GLB, upload to S3. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      objects: { type: 'array', items: { type: 'string' }, description: 'object names to bake' },
+      bake_type: { type: 'string', enum: ['COMBINED', 'DIFFUSE', 'NORMAL'], default: 'COMBINED' },
+      resolution: { type: 'number', default: 2048 },
+      s3_bucket: { type: 'string' },
+      s3_key: { type: 'string', description: 'e.g. assets/model.glb' },
+      reason: { type: 'string' }
+    },
+    required: ['file', 'objects', 's3_bucket', 's3_key', 'reason']
+  }
+}
       'blender.render': {
         risk: 'medium',
         description: 'Render .blend file to image/video. Requires approval for long jobs.',
