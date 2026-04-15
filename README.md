@@ -107,7 +107,7 @@ npm install -g br3eze-code
 or
 
 # Clone repository
-git clone https://github.com/br3eze-code/br3ezeclaw.git
+git clone https://github.com/br3eze-code/br3eze-code.git
 cd br3eze-code
 
 # Install dependencies
