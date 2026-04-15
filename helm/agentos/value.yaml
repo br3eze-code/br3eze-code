@@ -1,0 +1,58 @@
+replicaCount: 1
+
+image:
+  repository: agentos
+  tag: "0.0.2"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: agentos.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: agentos-tls
+      hosts:
+        - agentos.yourdomain.com
+
+config:
+  GATEWAY_TOKEN: ""
+  AUDIT_SECRET: ""
+  GEMINI_API_KEY: ""
+
+# Mount these as secrets
+secrets:
+  mikrotikApiToken: ""
+  awsAccessKeyId: ""
+  awsSecretAccessKey: ""
+  gcpSaKey: "" # base64 encoded JSON
+
+workspace:
+  # Paste workspace.json content here, or use --set-file
+  routers: {}
+  aws_accounts: {}
+  gcp_projects: {}
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPU: 70
