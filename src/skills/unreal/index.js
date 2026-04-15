@@ -22,6 +22,34 @@ class UnrealSkill extends BaseSkill {
 
   static getTools() {
     return {
+'ue.insights.query': {
+  risk: 'low',
+  description: 'Query Unreal Insights trace: CPU, GPU, memory, bookmarks',
+  parameters: {
+    type: 'object',
+    properties: {
+      trace: { type: 'string', description: 'path to .utrace file' },
+      query: { type: 'string', enum: ['summary', 'cpu', 'gpu', 'memory', 'loadtime', 'bookmarks'], default: 'summary' },
+      filter: { type: 'string', description: 'e.g. stat name or thread' }
+    },
+    required: ['trace']
+  }
+},
+'ue.uht.run': {
+  risk: 'medium',
+  description: 'Run UnrealHeaderTool on plugin/module. Requires approval.',
+  parameters: {
+    type: 'object',
+    properties: {
+      project: { type: 'string' },
+      module: { type: 'string', description: 'module name or path to .uplugin' },
+      engine_include: { type: 'boolean', default: false },
+      fail_on_warning: { type: 'boolean', default: true },
+      reason: { type: 'string' }
+    },
+    required: ['project', 'module', 'reason']
+  }
+}
   
 'ue.p4.sync': {
   risk: 'low',
@@ -213,6 +241,93 @@ class UnrealSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+          case 'ue.insights.query':
+  this.logger.info(`UE INSIGHTS QUERY ${args.trace} ${args.query}`, { user: ctx.userId })
+  const tracePath = path.resolve(this.projectRoot, args.trace)
+  await fs.access(tracePath) // validate exists
+  
+  // Use UnrealInsights CLI: UnrealInsights.exe <trace> -Query=Summary -ExecCmds="Query Save query.json; quit"
+  const insightsExe = this.workspace.insightsPath || 'UnrealInsights'
+  const outJson = path.join(this.outputDir, `insights_${Date.now()}.json`)
+  
+  let queryCmd = ''
+  switch (args.query) {
+    case 'summary':
+      queryCmd = 'TimingInsights.ExportTraceInfo'
+      break
+    case 'cpu':
+      queryCmd = `TimingInsights.ExportTimerStats ${args.filter || ''}`
+      break
+    case 'gpu':
+      queryCmd = `TimingInsights.ExportGpuStats ${args.filter || ''}`
+      break
+    case 'memory':
+      queryCmd = 'MemoryInsights.ExportMemTags'
+      break
+    case 'loadtime':
+      queryCmd = 'AssetLoadingInsights.ExportTable'
+      break
+    case 'bookmarks':
+      queryCmd = 'TimingInsights.ExportBookmarks'
+      break
+  }
+  
+  const cmd = `"${insightsExe}" "${tracePath}" -OpenLog -ExecCmds="${queryCmd} ${outJson}; quit" -Unattended`
+  await execAsync(cmd, { timeout: 120000 })
+  
+  let result = {}
+  try {
+    const raw = await fs.readFile(outJson, 'utf8')
+    // Insights exports CSV or JSON depending on command
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      result = JSON.parse(raw)
+    } else {
+      result = { csv: raw.split('\n').slice(0, 200).join('\n') } // first 200 lines
+    }
+  } catch {
+    result = { error: 'No output generated. Trace may be empty or query invalid.' }
+  }
+  
+  return { trace: args.trace, query: args.query, filter: args.filter, data: result }
+
+case 'ue.uht.run':
+  this.logger.warn(`UE UHT ${args.module}`, { user: ctx.userId, reason: args.reason })
+  const proj9 = this._safeUproject(args.project)
+  
+  // Find UHT: Engine/Binaries/DotNET/UnrealHeaderTool/UnrealHeaderTool.dll
+  const uhtDll = path.join(path.dirname(this.uatPath), '..', 'DotNET', 'UnrealHeaderTool', 'UnrealHeaderTool.dll')
+  
+  // Build target file list
+  let targetFile = proj9
+  if (args.module.endsWith('.uplugin')) {
+    targetFile = path.resolve(this.projectRoot, args.module)
+  }
+  
+  const uhtArgs = [
+    'dotnet', `"${uhtDll}"`,
+    `"${targetFile}"`,
+    '-NoMutex',
+    '-WaitMutex',
+    args.engine_include ? '-IncludeEngineHeaders' : '',
+    args.fail_on_warning ? '-FailIfGeneratedCodeChanges' : '',
+    '-LogCmds="log UHT verbose"'
+  ].filter(Boolean)
+  
+  const { stdout, stderr } = await execAsync(uhtArgs.join(' '), { timeout: 300000 })
+  
+  const passed = !stderr.includes('Error:') && !stdout.includes('error C')
+  const warnings = (stdout.match(/Warning:/g) || []).length
+  const errors = (stdout.match(/Error:/g) || []).length + (stdout.match(/error C\d+/g) || []).length
+  
+  return {
+    project: args.project,
+    module: args.module,
+    passed,
+    warnings,
+    errors,
+    log: stdout.slice(-6000),
+    stderr: stderr.slice(-2000)
+  }
           case 'ue.p4.sync':
   this.logger.info(`UE P4 SYNC ${args.project} ${args.changelist}`, { user: ctx.userId })
   const proj7 = this._safeUproject(args.project)
