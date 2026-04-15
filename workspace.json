@@ -1,0 +1,29 @@
+{
+  "routers": {
+    "site-a": {
+      "driver": "mikrotik",
+      "name": "Main Site Router",
+      "host": "10.0.1.1"
+    },
+    "site-b": {
+      "driver": "mikrotik",
+      "name": "Branch Office",
+      "host": "10.0.2.1"
+    }
+  },
+  "databases": {
+    "prod-pg": {
+      "driver": "postgres",
+      "name": "Production Postgres",
+      "url": "${POSTGRES_URL}"
+    }
+  },
+  "aws_accounts": {
+    "prod": {
+      "driver": "aws",
+      "name": "AWS Production",
+      "region": "us-east-1",
+      "profile": "default"
+    }
+  }
+}
