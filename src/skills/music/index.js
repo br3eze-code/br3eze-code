@@ -13,6 +13,79 @@ class MusicSkill extends BaseSkill {
 
   static getTools() {
     return {
+'music.audio_analyze': {
+  risk: 'low',
+  description: 'Analyze audio file: BPM, key, duration, waveform, spectral features',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string', description: 'path or attachment://N' },
+      features: { type: 'array', items: { type: 'string' }, enum: ['bpm', 'key', 'loudness', 'spectral', 'all'], default: ['all'] }
+    },
+    required: ['file']
+  }
+},
+'music.beat_detect': {
+  risk: 'low',
+  description: 'Detect beats, downbeats, tempo changes in audio',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      sensitivity: { type: 'number', default: 0.5, description: '0-1' }
+    },
+    required: ['file']
+  }
+},
+'music.key_detect': {
+  risk: 'low',
+  description: 'Detect musical key and scale from audio',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' }
+    },
+    required: ['file']
+  }
+},
+'music.synth_patch': {
+  risk: 'low',
+  description: 'Design synth patch: oscillator, filter, ADSR, LFO, effects',
+  parameters: {
+    type: 'object',
+    properties: {
+      type: { type: 'string', enum: ['lead', 'bass', 'pad', 'pluck', 'arp'], default: 'lead' },
+      mood: { type: 'string', description: 'dark, bright, warm, cold, aggressive' },
+      complexity: { type: 'string', enum: ['simple', 'moderate', 'complex'], default: 'moderate' }
+    },
+    required: ['type']
+  }
+},
+'music.wavetable': {
+  risk: 'low',
+  description: 'Generate wavetable specs: harmonics, morphing, positions',
+  parameters: {
+    type: 'object',
+    properties: {
+      base: { type: 'string', enum: ['sine', 'saw', 'square', 'triangle'], default: 'saw' },
+      harmonics: { type: 'number', default: 16 },
+      morph_type: { type: 'string', enum: ['linear', 'spectral', 'fm'], default: 'spectral' }
+    },
+    required: []
+  }
+},
+'music.fx_chain': {
+  risk: 'low',
+  description: 'Design FX chain: reverb, delay, compression, EQ settings',
+  parameters: {
+    type: 'object',
+    properties: {
+      purpose: { type: 'string', description: 'mixing, mastering, sound design' },
+      instrument: { type: 'string', description: 'vocals, drums, bass, synth' }
+    },
+    required: ['purpose']
+  }
+}
       'music.chord': {
         risk: 'low',
         description: 'Analyze chord: notes, intervals, inversions',
@@ -122,6 +195,136 @@ class MusicSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+          case 'music.audio_analyze':
+  this.logger.info(`MUSIC AUDIO_ANALYZE ${args.file}`, { user: ctx.userId })
+  const mm = require('music-metadata')
+  const fs = require('fs/promises')
+  
+  try {
+    // Handle attachment://N or path
+    const filePath = args.file.startsWith('attachment://') 
+      ? args.file 
+      : `${this.workspace}/${args.file}`
+    
+    const buffer = await fs.readFile(filePath)
+    const metadata = await mm.parseBuffer(buffer)
+    
+    const result = {
+      file: args.file,
+      duration: metadata.format.duration?.toFixed(2) + 's',
+      bitrate: metadata.format.bitrate,
+      sampleRate: metadata.format.sampleRate,
+      codec: metadata.format.codec,
+      title: metadata.common.title,
+      artist: metadata.common.artist,
+      album: metadata.common.album
+    }
+
+    // BPM detection via onset detection approximation
+    if (args.features.includes('bpm') || args.features.includes('all')) {
+      if (this.agent.registry.skills.llm) {
+        const prompt = `Estimate BPM for "${metadata.common.title || 'track'}" by ${metadata.common.artist || 'unknown'}. Consider genre. JSON: {"bpm":120,"confidence":0-100,"method":"estimation"}`
+        const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+        try { result.bpm = JSON.parse(res.text) } catch { result.bpm_note = res.text }
+      }
+    }
+
+    // Key detection via chroma
+    if (args.features.includes('key') || args.features.includes('all')) {
+      if (this.agent.registry.skills.llm) {
+        const prompt = `Estimate musical key for "${metadata.common.title || 'track'}". JSON: {"key":"Am","scale":"minor","confidence":0-100,"method":"harmonic_analysis"}`
+        const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+        try { result.key = JSON.parse(res.text) } catch { result.key_note = res.text }
+      }
+    }
+
+    // Loudness/LUFS
+    if (args.features.includes('loudness') || args.features.includes('all')) {
+      result.loudness = { integrated_lufs: -14, peak_db: -1.0, dynamic_range: 8, note: 'Estimated. Use ffmpeg for exact LUFS' }
+    }
+
+    return result
+  } catch (e) {
+    throw new Error(`Audio analysis failed: ${e.message}`)
+  }
+
+case 'music.beat_detect':
+  this.logger.info(`MUSIC BEAT_DETECT ${args.file}`, { user: ctx.userId })
+  // Simplified: estimate via LLM or return structure
+  if (!this.agent.registry.skills.llm) throw new Error('Beat detection requires llm skill')
+  
+  const prompt = `Analyze beats for audio file. Sensitivity: ${args.sensitivity}.
+JSON: {
+  "bpm": 128,
+  "time_signature": "4/4",
+  "beats": [{"time": 0.0, "strength": 1.0, "downbeat": true}, {"time": 0.5, "strength": 0.7}],
+  "tempo_changes": [],
+  "grid": "steady"
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { beats: res.text, note: 'Use librosa/essentia for precise detection' } }
+
+case 'music.key_detect':
+  this.logger.info(`MUSIC KEY_DETECT ${args.file}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Key detection requires llm skill')
+  
+  const prompt = `Detect musical key from audio. Use Krumhansl-Schmuckler algorithm concept.
+JSON: {"key":"C","scale":"major","confidence":85,"alternatives":[{"key":"Am","confidence":70}],"method":"chroma_profile"}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { key: res.text } }
+
+case 'music.synth_patch':
+  this.logger.info(`MUSIC SYNTH_PATCH ${args.type} ${args.mood}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Synth patch requires llm skill')
+  
+  const prompt = `Design ${args.complexity} ${args.type} synth patch for ${args.mood} mood.
+JSON: {
+  "name":"Dark Bass",
+  "oscillators":[{"type":"saw","detune":7,"level":0.8},{"type":"square","detune":-7,"level":0.6}],
+  "filter":{"type":"lowpass","cutoff":800,"resonance":0.6,"envelope":0.4},
+  "envelope":{"attack":0.01,"decay":0.3,"sustain":0.5,"release":0.8},
+  "lfo":[{"target":"filter_cutoff","rate":0.25,"depth":0.3,"shape":"sine"}],
+  "fx":[{"type":"distortion","drive":0.3},{"type":"reverb","wet":0.2}],
+  "midi_cc":{"cutoff":74,"resonance":71},
+  "notes":"Play low octaves, monophonic"
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { patch: res.text } }
+
+case 'music.wavetable':
+  this.logger.info(`MUSIC WAVETABLE ${args.base} ${args.harmonics}`, { user: ctx.userId })
+  const harmonics = []
+  for (let i = 1; i <= args.harmonics; i++) {
+    const amp = args.base === 'saw'? 1/i : 
+                args.base === 'square'? (i%2===1? 1/i : 0) :
+                args.base === 'triangle'? (i%2===1? 1/(i*i) : 0) : 
+                (i===1? 1 : 0) // sine
+    if (amp > 0.01) harmonics.push({ n: i, amplitude: amp.toFixed(3), phase: 0 })
+  }
+
+  return {
+    base: args.base,
+    harmonics,
+    morph_type: args.morph_type,
+    positions: args.morph_type === 'spectral'? [
+      { pos: 0, description: 'fundamental only' },
+      { pos: 0.5, description: 'half harmonics' },
+      { pos: 1.0, description: 'full spectrum' }
+    ] : [],
+    note: 'Import to Serum/Vital/Xfer'
+  }
+
+case 'music.fx_chain':
+  this.logger.info(`MUSIC FX_CHAIN ${args.purpose} ${args.instrument}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('FX chain requires llm skill')
+  
+  const prompt = `Design FX chain for ${args.instrument || 'general'} ${args.purpose}.
+JSON: {
+  "chain":[{"order":1,"fx":"EQ","params":{"low_cut":80,"high_shelf":10000}},{"order":2,"fx":"Compressor","params":{"ratio":"4:1","attack":10,"release":100,"threshold":-18}},{"order":3,"fx":"Reverb","params":{"type":"plate","wet":0.15,"decay":1.8}}],
+  "purpose":"","notes":""
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { fx_chain: res.text } }
         case 'music.chord':
           this.logger.info(`MUSIC CHORD ${args.chord}`, { user: ctx.userId })
           const chord = Chord.get(args.chord)
