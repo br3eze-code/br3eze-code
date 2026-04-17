@@ -27,6 +27,80 @@ class FLStudioSkill extends BaseSkill {
 
   static getTools() {
     return {
+'flstudio.arrangement': {
+  risk: 'low',
+  description: 'Song structure AI: generate arrangements, apply templates, auto-arrange',
+  parameters: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['generate', 'apply_template', 'analyze'], default: 'generate' },
+      template: { type: 'string', enum: ['pop', 'edm', 'hiphop', 'rock', 'verse_chorus', 'abacab'], default: 'pop' },
+      length: { type: 'number', description: 'bars', default: 64 },
+      genre: { type: 'string', description: 'for AI generation' },
+      energy: { type: 'array', items: { type: 'number' }, description: 'energy curve 0-1' }
+    },
+    required: ['action']
+  }
+},
+'flstudio.structure': {
+  risk: 'low',
+  description: 'Build playlist structure: sections, clips, automation points',
+  parameters: {
+    type: 'object',
+    properties: {
+      sections: { type: 'array', items: { type: 'object' }, description: '[{name:"Intro",bars:8},{name:"Verse",bars:16}]' },
+      clips: { type: 'object', description: '{"Verse":[1,2],"Chorus":[3,4]}' }
+    },
+    required: ['sections']
+  }
+},
+'flstudio.hardware': {
+  risk: 'low',
+  description: 'Hardware controllers: Akai Fire, Launchpad, Maschine, LED feedback',
+  parameters: {
+    type: 'object',
+    properties: {
+      device: { type: 'string', enum: ['akai_fire', 'launchpad', 'maschine', 'apc40'], default: 'akai_fire' },
+      action: { type: 'string', enum: ['pad_led', 'pad_map', 'knob_map', 'display'], default: 'pad_led' },
+      pad: { type: 'number', description: '0-63 for 8x8 grid' },
+      color: { type: 'string', description: 'red,green,blue,#FF0000,0-127 velocity' },
+      map_to: { type: 'string', description: '/Mixer/track1/volume or channel' }
+    },
+    required: ['device', 'action']
+  }
+},
+'flstudio.fire': {
+  risk: 'low',
+  description: 'Akai Fire specific: step sequencer, OLED, knobs, performance mode',
+  parameters: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['step', 'note', 'drum', 'perform'], default: 'step' },
+      pattern: { type: 'string', description: 'x... for step seq' },
+      oled_text: { type: 'string', description: 'text for OLED row 1-4' },
+      oled_row: { type: 'number', description: '1-4', default: 1 },
+      knob: { type: 'number', description: '1-4' },
+      knob_value: { type: 'number', description: '0-127' }
+    },
+    required: ['mode']
+  }
+},
+'flstudio.launchpad': {
+  risk: 'low',
+  description: 'Novation Launchpad: clip launching, RGB LEDs, user mode',
+  parameters: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['led', 'clear', 'map_clip', 'user_mode'], default: 'led' },
+      x: { type: 'number', description: '0-7' },
+      y: { type: 'number', description: '0-7' },
+      color: { type: 'number', description: '0-127 velocity/RGB' },
+      track: { type: 'number' },
+      clip: { type: 'number' }
+    },
+    required: ['action']
+  }
+}
 'flstudio.performance': {
   risk: 'low',
   description: 'Performance mode: launch clips, scenes, record loops, track status',
@@ -266,6 +340,137 @@ class FLStudioSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+          case 'flstudio.arrangement':
+  this.logger.info(`FL ARRANGEMENT ${args.action} ${args.template}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Arrangement AI requires llm skill')
+
+  const templates = {
+    pop: [{ name: 'Intro', bars: 4 }, { name: 'Verse', bars: 8 }, { name: 'Pre', bars: 4 }, { name: 'Chorus', bars: 8 }, { name: 'Verse', bars: 8 }, { name: 'Pre', bars: 4 }, { name: 'Chorus', bars: 8 }, { name: 'Bridge', bars: 8 }, { name: 'Chorus', bars: 8 }, { name: 'Outro', bars: 4 }],
+    edm: [{ name: 'Intro', bars: 8 }, { name: 'Build', bars: 16 }, { name: 'Drop', bars: 16 }, { name: 'Break', bars: 8 }, { name: 'Build', bars: 16 }, { name: 'Drop', bars: 16 }, { name: 'Outro', bars: 8 }],
+    hiphop: [{ name: 'Intro', bars: 4 }, { name: 'Hook', bars: 8 }, { name: 'Verse', bars: 16 }, { name: 'Hook', bars: 8 }, { name: 'Verse', bars: 16 }, { name: 'Hook', bars: 8 }, { name: 'Outro', bars: 4 }],
+    abacab: [{ name: 'A', bars: 8 }, { name: 'B', bars: 8 }, { name: 'A', bars: 8 }, { name: 'C', bars: 8 }, { name: 'A', bars: 8 }, { name: 'B', bars: 8 }]
+  }
+
+  if (args.action === 'apply_template') {
+    const struct = templates[args.template]
+    const total = struct.reduce((s, sec) => s + sec.bars, 0)
+    let pos = 0
+    const markers = struct.map(sec => {
+      const m = { name: sec.name, position: pos, bars: sec.bars }
+      pos += sec.bars
+      return m
+    })
+
+    // Send markers to FL
+    markers.forEach(m => this._sendOSC('/Playlist/addMarker', JSON.stringify(m)))
+    return { template: args.template, total_bars: total, sections: markers }
+  }
+
+  if (args.action === 'generate') {
+    const prompt = `Generate ${args.genre || 'pop'} song structure ${args.length} bars. Energy curve: ${args.energy?.join(',') || 'rise-fall'}.
+JSON: {"sections":[{"name":"Intro","bars":4,"energy":0.2,"clips":["drums"]},{"name":"Verse","bars":8,"energy":0.4}],"total_bars":${args.length}}`
+    const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+    try { return JSON.parse(res.text) } catch { return { arrangement: res.text } }
+  }
+
+  if (args.action === 'analyze') {
+    const prompt = `Analyze song structure. Return typical arrangement for ${args.genre}.`
+    const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+    try { return JSON.parse(res.text) } catch { return { analysis: res.text } }
+  }
+
+case 'flstudio.structure':
+  this.logger.info(`FL STRUCTURE ${args.sections.length} sections`, { user: ctx.userId })
+  let pos = 0
+  const layout = args.sections.map(sec => {
+    const start = pos
+    pos += sec.bars
+    return { ...sec, start, end: pos }
+  })
+
+  // Send to FL playlist
+  layout.forEach(sec => {
+    this._sendOSC('/Playlist/addMarker', JSON.stringify({ pos: sec.start, name: sec.name }))
+    if (args.clips?.[sec.name]) {
+      args.clips[sec.name].forEach(pattern => {
+        this._sendOSC('/Playlist/addClip', JSON.stringify({ pattern, pos: sec.start, len: sec.bars }))
+      })
+    }
+  })
+
+  return { total_bars: pos, sections: layout, clips: args.clips }
+
+case 'flstudio.hardware':
+  this.logger.info(`FL HARDWARE ${args.device} ${args.action}`, { user: ctx.userId })
+  const deviceMap = {
+    akai_fire: '/Fire',
+    launchpad: '/Launchpad',
+    maschine: '/Maschine',
+    apc40: '/APC40'
+  }
+  const base = deviceMap[args.device]
+
+  if (args.action === 'pad_led') {
+    this._sendOSC(`${base}/pad/${args.pad}/color`, args.color)
+    return { device: args.device, pad: args.pad, color: args.color, address: `${base}/pad/${args.pad}/color` }
+  }
+
+  if (args.action === 'pad_map') {
+    this._sendOSC(`${base}/pad/${args.pad}/map`, args.map_to)
+    return { device: args.device, pad: args.pad, mapped_to: args.map_to }
+  }
+
+  if (args.action === 'knob_map') {
+    this._sendOSC(`${base}/knob/${args.pad}/map`, args.map_to)
+    return { device: args.device, knob: args.pad, mapped_to: args.map_to }
+  }
+
+  if (args.action === 'display') {
+    this._sendOSC(`${base}/display`, args.map_to)
+    return { device: args.device, display: args.map_to }
+  }
+
+case 'flstudio.fire':
+  this.logger.info(`FL FIRE ${args.mode}`, { user: ctx.userId })
+  if (args.mode === 'step' && args.pattern) {
+    this._sendOSC('/Fire/stepSeq', args.pattern)
+    return { mode: 'step', pattern: args.pattern }
+  }
+
+  if (args.oled_text) {
+    this._sendOSC(`/Fire/oled/${args.oled_row}`, args.oled_text)
+    return { mode: args.mode, oled_row: args.oled_row, text: args.oled_text }
+  }
+
+  if (args.knob) {
+    this._sendOSC(`/Fire/knob/${args.knob}`, args.knob_value)
+    return { mode: args.mode, knob: args.knob, value: args.knob_value }
+  }
+
+  this._sendOSC('/Fire/mode', args.mode)
+  return { mode: args.mode }
+
+case 'flstudio.launchpad':
+  this.logger.info(`FL LAUNCHPAD ${args.action}`, { user: ctx.userId })
+  if (args.action === 'led') {
+    this._sendOSC(`/Launchpad/led/${args.x}/${args.y}`, args.color)
+    return { x: args.x, y: args.y, color: args.color }
+  }
+
+  if (args.action === 'clear') {
+    for (let x = 0; x < 8; x++) for (let y = 0; y < 8; y++) this._sendOSC(`/Launchpad/led/${x}/${y}`, 0)
+    return { action: 'clear', pads: 64 }
+  }
+
+  if (args.action === 'map_clip') {
+    this._sendOSC(`/Launchpad/map/${args.x}/${args.y}`, JSON.stringify({ track: args.track, clip: args.clip }))
+    return { x: args.x, y: args.y, track: args.track, clip: args.clip }
+  }
+
+  if (args.action === 'user_mode') {
+    this._sendOSC('/Launchpad/userMode', 1)
+    return { action: 'user_mode', note: 'Launchpad in User Mode for custom mapping' }
+  }
     case 'flstudio.performance':
   this.logger.info(`FL PERFORMANCE ${args.action} T${args.track}C${args.clip}`, { user: ctx.userId })
   const perfMap = {
