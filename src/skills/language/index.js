@@ -13,6 +13,57 @@ class LanguageSkill extends BaseSkill {
   }
 
   static getTools() {
+'language.prosody': {
+  risk: 'low',
+  description: 'Analyze prosody: intonation, rhythm, stress, pitch contour, meter',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string' },
+      lang: { type: 'string', default: 'en' },
+      mode: { type: 'string', enum: ['stress', 'rhythm', 'intonation', 'meter', 'all'], default: 'all' }
+    },
+    required: ['text']
+  }
+},
+'language.morphology': {
+  risk: 'low',
+  description: 'Morphological analysis: morphemes, roots, affixes, word formation',
+  parameters: {
+    type: 'object',
+    properties: {
+      word: { type: 'string' },
+      lang: { type: 'string', default: 'en' },
+      type: { type: 'string', enum: ['breakdown', 'inflection', 'derivation', 'compound'], default: 'breakdown' }
+    },
+    required: ['word']
+  }
+},
+'language.scan': {
+  risk: 'low',
+  description: 'Scansion: analyze poetic meter iambic/trochaic/dactylic/etc',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string', description: 'line or stanza' },
+      lang: { type: 'string', default: 'en' }
+    },
+    required: ['text']
+  }
+},
+'language.etymon': {
+  risk: 'low',
+  description: 'Find etymons: proto-forms, PIE roots, cognates across languages',
+  parameters: {
+    type: 'object',
+    properties: {
+      word: { type: 'string' },
+      lang: { type: 'string', default: 'en' },
+      depth: { type: 'string', enum: ['immediate', 'pie', 'full'], default: 'full' }
+    },
+    required: ['word']
+  }
+}
     return {
 'language.ipa': {
   risk: 'low',
@@ -194,7 +245,103 @@ class LanguageSkill extends BaseSkill {
           const code = franc(args.text)
           const names = { eng: 'English', spa: 'Spanish', fra: 'French', deu: 'German', zho: 'Chinese', jpn: 'Japanese', por: 'Portuguese', rus: 'Russian' }
           return { code, language: names[code] || code, confidence: code === 'und'? 0 : 1 }
-    
+    case 'language.prosody':
+  this.logger.info(`LANGUAGE PROSODY ${args.mode}: ${args.text.slice(0, 40)}`, { user: ctx.userId })
+  const nlp = require('compromise')
+  const doc = nlp(args.text)
+  const terms = doc.terms().json()
+
+  const result = { text: args.text, lang: args.lang }
+
+  if (args.mode === 'stress' || args.mode === 'all') {
+    // Syllables + stress via espeak if available
+    try {
+      const { execSync } = require('child_process')
+      const ipa = execSync(`espeak-ng -v ${args.lang} -q -x --ipa "${args.text.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim()
+      const stress_marks = [...ipa.matchAll(/[ˈˌ]/g)].map((m, i) => ({ position: m.index, type: m[0] === 'ˈ'? 'primary' : 'secondary' }))
+      result.stress = { ipa, marks: stress_marks, pattern: ipa.replace(/[^ˈˌ]/g, '').split('').join('-') }
+    } catch {
+      result.stress = { note: 'Install espeak-ng for stress marks. Syllables estimated.', syllables: terms.map(t => t.syllables || t.text.length / 3) }
+    }
+  }
+
+  if (args.mode === 'rhythm' || args.mode === 'all') {
+    const words = args.text.split(/\s+/)
+    const syllables = words.map(w => w.toLowerCase().replace(/[^a-z]/g, '').replace(/[aeiouy]+/g, 'a').length || 1)
+    result.rhythm = {
+      words: words.length,
+      syllables: syllables.reduce((a, b) => a + b, 0),
+      avg_syllables_per_word: (syllables.reduce((a, b) => a + b, 0) / words.length).toFixed(2),
+      pattern: syllables.map(s => 'x'.repeat(s)).join('-')
+    }
+  }
+
+  if (args.mode === 'intonation' || args.mode === 'all') {
+    // LLM for intonation contours
+    if (this.agent.registry.skills.llm) {
+      const prompt = `Analyze intonation contour of "${args.text}" in ${args.lang}. JSON: {"contour":"falling/rising/fall-rise/rise-fall","focus":"word with emphasis","boundary_tones":["H%","L%"],"note":""}`
+      const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+      try { result.intonation = JSON.parse(res.text) } catch { result.intonation = { note: res.text } }
+    }
+  }
+
+  if (args.mode === 'meter' || args.mode === 'all') {
+    // Basic meter detection: iambic = unstressed-stressed
+    if (result.stress?.pattern) {
+      const p = result.stress.pattern
+      if (/^([ˌ]?ˈ)+$/.test(p.replace(/-/g, ''))) result.meter = { type: 'iambic', pattern: p }
+      else if (/^(ˈ[ˌ]?)+$/.test(p.replace(/-/g, ''))) result.meter = { type: 'trochaic', pattern: p }
+      else result.meter = { type: 'mixed/irregular', pattern: p }
+    }
+  }
+
+  return result
+
+case 'language.morphology':
+  this.logger.info(`LANGUAGE MORPHOLOGY ${args.word} ${args.type}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Morphology requires llm skill')
+
+  const prompts = {
+    breakdown: `Break down "${args.word}" in ${args.lang} into morphemes. JSON: {"word":"","morphemes":[{"morph":"","type":"root/prefix/suffix/infix","meaning":"","origin":""}],"structure":"root+suffix"}`,
+    inflection: `Give inflectional paradigm for "${args.word}" in ${args.lang}. JSON: {"lemma":"","pos":"","inflections":{"plural":"","past":"","gerund":"","comparative":""}}`,
+    derivation: `Give derivational family of "${args.word}" in ${args.lang}. JSON: {"base":"","derivatives":[{"word":"","process":"suffixation","meaning":""}]}`,
+    compound: `If "${args.word}" is compound in ${args.lang}, analyze. JSON: {"is_compound":true,"elements":[{"word":"","meaning":""}],"type":"endocentric/exocentric","head":""}`
+  }
+
+  const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.type], model: 'gpt-4' }, ctx.userId)
+  try {
+    return { word: args.word, lang: args.lang, type: args.type,...JSON.parse(res.text) }
+  } catch {
+    return { word: args.word, analysis: res.text }
+  }
+
+case 'language.scan':
+  this.logger.info(`LANGUAGE SCAN: ${args.text.slice(0, 30)}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Scansion requires llm skill')
+
+  const prompt = `Scan this ${args.lang} poetry for meter. Mark stressed/unstressed: ˈ = stressed, ˘ = unstressed.
+Identify meter type: iambic pentameter, trochaic tetrameter, dactylic hexameter, etc.
+JSON: {"text":"","scansion":"˘ˈ ˘ˈ ˘ˈ ˘ˈ ˘ˈ","meter":"iambic pentameter","feet":5,"pattern":"unstressed-stressed","irregularities":[]}
+
+Text:\n${args.text}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { text: args.text, scansion: res.text } }
+
+case 'language.etymon':
+  this.logger.info(`LANGUAGE ETYMON ${args.word} ${args.depth}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Etymon requires llm skill')
+
+  const prompt = `Trace etymology of "${args.word}" in ${args.lang} to ${args.depth === 'pie'? 'Proto-Indo-European' : args.depth === 'immediate'? 'immediate source' : 'deepest root'}.
+JSON: {
+  "word":"","pos":"",
+  "immediate_source":{"lang":"","form":"","meaning":"","date":""},
+  "intermediate":[{"lang":"","form":"","meaning":"","date":""}],
+  "root":{"lang":"PIE/Proto-Germanic/etc","form":"*wérh₁-","meaning":"","reconstruction":true},
+  "cognates":[{"lang":"de","word":"","meaning":""},{"lang":"la","word":"","meaning":""}],
+  "semantic_shift":[{"period":"","meaning":""}]
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { word: args.word, etymology: res.text } }
   case 'language.ipa':
   this.logger.info(`LANGUAGE IPA ${args.lang}: ${args.text.slice(0, 30)}`, { user: ctx.userId })
   // Use eSpeak NG if available, else LLM
