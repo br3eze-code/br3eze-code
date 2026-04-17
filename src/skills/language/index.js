@@ -13,6 +13,55 @@ class LanguageSkill extends BaseSkill {
   }
 
   static getTools() {
+'language.discourse': {
+  risk: 'low',
+  description: 'Discourse analysis: speech acts, coherence, cohesion, pragmatics, implicature',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string' },
+      lang: { type: 'string', default: 'en' },
+      mode: { type: 'string', enum: ['speech_acts', 'coherence', 'cohesion', 'pragmatics', 'all'], default: 'all' }
+    },
+    required: ['text']
+  }
+},
+'language.typology': {
+  risk: 'low',
+  description: 'Typological analysis: word order, alignment, morphology type, WALS features',
+  parameters: {
+    type: 'object',
+    properties: {
+      lang: { type: 'string', description: 'ISO 639-3: eng, spa, cmn, jpn, etc' },
+      feature: { type: 'string', enum: ['word_order', 'alignment', 'morphology', 'phonology', 'all'], default: 'all' }
+    },
+    required: ['lang']
+  }
+},
+'language.compare_typology': {
+  risk: 'low',
+  description: 'Compare typological features across languages',
+  parameters: {
+    type: 'object',
+    properties: {
+      langs: { type: 'array', items: { type: 'string' }, description: '["eng","jpn","spa"]' },
+      feature: { type: 'string', description: 'WALS feature or general: word_order, case, tense' }
+    },
+    required: ['langs']
+  }
+},
+'language.pragmatics': {
+  risk: 'low',
+  description: 'Pragmatic analysis: implicature, presupposition, deixis, politeness',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string' },
+      context: { type: 'string', description: 'situational context' }
+    },
+    required: ['text']
+  }
+}
 'language.dialect': {
   risk: 'low',
   description: 'Map dialects: identify variety, features, regional variants, sociolects',
@@ -291,6 +340,63 @@ class LanguageSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+          case 'language.discourse':
+  this.logger.info(`LANGUAGE DISCOURSE ${args.mode}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Discourse analysis requires llm skill')
+
+  const prompts = {
+    speech_acts: `Analyze speech acts in this ${args.lang} text using Searle taxonomy. JSON: {"utterances":[{"text":"","act":"assertive/directive/commissive/expressive/declarative","force":"direct/indirect","illocution":"request/promise/warning/etc"}]}. Text:\n${args.text}`,
+    coherence: `Analyze coherence/cohesion in this ${args.lang} text. JSON: {"coherence_score":0-100,"cohesive_devices":{"reference":["pronouns"],"substitution":[],"ellipsis":[],"conjunction":[],"lexical_cohesion":[]},"topic_progression":"linear/constant/derived","breaks":[]}. Text:\n${args.text}`,
+    cohesion: `Identify cohesive ties in this ${args.lang} text. JSON: {"anaphora":[{"antecedent":"","anaphor":"","type":"pronoun"}],"cataphora":[],"bridging":[],"connectives":[]}. Text:\n${args.text}`,
+    pragmatics: `Analyze pragmatics: implicature, presupposition, deixis. JSON: {"implicatures":[{"text":"","implicates":"","type":"conversational/conventional"}],"presuppositions":[],"deixis":{"person":[],"time":[],"place":[]}}. Text:\n${args.text}`,
+    all: `Full discourse analysis of ${args.lang} text. JSON: {"speech_acts":[],"coherence":{},"pragmatics":{},"register":"","genre":""}. Text:\n${args.text}`
+  }
+
+  const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.mode], model: 'gpt-4' }, ctx.userId)
+  try { return { mode: args.mode, lang: args.lang,...JSON.parse(res.text) } } catch { return { mode: args.mode, analysis: res.text } }
+
+case 'language.typology':
+  this.logger.info(`LANGUAGE TYPOLOGY ${args.lang} ${args.feature}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Typology requires llm skill')
+
+  const prompt = `Give typological profile of ${args.lang} (ISO 639-3). Use WALS parameters.
+JSON: {
+  "language":"","family":"","macro_area":"",
+  "word_order":{"basic":"SVO/SOV/VSO/etc","adjective":"N-Adj/Adj-N","adposition":"pre/post"},
+  "alignment":{"type":"nominative-accusative/ergative-absolutive","case_marking":"dependent/head/none"},
+  "morphology":{"type":"isolating/agglutinative/fusional/polysynthetic","inflection_index":"","synthesis_index":""},
+  "phonology":{"consonants":20,"vowels":5,"tone":"yes/no","stress":"fixed/free"},
+  "features":{"pro_drop":true,"wh_movement":true,"articles":true},
+  "wals_ids":{"81A":"SVO","26A":"Prefixing"}
+}
+Feature focus: ${args.feature}.`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { lang: args.lang, typology: res.text } }
+
+case 'language.compare_typology':
+  this.logger.info(`LANGUAGE COMPARE TYPOLOGY ${args.langs.join(',')}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Typology comparison requires llm skill')
+
+  const prompt = `Compare typological feature "${args.feature}" across languages: ${args.langs.join(', ')}.
+JSON: {"feature":"","comparison":[{"lang":"","value":"","note":""}],"pattern":"","outliers":[]}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { langs: args.langs, comparison: res.text } }
+
+case 'language.pragmatics':
+  this.logger.info(`LANGUAGE PRAGMATICS`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Pragmatics requires llm skill')
+
+  const prompt = `Pragmatic analysis of this text. Context: ${args.context || 'none given'}.
+JSON: {
+  "implicatures":[{"utterance":"","implicates":"","type":"conversational","maxim_violated":"quality/quantity/relevance/manner"}],
+  "presuppositions":[{"trigger":"","presupposes":""}],
+  "deixis":{"person":["I","you"],"spatial":["here"],"temporal":["now"]},
+  "politeness":{"strategy":"positive/negative/bald/off-record","markers":["please"],"face_threat":true},
+  "speech_act":"request/apology/etc"
+}
+Text:\n${args.text}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { text: args.text, pragmatics: res.text } }
         case 'language.detect':
           this.logger.info(`LANGUAGE DETECT`, { user: ctx.userId })
           const code = franc(args.text)
