@@ -12,15 +12,15 @@
     "requireApproval": ["cordova.platform.add", "cordova.plugin.add", "cordova.build", "cordova.run", "cordova.sign.android", "cordova.ios.upload"]
   }
   "analyst": {
-    "tools": ["research.search", "research.fetch", "research.pdf", "research.citations"],
+    "tools": ["research.mendeley.search", "research.endnote.search", "research.endnote.export"],
     "requireApproval": []
   },
   "researcher": {
-    "tools": ["research.*"],
-    "requireApproval": ["research.synthesize"]
+    "tools": ["research.mendeley.*", "research.endnote.*"],
+    "requireApproval": ["research.mendeley.sync", "research.mendeley.annotate", "research.endnote.import"]
   },
   "td": {
     "tools": ["research.*"],
-    "requireApproval": ["research.synthesize"]
+    "requireApproval": ["research.synthesize", "research.zotero.sync", "research.zotero.add", "research.notion.export", "research.obsidian.sync", "research.obsidian.write", "research.readwise.sync", "research.roam.sync", "research.roam.write", "research.logseq.sync", "research.logseq.write", "research.mendeley.sync", "research.mendeley.annotate", "research.endnote.import"]
   }
 }
