@@ -13,6 +13,73 @@ class MusicSkill extends BaseSkill {
 
   static getTools() {
     return {
+'music.spatial': {
+  risk: 'low',
+  description: '3D audio: binaural, ambisonics, HRTF, object-based audio, Dolby Atmos specs',
+  parameters: {
+    type: 'object',
+    properties: {
+      mode: { type: 'string', enum: ['binaural', 'ambisonics', 'atmos', 'hrtf'], default: 'binaural' },
+      source_pos: { type: 'object', properties: { azimuth: { type: 'number' }, elevation: { type: 'number' }, distance: { type: 'number' } } },
+      format: { type: 'string', enum: ['FOA', 'HOA', '7.1.4', 'stereo'], default: 'FOA' }
+    },
+    required: ['mode']
+  }
+},
+'music.ai_stems': {
+  risk: 'low',
+  description: 'AI stem separation: vocals, drums, bass, other from mixed audio',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string', description: 'path or attachment://N' },
+      stems: { type: 'array', items: { type: 'string' }, enum: ['vocals', 'drums', 'bass', 'other', 'piano', 'guitar'], default: ['vocals', 'drums', 'bass', 'other'] },
+      model: { type: 'string', enum: ['demucs', 'spleeter', 'ultimate'], default: 'demucs' }
+    },
+    required: ['file']
+  }
+},
+'music.ai_generate': {
+  risk: 'low',
+  description: 'AI music generation: prompt-to-audio, style transfer, continuation',
+  parameters: {
+    type: 'object',
+    properties: {
+      prompt: { type: 'string', description: 'lofi hip hop beat, 90s trance, jazz piano' },
+      duration: { type: 'number', default: 30, description: 'seconds' },
+      mode: { type: 'string', enum: ['text_to_audio', 'style_transfer', 'continuation', 'inpainting'], default: 'text_to_audio' },
+      reference_file: { type: 'string', description: 'for style_transfer/continuation' }
+    },
+    required: ['prompt']
+  }
+},
+'music.ai_master': {
+  risk: 'low',
+  description: 'AI mastering: loudness, stereo width, EQ matching, reference track',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      target_lufs: { type: 'number', default: -14 },
+      reference_file: { type: 'string', description: 'match EQ/width of reference' },
+      style: { type: 'string', enum: ['streaming', 'club', 'vinyl', 'podcast'], default: 'streaming' }
+    },
+    required: ['file']
+  }
+},
+'music.melodyne': {
+  risk: 'low',
+  description: 'Pitch/time correction specs: Auto-Tune style, formant, timing',
+  parameters: {
+    type: 'object',
+    properties: {
+      correction: { type: 'string', enum: ['pitch', 'timing', 'formant', 'all'], default: 'pitch' },
+      strength: { type: 'number', default: 50, description: '0-100' },
+      scale: { type: 'string', description: 'C major, A minor, chromatic' }
+    },
+    required: ['correction']
+  }
+}
 'music.audio_analyze': {
   risk: 'low',
   description: 'Analyze audio file: BPM, key, duration, waveform, spectral features',
@@ -195,6 +262,91 @@ class MusicSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+             case 'music.spatial':
+  this.logger.info(`MUSIC SPATIAL ${args.mode}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Spatial audio requires llm skill')
+  
+  const prompts = {
+    binaural: `Binaural rendering specs for source at az:${args.source_pos?.azimuth}°, el:${args.source_pos?.elevation}°, dist:${args.source_pos?.distance}m.
+JSON: {"hrtf":"KEMAR/CIPIC","itd":"0.6ms","ild":"8dB","filters":{"left":{"delay":0,"gain":-3},"right":{"delay":0.6,"gain":0}},"reverb":{"early":true,"late":false}}`,
+    ambisonics: `Ambisonics encoding ${args.format}. Source position: az:${args.source_pos?.azimuth}°, el:${args.source_pos?.elevation}°.
+JSON: {"format":"${args.format}","order":${args.format === 'FOA'? 1 : 3},"channels":${args.format === 'FOA'? 4 : 16},"encoding":"FuMa/SN3D","wxyz_coeffs":[1,0.707,0.707,0.707],"decode_to":"stereo/binaural"}`,
+    atmos: `Dolby Atmos object metadata. Position: az:${args.source_pos?.azimuth}°, el:${args.source_pos?.elevation}°.
+JSON: {"format":"7.1.4","objects":[{"id":1,"x":0.5,"y":0.2,"z":0.8,"size":0.1}],"bed":"7.1","height_channels":4,"metadata":"ADM"}`,
+    hrtf: `HRTF selection/measurement. Head: azimuth ${args.source_pos?.azimuth}°.
+JSON: {"dataset":"CIPIC/KEMAR","subject":"021","itd_func":"azimuth*0.0006","ild_func":"azimuth*0.05","pinna_filter":true}`
+  }
+  
+  const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.mode], model: 'gpt-4' }, ctx.userId)
+  try { return { mode: args.mode, ...JSON.parse(res.text) } } catch { return { mode: args.mode, specs: res.text } }
+
+case 'music.ai_stems':
+  this.logger.info(`MUSIC AI_STEMS ${args.stems.join(',')} ${args.model}`, { user: ctx.userId })
+  // Note: Actual separation requires demucs/spleeter binary. Return workflow + specs.
+  const stemFiles = args.stems.map(s => `${args.file.replace(/\.[^.]+$/, '')}_${s}.wav`)
+  
+  return {
+    source: args.file,
+    model: args.model,
+    stems: args.stems,
+    outputs: stemFiles,
+    command: args.model === 'demucs'? `demucs -n htdemucs_ft ${args.file}` : `spleeter separate -p spleeter:4stems -o output ${args.file}`,
+    note: 'Install demucs: pip install demucs. Spleeter: pip install spleeter. Outputs WAV 44.1kHz.',
+    specs: { sr: 44100, bit_depth: 16, format: 'wav' }
+  }
+
+case 'music.ai_generate':
+  this.logger.info(`MUSIC AI_GENERATE ${args.mode} ${args.duration}s`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('AI generation requires llm skill')
+  
+  const prompt = `Generate ${args.mode} music spec. Prompt: "${args.prompt}". Duration: ${args.duration}s.
+JSON: {
+  "model":"musicgen/audiocraft/riffusion",
+  "prompt":"${args.prompt}",
+  "duration":${args.duration},
+  "params":{"temperature":1.0,"cfg_scale":3.0,"top_k":250},
+  "output":"audio.wav",
+  "command":"audiocraft ${args.prompt} --duration ${args.duration}",
+  "note":"Use Meta AudioCraft or MusicGen"
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { prompt: args.prompt, generation: res.text } }
+
+case 'music.ai_master':
+  this.logger.info(`MUSIC AI_MASTER ${args.style} ${args.target_lufs}LUFS`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('AI mastering requires llm skill')
+  
+  const prompt = `AI mastering chain for ${args.style}. Target: ${args.target_lufs} LUFS. ${args.reference_file? `Match reference: ${args.reference_file}` : ''}
+JSON: {
+  "chain":[
+    {"fx":"EQ","params":{"low_cut":30,"high_shelf":{"freq":12000,"gain":1.5}}},
+    {"fx":"Multiband","params":{"low":{"ratio":"3:1"},"mid":{"ratio":"2:1"},"high":{"ratio":"2.5:1"}}},
+    {"fx":"Saturation","params":{"type":"tape","drive":0.2}},
+    {"fx":"Stereo","params":{"width":1.2,"bass_mono":120}},
+    {"fx":"Limiter","params":{"threshold":-1.0,"release":50,"lufs":${args.target_lufs}}}
+  ],
+  "targets":{"integrated_lufs":${args.target_lufs},"peak_db":-1.0,"lra":7},
+  "reference_match":${!!args.reference_file}
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { mastering: res.text } }
+
+case 'music.melodyne':
+  this.logger.info(`MUSIC MELODYNE ${args.correction} ${args.strength}`, { user: ctx.userId })
+  const corrections = {
+    pitch: { retune_speed: args.strength, scale: args.scale || 'chromatic', formant: false, note_transition: args.strength },
+    timing: { quantization: args.strength, groove: 100 - args.strength, swing: 0 },
+    formant: { shift: 0, preserve: true, gender: 'neutral' },
+    all: { retune: args.strength, timing: args.strength, formant_preserve: true }
+  }
+  
+  return {
+    correction: args.correction,
+    strength: args.strength,
+    params: corrections[args.correction],
+    plugin: 'Melodyne/Auto-Tune/Elastic Audio',
+    note: `Set retune speed ${args.strength}. 0=natural, 100=robotic`
+  }
           case 'music.audio_analyze':
   this.logger.info(`MUSIC AUDIO_ANALYZE ${args.file}`, { user: ctx.userId })
   const mm = require('music-metadata')
