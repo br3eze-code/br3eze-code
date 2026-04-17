@@ -13,6 +13,72 @@ class MusicSkill extends BaseSkill {
 
   static getTools() {
     return {
+'music.live': {
+  risk: 'low',
+  description: 'Live coding: TidalCycles, Sonic Pi, Strudel patterns, algorithmic composition',
+  parameters: {
+    type: 'object',
+    properties: {
+      engine: { type: 'string', enum: ['tidal', 'sonicpi', 'strudel', 'foxdot'], default: 'tidal' },
+      pattern: { type: 'string', description: 'd1 $ sound "bd sd ~ bd"' },
+      bpm: { type: 'number', default: 120 },
+      action: { type: 'string', enum: ['eval', 'hush', 'solo', 'all'], default: 'eval' }
+    },
+    required: ['pattern']
+  }
+},
+'music.algo_comp': {
+  risk: 'low',
+  description: 'Algorithmic composition: euclidean, markov, cellular automata, L-systems',
+  parameters: {
+    type: 'object',
+    properties: {
+      algorithm: { type: 'string', enum: ['euclidean', 'markov', 'cellular', 'lsystem', 'fibonacci'], default: 'euclidean' },
+      params: { type: 'object', description: 'steps:16, pulses:5, rotation:0 for euclidean' },
+      output: { type: 'string', enum: ['midi', 'tidal', 'notes'], default: 'tidal' }
+    },
+    required: ['algorithm']
+  }
+},
+'music.neuro': {
+  risk: 'low',
+  description: 'EEG/biofeedback sonification: alpha, beta, theta, gamma → music',
+  parameters: {
+    type: 'object',
+    properties: {
+      signal: { type: 'string', enum: ['alpha', 'beta', 'theta', 'delta', 'gamma', 'hrv', 'eda'], default: 'alpha' },
+      mapping: { type: 'string', enum: ['pitch', 'tempo', 'filter', 'amplitude', 'timbre'], default: 'pitch' },
+      range: { type: 'array', items: { type: 'number' }, description: 'min,max Hz or value', default: [8, 12] }
+    },
+    required: ['signal']
+  }
+},
+'music.bci': {
+  risk: 'low',
+  description: 'Brain-computer interface: SSVEP, P300, motor imagery → music control',
+  parameters: {
+    type: 'object',
+    properties: {
+      paradigm: { type: 'string', enum: ['ssvep', 'p300', 'motor', 'attention'], default: 'attention' },
+      channels: { type: 'number', default: 8 },
+      control: { type: 'string', enum: ['tempo', 'filter', 'instrument', 'fx'], default: 'tempo' }
+    },
+    required: ['paradigm']
+  }
+},
+'music.biofeedback': {
+  risk: 'low',
+  description: 'HRV/EDA/EMG to music: relaxation, focus, arousal sonification',
+  parameters: {
+    type: 'object',
+    properties: {
+      metric: { type: 'string', enum: ['hrv', 'heart_rate', 'eda', 'emg', 'breath'], default: 'hrv' },
+      target: { type: 'string', enum: ['relax', 'focus', 'energize'], default: 'relax' },
+      mode: { type: 'string', enum: ['sonify', 'entrain', 'adaptive'], default: 'adaptive' }
+    },
+    required: ['metric']
+  }
+}
 'music.spatial': {
   risk: 'low',
   description: '3D audio: binaural, ambisonics, HRTF, object-based audio, Dolby Atmos specs',
@@ -330,7 +396,159 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { mastering: res.text } }
+case 'music.live':
+  this.logger.info(`MUSIC LIVE ${args.engine} ${args.action}`, { user: ctx.userId })
 
+  const engines = {
+    tidal: `d1 $ ${args.pattern}`,
+    sonicpi: `live_loop :beat do\n ${args.pattern}\n sleep 1\nend`,
+    strudel: `${args.pattern}`,
+    foxdot: `${args.pattern}`
+  }
+
+  if (args.action === 'hush') {
+    return { engine: args.engine, action: 'hush', code: 'hush', note: 'Stop all patterns' }
+  }
+
+  return {
+    engine: args.engine,
+    bpm: args.bpm,
+    code: engines[args.engine],
+    pattern: args.pattern,
+    note: `Set cps ${args.bpm/60/2} -- for Tidal. Eval in ${args.engine} REPL.`
+  }
+
+case 'music.algo_comp':
+  this.logger.info(`MUSIC ALGO_COMP ${args.algorithm}`, { user: ctx.userId })
+
+  const algorithms = {
+    euclidean: () => {
+      const { steps = 16, pulses = 5, rotation = 0 } = args.params || {}
+      const pattern = []
+      for (let i = 0; i < steps; i++) {
+        pattern.push(Math.floor((i * pulses) / steps)!== Math.floor(((i - 1) * pulses) / steps)? 'x' : '.')
+      }
+      const rotated = [...pattern.slice(rotation),...pattern.slice(0, rotation)].join('')
+      return { algorithm: 'euclidean', pattern: rotated, steps, pulses, rotation, tidal: `s "${rotated}"` }
+    },
+    markov: () => {
+      const chain = args.params?.chain || { C: { E: 0.5, G: 0.5 }, E: { G: 0.7, C: 0.3 }, G: { C: 1.0 } }
+      const start = args.params?.start || 'C'
+      const length = args.params?.length || 16
+      let seq = [start], current = start
+      for (let i = 1; i < length; i++) {
+        const probs = chain[current] || {}
+        const r = Math.random()
+        let sum = 0
+        for (const [next, p] of Object.entries(probs)) {
+          sum += p
+          if (r < sum) { current = next; break }
+        }
+        seq.push(current)
+      }
+      return { algorithm: 'markov', sequence: seq, tidal: `note "${seq.join(' ')}"` }
+    },
+    cellular: () => {
+      const rule = args.params?.rule || 30
+      const gens = args.params?.generations || 8
+      const width = args.params?.width || 16
+      let row = Array(width).fill(0); row[Math.floor(width/2)] = 1
+      const grid = [row]
+      for (let g = 1; g < gens; g++) {
+        const prev = grid[g-1]
+        const next = prev.map((_, i) => {
+          const l = prev[i-1] || 0, c = prev[i], r = prev[i+1] || 0
+          const idx = l*4 + c*2 + r
+          return (rule >> idx) & 1
+        })
+        grid.push(next)
+      }
+      const pattern = grid.flat().map(c => c? 'x' : '.').join('')
+      return { algorithm: 'cellular', rule, pattern, tidal: `s "${pattern}"` }
+    },
+    lsystem: () => {
+      const axiom = args.params?.axiom || 'A'
+      const rules = args.params?.rules || { A: 'AB', B: 'A' }
+      const iter = args.params?.iterations || 4
+      let str = axiom
+      for (let i = 0; i < iter; i++) {
+        str = str.split('').map(c => rules[c] || c).join('')
+      }
+      return { algorithm: 'lsystem', result: str, tidal: `note "${str.split('').join(' ')}"` }
+    },
+    fibonacci: () => {
+      const n = args.params?.n || 8
+      const fib = [1, 1]
+      for (let i = 2; i < n; i++) fib.push(fib[i-1] + fib[i-2])
+      const pattern = fib.map(f => f % 2? 'x' : '.').join('')
+      return { algorithm: 'fibonacci', sequence: fib, pattern, tidal: `s "${pattern}"` }
+    }
+  }
+
+  const result = algorithms[args.algorithm]()
+  return {...result, output: args.output }
+
+case 'music.neuro':
+  this.logger.info(`MUSIC NEURO ${args.signal} → ${args.mapping}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Neuro sonification requires llm skill')
+
+  const prompt = `EEG/bio sonification: ${args.signal} band ${args.range[0]}-${args.range[1]}Hz mapped to ${args.mapping}.
+JSON: {
+  "signal":"${args.signal}",
+  "band":"${args.range[0]}-${args.range[1]}Hz",
+  "mapping":"${args.mapping}",
+  "scale":{"min":${args.range[0]},"max":${args.range[1]},"to":{"pitch":[220,880],"tempo":[60,120],"filter":[200,5000]}},
+  "interpretation":"alpha=relaxed, beta=active, theta=drowsy, gamma=focus",
+  "patch":{"osc":"sine","env":"slow","fx":"reverb"},
+  "note":"Higher ${args.signal} → higher ${args.mapping}"
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { signal: args.signal, mapping: res.text } }
+
+case 'music.bci':
+  this.logger.info(`MUSIC BCI ${args.paradigm} ${args.control}`, { user: ctx.userId })
+
+  const paradigms = {
+    ssvep: { freqs: [8, 10, 12, 15], note: 'Stare at flicker → select instrument', latency: '2-5s' },
+    p300: { target: 'oddball', note: 'Attend to trigger → play note', latency: '300ms' },
+    motor: { imagery: 'left/right hand', note: 'Imagine movement → pan/modulate', latency: '1-2s' },
+    attention: { metric: 'alpha suppression', note: 'Focus → increase tempo/brightness', latency: '0.5s' }
+  }
+
+  return {
+    paradigm: args.paradigm,
+    channels: args.channels,
+    control: args.control,
+   ...paradigms[args.paradigm],
+    setup: `OpenBCI ${args.channels}-ch, Cyton+Daisy. Stream LSL. Map to ${args.control}.`
+  }
+
+case 'music.biofeedback':
+  this.logger.info(`MUSIC BIOFEEDBACK ${args.metric} ${args.target}`, { user: ctx.userId })
+
+  const mappings = {
+    hrv: { relax: 'higher HRV → slower tempo, warmer timbre', focus: 'stable HRV → steady rhythm', energize: 'lower HRV → faster tempo' },
+    heart_rate: { relax: 'lower HR → lower pitch, slower', focus: 'stable HR → metronome', energize: 'higher HR → faster, brighter' },
+    eda: { relax: 'lower EDA → less dissonance, more reverb', focus: 'stable EDA → clear tone', energize: 'higher EDA → distortion' },
+    breath: { relax: 'slow breath → long pads', focus: 'rhythmic breath → sync tempo', energize: 'fast breath → arps' }
+  }
+
+  const modes = {
+    sonify: 'Direct mapping: metric → sound parameter',
+    entrain: 'Play target frequency to guide metric toward goal',
+    adaptive: 'Adjust music to reinforce desired state'
+  }
+
+  return {
+    metric: args.metric,
+    target: args.target,
+    mode: args.mode,
+    mapping: mappings[args.metric][args.target],
+    behavior: modes[args.mode],
+    protocol: args.target === 'relax'? 'Reduce tempo 5 BPM/min, lowpass 2kHz, increase reverb' :
+              args.target === 'focus'? 'Lock tempo 60-70 BPM, minimal variation, pink noise' :
+              'Increase tempo 5 BPM/min, add harmonics, reduce reverb'
+  }
 case 'music.melodyne':
   this.logger.info(`MUSIC MELODYNE ${args.correction} ${args.strength}`, { user: ctx.userId })
   const corrections = {
