@@ -14,6 +14,58 @@ class LanguageSkill extends BaseSkill {
 
   static getTools() {
     return {
+'language.ipa': {
+  risk: 'low',
+  description: 'Convert text to IPA pronunciation, phonetics, syllables, stress',
+  parameters: {
+    type: 'object',
+    properties: {
+      text: { type: 'string' },
+      lang: { type: 'string', default: 'en-us', description: 'en-us, en-gb, es, fr, de, etc' },
+      format: { type: 'string', enum: ['ipa', 'arpa', 'both'], default: 'ipa' }
+    },
+    required: ['text']
+  }
+},
+'language.phonetics': {
+  risk: 'low',
+  description: 'Analyze phonetics: syllable count, stress pattern, sounds',
+  parameters: {
+    type: 'object',
+    properties: {
+      word: { type: 'string' },
+      lang: { type: 'string', default: 'en' }
+    },
+    required: ['word']
+  }
+},
+'language.corpus': {
+  risk: 'low',
+  description: 'Corpus analysis: frequency, collocations, n-grams, usage trends',
+  parameters: {
+    type: 'object',
+    properties: {
+      word: { type: 'string' },
+      corpus: { type: 'string', enum: ['google_books', 'coca', 'bnc', 'general'], default: 'general' },
+      metric: { type: 'string', enum: ['frequency', 'collocations', 'ngrams', 'trends', 'all'], default: 'all' },
+      n: { type: 'number', description: 'n for n-grams', default: 2 }
+    },
+    required: ['word']
+  }
+},
+'language.compare': {
+  risk: 'low',
+  description: 'Compare two words: similarity, frequency, register, usage',
+  parameters: {
+    type: 'object',
+    properties: {
+      word1: { type: 'string' },
+      word2: { type: 'string' },
+      lang: { type: 'string', default: 'en' }
+    },
+    required: ['word1', 'word2']
+  }
+}
 'language.thesaurus': {
   risk: 'low',
   description: 'Advanced thesaurus: hypernyms, hyponyms, meronyms, holonyms, related terms',
@@ -142,6 +194,122 @@ class LanguageSkill extends BaseSkill {
           const code = franc(args.text)
           const names = { eng: 'English', spa: 'Spanish', fra: 'French', deu: 'German', zho: 'Chinese', jpn: 'Japanese', por: 'Portuguese', rus: 'Russian' }
           return { code, language: names[code] || code, confidence: code === 'und'? 0 : 1 }
+    
+  case 'language.ipa':
+  this.logger.info(`LANGUAGE IPA ${args.lang}: ${args.text.slice(0, 30)}`, { user: ctx.userId })
+  // Use eSpeak NG if available, else LLM
+  try {
+    const { execSync } = require('child_process')
+    const escaped = args.text.replace(/"/g, '\\"')
+    const voice = args.lang.replace('-', '_') // en-us -> en_us
+    let cmd = `espeak-ng -v ${voice} -q -x --ipa "${escaped}"`
+
+    if (args.format === 'arpa') cmd = `espeak-ng -v ${voice} -q -x --phonout "${escaped}"`
+
+    const ipa = execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim()
+
+    if (args.format === 'both') {
+      const arpa = execSync(`espeak-ng -v ${voice} -q -x --phonout "${escaped}"`, { encoding: 'utf8' }).trim()
+      return { text: args.text, lang: args.lang, ipa, arpa }
+    }
+    return { text: args.text, lang: args.lang, [args.format]: ipa }
+  } catch {
+    // LLM fallback
+    if (!this.agent.registry.skills.llm) throw new Error('IPA requires espeak-ng or llm skill')
+    const prompt = `Convert to ${args.format === 'arpa'? 'ARPAbet' : 'IPA'} phonetic transcription for ${args.lang}. Output only transcription:\n\n${args.text}`
+    const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+    return { text: args.text, lang: args.lang, [args.format]: res.text.trim() }
+  }
+
+case 'language.phonetics':
+  this.logger.info(`LANGUAGE PHONETICS ${args.word}`, { user: ctx.userId })
+  const nlp = require('compromise')
+  const doc = nlp(args.word)
+  const term = doc.terms().json()[0] || {}
+
+  // Syllable estimation
+  const syllables = args.word.toLowerCase().replace(/[^a-z]/g, '').replace(/[aeiouy]+/g, 'a').length || 1
+
+  // Try espeak for stress pattern
+  let stress = null, phonemes = null
+  try {
+    const { execSync } = require('child_process')
+    const ipa = execSync(`espeak-ng -v en -q -x --ipa "${args.word}"`, { encoding: 'utf8' }).trim()
+    stress = (ipa.match(/ˈ/g) || []).length? 'primary' : 'none'
+    if (ipa.includes('ˌ')) stress = 'secondary'
+    phonemes = ipa.split('').filter(c => c.trim())
+  } catch {}
+
+  return {
+    word: args.word,
+    syllables,
+    stress,
+    phonemes,
+    ipa: phonemes?.join(' '),
+    sounds: term.tags || []
+  }
+
+case 'language.corpus':
+  this.logger.info(`LANGUAGE CORPUS ${args.word} ${args.metric}`, { user: ctx.userId })
+  // Use Datamuse + Google Ngrams approximation via LLM
+  const base = 'https://api.datamuse.com/words'
+
+  try {
+    const results = {}
+    if (args.metric === 'frequency' || args.metric === 'all') {
+      const res = await fetch(`${base}?sp=${encodeURIComponent(args.word)}&md=f&max=1`)
+      const data = await res.json()
+      results.frequency = data[0]?.tags?.find(t => t.startsWith('f:'))?.slice(2)
+      results.frequency_note = results.frequency? `f:${results.frequency} = occurs ~${Math.pow(10, parseFloat(results.frequency)).toFixed(0)} per million words` : 'unknown'
+    }
+
+    if (args.metric === 'collocations' || args.metric === 'all') {
+      const res = await fetch(`${base}?rel_bga=${encodeURIComponent(args.word)}&max=15`) // bga = frequent followers
+      const before = await res.json()
+      const res2 = await fetch(`${base}?rel_bgb=${encodeURIComponent(args.word)}&max=15`) // bgb = frequent predecessors
+      const after = await res2.json()
+      results.collocations = {
+        before: after.map(w => w.word), // words that come before
+        after: before.map(w => w.word) // words that come after
+      }
+    }
+
+    if (args.metric === 'ngrams' || args.metric === 'all') {
+      // Approximate with Datamuse rel_trg = triggers/related
+      const res = await fetch(`${base}?rel_trg=${encodeURIComponent(args.word)}&max=20`)
+      const related = await res.json()
+      results.related_terms = related.map(w => w.word)
+      results.ngram_note = `${args.n}-grams require Google Ngrams API. Related terms shown instead.`
+    }
+
+    if (args.metric === 'trends' || args.metric === 'all') {
+      // LLM for historical trends
+      if (this.agent.registry.skills.llm) {
+        const prompt = `Give usage trend of "${args.word}" from 1800-2020. JSON: {"1800s":"rare","1900s":"common","2000s":"peak","trend":"rising/falling/stable","peak_year":2005}`
+        const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
+        try { results.trends = JSON.parse(res.text) } catch { results.trends_note = res.text }
+      }
+    }
+
+    return { word: args.word, corpus: args.corpus,...results }
+  } catch (e) {
+    throw new Error(`Corpus analysis failed: ${e.message}`)
+  }
+
+case 'language.compare':
+  this.logger.info(`LANGUAGE COMPARE ${args.word1} vs ${args.word2}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Compare requires llm skill')
+
+  const prompt = `Compare "${args.word1}" vs "${args.word2}" in ${args.lang}.
+JSON: {
+  "similarity": 0-100,
+  "word1": {"frequency":"high/medium/low","register":"formal/informal/neutral","connotation":"positive/negative/neutral","example":""},
+  "word2": {"frequency":"high/medium/low","register":"formal/informal/neutral","connotation":"positive/negative/neutral","example":""},
+  "difference":"key distinction",
+  "when_to_use_each":""
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { word1: args.word1, word2: args.word2, analysis: res.text } }
 case 'language.thesaurus':
   this.logger.info(`LANGUAGE THESAURUS ${args.word} ${args.relation}`, { user: ctx.userId })
   // Datamuse API supports semantic relations
