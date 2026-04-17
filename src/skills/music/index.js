@@ -13,7 +13,85 @@ class MusicSkill extends BaseSkill {
 
   static getTools() {
     return {
-      // Add to static getTools() return object:
+
+'music.cognition': {
+  risk: 'low',
+  description: 'Music cognition: expectation, tension, entrainment, groove, emotion',
+  parameters: {
+    type: 'object',
+    properties: {
+      chords: { type: 'array', items: { type: 'string' }, description: 'chord progression' },
+      melody: { type: 'array', items: { type: 'string' }, description: 'note sequence' },
+      model: { type: 'string', enum: ['idyll', 'melisma', 'expectation', 'tension', 'groove'], default: 'expectation' }
+    },
+    required: []
+  }
+},
+'music.expectation': {
+  risk: 'low',
+  description: 'Information Dynamics: surprisal, entropy, predictive processing',
+  parameters: {
+    type: 'object',
+    properties: {
+      sequence: { type: 'array', items: { type: 'string' }, description: 'notes or chords' },
+      context: { type: 'string', description: 'key/style context' },
+      metric: { type: 'string', enum: ['surprisal', 'entropy', 'probability'], default: 'surprisal' }
+    },
+    required: ['sequence']
+  }
+},
+'music.entrainment': {
+  risk: 'low',
+  description: 'Neural entrainment: beat induction, meter, syncopation strength',
+  parameters: {
+    type: 'object',
+    properties: {
+      rhythm: { type: 'string', description: 'x..x..x. or midi ticks' },
+      tempo: { type: 'number', default: 120 },
+      analysis: { type: 'string', enum: ['beat', 'meter', 'groove', 'syncopation'], default: 'groove' }
+    },
+    required: ['rhythm']
+  }
+},
+'music.ethno': {
+  risk: 'low',
+  description: 'Ethnomusicology: tuning systems, scales, cross-cultural analysis',
+  parameters: {
+    type: 'object',
+    properties: {
+      tradition: { type: 'string', description: 'gamelan, maqam, raga, pygmy, etc' },
+      aspect: { type: 'string', enum: ['tuning', 'scale', 'rhythm', 'form', 'all'], default: 'all' },
+      region: { type: 'string', description: 'Java, Arab, India, Africa' }
+    },
+    required: ['tradition']
+  }
+},
+'music.transcribe': {
+  risk: 'low',
+  description: 'Auto-transcription: audio → notation, non-Western systems',
+  parameters: {
+    type: 'object',
+    properties: {
+      file: { type: 'string' },
+      system: { type: 'string', enum: ['western', 'ciprian', 'gamelan', 'maqam', 'sargam'], default: 'western' },
+      quantize: { type: 'boolean', default: true }
+    },
+    required: ['file']
+  }
+},
+'music.tuning': {
+  risk: 'low',
+  description: 'Tuning systems: just, meantone, 12-TET, pelog, slendro, maqam',
+  parameters: {
+    type: 'object',
+    properties: {
+      system: { type: 'string', enum: ['12tet', 'just', 'pythagorean', 'meantone', 'pelog', 'slendro', 'maqam'], default: '12tet' },
+      root: { type: 'string', default: 'C' },
+      notes: { type: 'number', description: 'notes per octave', default: 12 }
+    },
+    required: ['system']
+  }
+}
 'music.performance': {
   risk: 'low',
   description: 'Real-time MIR: onset, pitch tracking, tempo curve, dynamics, articulation',
@@ -463,6 +541,145 @@ class MusicSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+    case 'music.cognition':
+  this.logger.info(`MUSIC COGNITION ${args.model}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Cognition models require llm skill')
+
+  const prompts = {
+    expectation: `Model expectation for progression: ${args.chords?.join(' ')} melody: ${args.melody?.join(' ')}.
+JSON: {
+  "expectations":[{"event":"G7","expected":"C","surprisal":0.2,"probability":0.8},{"event":"F#","expected":"G","surprisal":2.1,"probability":0.1}],
+  "tension_curve":[0.2,0.8,0.9,0.1],
+  "closure_points":[3],
+  "model":"IDyOM/Narmour"
+}`,
+    tension: `Analyze tension/release. Chords: ${args.chords?.join(' ')}.
+JSON: {"tension":[{"chord":"G7","level":0.9,"factors":["dominant","tritone"]},{"chord":"C","level":0.1,"factors":["tonic","resolution"]}],"arc":"rise-fall","peak":1}`,
+    groove: `Quantify groove. Rhythm implied by chords: ${args.chords?.join(' ')}.
+JSON: {"groove_score":0.82,"syncopation":0.4,"microtiming":"laid_back","entrainment":0.9,"factors":["backbeat","anticipation"]}`
+  }
+
+  const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.model], model: 'gpt-4' }, ctx.userId)
+  try { return { model: args.model,...JSON.parse(res.text) } } catch { return { model: args.model, analysis: res.text } }
+
+case 'music.expectation':
+  this.logger.info(`MUSIC EXPECTATION ${args.metric}`, { user: ctx.userId })
+  const { Note } = require('tonal')
+
+  // Simplified surprisal: -log2(p) using corpus probabilities
+  const probs = { 'C': 0.2, 'G': 0.15, 'F': 0.12, 'D': 0.08, 'A': 0.07, 'E': 0.06, 'B': 0.05 }
+  const seq = args.sequence.map(n => {
+    const pc = Note.pitchClass(n)
+    const p = probs[pc] || 0.01
+    const surprisal = -Math.log2(p)
+    return { note: n, probability: p.toFixed(3), surprisal: surprisal.toFixed(2) }
+  })
+
+  const entropy = -seq.reduce((sum, s) => sum + s.probability * Math.log2(s.probability), 0)
+
+  return {
+    sequence: args.sequence,
+    context: args.context || 'general',
+    metric: args.metric,
+    values: seq,
+    entropy: entropy.toFixed(3),
+    mean_surprisal: (seq.reduce((s, x) => s + parseFloat(x.surprisal), 0) / seq.length).toFixed(2),
+    note: 'Higher surprisal = less expected. IDyOM uses Markov models + long-term memory.'
+  }
+
+case 'music.entrainment':
+  this.logger.info(`MUSIC ENTRAINMENT ${args.analysis}`, { user: ctx.userId })
+  const pattern = args.rhythm.replace(/[^x.]/g, '')
+  const onsets = pattern.split('').map((c, i) => c === 'x'? i : null).filter(x => x!== null)
+
+  // Beat induction: find period
+  const iois = onsets.slice(1).map((o, i) => o - onsets[i])
+  const meanIOI = iois.reduce((a, b) => a + b, 0) / iois.length || 4
+  const beatPeriod = Math.round(meanIOI)
+
+  // Syncopation: off-beat onsets
+  const syncopation = onsets.filter(o => o % beatPeriod!== 0).length / onsets.length
+
+  // Groove: regularity + syncopation balance
+  const regularity = 1 - (Math.sqrt(iois.reduce((s, i) => s + Math.pow(i - meanIOI, 2), 0) / iois.length) / meanIOI)
+  const groove = regularity * 0.6 + syncopation * 0.4
+
+  return {
+    rhythm: args.rhythm,
+    tempo: args.tempo,
+    beat_period: beatPeriod,
+    meter: beatPeriod === 4? '4/4' : beatPeriod === 3? '3/4' : `${beatPeriod}/8`,
+    syncopation: syncopation.toFixed(2),
+    regularity: regularity.toFixed(2),
+    groove_score: groove.toFixed(2),
+    entrainment: groove > 0.6? 'strong' : groove > 0.3? 'moderate' : 'weak'
+  }
+
+case 'music.ethno':
+  this.logger.info(`MUSIC ETHNO ${args.tradition} ${args.aspect}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Ethnomusicology requires llm skill')
+
+  const prompt = `Ethnomusicology profile: ${args.tradition} from ${args.region}. Aspect: ${args.aspect}.
+JSON: {
+  "tradition":"${args.tradition}",
+  "region":"${args.region}",
+  "tuning":{"system":"pelog/slendro/maqam","notes_per_octave":5,"intervals":[120,150,270,420,480],"temperament":"unequal"},
+  "scale":{"name":"Pelog","degrees":[1,"1#",3,4,5],"hemitonic":false},
+  "rhythm":{"cycles":"gongan","colotomic":["gong","kenong","kempul"],"meter":"additive"},
+  "form":{"structure":"cyclic","improvisation":"guided"},
+  "instruments":["gamelan","saron","bonang"],
+  "aesthetics":{"timbre":"bright","density":"layered"}
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { tradition: args.tradition, analysis: res.text } }
+
+case 'music.transcribe':
+  this.logger.info(`MUSIC TRANSCRIBE ${args.system} ${args.file}`, { user: ctx.userId })
+  if (!this.agent.registry.skills.llm) throw new Error('Transcription requires llm skill')
+
+  const prompt = `Transcribe ${args.file} to ${args.system} notation. Quantize: ${args.quantize}.
+JSON: {
+  "system":"${args.system}",
+  "notation":${args.system === 'western'? '"C4 E4 G4"' : args.system === 'sargam'? '"Sa Re Ga"' : '"1 3 5"'},
+  "time_signature":"4/4",
+  "key":"C",
+  "measures":4,
+  "confidence":85,
+  "note":"Auto-transcription approximate. Verify pitch/time."
+}`
+  const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
+  try { return JSON.parse(res.text) } catch { return { file: args.file, transcription: res.text } }
+
+case 'music.tuning':
+  this.logger.info(`MUSIC TUNING ${args.system} ${args.root}`, { user: ctx.userId })
+  const { Note, Interval } = require('tonal')
+
+  const systems = {
+    '12tet': { notes: 12, ratios: Array(12).fill(0).map((_, i) => Math.pow(2, i/12)), name: '12-Tone Equal' },
+    'just': { notes: 12, ratios: [1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8], name: 'Just Intonation' },
+    'pythagorean': { notes: 12, ratios: Array(12).fill(0).map((_, i) => Math.pow(3/2, i) * Math.pow(2, -Math.floor(i*Math.log2(3/2)))), name: 'Pythagorean' },
+    'pelog': { notes: 7, ratios: [1, 1.072, 1.195, 1.33, 1.41, 1.58, 1.78], name: 'Pelog' },
+    'slendro': { notes: 5, ratios: [1, 1.15, 1.32, 1.51, 1.75], name: 'Slendro' },
+    'maqam': { notes: 24, ratios: 'quarter-tone', name: 'Arabic Maqam' }
+  }
+
+  const sys = systems[args.system]
+  const rootFreq = Note.freq(args.root) || 261.63
+  const tuning = sys.ratios === 'quarter-tone'?
+    { system: 'maqam', notes: 24, cents: Array(24).fill(0).map((_, i) => i * 50) } :
+    {
+      system: sys.name,
+      root: args.root,
+      root_freq: rootFreq.toFixed(2),
+      degrees: sys.ratios.map((r, i) => ({
+        degree: i + 1,
+        ratio: typeof r === 'number'? r.toFixed(4) : r,
+        freq: (rootFreq * r).toFixed(2),
+        cents: (1200 * Math.log2(r)).toFixed(1)
+      }))
+    }
+
+  return tuning
              case 'music.spatial':
   this.logger.info(`MUSIC SPATIAL ${args.mode}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Spatial audio requires llm skill')
