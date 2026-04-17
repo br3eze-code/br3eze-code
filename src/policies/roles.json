@@ -23,4 +23,16 @@
     "tools": ["research.*"],
     "requireApproval": ["research.synthesize", "research.zotero.sync", "research.zotero.add", "research.notion.export", "research.obsidian.sync", "research.obsidian.write", "research.readwise.sync", "research.roam.sync", "research.roam.write", "research.logseq.sync", "research.logseq.write", "research.mendeley.sync", "research.mendeley.annotate", "research.endnote.import"]
   }
+  "writer": {
+    "tools": ["language.*"],
+    "requireApproval": []
+  },
+  "editor": {
+    "tools": ["language.*"],
+    "requireApproval": []
+  },
+  "td": {
+    "tools": ["language.*"],
+    "requireApproval": []
+  }
 }
