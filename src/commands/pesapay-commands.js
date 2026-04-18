@@ -2,7 +2,19 @@
 // Telegram bot commands for PesaPay integration
 
 module.exports = function setupPesaPayCommands(bot, paymentSvc) {
+  // Manual status check instead of IPN
+bot.action(/check_(.+)/, async (ctx) => {
+  const [, orderTrackingId] = ctx.match;
   
+  const status = await pesapal.getTransactionStatus(orderTrackingId);
+  
+  if (status.success) {
+    // Generate and send voucher
+    await handleSuccessfulPayment(status);
+  } else {
+    await ctx.answerCbQuery('Still pending... Click Pay Now to complete');
+  }
+});
   // /pay command - Quick payment via PesaPay
   bot.command('pay', async (ctx) => {
     const userId = ctx.from.id;
