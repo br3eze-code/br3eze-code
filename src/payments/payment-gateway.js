@@ -5,6 +5,7 @@
 const crypto = require('crypto');
 const https = require('https');
 const http = require('http');
+const PesaPayProvider = require('./providers/pesapay-provider');
 const { URL } = require('url');
 
 class PaymentGateway {
@@ -59,6 +60,22 @@ class PaymentGateway {
     if (this.config.stripeSecretKey) {
       this.providers.set('stripe', new StripeProvider(this.config));
     }
+    // PesaPay (Zimbabwe All-in-One)
+  if (this.config.pesapayConsumerKey) {
+    this.providers.set('pesapay', new PesaPayProvider(this.config));
+  }
+}
+
+// In getAvailableMethods(), add PesaPay options:
+getAvailableMethods(options = {}) {
+  const methods = [];
+  const { country = 'ZW' } = options;
+
+  // PesaPay - Zimbabwe all-in-one solution
+  if (this.providers.has('pesapay') && country === 'ZW') {
+    const pesapay = this.providers.get('pesapay');
+    methods.push(...pesapay.getSupportedMethods());
+  }
     if (this.config.ecocashMerchantCode) {
       this.providers.set('ecocash', new EcoCashProvider(this.config));
     }
