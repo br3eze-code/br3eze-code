@@ -19,8 +19,7 @@ class Bot {
     }
 }
 
-module.exports = Bot;
-module.exports = (bot, agent) => {
+module.exports = (Bot, agent) => {
 
     bot.onText(/\/kick (.+)/, async (msg, match) => {
         const username = match[1];
