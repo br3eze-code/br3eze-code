@@ -1,59 +1,78 @@
-// src/payments/providers/pesapay-provider.js
-// PesaPay/PesaPal Payment Gateway Integration for AgentOS
-// Supports: Mobile Money (EcoCash, OneMoney, Telecash), Cards, Bank Transfers
+// src/payments/providers/pesapal-provider.js
+// PesaPal Integration for Br3eze Africa - AgentOS
+// Credentials: Br3eze Africa Production Account
 
 const crypto = require('crypto');
 const https = require('https');
 const { URL } = require('url');
 
-class PesaPayProvider {
-  constructor(config) {
+class PesaPalProvider {
+  constructor(config = {}) {
     this.config = {
-      consumerKey: config.pesapayConsumerKey || process.env.PESAPAY_CONSUMER_KEY,
-      consumerSecret: config.pesapayConsumerSecret || process.env.PESAPAY_CONSUMER_SECRET,
-      environment: config.pesapayEnvironment || process.env.PESAPAY_ENV || 'sandbox',
-      callbackUrl: config.pesapayCallbackUrl || process.env.PESAPAY_CALLBACK_URL,
+      // Br3eze Africa Credentials (from your email)
+      consumerKey: config.pesapalConsumerKey || process.env.PESAPAL_CONSUMER_KEY,
+      consumerSecret: config.pesapalConsumerSecret || process.env.PESAPAL_CONSUMER_SECRET,
+      
+      // Environment
+      environment: config.pesapalEnvironment || process.env.PESAPAL_ENV || 'sandbox',
+      
+      // IPN Configuration
+      ipnUrl: config.pesapalIpnUrl || process.env.PESAPAL_IPN_URL,
+      callbackUrl: config.pesapalCallbackUrl || process.env.PESAPAL_CALLBACK_URL,
+      
+      // IPN ID (obtained after registration)
+      ipnId: config.pesapalIpnId || process.env.PESAPAL_IPN_ID,
+      
       ...config
     };
 
-    // PesaPay API endpoints
+    // PesaPal API endpoints
     this.baseUrls = {
       sandbox: 'https://cybqa.pesapal.com/pesapalv3',
       production: 'https://pay.pesapal.com/v3'
     };
 
-    this.baseUrl = this.baseUrls[this.config.environment] || this.baseUrls.sandbox;
+    this.baseUrl = this.baseUrls[this.config.environment];
     this.accessToken = null;
     this.tokenExpiry = null;
   }
 
   /**
-   * Authenticate and get access token
+   * Authenticate with PesaPal and get access token
    */
   async authenticate() {
-    // Check if token is still valid
+    // Return cached token if still valid
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
       return this.accessToken;
     }
 
-    const auth = Buffer.from(`${this.config.consumerKey}:${this.config.consumerSecret}`).toString('base64');
+    const authString = Buffer.from(`${this.config.consumerKey}:${this.config.consumerSecret}`).toString('base64');
 
-    const response = await this.makeRequest('/api/Auth/RequestToken', 'POST', null, {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/json'
-    });
+    try {
+      const response = await this.makeRequest('/api/Auth/RequestToken', 'POST', null, {
+        'Authorization': `Basic ${authString}`,
+        'Content-Type': 'application/json'
+      });
 
-    this.accessToken = response.token;
-    // Token expires in 5 minutes, refresh after 4
-    this.tokenExpiry = Date.now() + (4 * 60 * 1000);
+      if (!response.token) {
+        throw new Error('No token received from PesaPal');
+      }
 
-    return this.accessToken;
+      this.accessToken = response.token;
+      // Token expires in 5 minutes, refresh after 4 minutes
+      this.tokenExpiry = Date.now() + (4 * 60 * 1000);
+
+      console.log('[PesaPal] Authenticated successfully');
+      return this.accessToken;
+    } catch (error) {
+      console.error('[PesaPal] Authentication failed:', error.message);
+      throw error;
+    }
   }
 
   /**
-   * Register IPN (Instant Payment Notification) URL
-   * @param {string} url - Your webhook URL
-   * @param {string} method - GET or POST
+   * Register IPN URL (Instant Payment Notification)
+   * Call this once to get your IPN ID
    */
   async registerIPN(url, method = 'POST') {
     const token = await this.authenticate();
@@ -63,14 +82,28 @@ class PesaPayProvider {
       ipn_notification_type: method
     };
 
-    return await this.makeRequest('/api/URLSetup/RegisterIPN', 'POST', payload, {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+    try {
+      const response = await this.makeRequest('/api/URLSetup/RegisterIPN', 'POST', payload, {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      });
+
+      console.log('[PesaPal] IPN Registered:', response);
+      
+      // Store the IPN ID
+      if (response.ipn_id) {
+        this.config.ipnId = response.ipn_id;
+      }
+
+      return response;
+    } catch (error) {
+      console.error('[PesaPal] IPN Registration failed:', error.message);
+      throw error;
+    }
   }
 
   /**
-   * Get registered IPN URLs
+   * Get list of registered IPN URLs
    */
   async getRegisteredIPNs() {
     const token = await this.authenticate();
@@ -81,170 +114,209 @@ class PesaPayProvider {
   }
 
   /**
-   * Submit payment order/request
-   * @param {Object} data - Payment details
+   * Submit order/payment request
+   * @param {Object} data - Order details
    */
   async createPayment(data) {
     const {
       amount,
-      currency = 'ZWL',
+      currency = 'USD',
       description,
       reference,
       customerEmail,
       customerPhone,
-      customerName,
+      customerName = 'Br3eze Customer',
       callbackUrl,
-      notificationId, // IPN ID from registerIPN
-      billingAddress
+      notificationId
     } = data;
+
+    // Validate required fields
+    if (!amount || amount <= 0) {
+      throw new Error('Invalid amount');
+    }
 
     const token = await this.authenticate();
 
+    // Ensure we have an IPN ID
+    const ipnId = notificationId || this.config.ipnId;
+    if (!ipnId) {
+      console.warn('[PesaPal] Warning: No IPN ID provided. Register IPN first.');
+    }
+
     const payload = {
-      id: reference || `AGENTOS-${Date.now()}`,
+      id: reference || `BR3EZE-${Date.now()}`,
       currency: currency,
       amount: parseFloat(amount),
-      description: description || 'AgentOS WiFi Voucher',
+      description: description || 'Br3eze Africa WiFi Voucher',
       callback_url: callbackUrl || this.config.callbackUrl,
-      notification_id: notificationId,
+      notification_id: ipnId,
       billing_address: {
-        email_address: customerEmail,
-        phone_number: this.sanitizePhoneNumber(customerPhone),
+        email_address: customerEmail || `customer${Date.now()}@br3eze.africa`,
+        phone_number: this.formatPhoneNumber(customerPhone),
         country_code: 'ZW',
-        first_name: customerName?.split(' ')[0] || 'Customer',
-        last_name: customerName?.split(' ').slice(1).join(' ') || 'User',
-        ...billingAddress
+        first_name: customerName.split(' ')[0] || 'Customer',
+        last_name: customerName.split(' ').slice(1).join(' ') || 'User',
+        line_1: 'Harare',
+        line_2: '',
+        city: 'Harare',
+        state: 'Harare',
+        postal_code: '00263',
+        zip_code: '00263'
       }
     };
 
-    const response = await this.makeRequest('/api/Transactions/SubmitOrderRequest', 'POST', payload, {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+    try {
+      const response = await this.makeRequest('/api/Transactions/SubmitOrderRequest', 'POST', payload, {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      });
 
-    return {
-      success: true,
-      transactionId: response.order_tracking_id,
-      merchantReference: response.merchant_reference,
-      status: 'pending',
-      amount: amount,
-      currency: currency,
-      provider: 'pesapay',
-      redirectUrl: response.redirect_url,
-      instructions: 'Complete payment using the provided link',
-      // PesaPay supports multiple methods - user chooses on their page
-      availableMethods: [
-        'EcoCash',
-        'OneMoney (NetOne)',
-        'Telecash',
-        'Visa/Mastercard',
-        'Bank Transfer'
-      ]
-    };
+      console.log('[PesaPal] Order submitted:', response);
+
+      return {
+        success: true,
+        orderTrackingId: response.order_tracking_id,
+        merchantReference: response.merchant_reference,
+        redirectUrl: response.redirect_url,
+        status: 'pending',
+        amount: amount,
+        currency: currency,
+        provider: 'pesapal',
+        createdAt: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('[PesaPal] Order submission failed:', error.message);
+      throw error;
+    }
   }
 
   /**
    * Get transaction status
-   * @param {string} orderTrackingId - PesaPay order tracking ID
+   * @param {string} orderTrackingId - PesaPal order tracking ID
    */
   async verifyPayment(orderTrackingId) {
+    if (!orderTrackingId) {
+      throw new Error('Order tracking ID is required');
+    }
+
     const token = await this.authenticate();
 
-    const response = await this.makeRequest(
-      `/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
-      'GET',
-      null,
-      {
-        'Authorization': `Bearer ${token}`
-      }
-    );
+    try {
+      const response = await this.makeRequest(
+        `/api/Transactions/GetTransactionStatus?orderTrackingId=${orderTrackingId}`,
+        'GET',
+        null,
+        {
+          'Authorization': `Bearer ${token}`
+        }
+      );
 
-    const statusMap = {
-      'INVALID': 'failed',
-      'FAILED': 'failed',
-      'COMPLETED': 'completed',
-      'REVERSED': 'refunded',
-      'PENDING': 'pending'
-    };
+      const statusMap = {
+        'INVALID': 'failed',
+        'FAILED': 'failed',
+        'COMPLETED': 'completed',
+        'REVERSED': 'refunded',
+        'PENDING': 'pending'
+      };
 
-    return {
-      success: response.status === 'COMPLETED',
-      status: statusMap[response.status] || response.status.toLowerCase(),
-      transactionId: response.order_tracking_id,
-      paymentMethod: response.payment_method,
-      amount: parseFloat(response.amount),
-      currency: response.currency,
-      createdAt: response.created_date,
-      paidAt: response.payment_status_description === 'Completed' ? new Date() : null,
-      confirmationCode: response.confirmation_code,
-      paymentAccount: response.payment_account
-    };
+      return {
+        success: response.status === 'COMPLETED',
+        status: statusMap[response.status] || response.status.toLowerCase(),
+        orderTrackingId: response.order_tracking_id,
+        merchantReference: response.merchant_reference,
+        paymentMethod: response.payment_method,
+        amount: parseFloat(response.amount),
+        currency: response.currency,
+        confirmationCode: response.confirmation_code,
+        paymentAccount: response.payment_account,
+        createdAt: response.created_date,
+        paidAt: response.status === 'COMPLETED' ? new Date().toISOString() : null,
+        raw: response
+      };
+    } catch (error) {
+      console.error('[PesaPal] Status check failed:', error.message);
+      throw error;
+    }
   }
 
   /**
    * Request refund
-   * @param {string} transactionId - Original transaction ID
-   * @param {number} amount - Amount to refund
-   * @param {string} reason - Refund reason
    */
-  async refund(transactionId, amount, reason) {
+  async refund(orderTrackingId, amount, reason = 'Customer request') {
     const token = await this.authenticate();
 
     const payload = {
-      order_tracking_id: transactionId,
+      order_tracking_id: orderTrackingId,
       amount: amount.toFixed(2),
-      reason: reason || 'Customer request'
+      reason: reason
     };
 
-    const response = await this.makeRequest('/api/Transactions/RefundRequest', 'POST', payload, {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+    try {
+      const response = await this.makeRequest('/api/Transactions/RefundRequest', 'POST', payload, {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      });
 
-    return {
-      success: response.status === 'SUCCESS',
-      refundId: response.refund_id,
-      status: response.status.toLowerCase(),
-      amount: parseFloat(response.amount),
-      message: response.message
-    };
+      return {
+        success: response.status === 'SUCCESS',
+        refundId: response.refund_id,
+        status: response.status.toLowerCase(),
+        amount: parseFloat(response.amount),
+        message: response.message
+      };
+    } catch (error) {
+      console.error('[PesaPal] Refund failed:', error.message);
+      throw error;
+    }
   }
 
   /**
-   * Verify webhook/IPN signature
-   * @param {Object} payload - Webhook payload
-   * @param {Object} headers - Request headers
+   * Verify IPN/Webhook payload
+   * Based on PesaPal IPN documentation from your screenshot
    */
   async verifyWebhook(payload, headers) {
-    // PesaPay IPN sends data as query parameters or JSON
-    // Verify using the OrderTrackingId and status
-    const orderTrackingId = payload.OrderTrackingId || payload.order_tracking_id;
-    
-    if (!orderTrackingId) return false;
+    // PesaPal sends IPN as POST with order details
+    // Verify by checking the order status directly
+    const orderTrackingId = payload.OrderTrackingId || 
+                           payload.order_tracking_id || 
+                           payload.id;
 
-    // Verify by checking transaction status directly
+    if (!orderTrackingId) {
+      console.error('[PesaPal IPN] No order tracking ID found in payload');
+      return false;
+    }
+
     try {
+      // Verify by fetching actual status from API
       const status = await this.verifyPayment(orderTrackingId);
-      return status.transactionId === orderTrackingId;
+      return status.orderTrackingId === orderTrackingId;
     } catch (error) {
+      console.error('[PesaPal IPN] Verification failed:', error.message);
       return false;
     }
   }
 
   /**
-   * Process webhook payload
-   * @param {Object} payload - Webhook data
+   * Process IPN/Webhook payload
+   * Based on your documentation screenshot
    */
   async processWebhook(payload) {
-    const {
-      OrderTrackingId,
-      OrderMerchantReference,
-      OrderNotificationType,
-      OrderCurrency,
-      OrderAmount,
-      Status
-    } = payload;
+    // PesaPal IPN payload structure (from your screenshot):
+    // {
+    //   "id": 10463,
+    //   "first_name": "joe",
+    //   "last_name": "doe",
+    //   "phone": "+254712345678",
+    //   "amount": 1.0,
+    //   "payment_option": "Visa",
+    //   "transaction_date": "2022-02-04T14:19:05.0210431Z",
+    //   "currency": "KES",
+    //   "merchant_reference": "TEST",
+    //   "confirmation_code": "test10"
+    // }
 
+    const status = payload.status || 'PENDING';
+    
     const statusMap = {
       'COMPLETED': 'payment_success',
       'FAILED': 'payment_failed',
@@ -253,82 +325,43 @@ class PesaPayProvider {
     };
 
     return {
-      type: statusMap[Status] || 'payment_update',
-      transactionId: OrderTrackingId,
-      merchantReference: OrderMerchantReference,
-      notificationType: OrderNotificationType,
-      amount: parseFloat(OrderAmount),
-      currency: OrderCurrency,
-      status: Status?.toLowerCase(),
+      type: statusMap[status] || 'payment_update',
+      orderTrackingId: payload.OrderTrackingId || payload.order_tracking_id,
+      merchantReference: payload.merchant_reference || payload.MerchantReference,
+      paymentMethod: payload.payment_option || payload.PaymentOption,
+      amount: parseFloat(payload.amount || payload.Amount),
+      currency: payload.currency || payload.Currency,
+      confirmationCode: payload.confirmation_code || payload.ConfirmationCode,
+      customerPhone: payload.phone || payload.Phone,
+      customerName: `${payload.first_name || ''} ${payload.last_name || ''}`.trim(),
+      transactionDate: payload.transaction_date || payload.TransactionDate,
+      status: status.toLowerCase(),
       raw: payload
     };
   }
 
   /**
-   * Get payment methods supported by PesaPay
+   * Format phone number for Zimbabwe
    */
-  getSupportedMethods() {
-    return [
-      {
-        id: 'pesapay_ecocash',
-        name: 'EcoCash',
-        type: 'mobile_money',
-        icon: '💳',
-        description: 'Pay with EcoCash mobile wallet',
-        provider: 'pesapay'
-      },
-      {
-        id: 'pesapay_onemoney',
-        name: 'OneMoney',
-        type: 'mobile_money',
-        icon: '📱',
-        description: 'Pay with NetOne OneMoney',
-        provider: 'pesapay'
-      },
-      {
-        id: 'pesapay_telecash',
-        name: 'Telecash',
-        type: 'mobile_money',
-        icon: '💰',
-        description: 'Pay with Telecash',
-        provider: 'pesapay'
-      },
-      {
-        id: 'pesapay_card',
-        name: 'Card Payment',
-        type: 'card',
-        icon: '💳',
-        description: 'Visa, Mastercard, American Express',
-        provider: 'pesapay'
-      },
-      {
-        id: 'pesapay_bank',
-        name: 'Bank Transfer',
-        type: 'bank_transfer',
-        icon: '🏦',
-        description: 'Direct bank transfer',
-        provider: 'pesapay'
-      }
-    ];
-  }
-
-  /**
-   * Sanitize Zimbabwe phone number
-   */
-  sanitizePhoneNumber(phone) {
+  formatPhoneNumber(phone) {
     if (!phone) return '';
+    
     let cleaned = phone.replace(/\D/g, '');
+    
+    // Convert local format to international
     if (cleaned.startsWith('0')) {
       cleaned = '263' + cleaned.substring(1);
     }
+    
     if (!cleaned.startsWith('263')) {
       cleaned = '263' + cleaned;
     }
-    return cleaned;
+    
+    return '+' + cleaned;
   }
 
   /**
-   * Make HTTP request to PesaPay API
+   * Make HTTP request to PesaPal API
    */
   makeRequest(endpoint, method, body = null, customHeaders = {}) {
     return new Promise((resolve, reject) => {
@@ -350,19 +383,33 @@ class PesaPayProvider {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
+            
             if (res.statusCode >= 400) {
-              reject(new Error(parsed.error?.message || parsed.message || 'PesaPay API error'));
+              const errorMsg = parsed.error?.message || 
+                              parsed.message || 
+                              `HTTP ${res.statusCode}: ${data}`;
+              reject(new Error(errorMsg));
             } else {
               resolve(parsed);
             }
           } catch (e) {
-            reject(new Error('Invalid JSON response from PesaPay'));
+            reject(new Error(`Invalid JSON response: ${data}`));
           }
         });
       });
 
-      req.on('error', (err) => reject(new Error(`Request failed: ${err.message}`)));
-      
+      req.on('error', (err) => {
+        reject(new Error(`Request failed: ${err.message}`));
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      // 30 second timeout
+      req.setTimeout(30000);
+
       if (body && method !== 'GET') {
         req.write(JSON.stringify(body));
       }
@@ -372,4 +419,4 @@ class PesaPayProvider {
   }
 }
 
-module.exports = PesaPayProvider;
+module.exports = PesaPalProvider;
