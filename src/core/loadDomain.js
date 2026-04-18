@@ -2,7 +2,7 @@ const registry = require('./ToolRegistry');
 const mikrotikDomain = require('../domains/mikrotik');
 
 async function loadDomains(config) {
-  // Load MikroTik (your existing code)
+  // Load MikroTik
   registry.registerDomain('mikrotik', mikrotikDomain.getSkills(config));
 
   // Easy to add more:
