@@ -1,4 +1,4 @@
-# Contributing to AgentOS (br3ezeclaw)
+# Contributing to AgentOS (br3eze-code)
 
 Thank you for considering contributing to AgentOS!
 
@@ -14,15 +14,15 @@ Thank you for considering contributing to AgentOS!
 ## Development Setup
 
 ```bash
-git clone https://github.com/br3eze-code/br3ezeclaw.git
-cd br3ezeclaw
+git clone https://github.com/br3eze-code/br3eze-code.git
+cd br3eze-code
 npm install
 cp .env.example .env
 npm run dev
 
 Good First Issues
 
-Add new messaging adapter (Signal, Discord, Slack)
+Add new messaging adapter (Whatsapp,Telegram,Signal, Discord, Slack)
 Improve voucher QR code design
 Add Prometheus metrics exporter
 Write more integration tests
@@ -53,7 +53,7 @@ Open an issue or join discussions in the repo.
 # Installation Guide
 
 ## Prerequisites
-- Node.js 20+
+- Node.js 22+
 - MikroTik RouterOS (v7 recommended)
 - Google Gemini API key
 - Firebase project (for persistence)
@@ -61,8 +61,8 @@ Open an issue or join discussions in the repo.
 ## Quick Install
 
 ```bash
-git clone https://github.com/br3eze-code/br3ezeclaw.git
-cd br3ezeclaw
+git clone https://github.com/br3eze-code/br3eze-code.git
+cd br3eze-code
 npm install
 cp .env.example .env
 # Edit .env with your keys
