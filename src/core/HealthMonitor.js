@@ -71,9 +71,41 @@ class HealthMonitor extends EventEmitter {
 
     const unhealthy = checkResults.filter(r => r.status !== 'healthy');
     
+    // Add MikroTik health if available
+    let router = null;
+    if (this.agent?.mikrotik) {
+        const mt = this.agent.mikrotik;
+        router = {
+            isConnected: mt.state?.isConnected || false,
+            health: mt.state?.lastKnownHealth || null
+        };
+    }
+    
+    // Add Channel health if available
+    let channels = null;
+    if (this.agent?.channels) {
+        channels = this.agent.channels.getStatus();
+    }
+    
+    // Add Database health if available
+    let database = null;
+    if (this.agent?.database) {
+        database = {
+            isFirebaseConnected: !!this.agent.database.db,
+            isSqliteReady: !!this.agent.database.sqlite
+        };
+    }
+    
+    const status = (unhealthy.length === 0 && (!router || router.isConnected) && (!database || database.isFirebaseConnected)) 
+      ? 'healthy' 
+      : 'degraded';
+    
     return {
-      status: unhealthy.length === 0 ? 'healthy' : 'degraded',
+      status,
       system,
+      router,
+      channels,
+      database,
       checks: checkResults,
       metrics: {
         totalInteractions: this.metrics.interactions,

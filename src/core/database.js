@@ -652,6 +652,46 @@ class Database {
         return u ? { id, ...u } : null;
     }
 
+    getUserDoc(userId) {
+        const id = String(userId);
+        if (this.db) {
+            return this.db.collection('users').doc(id);
+        }
+        const self = this;
+        return {
+            id,
+            path: `users/${id}`,
+            get: async () => {
+                const u = self._users.get(id);
+                return {
+                    id,
+                    exists: !!u,
+                    data: () => u || null,
+                    ref: this
+                };
+            },
+            set: async (data, options) => {
+                const existing = self._users.get(id) || {};
+                const merged = options?.merge ? { ...existing, ...data } : data;
+                self._users.set(id, merged);
+                self._saveLocal('users');
+                return { id };
+            },
+            update: async (data) => {
+                const existing = self._users.get(id);
+                if (!existing) throw new Error('Document not found');
+                self._users.set(id, { ...existing, ...data });
+                self._saveLocal('users');
+                return { id };
+            },
+            delete: async () => {
+                self._users.delete(id);
+                self._saveLocal('users');
+                return { id };
+            }
+        };
+    }
+
     async createUser(userId, data = {}) {
         const id = String(userId);
         const now = this._ts();
@@ -712,20 +752,111 @@ class Database {
 
     async getUserByPhone(phone) {
         if (!phone) return null;
+        const cleanPhone = phone.trim();
         if (this.db) {
-            const snap = await this.db.collection('users').where('phoneNumber', '==', phone).limit(1).get();
+            const snap = await this.db.collection('users').where('phoneNumber', '==', cleanPhone).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
         }
-        return Array.from(this._users.values()).find(u => u.phoneNumber === phone) || null;
+        return Array.from(this._users.values()).find(u => u.phoneNumber === cleanPhone) || null;
     }
 
     async getUserByEmail(email) {
         if (!email) return null;
+        const cleanEmail = email.toLowerCase().trim();
         if (this.db) {
-            const snap = await this.db.collection('users').where('email', '==', email).limit(1).get();
+            const snap = await this.db.collection('users').where('email', '==', cleanEmail).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
         }
-        return Array.from(this._users.values()).find(u => u.email === email) || null;
+        return Array.from(this._users.values()).find(u => u.email && u.email.toLowerCase().trim() === cleanEmail) || null;
+    }
+
+    async getUserByChannel(channel, channelId) {
+        if (!channel || !channelId) return null;
+        const idStr = String(channelId);
+        if (this.db) {
+            const snap = await this.db.collection('users').where(`channels.${channel}`, '==', idStr).limit(1).get();
+            return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+        return Array.from(this._users.values()).find(u => u.channels && String(u.channels[channel]) === idStr) || null;
+    }
+
+    async linkChannel(userId, channel, channelId) {
+        if (!userId || !channel || !channelId) return false;
+        const id = String(userId);
+        const idStr = String(channelId);
+        const update = { [`channels.${channel}`]: idStr };
+        if (this.db) {
+            await this.db.collection('users').doc(id).update(update);
+        } else {
+            const user = this._users.get(id);
+            if (user) {
+                user.channels = user.channels || {};
+                user.channels[channel] = idStr;
+                this._users.set(id, user);
+                this._saveLocal('users');
+            }
+        }
+        return true;
+    }
+
+    async resolveFirebaseUser(identifier, opts = {}) {
+        if (!this.db || !identifier) return null;
+        const id = String(identifier);
+
+        let authRecord = null;
+        try {
+            if (id.includes('@')) {
+                authRecord = await admin.auth().getUserByEmail(id);
+            } else if (id.startsWith('+') || /^\d{7,15}$/.test(id)) {
+                const phone = id.startsWith('+') ? id : `+${id}`;
+                authRecord = await admin.auth().getUserByPhoneNumber(phone);
+            } else if (/^[A-Za-z0-9]{20,}$/.test(id)) {
+                authRecord = await admin.auth().getUser(id);
+            } else {
+                return null;
+            }
+        } catch (e) {
+            if (e.code !== 'auth/user-not-found') {
+                logger.debug(`[DB] resolveFirebaseUser(${id}): ${e.message}`);
+            }
+            return null;
+        }
+
+        if (!authRecord) return null;
+        const uid = authRecord.uid;
+
+        let firestoreUser = await this.getUser(uid);
+        if (!firestoreUser) {
+            firestoreUser = await this.createUser(uid, {
+                uid,
+                email:       authRecord.email       || null,
+                phoneNumber: authRecord.phoneNumber  || null,
+                fullname:    authRecord.displayName  || null,
+                platform:    opts.channel            || 'firebase',
+            });
+            logger.info(`[DB] Created Firestore doc for Firebase uid:${uid}`);
+        }
+
+        if (opts.channel && opts.channelId && !firestoreUser.channels?.[opts.channel]) {
+            await this.linkChannel(uid, opts.channel, opts.channelId);
+            logger.info(`[DB] Linked ${opts.channel}:${opts.channelId} → uid:${uid}`);
+        }
+
+        return { ...firestoreUser, uid };
+    }
+
+    async getUsersByStatus(status) {
+        const statuses = Array.isArray(status) ? status : [status];
+        if (statuses.length === 0) return [];
+
+        if (this.db) {
+            const snapshot = await this.db.collection('users').where('status', 'in', statuses).get();
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        }
+
+        return Array.from(this._users.entries())
+            .filter(([id, data]) => statuses.includes(data.status))
+            .map(([id, data]) => ({ id, ...data }));
     }
 
     async resolveUser(identifier) {
@@ -740,7 +871,22 @@ class Database {
         const byPhone = await this.getUserByPhone(identifier);
         if (byPhone) return byPhone;
         // 4. Try email
-        return this.getUserByEmail(identifier);
+        const byEmail = await this.getUserByEmail(identifier);
+        if (byEmail) return byEmail;
+
+        // 5. Try all known channels for numeric chatIds
+        if (/^\d+$/.test(identifier)) {
+            const telegramUser = await this.getUserByChannel('telegram', identifier);
+            if (telegramUser) return telegramUser;
+            const whatsappUser = await this.getUserByChannel('whatsapp', identifier);
+            if (whatsappUser) return whatsappUser;
+        }
+
+        // 6. Try Firebase Auth
+        const byAuth = await this.resolveFirebaseUser(identifier);
+        if (byAuth) return byAuth;
+
+        return null;
     }
 
     async upsertUser(userId, data) {

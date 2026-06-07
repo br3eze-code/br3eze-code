@@ -39,3 +39,4 @@ class CircuitBreaker {
     }
   }
 }
+module.exports = CircuitBreaker;

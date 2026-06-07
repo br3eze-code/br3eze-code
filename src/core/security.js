@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const hpp = require('hpp');
-const xss = require('xss-clean');
 
 class SecurityManager {
   constructor() {
@@ -63,8 +62,44 @@ class SecurityManager {
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            connectSrc: ["'self'", 'wss:', 'https://*.firebaseio.com'],
-            scriptSrc: ["'self'", "'unsafe-inline'"], // For dashboard UI
+            connectSrc: [
+              "'self'",
+              "wss:",
+              "https://*.firebaseio.com",
+              "wss://*.firebaseio.com",
+              "https://*.googleapis.com",
+              "https://*.firebaseapp.com"
+            ],
+            scriptSrc: [
+              "'self'",
+              "'unsafe-inline'",
+              "'unsafe-eval'",
+              "https://www.gstatic.com",
+              "https://apis.google.com"
+            ],
+            frameSrc: [
+              "'self'",
+              "https://*.firebaseapp.com",
+              "https://*.google.com"
+            ],
+            styleSrc: [
+              "'self'",
+              "'unsafe-inline'",
+              "https://fonts.googleapis.com",
+              "https://cdnjs.cloudflare.com"
+            ],
+            fontSrc: [
+              "'self'",
+              "https://fonts.gstatic.com",
+              "https://cdnjs.cloudflare.com"
+            ],
+            imgSrc: [
+              "'self'",
+              "data:",
+              "https://*.googleusercontent.com",
+              "https://*.gstatic.com",
+              "https://*.firebaseapp.com"
+            ]
           },
         },
         hsts: {
@@ -74,7 +109,6 @@ class SecurityManager {
         }
       }),
       hpp(), // Prevent HTTP Parameter Pollution
-      xss(), // XSS sanitization
       this.auditMiddleware.bind(this)
     ];
   }
@@ -83,7 +117,7 @@ class SecurityManager {
   auditMiddleware(req, res, next) {
     const { logger } = require('./logger');
     const start = Date.now();
-    
+
     res.on('finish', () => {
       const duration = Date.now() - start;
       logger.audit('http_request', {
@@ -98,7 +132,7 @@ class SecurityManager {
         body: this.sanitizeBody(req.body)
       });
     });
-    
+
     next();
   }
 

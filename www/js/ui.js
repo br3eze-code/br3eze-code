@@ -4,6 +4,68 @@
  * Features: Toast notifications, modals, and UI helpers
  */
 
+// Global Loading Spinner
+const Loading = {
+    show(msg = 'Please wait...') {
+        let el = document.getElementById('loadingOverlay');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'loadingOverlay';
+            el.className = 'loading-overlay';
+            el.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;";
+            el.innerHTML = `<div class="spinner"></div><div id="loadingText" style="margin-top:15px; font-family:sans-serif;">${msg}</div>`;
+            document.body.appendChild(el);
+        }
+        const txt = document.getElementById('loadingText');
+        if (txt) txt.textContent = msg;
+        el.style.display = 'flex';
+    },
+    hide() {
+        const el = document.getElementById('loadingOverlay');
+        if (el) el.style.display = 'none';
+    }
+};
+window.Loading = Loading;
+
+// Global Toast Notification
+let toastTimeout;
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const iconEl = document.getElementById('toastIcon');
+    const msgEl = document.getElementById('toastMessage');
+
+    if (!toast || !iconEl || !msgEl) {
+        console.log(`[Toast - ${type}] ${message}`);
+        // Fallback to UI.toast if available
+        if (window.UI && window.UI.toast) window.UI.toast(message, type);
+        return;
+    }
+
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    const colors = { success: 'var(--color-success)', error: 'var(--color-danger)', info: 'var(--color-info)', warning: '#ffaa00' };
+
+    toast.style.backgroundColor = colors[type] || colors.info;
+    toast.style.color = 'var(--color-text-light)';
+    toast.style.zIndex = '10000';
+
+    iconEl.textContent = icons[type] || icons.info;
+    msgEl.textContent = message;
+
+    toast.classList.remove('hidden');
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+window.showToast = showToast;
+
+function safeShowToast(message, type = 'info') {
+    if (typeof window.showToast === 'function') {
+        window.showToast(message, type);
+    } else {
+        console.warn(`[Toast Pending] ${message}`);
+    }
+}
+window.safeShowToast = safeShowToast;
+
 const UI = {
     // Toast notifications
     toast(message, type = 'info', duration = 3000) {
@@ -140,7 +202,30 @@ const UI = {
             </div>
             ${isActive ? `<div class="user-actions"><button class="user-action-btn kick" onclick="App.kickUser('${user.user || user.name}')">Kick</button></div>` : ''}
         </div>`;
+    },
+
+    openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+            modal.classList.remove('hidden');
+        }
+    },
+
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('active');
+            // Check if it should also be hidden
+            if (modal.classList.contains('modal-overlay')) {
+                 modal.classList.add('hidden');
+            }
+        }
     }
 };
 
-if (typeof window !== 'undefined') window.UI = UI;
+if (typeof window !== 'undefined') {
+    window.UI = UI;
+    window.openModal = UI.openModal.bind(UI);
+    window.closeModal = UI.closeModal.bind(UI);
+}

@@ -1,0 +1,10 @@
+const s = "case 'research.papers.search':\r";
+console.log('1:', /^(\s*)/.test(s));
+console.log('2:', /^(\s*)case/.test(s));
+console.log('3:', /^(\s*)case\s+/.test(s));
+console.log('4:', /^(\s*)case\s+'/.test(s));
+console.log('5:', /^(\s*)case\s+'research\./.test(s));
+console.log('6:', /^(\s*)case\s+'(research\.[^']+)'/.test(s));
+console.log('7:', /^(\s*)case\s+'(research\.[^']+)'\s*/.test(s));
+console.log('8:', /^(\s*)case\s+'(research\.[^']+)'\s*:/.test(s));
+console.log('9:', /^(\s*)case\s+'(research\.[^']+)'\s*:(.*)$/.test(s));

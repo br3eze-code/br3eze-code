@@ -25,12 +25,14 @@ class MikroTikService {
     }
 
     async kickUser({ username }) {
+        if (!username) throw new Error('Username required to kick');
         const active = await this.conn.menu('/ip/hotspot/active')
             .where('user', username).get();
 
         if (active.length) {
-            await this.conn.menu('/ip/hotspot/active')
-                .remove(active[0]['.id']);
+            const id = active[0]['.id'];
+            if (!id) throw new Error(`Could not resolve session ID for user: ${username}`);
+            await this.conn.menu('/ip/hotspot/active').remove(id);
         }
     }
 }

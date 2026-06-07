@@ -162,7 +162,7 @@ class DatabaseService {
 
     // Voucher methods
     createVoucher(code, plan, createdBy = 'system') {
-        const expiresAt = new Date(Date.now() + CONFIG.VOUCHER_PLANS[plan]?.duration || 0).toISOString();
+        const expiresAt = new Date(Date.now() + (CONFIG.VOUCHER_PLANS[plan]?.duration ?? 0)).toISOString();
         const stmt = this.db.prepare(`
             INSERT INTO vouchers (code, plan, expires_at, created_by)
             VALUES (?, ?, ?, ?)
@@ -222,14 +222,15 @@ class DatabaseService {
 
     // Audit log
     logAudit(eventType, actor, payload = {}) {
+        const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
         const hash = crypto.createHash('sha256')
-            .update(JSON.stringify({ eventType, actor, payload, timestamp: Date.now() }))
+            .update(JSON.stringify({ event_type: eventType, actor, payload: payloadStr, timestamp: Date.now() }))
             .digest('hex');
 
         const stmt = this.db.prepare(`
             INSERT INTO audit_log (event_type, actor, payload, hash) VALUES (?, ?, ?, ?)
         `);
-        stmt.run(eventType, actor, JSON.stringify(payload), hash);
+        stmt.run(eventType, actor, payloadStr, hash);
 
         return hash;
     }
@@ -677,13 +678,13 @@ class NetworkDiscoveryService {
                 const responseTime = Date.now() - start;
                 socket.destroy();
 
+                // checkPort() is async — filter() can't await it; resolve without port scan
+                // Port scanning is done separately via checkPort() if needed.
                 resolve({
                     ip,
                     alive: true,
                     responseTime,
-                    ports: [80, 443, 22, 3389].filter(port =>
-                        this.checkPort(ip, port, timeout)
-                    ),
+                    ports: [],
                     foundAt: Date.now()
                 });
             });
@@ -830,8 +831,8 @@ const TOOLS = {
                 .update(JSON.stringify({
                     event_type: log.event_type,
                     actor: log.actor,
-                    payload: log.payload,
-                    timestamp: new Date(log.timestamp).getTime()
+                    payload: log.payload,   // stored as string already
+                    timestamp: log.timestamp_ms  // original ms epoch stored alongside
                 }))
                 .digest('hex');
 
@@ -1124,6 +1125,14 @@ class AgentOSGateway {
                 this._handleBroadcast(clientId, ws, msg);
                 break;
 
+            case 'intent':
+                this._handleIntent(clientId, ws, msg);
+                break;
+
+            case 'auth.identify':
+                this._handleAuthIdentify(clientId, ws, msg);
+                break;
+
             default:
                 this._send(ws, { type: 'error', error: `Unknown message type: ${msg.type}` });
         }
@@ -1149,7 +1158,8 @@ class AgentOSGateway {
             }
         });
 
-        logger.info(`Node registered: ${payload.nodeId} (${payload.platform}) from ${ws.remoteAddress}`);
+        const remoteAddr = ws._socket?.remoteAddress || 'unknown';
+        logger.info(`Node registered: ${payload.nodeId} (${payload.platform}) from ${remoteAddr}`);
 
         // Broadcast node list to all clients
         this._broadcastNodeList();
@@ -1267,6 +1277,27 @@ class AgentOSGateway {
         });
     }
 
+    _handleIntent(clientId, ws, msg) {
+        const { intent, payload } = msg;
+        logger.info(`[AgentOSGateway] Intent received: ${intent} from client ${clientId}`, payload);
+        this._send(ws, {
+            type: 'intent.result',
+            intent,
+            success: true,
+            message: `Intent ${intent} processed successfully`
+        });
+    }
+
+    _handleAuthIdentify(clientId, ws, msg) {
+        const { uid, email, channel } = msg;
+        logger.info(`[AgentOSGateway] Identity received: uid=${uid}, email=${email}, channel=${channel} from client ${clientId}`);
+        this._send(ws, {
+            type: 'auth.identified',
+            uid,
+            clientId
+        });
+    }
+
     _findNodeById(nodeId) {
         for (const [_, client] of this.clients) {
             if (client.nodeId === nodeId) {
@@ -1338,6 +1369,14 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// URL rewriting for /api/v1/* compatibility
+app.use((req, res, next) => {
+    if (req.url.startsWith('/api/v1/')) {
+        req.url = req.url.replace('/api/v1/', '/api/');
+    }
+    next();
+});
 
 // Auth middleware
 const authMiddleware = (req, res, next) => {
@@ -1488,6 +1527,9 @@ app.use((err, req, res, next) => {
 // §8 BOOTSTRAP
 // ============================================================
 
+// Module-level reference so all routes and class methods share the same instance
+let commandHandler = null;
+
 async function boot() {
     // Ensure logs directory exists
     const fs = require('fs');
@@ -1498,15 +1540,14 @@ async function boot() {
     // Initialize database
     await database.initialize();
 
-    // Create command handler
-    const commandHandler = new CommandHandler(TOOLS, database, null);
-
-    // Create HTTP server
+    // Create HTTP server first so gateway can attach to it
     const server = http.createServer(app);
 
     // Initialize WebSocket gateway
     const gateway = new AgentOSGateway(server);
-    commandHandler.gateway = gateway;
+
+    // Create the single shared commandHandler and wire up the gateway
+    commandHandler = new CommandHandler(TOOLS, database, gateway);
 
     // Start server
     server.listen(CONFIG.PORT, CONFIG.HOST, () => {
@@ -1530,12 +1571,7 @@ async function boot() {
     process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-// Make commandHandler available globally for this module
-global.commandHandler = null;
-
-boot().then(() => {
-    global.commandHandler = new CommandHandler(TOOLS, database, null);
-}).catch(err => {
+boot().catch(err => {
     logger.error('Boot failed:', err);
     process.exit(1);
 });

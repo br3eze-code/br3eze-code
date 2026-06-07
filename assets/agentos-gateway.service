@@ -1,0 +1,20 @@
+[Unit]
+Description=AgentOS Gateway Service
+After=network.target
+
+[Service]
+Type=simple
+User=%u
+WorkingDirectory=%h/br3eze-code
+ExecStart=/usr/bin/node src/cli/index.js gateway --port 19876
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=agentos-gateway
+Environment=NODE_ENV=production
+Environment=AGENTOS_GATEWAY_TOKEN=your_secure_token_here
+Environment=GEMINI_API_KEY=your_gemini_key_here
+
+[Install]
+WantedBy=multi-user.target

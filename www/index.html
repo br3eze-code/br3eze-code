@@ -2,1371 +2,747 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self' 'unsafe-inline' https:; connect-src 'self' ws: wss: https: http://localhost:* ws://localhost:*; img-src 'self' data: https:;">
-  <title>AgentOS WiFi Manager</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="utf-8">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover, user-scalable=no">
+    <meta name="color-scheme" content="light dark">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+                 font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+                 img-src 'self' data: blob: https://www.gstatic.com https://firebase.google.com https://lh3.googleusercontent.com;
+                 script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                 connect-src 'self'
+                     https://*.firebaseio.com https://*.googleapis.com
+                     https://*.firebase.google.com https://*.firebaseapp.com
+                     https://www.gstatic.com
+                     ws://127.0.0.1:* ws://localhost:* wss://127.0.0.1:* wss://localhost:*
+                     wss://*.firebaseio.com wss://*.googleapis.com
+                     wss://*.firebase.google.com
+                     http://127.0.0.1:* http://localhost:*
+                     ws: wss: http: https:;
+                 frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;">
+
+
+    <!-- Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="stylesheet" href="css/index.css">
+    <title>Power Connect</title>
+    <link rel="icon" href="images/logo/logo.png">
 </head>
 
 <body>
-  <div id="app">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <span class="logo">🤖</span>
-        <h1>AgentOS</h1>
-      </div>
-      <div class="header-right">
-        <button id="connectionStatus" class="status-indicator offline">
-          <span class="dot"></span>
-          <span class="status-text">Offline</span>
-        </button>
-      </div>
+
+    <!-- Power Hotspot Header -->
+    <header class="main-header hidden" id="mainHeader">
+        <div class="header-left">
+            <span class="logo">POWER CONNECT</span>
+        </div>
+        <div class="header-right">
+            <button class="btn-circle contact-btn" onclick="pickContactForChat()"><i class="fas fa-address-book"></i></button>
+            <span id="backendStatusBadge" class="backend-status-badge status-offline" title="Gateway: Offline"></span>
+            <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
+        </div>
+
+        <div class="user-dropdown" id="userDropdown">
+            <div class="dropdown-header">
+                <strong id="dropdownFullname"></strong>
+                <p id="dropdownEmail"></p>
+            </div>
+            <div class="dropdown-menu">
+                <ul>
+                    <li onclick="showSection('settings'); toggleDropdown('userDropdown');">
+                        <i class="fas fa-user"></i>Profile
+                    </li>
+                    <li onclick="Auth.logout(); toggleDropdown('userDropdown');">
+                        <i class="fas fa-sign-out-alt"></i> Sign Out
+                    </li>
+                </ul>
+            </div>
+        </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="app-content">
-      <!-- Dashboard Tab -->
-      <section id="tab-dashboard" class="tab-content active">
-        <div class="dashboard-grid">
-          <div class="card router-status-card" onclick="App.navigateTo('router')">
-            <div class="card-icon">🖥️</div>
-            <div class="card-content">
-              <h3>Router Status</h3>
-              <p id="router-status-text">Loading...</p>
+    <!-- AUTH SCREEN -->
+    <div id="authScreen">
+        <div class="auth-container">
+            <div class="card auth-card" id="loginForm">
+                <div class="auth-header">
+                    <img src="images/logo/logo.png" alt="Power Connect Logo" class="auth-logo" style="width: 80px; height: auto; margin: 0 auto 15px; display: block; animation: fadeIn 1s ease-out;">
+                    <h2>Welcome Back!</h2>
+                    <p>Login to access your hotspot</p>
+                </div>
+                <form id="loginFormElement">
+                    <div class="form-group"><label>Username</label><input type="text" placeholder="Username"
+                            id="loginIdentifier" required autocomplete="username"></div>
+                    <div class="form-group"><label>Password</label><input type="password" placeholder="Password"
+                            id="loginPassword" required autocomplete="current-password"></div>
+                    <button type="submit" class="btn btn-primary btn-block">🔐 Login </button>
+                </form>
+                <div class="auth-divider" style="display:flex;align-items:center;gap:10px;margin:14px 0;">
+                    <hr style="flex:1;border:none;border-top:1px solid var(--color-border);">
+                    <span style="font-size:0.78rem;color:var(--color-text-medium);white-space:nowrap;">or continue with</span>
+                    <hr style="flex:1;border:none;border-top:1px solid var(--color-border);">
+                </div>
+                <button type="button" class="btn btn-block" id="googleSignInBtn"
+                    onclick="Auth.loginWithGoogle()"
+                    style="display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#3c4043;border:1px solid #dadce0;font-weight:500;">
+                    <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+                <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
             </div>
-          </div>
-
-          <div class="card voucher-stats-card" onclick="App.navigateTo('vouchers')">
-            <div class="card-icon">🎟️</div>
-            <div class="card-content">
-              <h3>Vouchers</h3>
-              <p id="voucher-stats-text">Loading...</p>
+            <div class="card auth-card hidden" id="signupForm">
+                <div class="auth-header">
+                    <img src="images/logo/logo.png" alt="Power Connect Logo" class="auth-logo" style="width: 80px; height: auto; margin: 0 auto 15px; display: block; animation: fadeIn 1s ease-out;">
+                    <h2>Create Account</h2>
+                    <p>Join Power Hotspot today</p>
+                </div>
+                <form id="signupFormElement">
+                    <div class="form-group"><label>Full Name</label><input type="text" id="signupFullname"
+                            autocomplete="name" required></div>
+                    <div class="form-group"><label>Username</label><input type="text" id="signupUsername"
+                            autocomplete="username" required></div>
+                    <div class="form-group"><label>Email</label><input type="email" id="signupEmail" required
+                            autocomplete="email"></div>
+                    <div class="form-group"><label>Password</label><input type="password" id="signupPassword" required
+                            autocomplete="new-password" minlength="6"></div>
+                    <div class="form-group"><label>Confirm Password</label><input type="password"
+                            id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
+                    <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
+                </form>
+                <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
             </div>
-          </div>
-
-          <div class="card active-users-card" onclick="App.navigateTo('users')">
-            <div class="card-icon">👥</div>
-            <div class="card-content">
-              <h3>Active Users</h3>
-              <p id="active-users-text">Loading...</p>
-            </div>
-          </div>
-
-          <div class="card system-health-card" onclick="App.showSystemHealth()">
-            <div class="card-icon">💚</div>
-            <div class="card-content">
-              <h3>System Health</h3>
-              <p id="system-health-text">Loading...</p>
-            </div>
-          </div>
         </div>
-
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-          <h3>Quick Actions</h3>
-          <div class="action-buttons">
-            <button class="action-btn primary" onclick="App.createVoucherPrompt()">
-              <span>➕</span> Create Voucher
-            </button>
-            <button class="action-btn secondary" onclick="App.showRouterCommands()">
-              <span>🖥️</span> Router Commands
-            </button>
-            <button class="action-btn secondary" onclick="App.showNetworkTools()">
-              <span>🌐</span> Network Tools
-            </button>
-          </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="recent-activity">
-          <h3>Recent Activity</h3>
-          <ul id="activity-list" class="activity-list">
-            <li class="activity-item empty">No recent activity</li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- Vouchers Tab -->
-      <section id="tab-vouchers" class="tab-content">
-        <div class="voucher-controls">
-          <div class="search-box">
-            <input type="text" id="voucher-search" placeholder="Search vouchers..."
-              oninput="App.filterVouchers(this.value)">
-          </div>
-          <div class="filter-buttons">
-            <button class="filter-btn active" data-filter="all" onclick="App.filterVouchersByStatus('all')">All</button>
-            <button class="filter-btn" data-filter="active"
-              onclick="App.filterVouchersByStatus('active')">Active</button>
-            <button class="filter-btn" data-filter="used" onclick="App.filterVouchersByStatus('used')">Used</button>
-            <button class="filter-btn" data-filter="expired"
-              onclick="App.filterVouchersByStatus('expired')">Expired</button>
-          </div>
-        </div>
-
-        <div class="voucher-list" id="voucher-list">
-          <div class="loading-spinner">Loading vouchers...</div>
-        </div>
-
-        <div class="create-voucher-fab" onclick="App.createVoucherPrompt()">
-          <span>➕</span>
-        </div>
-      </section>
-
-      <!-- Users Tab -->
-      <section id="tab-users" class="tab-content">
-        <div class="users-header">
-          <h3>Hotspot Users</h3>
-          <button class="refresh-btn" onclick="App.refreshUsers()">
-            <span>🔄</span> Refresh
-          </button>
-        </div>
-
-        <div class="users-sections">
-          <!-- Active Users -->
-          <div class="user-section">
-            <h4>🟢 Active Sessions</h4>
-            <div id="active-users-list" class="user-list">
-              <div class="loading-spinner">Loading...</div>
-            </div>
-          </div>
-
-          <!-- All Users -->
-          <div class="user-section">
-            <h4>📋 All Users</h4>
-            <div id="all-users-list" class="user-list">
-              <div class="loading-spinner">Loading...</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Omni-Agent Tab -->
-      <section id="tab-omni" class="tab-content">
-        <div class="omni-header">
-          <h3>🤖 Omni-Agent Control Center</h3>
-          <p class="subtitle">Distributed Agent Runtime</p>
-        </div>
-
-        <!-- Node Status -->
-        <div class="omni-section">
-          <h4>🔗 Connected Nodes</h4>
-          <div id="node-list" class="node-list">
-            <div class="empty-state"><span>🌐</span>
-              <p>No nodes connected</p>
-            </div>
-          </div>
-          <div class="node-actions">
-            <button class="btn secondary" onclick="App.scanForNodes()">
-              <span>🔍</span> Scan Network
-            </button>
-            <button class="btn secondary" onclick="App.discoverServices()">
-              <span>📡</span> Discover Services
-            </button>
-          </div>
-        </div>
-
-        <!-- WhatsApp Gateway -->
-        <div class="omni-section">
-          <h4>💬 WhatsApp Gateway</h4>
-          <div id="whatsapp-status" class="whatsapp-status-card">
-            <div class="status-info">
-              <span class="status-dot disconnected"></span>
-              <span class="status-label">Disconnected</span>
-            </div>
-            <button class="btn secondary btn-small" id="whatsapp-login-btn" onclick="App.initiateWhatsAppLogin()">
-              <span>📱</span> Login with WhatsApp
-            </button>
-          </div>
-        </div>
-
-        <!-- OAuth Connections -->
-
-        <!-- Command Execution -->
-        <div class="omni-section">
-          <h4>⚡ Execute Command</h4>
-          <div class="command-form">
-            <div class="form-group">
-              <label>Target</label>
-              <select id="command-target">
-                <option value="all">All Nodes</option>
-                <option value="master">Master Only</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Command</label>
-              <input type="text" id="command-input" placeholder="e.g., shell.run git status">
-            </div>
-            <button class="btn primary" onclick="App.executeNodeCommand()">
-              <span>▶️</span> Execute
-            </button>
-          </div>
-          <div id="command-output" class="command-output">
-            <pre>Command output will appear here...</pre>
-          </div>
-        </div>
-
-        <!-- AskEngine -->
-        <div class="omni-section">
-          <h4>🧠 ReAct AskEngine</h4>
-          <div class="ask-form">
-            <textarea id="ask-input"
-              placeholder="Enter your goal... (e.g., 'Deploy latest MikroTik patch to all nodes and update GitHub repo')"
-              rows="3"></textarea>
-            <button class="btn primary" onclick="App.askEngine()">
-              <span>💡</span> Execute Plan
-            </button>
-          </div>
-          <div id="ask-output" class="ask-output">
-            <pre>Plan output will appear here...</pre>
-          </div>
-        </div>
-
-        <!-- NanoAI Status -->
-        <div class="omni-section">
-          <h4>⚛️ NanoAI Engine</h4>
-          <div id="nanoai-status" class="nanoai-status">
-            <div class="status-grid">
-              <div class="status-item">
-                <span class="label">Version</span>
-                <span class="value" id="nanoai-version">27.5.0</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Quantum Dims</span>
-                <span class="value" id="nanoai-quantum">4096</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Neural Layers</span>
-                <span class="value" id="nanoai-layers">4</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Hot-Swap</span>
-                <span class="value" id="nanoai-hotswap">Enabled</span>
-              </div>
-            </div>
-            <button class="btn secondary" onclick="App.runNanoAIDiagnostics()">
-              <span>🔬</span> Run Diagnostics
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tools Tab -->
-      <section id="tab-tools" class="tab-content">
-        <div class="tools-grid">
-          <div class="tool-category">
-            <h3>🔧 Router Tools</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('router.status')">
-                <span>📊</span> Status
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.users')">
-                <span>👥</span> Users
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.active')">
-                <span>🟢</span> Active
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.backup')">
-                <span>💾</span> Backup
-              </button>
-              <button class="tool-btn danger" onclick="App.executeTool('router.reboot')">
-                <span>🔄</span> Reboot
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>🌐 Network Tools</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.pingPrompt()">
-                <span>🏓</span> Ping
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('network.interfaces')">
-                <span>🔌</span> Interfaces
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>📈 System</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('system.stats')">
-                <span>📊</span> Stats
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('system.health')">
-                <span>💚</span> Health
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('audit.list')">
-                <span>📜</span> Audit Log
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>🎟️ Vouchers</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('voucher.stats')">
-                <span>📊</span> Stats
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('voucher.plans')">
-                <span>📋</span> Plans
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('voucher.list')">
-                <span>📋</span> List
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tool Output -->
-        <div class="tool-output">
-          <h3>Tool Output</h3>
-          <pre id="tool-output-content">Execute a tool to see output here...</pre>
-        </div>
-      </section>
-
-      <!-- Settings Tab -->
-      <section id="tab-settings" class="tab-content">
-        <div class="settings-section">
-          <h3>🔗 Server Connection</h3>
-          <div class="setting-item">
-            <label>Server URL</label>
-            <input type="text" id="server-url" placeholder="https://your-server.com" value="http://localhost:3000">
-          </div>
-          <div class="setting-item">
-            <label>API Token</label>
-            <input type="password" id="api-token" placeholder="Enter your API token">
-          </div>
-          <button class="btn primary" onclick="App.saveSettings()">Save Settings</button>
-        </div>
-
-        <div class="settings-section">
-          <h3>🔐 Security</h3>
-          <div class="setting-item">
-            <label>Quantum Ledger Status</label>
-            <p id="ledger-status" class="status-text">Checking...</p>
-          </div>
-          <button class="btn secondary" onclick="App.verifyLedger()">Verify Ledger Integrity</button>
-        </div>
-
-        <div class="settings-section">
-          <h3>📊 About</h3>
-          <p><strong>AgentOS WiFi Manager</strong></p>
-          <p>Version: <span id="app-version">2026.5.0</span></p>
-          <p>Architecture: AgentOS Monolith Pattern</p>
-        </div>
-      </section>
-    </main>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-btn active" data-tab="dashboard" onclick="App.switchTab('dashboard')">
-        <span class="nav-icon">📊</span>
-        <span class="nav-label">Dashboard</span>
-      </button>
-      <button class="nav-btn" data-tab="vouchers" onclick="App.switchTab('vouchers')">
-        <span class="nav-icon">🎟️</span>
-        <span class="nav-label">Vouchers</span>
-      </button>
-      <button class="nav-btn" data-tab="users" onclick="App.switchTab('users')">
-        <span class="nav-icon">👥</span>
-        <span class="nav-label">Users</span>
-      </button>
-      <button class="nav-btn" data-tab="omni" onclick="App.switchTab('omni')">
-        <span class="nav-icon">🤖</span>
-        <span class="nav-label">Omni-Agent</span>
-      </button>
-      <button class="nav-btn" data-tab="settings" onclick="App.switchTab('settings')">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-label">Settings</span>
-      </button>
-    </nav>
-  </div>
-
-  <!-- Modals -->
-  <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="modal-title">Modal Title</h3>
-        <button class="modal-close" onclick="App.closeModal()">×</button>
-      </div>
-      <div class="modal-body" id="modal-body">
-        <!-- Dynamic content -->
-      </div>
     </div>
-  </div>
 
-  <!-- Toast Notifications -->
-  <div id="toast-container" class="toast-container"></div>
 
-  <!-- Scripts -->
-  <script src="js/config.js"></script>
-  <script src="js/security.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/ledger.js"></script>
-  <script src="js/nanoai.js"></script>
-  <script src="js/oauth-vault.js"></script>
-  <script src="js/slave-node.js"></script>
-  <script src="js/react-engine.js"></script>
-  <script src="js/websocket.js"></script>
-  <script src="js/tools.js"></script>
-  <script src="js/client.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
+    <!-- MAIN APP --->
+    <div class="dashboard-container hidden" id="mainApp">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <ul>
+                <li onclick="showSection('home')" class="active" data-section="home"><i class="fas fa-home"></i> <span
+                        class="nav-text">Home</span></li>
+                <li id="sidebarAdminLink" onclick="showSection('admin-stats')" data-section="admin-stats" class="hidden">
+                    <i class="fas fa-user-shield"></i> <span class="nav-text">Admin</span></li>
+                <li id="sidebarPlansLink" onclick="showSection('subscriptions')" data-section="subscriptions"><i
+                        class="fas fa-box"></i> <span class="nav-text">Plans</span></li>
+                <li onclick="showSection('orders')" data-section="orders"><i class="fas fa-history"></i> <span
+                        class="nav-text">Orders</span></li>
+                <li onclick="showSection('messages')" data-section="messages"><i class="fas fa-envelope"></i> <span
+                        class="nav-text">Messages</span></li>
+                <li onclick="showSection('settings')" data-section="settings"><i class="fas fa-cog"></i> <span
+                        class="nav-text">Settings</span></li>
+            </ul>
+        </aside>
 
-  <script>
-    /**
-     * Iframe 元素高亮注入脚本
-     * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
-     *
-     * 使用方法：
-     * 1. 将此脚本添加到目标网站的 HTML 中
-     * 2. 或通过浏览器扩展、用户脚本等方式注入
-     */
+        <!-- Main Content Panel -->
+        <main class="content-panel">
+            <section id="home-section" class="dashboard-section">
+                <h1>Dashboard</h1>
+                <p class="account-info text-medium">Welcome, <span id="navUsername">User</span></p>
 
-    (function () {
-      "use strict";
+                <!-- Active Plan Status Card -->
+                <div class="card active-plan-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span class="text-medium"><i class="fas fa-wifi"></i> Status</span>
+                        <span id="dashUptime" style="font-weight:bold;">Checking...</span>
+                    </div>
 
-      // 检查是否在 iframe 中
-      if (window.self === window.top) {
-        return; // 不在 iframe 中，不执行
-      }
+                    <!-- Progress Bar Container -->
+                    <div class="progress-track">
+                        <div class="progress-fill" id="planProgressBar" style="width: 0%;"></div>
+                    </div>
+                    <div class="plan-dates-info">
+                        <span>Activated: <span id="planStartLabel">--</span></span>
+                        <span>Expires: <span id="planEndLabel">--</span></span>
+                    </div>
+                </div>
 
-      // 检查是否已经初始化过
-      if (window.__iframeHighlightInitialized) {
-        return;
-      }
-      window.__iframeHighlightInitialized = true;
-      console.log("Iframe 高亮脚本已加载");
+                <div class="grid grid-3">
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="stat-value">$<span id="dashCredits">0.00</span></div>
+                        <div class="stat-label">Balance</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-box"></i></div>
+                        <div class="stat-value" id="dashPlans">0</div>
+                        <div class="stat-label">Active Plans</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="stat-value" id="dashDevices">0</div>
+                        <div class="stat-label">Devices</div>
+                    </div>
+                </div>
 
-      // 创建高亮覆盖层
-      var overlay = document.createElement("div");
-      overlay.id = "iframe-highlight-overlay";
-      overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
+                <h2>Quick Actions</h2>
+                <div class="card">
+                    <div class="grid grid-4">
+                        <button class="btn" onclick="showSection('subscriptions')"><i class="fas fa-cart-plus"></i>
+                            Browse Plans</button>
+                        <button class="btn" onclick="openShareCredit()"><i class="fas fa-share-alt"></i> Share
+                            Credit</button>
+                        <button class="btn" onclick="openRedeemVoucher()"><i class="fas fa-ticket-alt"></i> Redeem
+                            Code</button>
+                        <button class="btn btn-danger" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i>
+                            Logout</button>
+                    </div>
+                </div>
+            </section>
 
-      // 创建悬停高亮框（虚线边框）
-      var highlightBox = document.createElement("div");
-      highlightBox.id = "iframe-highlight-box";
-      highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
+            <section id="admin-stats-section" class="dashboard-section hidden">
+                <div class="admin-header-controls">
+                    <h1>Admin Intelligence</h1>
+                    <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                        <select id="statsTimeFilter" class="time-filter-select" onchange="renderAdminStats()">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30" selected>Last 30 Days</option>
+                            <option value="month">This Month (Daily)</option>
+                            <option value="year">This Year (Monthly)</option>
+                        </select>
+                        <button class="btn ai-analysis-btn" onclick="openAdminAI()">
+                            <i class="fas fa-brain"></i> Ask AI Insight
+                        </button>
+                    </div>
+                </div>
 
-      // 创建选中节点的常驻高亮框（实线边框）
-      var selectedBox = document.createElement("div");
-      selectedBox.id = "iframe-selected-box";
-      selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
+                <div class="grid grid-4">
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="stat-value">$<span id="statsTotalRevenue">0</span></div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                    <div class="card stat-card clickable" onclick="openActiveConnectionsModal()">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-value" id="statsTotalUsers">0</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-rocket"></i></div>
+                        <div class="stat-value" id="statsActivePlans">0</div>
+                        <div class="stat-label">Active Plans</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-headset"></i></div>
+                        <div class="stat-value" id="statsOpenTickets">0</div>
+                        <div class="stat-label">Open Tickets</div>
+                    </div>
+                </div>
 
-      // 创建悬停标签显示
-      var tagLabel = document.createElement("div");
-      tagLabel.id = "iframe-tag-label";
-      tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
+                <!-- Scrollable Charts -->
+                <div class="grid grid-2">
+                    <div class="card">
+                        <h3>Revenue Trend</h3>
+                        <div class="chart-scroll-wrapper">
+                            <div class="chart-container" id="revenueChart">
+                                <p class="text-medium">Loading revenue data...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Plan Performance</h3>
+                        <div class="chart-scroll-wrapper">
+                            <div class="chart-container" id="popularityChart"
+                                style="display:block; height: auto; overflow-y: auto;">
+                                <p class="text-medium">Loading plan data...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-      // 创建选中节点标签
-      var selectedLabel = document.createElement("div");
-      selectedLabel.id = "iframe-selected-label";
-      selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
-      overlay.appendChild(highlightBox);
-      overlay.appendChild(selectedBox);
-      overlay.appendChild(tagLabel);
-      overlay.appendChild(selectedLabel);
-      document.body.appendChild(overlay);
+            <section id="subscriptions-section" class="dashboard-section hidden">
+                <h1>Available Plans</h1>
+                <p class="text-medium">Select a plan to activate internet service for your devices.</p>
+                <div class="grid grid-3" id="plansList"></div>
+            </section>
 
-      // 存储当前选中的元素
-      var selectedElement = null;
-      var highlightEnabled = false;
+            <section id="orders-section" class="dashboard-section hidden">
+                <h1>Transaction History</h1>
+                <p class="text-medium">Review all your credit movements (purchases, sharing, redemptions).</p>
+                <div class="card" style="padding: 0;">
+                    <div id="transactionHistoryContainer">
+                        <p class="text-medium" style="padding: 25px;">Loading transaction history...</p>
+                    </div>
+                </div>
+            </section>
 
-      // 更新选中元素的高亮显示
-      function updateSelectedHighlight(element) {
-        console.log("updateSelectedHighlight called with:", element);
-        if (!element) {
-          selectedBox.style.display = "none";
-          selectedLabel.style.display = "none";
-          selectedElement = null;
-          console.log("Cleared selected highlight");
-          return;
-        }
-        selectedElement = element;
-        var rect = element.getBoundingClientRect();
-        console.log("Selected element rect:", rect);
+            <section id="messages-section" class="dashboard-section hidden">
+                <div class="p2p-messages-header">
+                    <div>
+                        <h1>Messages</h1>
+                        <p class="text-medium">Your support conversations &amp; P2P group history.</p>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button class="btn btn-info" onclick="openChatBotModal()">
+                            <i class="fas fa-headset"></i> Live Support
+                        </button>
+                        <button class="btn btn-primary" onclick="openSubmitTicketModal()">
+                            <i class="fas fa-plus"></i> New Thread
+                        </button>
+                        <button class="btn contact-btn" onclick="pickContactForChat()">
+                            <i class="fas fa-address-book"></i> Import Contact
+                        </button>
+                    </div>
+                </div>
+                <div class="p2p-chat-layout">
+                    <!-- Conversation List Panel -->
+                    <div class="p2p-thread-list" id="ticketListContainer">
+                        <div class="p2p-thread-loading">
+                            <i class="fas fa-circle-notch fa-spin"></i>
+                            <span>Loading conversations...</span>
+                        </div>
+                    </div>
+                    <!-- Active Conversation Panel -->
+                    <div class="p2p-conversation-panel" id="p2pConversationPanel">
+                        <div class="p2p-empty-state">
+                            <i class="fas fa-comments"></i>
+                            <h3>Select a conversation</h3>
+                            <p>Choose a thread from the left to view the full message history.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        // 更新选中高亮框位置
-        selectedBox.style.display = "block";
-        selectedBox.style.left = "".concat(rect.left - 2, "px");
-        selectedBox.style.top = "".concat(rect.top - 2, "px");
-        selectedBox.style.width = "".concat(rect.width + 4, "px");
-        selectedBox.style.height = "".concat(rect.height + 4, "px");
+            <section id="settings-section" class="dashboard-section hidden">
+                <h1>Settings</h1>
+                <div class="card">
+                    <h3>Profile</h3>
+                    <form id="updateProfileForm">
+                        <div class="form-group"><label for="settingsFullname">Full Name</label><input type="text"
+                                id="settingsFullname" required></div>
+                        <div class="form-group"><label for="settingsUsername">Username</label><input type="text"
+                                id="settingsUsername" required></div>
+                        <div class="form-group"><label for="settingsPhoneNumber">Phone Number</label><input type="tel"
+                                id="settingsPhoneNumber" required></div>
+                        <div class="form-group"><label for="settingsAddress">Address</label><input type="text"
+                                id="settingsAddress" required></div>
+                        <div class="form-group"><label for="settingsEmail">Email</label><input type="email"
+                                id="settingsEmail" disabled></div>
+                        <button type="submit" class="btn btn-primary">Update Profile</button>
+                    </form>
+                </div>
 
-        // 更新选中标签位置和内容
-        selectedLabel.style.display = "block";
-        selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
+                <div id="adminToolsContainer" class="hidden">
+                    <h2>Admin Tools</h2>
+                    <p style="color: var(--color-danger-text);">⚠️ Caution: These actions affect all users and system
+                        settings.</p>
+                    <div class="admin-section">
+                        <h3>User Management</h3>
+                        <div id="userListContainer"></div>
+                    </div>
+                    <div class="admin-section">
+                        <h3>Plan Management</h3><button class="btn btn-sm" onclick="openAdminPlanModal()">+ Add New
+                            Plan</button>
+                        <div id="planListAdminContainer"></div>
+                    </div>
+                    <div class="admin-section">
+                        <h3>Voucher Management</h3><button class="btn btn-sm" onclick="openGenerateVoucherModal()">+
+                            Generate Voucher</button>
+                        <div id="voucherListContainer"></div>
+                    </div>
+                    <div class="admin-section">
+                        <h3>System Network Settings</h3>
+                        <div id="networkSettingsDisplay" style="margin-bottom: 1rem;"></div><button class="btn btn-sm"
+                            onclick="openEditNetworkModal()">Edit Network Settings</button>
+                    </div>
+                    <div class="admin-section">
+                        <h3>Printer Hardware</h3>
+                        <div id="printerStatusContainer" style="margin-bottom: 1rem;">
+                            <label for="globalPrinterInterface">Default Interface</label>
+                            <select id="globalPrinterInterface" class="form-control" style="margin-bottom: 10px;">
+                                <option value="none">No Print</option>
+                            </select>
+                            <span id="printerInterfaceLabel" class="text-medium">Interface: Not selected</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm" onclick="testPrinter()"><i class="fas fa-print"></i> Test
+                                Print</button>
+                            <button class="btn btn-sm btn-info" onclick="refreshPrinters()"><i
+                                    class="fas fa-sync"></i> Refresh List</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
 
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 28;
-        var labelLeft = rect.left;
+    <!-- Modals -->
+    <div class="modal" id="activeConnectionsModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Active Network Connections</h3>
+                <button class="modal-close" onclick="closeModal('activeConnectionsModal')">×</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="connectionSearch" placeholder="Search IP or Username..." class="form-control"
+                    onkeyup="filterConnectionsTable()" style="width: 100%;height: 30px">
+            </div>
+            <div id="activeConnectionsContainer" style="max-height: 400px; overflow-y: auto;"></div>
+            <div class="modal-actions"><button type="button" class="btn btn-primary"
+                    onclick="closeModal('activeConnectionsModal')">Close</button></div>
+        </div>
+    </div>
 
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 5) {
-          labelTop = rect.bottom + 5;
-        }
+    <div class="modal" id="shareCreditModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Share Credits</h3><button class="modal-close" onclick="closeModal('shareCreditModal')">×</button>
+            </div>
+            <form id="shareCreditForm">
+                <div class="form-group"><label>Recipient Email</label><input type="email" id="shareRecipientEmail"
+                        required></div>
+                <div class="form-group"><label>Amount ($)</label><input type="number" step="0.01" id="shareAmount"
+                        required></div>
+                <div class="modal-actions"><button type="button" class="btn"
+                        onclick="closeModal('shareCreditModal')">Cancel</button><button type="submit"
+                        class="btn btn-primary">Send</button></div>
+            </form>
+        </div>
+    </div>
 
-        // 如果标签会超出右侧，向左调整
-        var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
-        if (labelLeft + labelWidth > window.innerWidth - 10) {
-          labelLeft = window.innerWidth - labelWidth - 10;
-        }
-        selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
-        selectedLabel.style.top = "".concat(labelTop, "px");
-        console.log("Selected highlight positioned at:", {
-          left: selectedBox.style.left,
-          top: selectedBox.style.top,
-          width: selectedBox.style.width,
-          height: selectedBox.style.height
-        });
-      }
-      function getElementSelector(element) {
-        if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
-        var segments = [];
-        var current = element;
-        while (current !== document.documentElement) {
-          var selector = '';
-          // 优先检查唯一ID
-          if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
-            segments.unshift("#".concat(current.id));
-            break; // ID唯一，无需继续向上
-          }
+    <div class="modal" id="sendVoucherModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Send Voucher to User</h3><button class="modal-close"
+                    onclick="closeModal('sendVoucherModal')">×</button>
+            </div>
+            <form id="sendVoucherForm">
+                <div class="form-group"><label for="voucherRecipient">Select User</label><select id="voucherRecipient"
+                        required></select></div>
+                <div class="modal-actions"><button type="button" class="btn"
+                        onclick="closeModal('sendVoucherModal')">Cancel</button><button type="submit"
+                        class="btn btn-primary">Send Voucher</button></div>
+            </form>
+        </div>
+    </div>
 
-          // 生成类名选择器（取第一个有效类名）
-          var classes = Array.from(current.classList).filter(function (c) {
-            return !c.startsWith('js-');
-          });
-          var className = classes.length > 0 ? ".".concat(classes[0]) : '';
+    <div class="modal" id="ticketDetailModal">
+        <div class="modal-content" style="max-width: 700px; display: flex; flex-direction: column; max-height: 85vh;">
+            <div class="modal-header">
+                <div>
+                    <h3 id="ticketModalTitle" style="margin-bottom: 5px;">Ticket Detail</h3><small class="text-medium"
+                        id="ticketModalSubtitle">Loading...</small>
+                </div>
+                <button class="modal-close" onclick="closeModal('ticketDetailModal')">×</button>
+            </div>
 
-          // 生成位置索引（nth-child）
-          var tag = current.tagName.toLowerCase();
-          if (!className) {
-            var siblings = Array.from(current.parentNode.children);
-            var index = siblings.findIndex(function (el) {
-              return el === current;
-            }) + 1;
-            selector = "".concat(tag, ":nth-child(").concat(index, ")");
-          } else {
-            selector = className;
-          }
-          segments.unshift(selector);
-          current = current.parentElement;
-        }
+            <div class="ticket-meta-bar"
+                style="background: var(--color-sidebar); padding: 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div><span id="ticketModalStatus"></span></div>
+                <div id="ticketModalActions"></div>
+            </div>
 
-        // 处理根元素
-        if (current === document.documentElement) {
-          segments.unshift('html');
-        }
-        return segments.join(' > ');
-      }
+            <div id="ticketRepliesContainer" class="chat-log"
+                style="flex: 1; min-height: 300px; overflow-y: auto; background: var(--color-sidebar); border: 1px solid var(--color-border); border-radius: 4px; padding: 15px; margin-bottom: 15px;">
+            </div>
 
-      // 获取元素文本内容
-      function getElementText(element) {
-        var _element$textContent;
-        if (element.tagName === "INPUT") {
-          return element.value || element.placeholder || "";
-        }
-        if (element.tagName === "TEXTAREA") {
-          return element.value || element.placeholder || "";
-        }
-        var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
-        return text.length > 50 ? text.substring(0, 50) + "..." : text;
-      }
+            <form id="ticketReplyForm"
+                style="display: flex; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 15px;">
+                <input type="hidden" id="currentTicketId">
+                <textarea id="ticketReplyInput" rows="2" placeholder="Type a reply..." style="flex: 1; resize: none;"
+                    class="form-control"></textarea>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send</button>
+            </form>
+        </div>
+    </div>
 
-      // 获取元素属性信息
-      function getElementAttributes(element) {
-        var attrs = {};
-        for (var i = 0; i < element.attributes.length; i++) {
-          var attr = element.attributes[i];
-          attrs[attr.name] = attr.value;
-        }
-        return attrs;
-      }
+    <div class="modal" id="submitTicketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Submit New Support Ticket</h3><button class="modal-close"
+                    onclick="closeModal('submitTicketModal')">×</button>
+            </div>
+            <form id="newTicketForm">
+                <div class="form-group"><label for="newTicketSubject">Issue Subject</label><input type="text"
+                        id="newTicketSubject" required></div>
+                <div class="form-group"><label for="newTicketBody">Detailed Description</label><textarea
+                        id="newTicketBody" rows="5" required></textarea></div>
+                <div class="modal-actions"><button type="button" class="btn"
+                        onclick="closeModal('submitTicketModal')">Cancel</button><button type="submit"
+                        class="btn btn-primary">Submit Ticket</button></div>
+            </form>
+        </div>
+    </div>
 
-      // 鼠标悬停事件处理
-      function handleMouseOver(e) {
-        if (!highlightEnabled) return;
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
+    <!-- Chat Modal with Emoji Support -->
+    <div class="modal" id="chatBoxModal">
+        <div class="modal-content" style="height: 100%; max-width:850px;">
+            <div class="modal-header" style="margin-bottom: 0; height: auto; flex-shrink: 0;">
+                <h3>Live Support Chat</h3>
+                <button class="modal-close" onclick="closeModal('chatBoxModal')">×</button>
+            </div>
 
-        // 避免高亮 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
+            <div class="chat-container">
+                <div class="chat-log" id="chatLog"></div>
+                <div class="emoji-picker-container" id="emojiPicker"></div>
 
-        // 如果是已选中的元素，不显示悬停高亮
-        if (target === selectedElement) {
-          highlightBox.style.display = "none";
-          tagLabel.style.display = "none";
-          return;
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
+                <form class="chat-input-area" id="chatForm">
+                    <button type="button" class="btn btn-sm" onclick="toggleEmojiPicker()"
+                        style="font-size: 1.2rem; padding: 5px 10px; background: transparent; border: none; color: var(--color-text-medium);">
+                        <i class="fas fa-smile"></i>
+                    </button>
+                    <!-- Fixed input width issue -->
+                    <input type="text" id="chatInput" class="form-control" placeholder="Type a message..."
+                        autocomplete="off">
+                    <button type="button" id="chatActionBtn" class="chat-action-btn mode-mic">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-        // 更新悬停高亮框位置
-        highlightBox.style.display = "block";
-        highlightBox.style.left = "".concat(rect.left - 2, "px");
-        highlightBox.style.top = "".concat(rect.top - 2, "px");
-        highlightBox.style.width = "".concat(rect.width + 4, "px");
-        highlightBox.style.height = "".concat(rect.height + 4, "px");
 
-        // 更新标签位置和内容
-        tagLabel.style.display = "block";
-        tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
+    <div class="toast hidden" id="toast">
+        <div class="toast-icon" id="toastIcon">ℹ️</div>
+        <div class="toast-message" id="toastMessage">Notification</div>
+    </div>
 
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 22;
-        var labelLeft = rect.left;
+    <div class="modal" id="adminUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="adminUserModalTitle">Manage User</h3><button class="modal-close"
+                    onclick="closeModal('adminUserModal')">×</button>
+            </div>
+            <form id="adminUserForm">
+                <input type="hidden" id="adminUserId">
+                <div class="form-group"><label>Full Name</label><input type="text" id="adminUserFullname" required>
+                </div>
+                <div class="form-group"><label>Email</label><input type="email" id="adminUserEmail" readonly></div>
+                <div class="form-group"><label>Credits</label><input type="number" step="0.01" id="adminUserCredits"
+                        required></div>
+                <div class="form-group"><label>Role</label><select id="adminUserRole">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select></div>
+                <div class="modal-actions"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+            </form>
+        </div>
+    </div>
 
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 0) {
-          labelTop = rect.bottom + 5;
-        }
+    <div class="modal" id="adminPlanModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="adminPlanModalTitle">Manage Plan</h3><button class="modal-close"
+                    onclick="closeModal('adminPlanModal')">×</button>
+            </div>
+            <form id="adminPlanForm">
+                <input type="hidden" id="adminPlanId">
+                <div class="form-group"><label>Plan Name</label><input type="text" id="adminPlanName" required></div>
+                <div class="form-group"><label>Description</label><input type="text" id="adminPlanDesc" required></div>
+                <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="adminPlanPrice"
+                        required></div>
+                <div class="form-group">
+                    <label>Duration</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="adminPlanDuration" required style="flex: 1;">
+                        <select id="adminPlanDurationUnit" style="flex: 1;">
+                            <option value="minutes">Minute</option>
+                            <option value="hours">Hour</option>
+                            <option value="days">Day</option>
+                            <option value="weeks">Week</option>
+                            <option value="months">Month</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group"><label>Device Limit</label><input type="number" id="adminPlanDevices" required>
+                </div>
+                <div class="form-group">
+                    <label>Plan Image</label>
+                    <div class="image-preview-container">
+                        <img id="adminPlanImagePreview" src="" alt="Image Preview" class="image-preview" />
+                        <span id="imageUploadPlaceholder"
+                            style="color:var(--color-text-medium); pointer-events:none;">No image selected</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button type="button" class="btn btn-sm" id="uploadPlanImageBtn"><i class="fas fa-camera"></i>
+                            Select Image</button>
+                    </div>
+                    <input type="file" id="browserFileInput" accept="image/*" style="display: none;">
+                    <input type="hidden" id="adminPlanImageUrl">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-danger hidden" id="deletePlanBtn" type="button">Delete</button>
+                    <button type="submit" class="btn btn-primary">Save Plan</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        // 如果标签会超出右侧，向左调整
-        if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
-          labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
-        }
-        tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
-        tagLabel.style.top = "".concat(labelTop, "px");
+    <div class="modal" id="adminNetworkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Network Settings</h3><button class="modal-close"
+                    onclick="closeModal('adminNetworkModal')">×</button>
+            </div>
+            <form id="adminNetworkForm">
+                <div class="form-group"><label>SSID (Network Name)</label><input type="text" id="adminNetworkSsid"
+                        required></div>
+                <div class="form-group"><label>Password</label><input type="text" id="adminNetworkPassword" required>
+                </div>
+                <div class="modal-actions"><button type="submit" class="btn btn-primary">Update Network</button></div>
+            </form>
+        </div>
+    </div>
 
-        // 发送消息到父窗口
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
+    <div class="modal" id="redeemVoucherModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Redeem Voucher Code</h3><button class="modal-close"
+                    onclick="closeModal('redeemVoucherModal'); if(window.stopQRScanner) stopQRScanner();">×</button>
+            </div>
+            <form id="redeemVoucherForm">
+                <div class="form-group">
+                    <label for="voucherCodeInput">Enter Code</label>
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input type="text" id="voucherCodeInput" placeholder="STAR-XXXX-XXXX"
+                            required style="width:100%; text-transform:uppercase; padding-right:40px; box-sizing:border-box;">
+                        <button type="button" title="Scan QR Code" onclick="scanQRCode()"
+                            style="position:absolute; right:6px; background:transparent; border:none; border-radius:4px; cursor:pointer; font-size:1.25rem; padding:4px; display:flex; align-items:center; justify-content:center;">
+                            📷
+                        </button>
+                    </div>
+                </div>
+                <div id="qr-reader" style="width:100%; display:none; margin-top:10px; border-radius:8px; overflow:hidden;"></div>
+                <div class="modal-actions"><button type="button" class="btn"
+                        onclick="closeModal('redeemVoucherModal'); if(window.stopQRScanner) stopQRScanner();">Cancel</button><button type="submit"
+                        class="btn btn-primary">Redeem</button></div>
+            </form>
+        </div>
+    </div>
 
-      // 鼠标离开事件处理
-      function handleMouseOut(e) {
-        if (!highlightEnabled) return;
-        var relatedTarget = e.relatedTarget;
+    <div class="modal" id="generateVoucherModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Generate Vouchers</h3><button class="modal-close"
+                    onclick="closeModal('generateVoucherModal')">×</button>
+            </div>
+            <form id="generateVoucherForm">
+                <div class="form-group"><label for="voucherValue">Credit Value ($)</label><input type="number"
+                        step="0.01" id="voucherValue" value="5.00" required></div>
+                <div class="form-group"><label for="voucherQuantity">Quantity</label><input type="number"
+                        id="voucherQuantity" value="10" required></div>
+                <div class="form-group">
+                    <label for="voucherPrinterInterface">Printer</label>
+                    <select id="voucherPrinterInterface">
+                        <option value="PRINTER_MAIN">Default (Config)</option>
+                        <option value="none">Disable Printing</option>
+                    </select>
+                </div>
+                <div class="modal-actions"><button type="button" class="btn"
+                        onclick="closeModal('generateVoucherModal')">Cancel</button><button type="submit"
+                        class="btn btn-primary">Generate</button></div>
+            </form>
+        </div>
+    </div>
 
-        // 如果鼠标移动到高亮相关元素上，不隐藏高亮
-        if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
-          return;
-        }
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: null,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
+    <!-- Bulk Print Printer Picker Modal -->
+    <div class="modal" id="bulkPrintModal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h3>Bulk Print</h3><button class="modal-close" onclick="closeModal('bulkPrintModal')">×</button>
+            </div>
+            <p class="text-medium" id="bulkPrintCountLabel" style="margin-bottom:12px;"></p>
+            <div class="form-group">
+                <label for="bulkPrintInterface">Printer</label>
+                <select id="bulkPrintInterface">
+                    <option value="">Default (Config)</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="closeModal('bulkPrintModal')">Cancel</button>
+                <button type="button" class="btn btn-primary" id="bulkPrintConfirmBtn"
+                    onclick="confirmBulkPrint()">Print</button>
+            </div>
+        </div>
+    </div>
 
-      // 点击事件处理
-      function handleClick(e) {
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
+    <!-- Mock Contacts Modal for non-Cordova environments -->
+    <div class="modal" id="mockContactsModal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Select Contact</h3>
+                <button class="modal-close" onclick="closeModal('mockContactsModal')">×</button>
+            </div>
+            <div class="modal-body" style="padding: 15px;">
+                <p class="text-medium" style="margin-bottom: 15px;">Pick a contact to message or update details via Google Contacts sync.</p>
+                <div id="mockContactsList" style="display: flex; flex-direction: column; gap: 10px; max-height: 250px; overflow-y: auto; margin-bottom: 15px;">
+                    <!-- Dynamically populated contacts -->
+                </div>
+                <div style="border-top: 1px solid var(--color-border); padding-top: 15px;">
+                    <h4 style="margin-bottom: 10px;">Add New Contact</h4>
+                    <form id="addMockContactForm" style="display: flex; flex-direction: column; gap: 8px;">
+                        <input type="text" id="mockContactName" placeholder="Full Name" required>
+                        <input type="text" id="mockContactInfo" placeholder="Email or Phone Number" required>
+                        <button type="submit" class="btn btn-primary btn-sm">Add &amp; Pick</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        // 避免处理 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
+    <!-- CDN Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
-        // 检查是否是交互元素，这些元素需要保留默认行为
-        var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
-
-        // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
-        if (highlightEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-        console.log("Element clicked:", {
-          tagName: target.tagName,
-          selector: selector,
-          rect: rect
-        });
-
-        // 立即更新选中高亮
-        updateSelectedHighlight(target);
-
-        // 隐藏悬停高亮，因为现在是选中状态
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-click",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 监听来自父窗口的消息
-      function handleParentMessage(event) {
-        console.log("Received message from parent:", event.data);
-        if (event.data.type === "iframe-highlight-toggle") {
-          var enabled = event.data.enabled;
-          console.log("Highlight toggle:", enabled);
-          if (enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "enable-iframe-highlight") {
-          console.log("Enable iframe highlight");
-          enableHighlight();
-        } else if (event.data.type === "disable-iframe-highlight") {
-          console.log("Disable iframe highlight");
-          disableHighlight();
-        } else if (event.data.type === "toggle-iframe-highlight") {
-          var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
-          console.log("Toggle iframe highlight to:", _enabled);
-          if (_enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "update-selected-element") {
-          var selector = event.data.selector;
-          console.log("Update selected element with selector:", selector);
-          if (selector) {
+<script src="js/index.js"></script>
+    <script src="js/backend.js"></script>
+    <script src="js/env.js"></script>
+    <!-- Cordova script -->
+    <script src="cordova.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        // ── Firebase init (driven by window.ENV) ──────────────────────────────
+        (function initFirebase() {
+            const apiKey = window.ENV?.FIREBASE_API_KEY || 'AIzaSyANPQZKsAV9VsW9vKZJ3ghhrpnkxuLfdP8';
+            if (typeof firebase === 'undefined' || !apiKey) return;
+            if (firebase.apps && firebase.apps.length) return; // already initialized
             try {
-              var element = document.querySelector(selector);
-              console.log("Found element by selector:", element);
-              updateSelectedHighlight(element);
-            } catch (error) {
-              console.warn("Failed to select element:", error);
-              updateSelectedHighlight(null);
+                firebase.initializeApp({
+                    apiKey:            apiKey,
+                    authDomain:        window.ENV.FIREBASE_AUTH_DOMAIN    || `${window.ENV.FIREBASE_PROJECT_ID}.firebaseapp.com`,
+                    databaseURL:       window.ENV.FIREBASE_DATABASE_URL   || `https://${window.ENV.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`,
+                    projectId:         window.ENV.FIREBASE_PROJECT_ID,
+                    storageBucket:     window.ENV.FIREBASE_STORAGE_BUCKET || `${window.ENV.FIREBASE_PROJECT_ID}.appspot.com`,
+                    messagingSenderId: window.ENV.FIREBASE_MESSAGING_SENDER_ID || '',
+                    appId:             window.ENV.FIREBASE_APP_ID         || ''
+                });
+                // Expose db globally for DataStore / OfflineOrchestrator
+                window.db = firebase.firestore();
+            } catch (e) {
+                console.error('[ENV] Firebase init failed:', e.message);
             }
-          } else {
-            updateSelectedHighlight(null);
-          }
-        } else if (event.data.type === "clear-selected-element") {
-          console.log("Clear selected element");
-          updateSelectedHighlight(null);
-        }
-      }
-
-      // 启用高亮功能
-      function enableHighlight() {
-        console.log("Enabling highlight");
-        document.addEventListener("mouseover", handleMouseOver, true);
-        document.addEventListener("mouseout", handleMouseOut, true);
-        document.addEventListener("click", handleClick, true);
-        highlightEnabled = true;
-        overlay.style.display = "block";
-      }
-
-      // 禁用高亮功能
-      function disableHighlight() {
-        console.log("Disabling highlight");
-        highlightEnabled = false;
-        // 保持事件监听器，但通过 highlightEnabled 变量控制行为
-        // 这样可以保留选中状态的显示
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
-      }
-
-      // 完全禁用高亮功能（移除所有监听器）
-      function fullyDisableHighlight() {
-        console.log("Fully disabling highlight");
-        highlightEnabled = false;
-        document.removeEventListener("mouseover", handleMouseOver, true);
-        document.removeEventListener("mouseout", handleMouseOut, true);
-        document.removeEventListener("click", handleClick, true);
-        overlay.style.display = "none";
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        selectedBox.style.display = "none";
-        selectedLabel.style.display = "none";
-      }
-
-      // 添加事件监听
-      enableHighlight();
-      window.addEventListener("message", handleParentMessage);
-
-      // 暴露全局函数供外部调用
-      window.__iframeHighlightControl = {
-        enable: enableHighlight,
-        disable: disableHighlight,
-        fullyDisable: fullyDisableHighlight,
-        isEnabled: function isEnabled() {
-          return highlightEnabled;
-        },
-        getSelectedElement: function getSelectedElement() {
-          return selectedElement;
-        },
-        updateSelected: updateSelectedHighlight,
-        // 通过消息发送开关控制
-        sendToggleMessage: function sendToggleMessage(enabled) {
-          window.parent.postMessage({
-            type: 'iframe-highlight-status',
-            enabled: enabled || highlightEnabled,
-            source: 'iframe-highlight-injector'
-          }, '*');
-        }
-      };
-
-      // 通知父窗口脚本已加载
-      try {
-        window.parent.postMessage({
-          type: "iframe-highlight-ready",
-          data: {
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            timestamp: Date.now()
-          },
-          source: "iframe-highlight-injector"
-        }, "*");
-      } catch (error) {
-        console.warn("无法发送就绪消息到父窗口:", error);
-      }
-
-      // 清理函数
-      window.__iframeHighlightCleanup = function () {
-        fullyDisableHighlight();
-        window.removeEventListener("message", handleParentMessage);
-        if (overlay.parentElement) {
-          overlay.parentElement.removeChild(overlay);
-        }
-        delete window.__iframeHighlightInitialized;
-        delete window.__iframeHighlightCleanup;
-      };
-    })();
-
-  </script>
-
-  <script>
-    /**
-     * Iframe 元素高亮注入脚本
-     * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
-     *
-     * 使用方法：
-     * 1. 将此脚本添加到目标网站的 HTML 中
-     * 2. 或通过浏览器扩展、用户脚本等方式注入
-     */
-
-    (function () {
-      "use strict";
-
-      // 检查是否在 iframe 中
-      if (window.self === window.top) {
-        return; // 不在 iframe 中，不执行
-      }
-
-      // 检查是否已经初始化过
-      if (window.__iframeHighlightInitialized) {
-        return;
-      }
-      window.__iframeHighlightInitialized = true;
-      console.log("Iframe 高亮脚本已加载");
-
-      // 创建高亮覆盖层
-      var overlay = document.createElement("div");
-      overlay.id = "iframe-highlight-overlay";
-      overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
-
-      // 创建悬停高亮框（虚线边框）
-      var highlightBox = document.createElement("div");
-      highlightBox.id = "iframe-highlight-box";
-      highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
-
-      // 创建选中节点的常驻高亮框（实线边框）
-      var selectedBox = document.createElement("div");
-      selectedBox.id = "iframe-selected-box";
-      selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
-
-      // 创建悬停标签显示
-      var tagLabel = document.createElement("div");
-      tagLabel.id = "iframe-tag-label";
-      tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
-
-      // 创建选中节点标签
-      var selectedLabel = document.createElement("div");
-      selectedLabel.id = "iframe-selected-label";
-      selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
-      overlay.appendChild(highlightBox);
-      overlay.appendChild(selectedBox);
-      overlay.appendChild(tagLabel);
-      overlay.appendChild(selectedLabel);
-      document.body.appendChild(overlay);
-
-      // 存储当前选中的元素
-      var selectedElement = null;
-      var highlightEnabled = false;
-
-      // 更新选中元素的高亮显示
-      function updateSelectedHighlight(element) {
-        console.log("updateSelectedHighlight called with:", element);
-        if (!element) {
-          selectedBox.style.display = "none";
-          selectedLabel.style.display = "none";
-          selectedElement = null;
-          console.log("Cleared selected highlight");
-          return;
-        }
-        selectedElement = element;
-        var rect = element.getBoundingClientRect();
-        console.log("Selected element rect:", rect);
-
-        // 更新选中高亮框位置
-        selectedBox.style.display = "block";
-        selectedBox.style.left = "".concat(rect.left - 2, "px");
-        selectedBox.style.top = "".concat(rect.top - 2, "px");
-        selectedBox.style.width = "".concat(rect.width + 4, "px");
-        selectedBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新选中标签位置和内容
-        selectedLabel.style.display = "block";
-        selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 28;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 5) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
-        if (labelLeft + labelWidth > window.innerWidth - 10) {
-          labelLeft = window.innerWidth - labelWidth - 10;
-        }
-        selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
-        selectedLabel.style.top = "".concat(labelTop, "px");
-        console.log("Selected highlight positioned at:", {
-          left: selectedBox.style.left,
-          top: selectedBox.style.top,
-          width: selectedBox.style.width,
-          height: selectedBox.style.height
-        });
-      }
-      function getElementSelector(element) {
-        if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
-        var segments = [];
-        var current = element;
-        while (current !== document.documentElement) {
-          var selector = '';
-          // 优先检查唯一ID
-          if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
-            segments.unshift("#".concat(current.id));
-            break; // ID唯一，无需继续向上
-          }
-
-          // 生成类名选择器（取第一个有效类名）
-          var classes = Array.from(current.classList).filter(function (c) {
-            return !c.startsWith('js-');
-          });
-          var className = classes.length > 0 ? ".".concat(classes[0]) : '';
-
-          // 生成位置索引（nth-child）
-          var tag = current.tagName.toLowerCase();
-          if (!className) {
-            var siblings = Array.from(current.parentNode.children);
-            var index = siblings.findIndex(function (el) {
-              return el === current;
-            }) + 1;
-            selector = "".concat(tag, ":nth-child(").concat(index, ")");
-          } else {
-            selector = className;
-          }
-          segments.unshift(selector);
-          current = current.parentElement;
-        }
-
-        // 处理根元素
-        if (current === document.documentElement) {
-          segments.unshift('html');
-        }
-        return segments.join(' > ');
-      }
-
-      // 获取元素文本内容
-      function getElementText(element) {
-        var _element$textContent;
-        if (element.tagName === "INPUT") {
-          return element.value || element.placeholder || "";
-        }
-        if (element.tagName === "TEXTAREA") {
-          return element.value || element.placeholder || "";
-        }
-        var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
-        return text.length > 50 ? text.substring(0, 50) + "..." : text;
-      }
-
-      // 获取元素属性信息
-      function getElementAttributes(element) {
-        var attrs = {};
-        for (var i = 0; i < element.attributes.length; i++) {
-          var attr = element.attributes[i];
-          attrs[attr.name] = attr.value;
-        }
-        return attrs;
-      }
-
-      // 鼠标悬停事件处理
-      function handleMouseOver(e) {
-        if (!highlightEnabled) return;
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免高亮 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 如果是已选中的元素，不显示悬停高亮
-        if (target === selectedElement) {
-          highlightBox.style.display = "none";
-          tagLabel.style.display = "none";
-          return;
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-
-        // 更新悬停高亮框位置
-        highlightBox.style.display = "block";
-        highlightBox.style.left = "".concat(rect.left - 2, "px");
-        highlightBox.style.top = "".concat(rect.top - 2, "px");
-        highlightBox.style.width = "".concat(rect.width + 4, "px");
-        highlightBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新标签位置和内容
-        tagLabel.style.display = "block";
-        tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 22;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 0) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
-          labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
-        }
-        tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
-        tagLabel.style.top = "".concat(labelTop, "px");
-
-        // 发送消息到父窗口
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 鼠标离开事件处理
-      function handleMouseOut(e) {
-        if (!highlightEnabled) return;
-        var relatedTarget = e.relatedTarget;
-
-        // 如果鼠标移动到高亮相关元素上，不隐藏高亮
-        if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
-          return;
-        }
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: null,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 点击事件处理
-      function handleClick(e) {
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免处理 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 检查是否是交互元素，这些元素需要保留默认行为
-        var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
-
-        // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
-        if (highlightEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-        console.log("Element clicked:", {
-          tagName: target.tagName,
-          selector: selector,
-          rect: rect
-        });
-
-        // 立即更新选中高亮
-        updateSelectedHighlight(target);
-
-        // 隐藏悬停高亮，因为现在是选中状态
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-click",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 监听来自父窗口的消息
-      function handleParentMessage(event) {
-        console.log("Received message from parent:", event.data);
-        if (event.data.type === "iframe-highlight-toggle") {
-          var enabled = event.data.enabled;
-          console.log("Highlight toggle:", enabled);
-          if (enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "enable-iframe-highlight") {
-          console.log("Enable iframe highlight");
-          enableHighlight();
-        } else if (event.data.type === "disable-iframe-highlight") {
-          console.log("Disable iframe highlight");
-          disableHighlight();
-        } else if (event.data.type === "toggle-iframe-highlight") {
-          var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
-          console.log("Toggle iframe highlight to:", _enabled);
-          if (_enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "update-selected-element") {
-          var selector = event.data.selector;
-          console.log("Update selected element with selector:", selector);
-          if (selector) {
-            try {
-              var element = document.querySelector(selector);
-              console.log("Found element by selector:", element);
-              updateSelectedHighlight(element);
-            } catch (error) {
-              console.warn("Failed to select element:", error);
-              updateSelectedHighlight(null);
-            }
-          } else {
-            updateSelectedHighlight(null);
-          }
-        } else if (event.data.type === "clear-selected-element") {
-          console.log("Clear selected element");
-          updateSelectedHighlight(null);
-        }
-      }
-
-      // 启用高亮功能
-      function enableHighlight() {
-        console.log("Enabling highlight");
-        document.addEventListener("mouseover", handleMouseOver, true);
-        document.addEventListener("mouseout", handleMouseOut, true);
-        document.addEventListener("click", handleClick, true);
-        highlightEnabled = true;
-        overlay.style.display = "block";
-      }
-
-      // 禁用高亮功能
-      function disableHighlight() {
-        console.log("Disabling highlight");
-        highlightEnabled = false;
-        // 保持事件监听器，但通过 highlightEnabled 变量控制行为
-        // 这样可以保留选中状态的显示
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
-      }
-
-      // 完全禁用高亮功能（移除所有监听器）
-      function fullyDisableHighlight() {
-        console.log("Fully disabling highlight");
-        highlightEnabled = false;
-        document.removeEventListener("mouseover", handleMouseOver, true);
-        document.removeEventListener("mouseout", handleMouseOut, true);
-        document.removeEventListener("click", handleClick, true);
-        overlay.style.display = "none";
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        selectedBox.style.display = "none";
-        selectedLabel.style.display = "none";
-      }
-
-      // 添加事件监听
-      enableHighlight();
-      window.addEventListener("message", handleParentMessage);
-
-      // 暴露全局函数供外部调用
-      window.__iframeHighlightControl = {
-        enable: enableHighlight,
-        disable: disableHighlight,
-        fullyDisable: fullyDisableHighlight,
-        isEnabled: function isEnabled() {
-          return highlightEnabled;
-        },
-        getSelectedElement: function getSelectedElement() {
-          return selectedElement;
-        },
-        updateSelected: updateSelectedHighlight,
-        // 通过消息发送开关控制
-        sendToggleMessage: function sendToggleMessage(enabled) {
-          window.parent.postMessage({
-            type: 'iframe-highlight-status',
-            enabled: enabled || highlightEnabled,
-            source: 'iframe-highlight-injector'
-          }, '*');
-        }
-      };
-
-      // 通知父窗口脚本已加载
-      try {
-        window.parent.postMessage({
-          type: "iframe-highlight-ready",
-          data: {
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            timestamp: Date.now()
-          },
-          source: "iframe-highlight-injector"
-        }, "*");
-      } catch (error) {
-        console.warn("无法发送就绪消息到父窗口:", error);
-      }
-
-      // 清理函数
-      window.__iframeHighlightCleanup = function () {
-        fullyDisableHighlight();
-        window.removeEventListener("message", handleParentMessage);
-        if (overlay.parentElement) {
-          overlay.parentElement.removeChild(overlay);
-        }
-        delete window.__iframeHighlightInitialized;
-        delete window.__iframeHighlightCleanup;
-      };
-    })();
-
-  </script>
+        })();
+    </script>
+    <script src="js/html5-qrcode.min.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/client.js"></script>
+    <script src="js/datastore.js"></script>
+    <script src="js/oauth-vault.js"></script>
+    <script src="js/offline-orchestrator.js"></script>
+    <script src="js/nano-ai.js"></script>
+    
+    <script src="js/subscriptions.js"></script>
+    <script src="js/app-admin.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
 </body>
 
 </html>

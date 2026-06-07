@@ -16,6 +16,76 @@ class AgentOSWebSocket {
         this.connected = false;
         this.heartbeatInterval = null;
         this.lastPong = 0;
+        /** Firebase UID injected by auth.js after sign-in */
+        this._firebaseUid = null;
+        this._firebaseEmail = null;
+        /**
+         * Stable, persistent client ID stored in localStorage.
+         * Survives reconnects so the backend channels.websocket entry
+         * is always linked to the same identifier instead of creating a
+         * new orphaned UUID on every connection (which caused the
+         * duplicate-UUID / channel-mismatch issue).
+         */
+        this.clientId = AgentOSWebSocket._loadOrCreateClientId();
+    }
+
+    /**
+     * Returns a stable UUID for this browser/device, persisted in localStorage.
+     * Uses crypto.randomUUID() where available (all modern browsers), falls back
+     * to a Math.random-based v4-like UUID so the format stays consistent.
+     */
+    static _loadOrCreateClientId() {
+        const KEY = 'agentos_ws_client_id';
+        let id = localStorage.getItem(KEY);
+        if (!id) {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                id = crypto.randomUUID();
+            } else {
+                // RFC-4122 v4 fallback
+                id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                });
+            }
+            localStorage.setItem(KEY, id);
+        }
+        return id;
+    }
+
+    /**
+     * Inject the currently signed-in Firebase user so the backend
+     * WebSocketChannel._rl() can call resolveFirebaseUser() and link
+     * channels.websocket to the canonical Firebase UID — exactly the same
+     * flow used by TelegramChannel._rl() and BaseChannel identity bridging.
+     * Call this from auth.js after firebase.auth().onAuthStateChanged.
+     */
+    setFirebaseUser(user) {
+        if (!user) {
+            this._firebaseUid = null;
+            this._firebaseEmail = null;
+            return;
+        }
+        this._firebaseUid = user.uid || null;
+        this._firebaseEmail = user.email || null;
+        // If already connected, send an identity frame immediately
+        if (this.isConnected()) {
+            this._sendIdentify();
+        }
+    }
+
+    /** Send auth.identify so the server can call getUserByChannel / resolveFirebaseUser */
+    _sendIdentify() {
+        if (!this._firebaseUid) return;
+        this.send({
+            type: 'auth.identify',
+            uid: this._firebaseUid,
+            email: this._firebaseEmail || undefined,
+            channel: 'websocket',
+            // Include our stable clientId so the server can upsert
+            // channels.websocket = clientId rather than the ephemeral
+            // server-generated UUID, preventing duplicate channel entries.
+            clientId: this.clientId
+        });
     }
 
     setConfig(serverUrl, token) {
@@ -30,7 +100,10 @@ class AgentOSWebSocket {
         }
 
         return new Promise((resolve, reject) => {
-            const wsUrl = `${this.serverUrl}/ws?token=${encodeURIComponent(this.token)}`;
+            // Include stable clientId AND Firebase UID so WebSocketChannel._rl()
+            // can bridge identity without creating a new UUID each reconnect.
+            let wsUrl = `${this.serverUrl}/ws?token=${encodeURIComponent(this.token)}&clientId=${encodeURIComponent(this.clientId)}`;
+            if (this._firebaseUid) wsUrl += `&uid=${encodeURIComponent(this._firebaseUid)}`;
 
             console.log('[WebSocket] Connecting to:', wsUrl.split('?')[0] + '?token=***');
 
@@ -44,6 +117,11 @@ class AgentOSWebSocket {
 
                     // Start heartbeat
                     this.startHeartbeat();
+
+                    // Bridge Firebase identity to the backend channel mapper
+                    // WebSocketChannel._rl() will call resolveFirebaseUser() and
+                    // write channels.websocket = clientId — same as Telegram does.
+                    this._sendIdentify();
 
                     // Notify listeners
                     this.emit('connected');
@@ -97,6 +175,8 @@ class AgentOSWebSocket {
         switch (data.type) {
             case 'hello':
                 console.log('[WebSocket] Server greeting:', data.payload);
+                // Re-send identity after hello so backend can bridge channel on reconnect
+                this._sendIdentify();
                 this.emit('hello', data.payload);
                 break;
 
@@ -120,6 +200,16 @@ class AgentOSWebSocket {
 
             case 'subscribed':
                 this.emit('subscribed', data);
+                break;
+
+            case 'auth.identified':
+                // Server confirmed identity bridge — channels.websocket linked to Firebase UID
+                console.log('[WebSocket] Identity bridged to UID:', data.uid);
+                this.emit('auth.identified', data);
+                break;
+
+            case 'intent.result':
+                this.emit('intent.result', data);
                 break;
 
             case 'error':

@@ -12,9 +12,6 @@ import org.json.JSONObject;
 import android.util.Log;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-
-import android.AiCapabilityDetector;
-import android.AiRouter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
@@ -29,22 +26,14 @@ import com.google.mlkit.vision.pose.PoseLandmark;
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
 import com.google.mlkit.vision.common.InputImage;
 
-import com.google.mlkit.genai.prompt.Generation; // Updated package for ML Kit Prompt API (2025 standard)
-import com.google.mlkit.genai.prompt.GenerativeModelFutures; // For async handling
-import com.google.mlkit.nl.generativeai.GenerativeModel;
 import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.nl.genai.PromptRequest;
-import com.google.mlkit.nl.generativeai.GenerativeModelBuilder;
-import com.google.mlkit.nl.generativeai.model.Content;
-import com.google.mlkit.nl.generativeai.model.GenerateContentResponse;
-
 import java.util.List;
 
 public class AICorePlugin extends CordovaPlugin {
     private static final String TAG = "AICorePlugin";
-    private GenerativeModel model;
+    private Object model;
     private PoseDetector poseDetector;
-    private GenerativeModelFutures generativeModelFutures;
+    private Object generativeModelFutures;
 
     @Override
     protected void pluginInitialize() {
@@ -64,7 +53,7 @@ public class AICorePlugin extends CordovaPlugin {
              */
             // Leaving as placeholder comment until SDK confirmed, but fixing syntax error
         } catch (Exception e) {
-            Log.e(TAG, "Failed to init model", e);
+            Log.e(TAG, "Failed to init model: " + e.getMessage(), e);
         }
     }
 
@@ -80,6 +69,11 @@ public class AICorePlugin extends CordovaPlugin {
             return true;
         }
         if ("detectPose".equals(action)) {
+            if (!cordova.hasPermission(android.Manifest.permission.CAMERA)) {
+                cordova.requestPermission(this, 1001, android.Manifest.permission.CAMERA);
+                callbackContext.error("Camera permission missing. Permission requested. Try again.");
+                return true;
+            }
             String base64Image = args.getString(0);
             detectPose(base64Image, callbackContext);
             return true;
@@ -102,87 +96,11 @@ public class AICorePlugin extends CordovaPlugin {
     }
 
     private void checkAvailability(final CallbackContext callbackContext) {
-        try {
-            if (generativeModelFutures == null) {
-                generativeModelFutures = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
-            }
-
-            // Check feature status (AVAILABLE, DOWNLOADABLE, UNAVAILABLE, etc.)
-            ListenableFuture<Integer> statusFuture = generativeModelFutures.checkStatus();
-            Futures.addCallback(statusFuture, new FutureCallback<Integer>() {
-                @Override
-                public void onSuccess(Integer status) {
-                    String result;
-                    switch (status) {
-                        case FeatureStatus.AVAILABLE:
-                            result = "readily";
-                            break;
-                        case FeatureStatus.DOWNLOADABLE:
-                            result = "after_download";
-                            break;
-                        default:
-                            result = "no";
-                    }
-                    callbackContext.success(result);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    callbackContext.error("Availability check failed: " + t.getMessage());
-                }
-            }, cordova.getActivity().getMainExecutor());
-        } catch (Exception e) {
-            callbackContext.error("Availability check failed: " + e.getMessage());
-        }
+        callbackContext.success("no");
     }
 
     private void generateText(final String prompt, final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(() -> {
-            try {
-                if (generativeModelFutures == null) {
-                    generativeModelFutures = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
-                }
-
-                // Build request (text-only for Nano)
-                // Assuming Content.createText(prompt) or standard object creation for Java
-                Content content = new Content.Builder().addText(prompt).build(); // Placeholder for valid object
-                                                                                 // construction
-                // NOTE: The previous code was Kotlin DSL. Replaced with generic Java object
-                // creation.
-                // If GenerateContentRequest is a specific class, it should be instantiated
-                // normally.
-                // Below is a best-guess fix assuming 'request' is needed or we can pass content
-                // directly.
-                // If the API expects a String simply:
-                // ListenableFuture<GenerateContentResponse> responseFuture =
-                // generativeModelFutures.generateContent(prompt);
-                // But sticking to the variable name pattern:
-                GenerateContentRequest request = new GenerateContentRequest.Builder().setText(prompt).build();
-
-                ListenableFuture<GenerateContentResponse> responseFuture = generativeModelFutures
-                        .generateContent(request);
-
-                Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
-                    @Override
-                    public void onSuccess(GenerateContentResponse response) {
-                        String result = response.getText();
-                        if (result != null) {
-                            callbackContext.success(result);
-                        } else {
-                            callbackContext.error("Empty response");
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        callbackContext.error("Generation failed: " + t.getMessage());
-                    }
-                }, cordova.getActivity().getMainExecutor());
-
-            } catch (Exception e) {
-                callbackContext.error("Fatal AI Error: " + e.getMessage());
-            }
-        });
+        callbackContext.error("Generation failed: AI Gen SDK not available");
     }
 
     private void detectPose(final String base64Image, final CallbackContext callbackContext) {

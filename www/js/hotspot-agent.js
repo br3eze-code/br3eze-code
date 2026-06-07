@@ -51,7 +51,7 @@ const CONFIG = {
         WS_PATH: '/ws'
     },
     SERVER: {
-        PORT: process.env.PORT || 3000,
+        PORT: process.env.PORT || 19876,
         HOST: process.env.HOST || '0.0.0.0',
         NODE_ENV: process.env.NODE_ENV || 'development'
     },
@@ -481,6 +481,7 @@ class AgentOSBot {
         for (let i = 0; i < tools.length; i += 2) {
             chunked.push(tools.slice(i, i + 2).map(t => ({ text: `🔧 ${t}`, callback_data: `tool:${t}` })));
         }
+        chunked.push([{ text: "🔙 Back", callback_data: "action:back" }]);
         await this.bot.sendMessage(msg.chat.id, `${BRAND.emoji} *Available Tools*`, { parse_mode: "Markdown", reply_markup: { inline_keyboard: chunked } });
     }
 
@@ -489,7 +490,8 @@ class AgentOSBot {
         const keyboard = {
             inline_keyboard: [
                 [{ text: "📡 Ping Test", callback_data: "net:ping" }, { text: "🔥 Firewall", callback_data: "net:firewall" }],
-                [{ text: "⚡ Reboot Router", callback_data: "confirm:reboot" }]
+                [{ text: "⚡ Reboot Router", callback_data: "confirm:reboot" }],
+                [{ text: "🔙 Back", callback_data: "action:back" }]
             ]
         };
         await this.bot.sendMessage(msg.chat.id, `🌐 *Network Operations*`, { parse_mode: "Markdown", reply_markup: keyboard });
@@ -499,7 +501,8 @@ class AgentOSBot {
         if (!this.checkAuth(msg)) return;
         const keyboard = {
             inline_keyboard: [
-                [{ text: "👁 View Active", callback_data: "users:active" }, { text: "📋 All Users", callback_data: "users:all" }]
+                [{ text: "👁 View Active", callback_data: "users:active" }, { text: "📋 All Users", callback_data: "users:all" }],
+                [{ text: "🔙 Back", callback_data: "action:back" }]
             ]
         };
         await this.bot.sendMessage(msg.chat.id, `👥 *User Management*`, { parse_mode: "Markdown", reply_markup: keyboard });
@@ -517,7 +520,8 @@ class AgentOSBot {
         if (!plan) {
             const kb = {
                 inline_keyboard: [
-                    [{ text: "⏱ 1 Hour", callback_data: "voucher:1h" }, { text: "📅 1 Day", callback_data: "voucher:1d" }]
+                    [{ text: "⏱ 1 Hour", callback_data: "voucher:1h" }, { text: "📅 1 Day", callback_data: "voucher:1d" }],
+                    [{ text: "🔙 Back", callback_data: "action:back" }]
                 ]
             };
             return this.bot.sendMessage(msg.chat.id, `🎫 *Create Voucher*\nSelect duration:`, { parse_mode: "Markdown", reply_markup: kb });
@@ -537,12 +541,16 @@ class AgentOSBot {
 
             switch (category) {
                 case 'action':
+                    // Clean up previous menu message if requested
+                    try { await this.bot.deleteMessage(chatId, query.message.message_id); } catch (e) { }
+
                     if (action === 'dashboard') await this.handleDashboard(fakeMsg);
                     if (action === 'tools') await this.handleTools(fakeMsg);
                     if (action === 'network') await this.handleNetwork(fakeMsg);
                     if (action === 'users') await this.handleUsers(fakeMsg);
                     if (action === 'voucher') await this.handleVoucher(fakeMsg, null);
                     if (action === 'status') await this.handleStatus(fakeMsg);
+                    if (action === 'back') await this.handleStart(fakeMsg);
                     break;
                 case 'tool':
                     await this.handleToolButton(chatId, action);

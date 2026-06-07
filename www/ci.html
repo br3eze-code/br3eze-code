@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentOS Control Interface</title>
+    <meta name="description" content="AgentOS web terminal for MikroTik hotspot management and voucher administration.">
+    <link rel="icon" href="images/logo/logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/index.css">
+    <style>
+        :root {
+            --bg: #080b10;
+            --bg2: #0d1117;
+            --bg3: #111820;
+            --panel: #0e141c;
+            --border: #1a2535;
+            --cyan: #00e5ff;
+            --cyan-dim: #007a99;
+            --amber: #ffb300;
+            --amber-dim: #7a5500;
+            --green: #00ff9d;
+            --red: #ff3b5c;
+            --purple: #b566ff;
+            --white: #c8d8e8;
+            --dim: #4a6070;
+            --font-hud: 'Orbitron', monospace;
+            --font-term: 'Share Tech Mono', monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--white);
+            font-family: var(--font-term);
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.06) 2px, rgba(0, 0, 0, 0.06) 4px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--cyan-dim);
+            border-radius: 2px;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #topbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        #topbar::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--cyan) 40%, var(--amber) 60%, transparent 100%);
+            opacity: 0.3;
+        }
+
+        .brand {
+            font-family: var(--font-hud);
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: var(--cyan);
+        }
+
+        .brand span {
+            color: var(--amber);
+        }
+
+        .tb-sep {
+            flex: 1;
+        }
+
+        .tb-input {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--white);
+            font-family: var(--font-term);
+            font-size: 11px;
+            padding: 5px 10px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .tb-input:focus {
+            border-color: var(--cyan-dim);
+        }
+
+        .tb-input::placeholder {
+            color: var(--dim);
+        }
+
+        .tb-btn {
+            background: none;
+            border: 1px solid var(--cyan-dim);
+            color: var(--cyan);
+            font-family: var(--font-term);
+            font-size: 11px;
+            padding: 5px 14px;
+            cursor: pointer;
+            border-radius: 2px;
+            letter-spacing: 1px;
+            transition: all 0.15s;
+        }
+
+        .tb-btn:hover {
+            background: rgba(0, 229, 255, 0.08);
+            border-color: var(--cyan);
+        }
+
+        .tb-btn.danger {
+            border-color: #7a1f30;
+            color: var(--red);
+        }
+
+        .tb-btn.danger:hover {
+            background: rgba(255, 59, 92, 0.08);
+            border-color: var(--red);
+        }
+
+        #status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--dim);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        #status-dot.on {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        #status-dot.err {
+            background: var(--red);
+            box-shadow: 0 0 8px var(--red);
+        }
+
+        #status-text {
+            font-size: 10px;
+            color: var(--dim);
+            letter-spacing: 1px;
+            min-width: 80px;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.5
+            }
+        }
+
+        #main {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .s-section {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .s-title {
+            font-family: var(--font-hud);
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--cyan-dim);
+            margin-bottom: 8px;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .stat-tile {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 7px;
+            text-align: center;
+        }
+
+        .stat-val {
+            font-family: var(--font-hud);
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--cyan);
+            line-height: 1;
+        }
+
+        .stat-val.amber {
+            color: var(--amber);
+        }
+
+        .stat-val.green {
+            color: var(--green);
+            font-size: 11px;
+        }
+
+        .stat-val.red {
+            color: var(--red);
+        }
+
+        .stat-lbl {
+            font-size: 9px;
+            color: var(--dim);
+            margin-top: 3px;
+        }
+
+        .cpu-track {
+            height: 3px;
+            background: var(--bg);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 7px;
+        }
+
+        .cpu-fill {
+            height: 100%;
+            background: var(--cyan);
+            border-radius: 2px;
+            width: 0;
+            transition: width 1s, background 0.4s;
+        }
+
+        .cpu-labels {
+            font-size: 9px;
+            color: var(--dim);
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2px;
+        }
+
+        .conn-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+        }
+
+        .c-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--dim);
+            flex-shrink: 0;
+        }
+
+        .c-dot.ok {
+            background: var(--green);
+            box-shadow: 0 0 5px var(--green);
+        }
+
+        .c-dot.bad {
+            background: var(--red);
+            box-shadow: 0 0 5px var(--red);
+        }
+
+        .c-lbl {
+            font-size: 10px;
+            flex: 1;
+        }
+
+        .c-sub {
+            font-size: 9px;
+            color: var(--dim);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
+
+        .qa {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--white);
+            font-family: var(--font-term);
+            font-size: 10px;
+            padding: 6px 4px;
+            cursor: pointer;
+            border-radius: 2px;
+            text-align: center;
+            transition: all 0.12s;
+            letter-spacing: 0.3px;
+        }
+
+        .qa:hover {
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+            background: rgba(0, 229, 255, 0.04);
+        }
+
+        .qa.wide {
+            grid-column: 1 / -1;
+        }
+
+        .qa.amber-q {
+            color: var(--amber);
+            border-color: var(--amber-dim);
+        }
+
+        .qa.amber-q:hover {
+            background: rgba(255, 179, 0, 0.05);
+            border-color: var(--amber);
+        }
+
+        .qa.red-q {
+            color: var(--red);
+            border-color: #3a1020;
+        }
+
+        .qa.red-q:hover {
+            background: rgba(255, 59, 92, 0.05);
+            border-color: var(--red);
+        }
+
+        .plan-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .plan-btn {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--dim);
+            font-family: var(--font-term);
+            font-size: 10px;
+            padding: 7px;
+            cursor: pointer;
+            border-radius: 2px;
+            text-align: center;
+            transition: all 0.12s;
+        }
+
+        .plan-btn:hover {
+            border-color: var(--amber-dim);
+            color: var(--amber);
+        }
+
+        .plan-btn.sel {
+            border-color: var(--amber);
+            color: var(--amber);
+            background: rgba(255, 179, 0, 0.08);
+        }
+
+        .v-stats {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .v-t {
+            flex: 1;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            padding: 5px;
+            text-align: center;
+            border-radius: 2px;
+        }
+
+        .v-n {
+            font-family: var(--font-hud);
+            font-size: 12px;
+            color: var(--amber);
+        }
+
+        .v-l {
+            font-size: 8px;
+            color: var(--dim);
+        }
+
+        #term-pane {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            overflow: hidden;
+        }
+
+        #term-hdr {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            background: var(--bg2);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .t-title {
+            font-family: var(--font-hud);
+            font-size: 9px;
+            letter-spacing: 2px;
+            color: var(--cyan-dim);
+        }
+
+        .t-state {
+            font-size: 10px;
+            color: var(--dim);
+            margin-left: auto;
+        }
+
+        .t-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--dim);
+            font-family: var(--font-term);
+            font-size: 9px;
+            padding: 3px 9px;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.12s;
+        }
+
+        .t-btn:hover {
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+        }
+
+        #cli-badge {
+            font-size: 8px;
+            padding: 2px 7px;
+            border: 1px solid var(--border);
+            border-radius: 2px;
+            color: var(--dim);
+        }
+
+        #output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 14px;
+            font-size: 12px;
+            line-height: 1.75;
+        }
+
+        .l-dim {
+            color: var(--dim);
+        }
+
+        .l-cyan {
+            color: var(--cyan);
+        }
+
+        .l-success {
+            color: var(--green);
+        }
+
+        .l-error {
+            color: var(--red);
+        }
+
+        .l-warning {
+            color: var(--amber);
+        }
+
+        .l-info {
+            color: var(--purple);
+        }
+
+        .l-think {
+            color: var(--dim);
+            font-style: italic;
+        }
+
+        .l-title {
+            color: var(--amber);
+            font-family: var(--font-hud);
+            font-size: 9px;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        .l-ai {
+            color: var(--purple);
+            border-left: 2px solid var(--purple);
+            padding-left: 8px;
+        }
+
+        .l-code {
+            color: var(--green);
+            background: rgba(0, 255, 157, 0.03);
+            border-left: 2px solid rgba(0, 255, 157, 0.3);
+            padding: 1px 8px;
+            display: block;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #input-bar {
+            display: flex;
+            align-items: center;
+            padding: 8px 14px;
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .i-prefix {
+            font-size: 12px;
+            color: var(--cyan);
+            white-space: nowrap;
+            margin-right: 6px;
+        }
+
+        #term-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            font-family: var(--font-term);
+            font-size: 12px;
+            color: var(--white);
+            caret-color: var(--cyan);
+        }
+
+        #term-input:disabled {
+            color: var(--dim);
+        }
+
+        .i-hint {
+            font-size: 9px;
+            color: var(--dim);
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 18px;
+            right: 18px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .tmsg {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            padding: 7px 13px;
+            font-size: 11px;
+            border-radius: 2px;
+            animation: tIn 0.2s ease, tOut 0.3s 2.7s ease forwards;
+        }
+
+        .tmsg.ok {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .tmsg.err {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .tmsg.inf {
+            border-color: var(--cyan-dim);
+            color: var(--cyan);
+        }
+
+        @keyframes tIn {
+            from {
+                opacity: 0;
+                transform: translateX(16px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        @keyframes tOut {
+            to {
+                opacity: 0
+            }
+        }
+
+        #modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg2);
+            border: 1px solid var(--cyan-dim);
+            padding: 22px;
+            min-width: 300px;
+            max-width: 460px;
+            width: 90%;
+            border-radius: 2px;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.1);
+        }
+
+        .m-title {
+            font-family: var(--font-hud);
+            font-size: 10px;
+            letter-spacing: 3px;
+            color: var(--cyan);
+            margin-bottom: 14px;
+        }
+
+        .m-label {
+            font-size: 9px;
+            color: var(--dim);
+            margin: 10px 0 3px;
+            letter-spacing: 1px;
+        }
+
+        .m-input {
+            width: 100%;
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--white);
+            font-family: var(--font-term);
+            font-size: 12px;
+            padding: 7px 10px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        .m-input:focus {
+            border-color: var(--cyan-dim);
+        }
+
+        .m-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            justify-content: flex-end;
+        }
+
+        @media (max-width: 768px) {
+            #main {
+                grid-template-columns: 1fr;
+            }
+
+            #sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div id="topbar">
+            <div class="brand">AGENT<span>OS</span></div>
+            <div style="font-size:8px;color:var(--dim);letter-spacing:3px;">CONTROL INTERFACE</div>
+            <div class="tb-sep"></div>
+            <input class="tb-input" id="host-input" placeholder="localhost:19876" value="localhost:19876"
+                style="width:140px;">
+            <input class="tb-input" id="token-input" placeholder="gateway token…" type="password" style="width:170px;">
+            <button class="tb-btn" id="btn-connect">CONNECT</button>
+            <button class="tb-btn danger" id="btn-disconnect" style="display:none">DISCONNECT</button>
+            <div id="status-dot"></div>
+            <div id="status-text">OFFLINE</div>
+        </div>
+
+        <div id="main">
+            <div id="sidebar">
+                <div class="s-section">
+                    <div class="s-title">// router</div>
+                    <div class="conn-row">
+                        <div class="c-dot" id="mt-dot"></div>
+                        <div class="c-lbl" id="mt-lbl">MikroTik</div>
+                        <div class="c-sub" id="mt-clients">—</div>
+                    </div>
+                    <div class="stat-grid">
+                        <div class="stat-tile">
+                            <div class="stat-val" id="s-cpu">—</div>
+                            <div class="stat-lbl">CPU %</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-val amber" id="s-ram">—</div>
+                            <div class="stat-lbl">FREE RAM</div>
+                        </div>
+                        <div class="stat-tile" style="grid-column:1/-1">
+                            <div class="stat-val green" id="s-up">—</div>
+                            <div class="stat-lbl">UPTIME</div>
+                        </div>
+                    </div>
+                    <div class="cpu-track">
+                        <div class="cpu-fill" id="cpu-fill"></div>
+                    </div>
+                    <div class="cpu-labels"><span>CPU LOAD</span><span id="cpu-pct">0%</span></div>
+                </div>
+
+                <div class="s-section">
+                    <div class="s-title">// vouchers</div>
+                    <div class="v-stats">
+                        <div class="v-t">
+                            <div class="v-n" id="v-tot">—</div>
+                            <div class="v-l">TOTAL</div>
+                        </div>
+                        <div class="v-t">
+                            <div class="v-n" id="v-act">—</div>
+                            <div class="v-l">ACTIVE</div>
+                        </div>
+                        <div class="v-t">
+                            <div class="v-n" id="v-usd">—</div>
+                            <div class="v-l">USED</div>
+                        </div>
+                    </div>
+                    <div class="s-title" style="margin-bottom:5px">select plan</div>
+                    <div class="plan-grid">
+                        <div class="plan-btn" data-plan="1hour">1 HOUR</div>
+                        <div class="plan-btn" data-plan="1Day">1 DAY</div>
+                        <div class="plan-btn" data-plan="7Day">7 DAYS</div>
+                        <div class="plan-btn" data-plan="30Day">30 DAYS</div>
+                    </div>
+                    <button class="qa wide amber-q" id="btn-gen" style="display:none">⬡ GENERATE VOUCHER</button>
+                </div>
+
+                <div class="s-section">
+                    <div class="s-title">// quick actions</div>
+                    <div class="btn-grid">
+                        <button class="qa" data-cmd="active">ACTIVE USERS</button>
+                        <button class="qa" data-cmd="status">ROUTER STATS</button>
+                        <button class="qa" data-cmd="dhcp">DHCP LEASES</button>
+                        <button class="qa" data-cmd="arp">ARP TABLE</button>
+                        <button class="qa" data-cmd="logs">LOG TAIL</button>
+                        <button class="qa" data-cmd="firewall">FIREWALL</button>
+                        <button class="qa" data-cmd="users">ALL USERS</button>
+                        <button class="qa" data-cmd="vouchers">VOUCHER LIST</button>
+                        <button class="qa amber-q" id="btn-bulk-print">⬡ BULK PRINT</button>
+                        <button class="qa red-q" id="btn-revoke">✗ REVOKE</button>
+                    </div>
+                </div>
+
+                <div class="s-section">
+                    <div class="s-title">// network ops</div>
+                    <div class="btn-grid">
+                        <button class="qa" id="btn-ping">PING</button>
+                        <button class="qa" id="btn-trace">TRACEROUTE</button>
+                        <button class="qa" id="btn-block">BLOCK IP</button>
+                        <button class="qa" id="btn-kick">KICK USER</button>
+                        <button class="qa" id="btn-adduser">ADD USER</button>
+                        <button class="qa" id="btn-flush">FLUSH DNS</button>
+                    </div>
+                </div>
+
+                <div class="s-section">
+                    <div class="s-title">// system</div>
+                    <div class="btn-grid">
+                        <button class="qa" id="btn-refresh">↻ REFRESH</button>
+                        <button class="qa" data-cmd="nodes">NODES</button>
+                        <button class="qa red-q wide" id="btn-reboot">⚠ REBOOT ROUTER</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="term-pane">
+                <div id="term-hdr">
+                    <span class="t-title">// TERMINAL</span>
+                    <span id="cli-badge">IDLE</span>
+                    <span class="t-state" id="t-state">Connect to begin</span>
+                    <button class="t-btn" id="btn-clear">CLEAR</button>
+                    <button class="t-btn" id="btn-start-cli" style="display:none">START CLI</button>
+                    <button class="t-btn" id="btn-stop-cli" style="display:none">END SESSION</button>
+                </div>
+                <div id="output"></div>
+                <div id="input-bar">
+                    <span class="i-prefix">AgentOS&gt;&nbsp;</span>
+                    <input id="term-input" placeholder="Connect first…" disabled autocomplete="off" spellcheck="false">
+                    <span class="i-hint">↑↓ history · Ctrl+C cancel</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="modal-overlay">
+        <div class="modal">
+            <div class="m-title" id="m-title">INPUT</div>
+            <div id="m-body"></div>
+            <div class="m-actions">
+                <button class="tb-btn" id="m-cancel">CANCEL</button>
+                <button class="tb-btn" id="m-ok">EXECUTE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        let ws = null, cliActive = false, history = [], histIdx = -1, selectedPlan = null, statsTimer = null, pendingModal = null, apiBase = '';
+        const $ = id => document.getElementById(id);
+        const output = $('output'), termInput = $('term-input');
+
+        async function discoverConfig() {
+            const host = $('host-input').value.trim() || 'localhost:19876';
+            apiBase = `http://${host}`;
+            try {
+                const r = await fetch(`${apiBase}/api/token`);
+                if (r.ok) {
+                    const cfg = await r.json();
+                    $('token-input').value = cfg.token;
+                    line('success', `✔ Auto-discovered AgentOS v${cfg.version}`);
+                    return true;
+                }
+            } catch (e) {
+                line('warning', '⚠ Auto-discovery failed — manual token required');
+            }
+            return false;
+        }
+
+        async function connect() {
+            const host = $('host-input').value.trim() || 'localhost:19876';
+            let token = $('token-input').value.trim();
+
+            if (!token && await discoverConfig()) {
+                token = $('token-input').value.trim();
+            }
+
+            const url = `ws://${host}/ws?token=${encodeURIComponent(token)}`;
+            setDot('connecting');
+            line('dim', `⟶ Connecting to ${host} …`);
+
+            try {
+                ws = new WebSocket(url);
+                ws.onopen = () => {
+                    setDot('on');
+                    line('success', '✔ Connected');
+                    $('btn-connect').style.display = 'none';
+                    $('btn-disconnect').style.display = 'inline-block';
+                    $('btn-start-cli').style.display = 'inline-block';
+                    $('t-state').textContent = 'Connected — starting CLI…';
+                    setTimeout(() => {
+                        send({ type: 'status' });
+                        send({ type: 'cli.start' });
+                        startStats(host);
+                    }, 300);
+                };
+                ws.onmessage = e => {
+                    try { handle(JSON.parse(e.data)); } catch { }
+                };
+                ws.onerror = () => {
+                    setDot('err');
+                    line('error', '✗ Connection failed — check token');
+                };
+                ws.onclose = ev => {
+                    setDot('off');
+                    cliActive = false;
+                    clearInterval(statsTimer);
+                    line('dim', `⟶ Disconnected (${ev.code})`);
+                    $('btn-connect').style.display = 'inline-block';
+                    $('btn-disconnect').style.display = 'none';
+                    $('btn-start-cli').style.display = 'none';
+                    $('btn-stop-cli').style.display = 'none';
+                    termInput.disabled = true;
+                    termInput.placeholder = 'Connect first…';
+                    badge(false);
+                    $('t-state').textContent = 'Disconnected';
+                    ws = null;
+                };
+            } catch (err) {
+                line('error', `✗ ${err.message}`);
+                setDot('err');
+            }
+        }
+
+        function disconnect() {
+            if (ws) ws.close(1000, 'User disconnect');
+        }
+
+        function send(obj) {
+            if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify(obj));
+                return true;
+            }
+            toast('Not connected', 'err');
+            return false;
+        }
+
+        function handle(m) {
+            switch (m.type) {
+                case 'hello':
+                    line('info', `◈ ${m.payload.service} v${m.payload.version}`);
+                    break;
+                case 'pong':
+                    break;
+                case 'ping':
+                    send({ type: 'pong' });
+                    break;
+                case 'status':
+                    if (m.payload) updateStatusPanel(m.payload);
+                    break;
+                case 'cli.started':
+                    cliActive = true;
+                    badge(true);
+                    $('t-state').textContent = 'CLI active';
+                    termInput.disabled = false;
+                    termInput.placeholder = 'Type command…';
+                    termInput.focus();
+                    $('btn-start-cli').style.display = 'none';
+                    $('btn-stop-cli').style.display = 'inline-block';
+                    toast('CLI ready', 'ok');
+                    break;
+                case 'cli.stopped':
+                    cliActive = false;
+                    badge(false);
+                    $('t-state').textContent = 'Session ended';
+                    termInput.disabled = true;
+                    $('btn-start-cli').style.display = 'inline-block';
+                    $('btn-stop-cli').style.display = 'none';
+                    break;
+                case 'cli.output':
+                    renderOutput(m);
+                    break;
+                case 'cli.error':
+                    line('error', `✗ ${m.error}`);
+                    break;
+                case 'tool.result':
+                    line('success', JSON.stringify(m.result, null, 2));
+                    break;
+                case 'tool.error':
+                case 'error':
+                    line('error', `✗ ${m.error || m.message}`);
+                    break;
+                case 'broadcast':
+                    line('warning', `📡 Broadcast: ${JSON.stringify(m.payload)}`);
+                    if (m.payload.type === 'vouchers.expired') fetchStats();
+                    break;
+            }
+        }
+
+        function renderOutput(m) {
+            switch (m.type) {
+                case 'clear':
+                    output.innerHTML = '';
+                    break;
+                case 'exit':
+                    line('dim', `⟶ ${m.message || 'Session closed'}`);
+                    break;
+                case 'executing':
+                    line('dim', `  $ ${m.command}`);
+                    break;
+                case 'thinking':
+                    line('think', `  ⟳ ${m.message}`);
+                    break;
+                case 'text':
+                    (m.text || '').split('\n').forEach(l => l && line('dim', l));
+                    break;
+                case 'success':
+                    (m.message || '').split('\n').forEach(l => l && line('success', `  ✔ ${l}`));
+                    break;
+                case 'error':
+                    (m.message || '').split('\n').forEach(l => l && line('error', `  ✗ ${l}`));
+                    break;
+                case 'warning':
+                    (m.message || '').split('\n').forEach(l => l && line('warning', `  ⚠ ${l}`));
+                    break;
+                case 'info':
+                    (m.message || '').split('\n').forEach(l => l && line('info', `  ◈ ${l}`));
+                    break;
+                case 'list':
+                    if (m.title) line('title', `  ∷ ${m.title}`);
+                    (m.items || []).forEach(i => line('dim', `    ${i}`));
+                    break;
+                case 'table':
+                    if (m.title) line('title', `  ∷ ${m.title}`);
+                    Object.entries(m.data || {}).forEach(([k, v]) => line('dim', `    ${k.padEnd(20)} ${v}`));
+                    break;
+                case 'code':
+                    const pre = document.createElement('pre');
+                    pre.className = 'l-code';
+                    pre.textContent = m.content || '';
+                    output.appendChild(pre);
+                    scrollEnd();
+                    break;
+                case 'ai_response':
+                    line('title', `  ∷ AI [Tier ${m.tier}/${m.responseType}]`);
+                    (m.result || '').split('\n').forEach(l => line('ai', `  ${l}`));
+                    break;
+                case 'result':
+                    if (m.text) (m.text || '').split('\n').forEach(l => l && line('dim', `  ${l}`));
+                    break;
+            }
+        }
+
+        function line(cls, text) {
+            const d = document.createElement('div');
+            d.className = `l-${cls}`;
+            d.textContent = text;
+            output.appendChild(d);
+            scrollEnd();
+        }
+
+        function scrollEnd() {
+            output.scrollTop = output.scrollHeight;
+        }
+
+        const ESC = {
+            ArrowUp: '\x1b[A',
+            ArrowDown: '\x1b[B',
+            ArrowRight: '\x1b[C',
+            ArrowLeft: '\x1b[D',
+            Home: '\x1b[H',
+            End: '\x1b[F',
+            Backspace: '\x7f',
+            Enter: '\r'
+        };
+
+        termInput.addEventListener('keydown', e => {
+            if (!cliActive) return;
+
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                histIdx = Math.min(histIdx + 1, history.length - 1);
+                if (history[histIdx] !== undefined) termInput.value = history[histIdx];
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                histIdx = Math.max(histIdx - 1, -1);
+                termInput.value = histIdx === -1 ? '' : (history[histIdx] || '');
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const cmd = termInput.value;
+                if (cmd.trim()) {
+                    line('dim', `AgentOS> ${cmd}`);
+                    history.unshift(cmd);
+                    if (history.length > 200) history.pop();
+                    histIdx = -1;
+                }
+                send({ type: 'cli.input', input: '\r' });
+                termInput.value = '';
+                return;
+            }
+
+            if (e.key === 'c' && e.ctrlKey) {
+                e.preventDefault();
+                send({ type: 'cli.input', input: '\u0003' });
+                termInput.value = '';
+                return;
+            }
+
+            if (['ArrowUp', 'ArrowDown', 'ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) {
+                e.preventDefault();
+                send({ type: 'cli.input', input: ESC[e.key] });
+                return;
+            }
+
+            if (e.key === 'Backspace') {
+                send({ type: 'cli.input', input: '\x7f' });
+            }
+        });
+
+        termInput.addEventListener('keypress', e => {
+            if (!cliActive) return;
+            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+                send({ type: 'cli.input', input: e.key });
+            }
+        });
+
+        function runCmd(cmd) {
+            if (!cliActive) {
+                toast('Start CLI session first', 'err');
+                return;
+            }
+            line('dim', `AgentOS> ${cmd}`);
+            for (const ch of cmd) send({ type: 'cli.input', input: ch });
+            send({ type: 'cli.input', input: '\r' });
+        }
+
+        document.querySelectorAll('[data-cmd]').forEach(b => {
+            b.addEventListener('click', () => runCmd(b.dataset.cmd));
+        });
+
+        function startStats(host) {
+            clearInterval(statsTimer);
+            fetchStats(host);
+            statsTimer = setInterval(() => fetchStats(host), 15000);
+        }
+
+        async function fetchStats(host) {
+            host = host || $('host-input').value.trim() || 'localhost:3000';
+            const token = $('token-input').value.trim();
+            try {
+                const r = await fetch(`http://${host}/api/stats`, {
+                    headers: { 'x-gateway-token': token }
+                });
+                if (!r.ok) throw new Error('Stats error');
+                const d = await r.json();
+
+                if (d.router) {
+                    const cpu = parseInt(d.router['cpu-load']) || 0;
+                    const free = parseInt(d.router['free-memory']) || 0;
+                    const tot = parseInt(d.router['total-memory']) || 1;
+                    const usedPct = Math.round((1 - free / tot) * 100);
+
+                    $('s-cpu').textContent = cpu + '%';
+                    $('s-cpu').className = 'stat-val' + (cpu > 80 ? ' red' : cpu > 50 ? ' amber' : '');
+                    $('s-ram').textContent = usedPct + '% used';
+                    $('s-up').textContent = d.router.uptime || '—';
+                    $('cpu-fill').style.width = cpu + '%';
+                    $('cpu-fill').style.background = cpu > 80 ? 'var(--red)' : cpu > 50 ? 'var(--amber)' : 'var(--cyan)';
+                    $('cpu-pct').textContent = cpu + '%';
+                }
+
+                if (d.vouchers) {
+                    $('v-tot').textContent = d.vouchers.total ?? '—';
+                    $('v-act').textContent = d.vouchers.active ?? '—';
+                    $('v-usd').textContent = d.vouchers.used ?? '—';
+                }
+
+                const mt = !!d.mikrotik;
+                $('mt-dot').className = 'c-dot ' + (mt ? 'ok' : 'bad');
+                $('mt-lbl').textContent = mt ? 'MikroTik ONLINE' : 'MikroTik OFFLINE';
+                $('mt-clients').textContent = d.metrics ? `${d.metrics.wsMsgs || 0} msgs` : '';
+            } catch { }
+        }
+
+        function updateStatusPanel(p) {
+            const mt = p.mikrotik === 'connected';
+            $('mt-dot').className = 'c-dot ' + (mt ? 'ok' : 'bad');
+            $('mt-lbl').textContent = mt ? 'MikroTik ONLINE' : 'MikroTik OFFLINE';
+            $('mt-clients').textContent = `${p.clients ?? 0} clients`;
+        }
+
+        function setDot(state) {
+            const dot = $('status-dot'), txt = $('status-text');
+            dot.className = '';
+            if (state === 'on') {
+                dot.classList.add('on');
+                txt.textContent = 'ONLINE';
+                txt.style.color = 'var(--green)';
+            } else if (state === 'err') {
+                dot.classList.add('err');
+                txt.textContent = 'ERROR';
+                txt.style.color = 'var(--red)';
+            } else if (state === 'connecting') {
+                txt.textContent = 'CONNECTING';
+                txt.style.color = 'var(--amber)';
+            } else {
+                txt.textContent = 'OFFLINE';
+                txt.style.color = 'var(--dim)';
+            }
+        }
+
+        function badge(active) {
+            const b = $('cli-badge');
+            b.textContent = active ? 'CLI ACTIVE' : 'IDLE';
+            b.style.borderColor = active ? 'var(--green)' : 'var(--border)';
+            b.style.color = active ? 'var(--green)' : 'var(--dim)';
+        }
+
+        function showModal(title, fields) {
+            return new Promise(resolve => {
+                pendingModal = resolve;
+                $('m-title').textContent = title;
+                const body = $('m-body');
+                body.innerHTML = '';
+                fields.forEach(f => {
+                    const lbl = document.createElement('div');
+                    lbl.className = 'm-label';
+                    lbl.textContent = f.label;
+                    const inp = document.createElement('input');
+                    inp.className = 'm-input';
+                    inp.placeholder = f.placeholder || '';
+                    inp.type = f.type || 'text';
+                    inp.id = 'mf_' + f.key;
+                    body.appendChild(lbl);
+                    body.appendChild(inp);
+                });
+                $('modal-overlay').classList.add('open');
+                setTimeout(() => body.querySelector('input')?.focus(), 50);
+            });
+        }
+
+        function closeModal(result) {
+            $('modal-overlay').classList.remove('open');
+            if (pendingModal) {
+                pendingModal(result);
+                pendingModal = null;
+            }
+        }
+
+        $('m-cancel').onclick = () => closeModal(null);
+        $('m-ok').onclick = () => {
+            const r = {};
+            $('m-body').querySelectorAll('input').forEach(i => {
+                r[i.id.replace('mf_', '')] = i.value.trim();
+            });
+            closeModal(r);
+        };
+        $('modal-overlay').addEventListener('click', e => {
+            if (e.target === $('modal-overlay')) closeModal(null);
+        });
+
+        function toast(msg, type = 'inf') {
+            const el = document.createElement('div');
+            el.className = `tmsg ${type}`;
+            el.textContent = msg;
+            $('toast').appendChild(el);
+            setTimeout(() => el.remove(), 3200);
+        }
+
+        $('btn-connect').onclick = connect;
+        $('btn-disconnect').onclick = disconnect;
+        $('btn-start-cli').onclick = () => send({ type: 'cli.start' });
+        $('btn-stop-cli').onclick = () => send({ type: 'cli.stop' });
+        $('btn-clear').onclick = () => { output.innerHTML = ''; };
+        $('btn-refresh').onclick = () => fetchStats();
+
+        document.querySelectorAll('.plan-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                document.querySelectorAll('.plan-btn').forEach(x => x.classList.remove('sel'));
+                b.classList.add('sel');
+                selectedPlan = b.dataset.plan;
+                $('btn-gen').style.display = 'block';
+                $('btn-gen').textContent = `⬡ GENERATE ${b.textContent}`;
+            });
+        });
+
+        $('btn-gen').onclick = () => {
+            if (!selectedPlan) {
+                toast('Select a plan', 'err');
+                return;
+            }
+            runCmd(`voucher ${selectedPlan}`);
+            toast(`Creating ${selectedPlan} voucher…`, 'inf');
+        };
+
+        $('btn-ping').onclick = async () => {
+            const r = await showModal('PING HOST', [{
+                key: 'host',
+                label: 'TARGET HOST / IP',
+                placeholder: '8.8.8.8'
+            }]);
+            if (r?.host) runCmd(`ping ${r.host}`);
+        };
+
+        $('btn-trace').onclick = async () => {
+            const r = await showModal('TRACEROUTE', [{
+                key: 'host',
+                label: 'TARGET HOST / IP',
+                placeholder: '1.1.1.1'
+            }]);
+            if (r?.host) runCmd(`traceroute ${r.host}`);
+        };
+
+        $('btn-block').onclick = async () => {
+            const r = await showModal('BLOCK ADDRESS', [{
+                key: 'ip',
+                label: 'IP / MAC TO BLOCK',
+                placeholder: '192.168.88.50'
+            }]);
+            if (r?.ip) runCmd(`block ${r.ip}`);
+        };
+
+        $('btn-kick').onclick = async () => {
+            const r = await showModal('KICK USER', [{
+                key: 'user',
+                label: 'USERNAME',
+                placeholder: 'STAR-ABC123'
+            }]);
+            if (r?.user) runCmd(`kick ${r.user}`);
+        };
+
+        $('btn-adduser').onclick = async () => {
+            const r = await showModal('ADD HOTSPOT USER', [
+                { key: 'user', label: 'USERNAME', placeholder: 'john' },
+                { key: 'pass', label: 'PASSWORD', placeholder: '••••', type: 'password' },
+                { key: 'profile', label: 'PROFILE (optional)', placeholder: 'default' }
+            ]);
+            if (r?.user && r?.pass) {
+                const cmd = r.profile ? `adduser ${r.user} ${r.pass} ${r.profile}` : `adduser ${r.user} ${r.pass}`;
+                runCmd(cmd);
+            }
+        };
+
+        $('btn-flush').onclick = () => runCmd('dns.flush');
+
+        $('btn-bulk-print').onclick = async () => {
+            const r = await showModal('BULK PRINT VOUCHERS', [{
+                key: 'plan',
+                label: 'PLAN (1hour / 1Day / 7Day / 30Day)',
+                placeholder: '1Day'
+            }, {
+                key: 'qty',
+                label: 'QUANTITY',
+                placeholder: '10'
+            }]);
+            if (r?.plan) {
+                const qty = parseInt(r.qty, 10) || 10;
+                runCmd(`bulkprint ${r.plan} ${qty}`);
+                toast(`Bulk print queued: ${qty}× ${r.plan}`, 'ok');
+            }
+        };
+
+        $('btn-revoke').onclick = async () => {
+            const r = await showModal('REVOKE VOUCHER', [{
+                key: 'code',
+                label: 'VOUCHER CODE',
+                placeholder: 'STAR-XXXX-XXXX'
+            }]);
+            if (r?.code) {
+                runCmd(`revoke ${r.code.toUpperCase()}`);
+                toast(`Revoke sent for ${r.code.toUpperCase()}`, 'ok');
+            }
+        };
+
+        $('btn-reboot').onclick = async () => {
+            const r = await showModal('⚠ CONFIRM REBOOT', [{
+                key: 'c',
+                label: 'Type YES to reboot router',
+                placeholder: 'YES'
+            }]);
+            if (r?.c?.toUpperCase() === 'YES') {
+                runCmd('reboot');
+                toast('Reboot command sent', 'ok');
+            } else {
+                toast('Reboot cancelled', 'inf');
+            }
+        };
+
+        $('host-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') $('token-input').focus();
+        });
+        $('token-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') connect();
+        });
+
+        line('cyan', '┌───────────────────────────────────────────────────┐');
+        line('cyan', '│  AGENTOS CONTROL INTERFACE                        │');
+        line('cyan', '│  Web Terminal · MikroTik Hotspot Management        │');
+        line('dim', '└───────────────────────────────────────────────────┘');
+        line('dim', '');
+        line('dim', 'Quick start:');
+        line('dim', '  1. node agentos.js  (gateway must be running)');
+        line('dim', '  2. Paste AGENTOS_GATEWAY_TOKEN  — or leave blank for auto-discover');
+        line('dim', '  3. Click CONNECT');
+        line('dim', '');
+        line('dim', 'Key bindings:  ↑/↓ history · Ctrl+C cancel · Enter send');
+        line('dim', 'Commands:      help · status · voucher 1Day · ping 8.8.8.8 · kick <user>');
+        line('dim', '');
+
+    </script>
+    <script>
+        // Load ss25 overlay only when it exists (optional HUD layer)
+        fetch('main.js', { method: 'HEAD' }).then(r => {
+            if (r.ok) {
+                const s = document.createElement('script');
+                s.src = 'main.js';
+                document.body.appendChild(s);
+            }
+        }).catch(() => { });
+    </script>
+
+</body>
+
+</html>

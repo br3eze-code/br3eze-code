@@ -2,7 +2,7 @@
     "$schema": "./schemas/config.schema.json",
     "agentos": {
         "name": "AgentOS",
-        "version": "2026.3.27",
+        "version": "2026.4.11",
         "profile": "default",
         "environment": "production"
     },

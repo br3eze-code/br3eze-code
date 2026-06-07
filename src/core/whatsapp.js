@@ -25,6 +25,15 @@ class WhatsAppService {
       return;
     }
 
+    // Guard: if the canonical WhatsAppChannel (src/core/channels/WhatsappChannel.js)
+    // is already managing the session, starting this legacy service would create a
+    // competing Baileys socket that causes Signal Protocol sessions to be force-closed
+    // in a loop. Bail out immediately.
+    if (global._whatsappChannelActive) {
+      logger.info('WhatsAppService: WhatsAppChannel is already active — skipping legacy socket to prevent session conflicts.');
+      return;
+    }
+
     // Ensure auth folder exists
     if (!fs.existsSync(this.authStateFolder)) {
       fs.mkdirSync(this.authStateFolder, { recursive: true });

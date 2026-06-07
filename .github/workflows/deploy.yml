@@ -3,11 +3,6 @@ name: Deploy AgentOS
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'helm/**'
-      - 'Dockerfile'
-      - 'package.json'
   workflow_dispatch:
 
 env:
@@ -47,7 +42,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context:.
+          context:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -92,7 +87,7 @@ jobs:
 
       - name: Helm upgrade
         run: |
-          helm upgrade --install agentos./helm/agentos \
+          helm upgrade --install agentos ./helm/agentos \
             --namespace agentos \
             --create-namespace \
             --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \

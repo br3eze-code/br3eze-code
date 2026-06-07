@@ -1,4 +1,4 @@
-import { roles, users } from '../policies/roles.json'
+import { roles, users } from '../policies/role.json'
 import { approvals } from './approvals.js'
 import { audit } from './audit.js'
 

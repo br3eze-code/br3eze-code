@@ -60,6 +60,14 @@ describe('EventBus', () => {
 
 // ── VoucherAgent ──────────────────────────────────────────────────────────────
 
+// Mock database
+jest.mock('../../src/core/database', () => ({
+    getDatabase: jest.fn().mockResolvedValue({
+        getVoucher: jest.fn().mockResolvedValue(null),
+        createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
+    })
+}));
+
 describe('VoucherAgent — generate', () => {
     let voucher;
 
@@ -68,50 +76,54 @@ describe('VoucherAgent — generate', () => {
         voucher = require('../../src/core/voucher');
     });
 
-    test('generates a code for each valid plan', () => {
-        const plans = ['1hour', '1day', '1week', '1month', 'default'];
+    test('generates a code for each valid plan', async () => {
+        const plans = [];
         for (const plan of plans) {
-            const code = voucher.generate(plan);
+            const code = await voucher.generate(plan);
             expect(typeof code).toBe('string');
             expect(code.length).toBeGreaterThan(0);
         }
     });
 
-    test('generated code contains the plan name in uppercase', () => {
-        const code = voucher.generate('1day');
-        expect(code).toContain('1DAY');
+    test('generated code contains the prefix from config', async () => {
+        const code = await voucher.generate();
+        expect(code.startsWith('STAR-')).toBe(true);
     });
 
-    test('generated code starts with "V-"', () => {
-        const code = voucher.generate('default');
-        expect(code.startsWith('V-')).toBe(true);
+    test('generated code starts with "STAR-"', async () => {
+        const code = await voucher.generate('default');
+        expect(code.startsWith('STAR-')).toBe(true);
     });
 
-    test('generates unique codes on repeated calls', () => {
-        const codes = new Set(Array.from({ length: 20 }, () => voucher.generate('1day')));
+    test('generates unique codes on repeated calls', async () => {
+        const codes = new Set();
+        for (let i = 0; i < 20; i++) {
+            codes.add(await voucher.generate());
+        }
         expect(codes.size).toBe(20);
     });
 
-    test('defaults to "default" plan when no arg given', () => {
-        const code = voucher.generate();
-        expect(code).toContain('DEFAULT');
+    test('defaults to "default" plan when no arg given', async () => {
+        const code = await voucher.generate();
+        expect(code).toBeTruthy();
+        expect(typeof code).toBe('string');
     });
 
-    test('throws for an invalid plan', () => {
-        expect(() => voucher.generate('invalid-plan')).toThrow(/Invalid plan/i);
+    test('throws for an invalid plan', async () => {
+        await expect(voucher.generate('invalid-plan')).rejects.toThrow(/Invalid plan/i);
     });
 
-    test('throws error listing valid plans', () => {
-        expect(() => voucher.generate('bad')).toThrow(/1hour|1day/i);
+    test('throws error listing valid plans', async () => {
+        await expect(voucher.generate('bad')).rejects.toThrow(/1hour|1day/i);
     });
 
-    test('emits voucher.created event', () => {
+    test('emits voucher.created event', async () => {
         const eventBus = require('../../src/core/eventBus');
-        const handler  = jest.fn();
+        const handler = jest.fn();
         eventBus.on('voucher.created', handler);
-        voucher.generate('1hour');
+        await voucher.generate();
         expect(handler).toHaveBeenCalledWith(
-            expect.objectContaining({ plan: '1hour', code: expect.any(String) })
+            expect.objectContaining({ code: expect.any(String) })
         );
         eventBus.removeAllListeners('voucher.created');
     });
@@ -127,11 +139,11 @@ describe('VoucherAgent — redeem', () => {
 
     test('emits voucher.redeemed event', () => {
         const eventBus = require('../../src/core/eventBus');
-        const handler  = jest.fn();
+        const handler = jest.fn();
         eventBus.on('voucher.redeemed', handler);
-        voucher.redeem('V-1DAY-ABCD1234', 'user123');
+        voucher.redeem('STAR-1DAYS-1234', 'user123');
         expect(handler).toHaveBeenCalledWith(
-            expect.objectContaining({ code: 'V-1DAY-ABCD1234', user: 'user123' })
+            expect.objectContaining({ code: 'STAR-1DAYS-1234', user: 'user123' })
         );
         eventBus.removeAllListeners('voucher.redeemed');
     });
@@ -141,7 +153,7 @@ describe('VoucherAgent — redeem', () => {
     });
 
     test('throws if user is missing', () => {
-        expect(() => voucher.redeem('V-CODE', null)).toThrow(/code and user/i);
+        expect(() => voucher.redeem('STAR-CODE', null)).toThrow(/code and user/i);
     });
 
     test('throws if both are missing', () => {

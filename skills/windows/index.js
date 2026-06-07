@@ -1,4 +1,12 @@
-const { NodePowerShell } = require('node-powershell')
+let NodePowerShell;
+try {
+  ({ NodePowerShell } = require('node-powershell'));
+} catch (e) {
+  // node-powershell not available
+}
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const { BaseSkill } = require('../base.js')
 
 class WindowsSkill extends BaseSkill {
@@ -106,13 +114,8 @@ class WindowsSkill extends BaseSkill {
   }
 
   async _ps(hostId, script) {
-    const host = this.workspace.windows_hosts[hostId]
+    const host = this.workspace?.windows_hosts?.[hostId]
     if (!host || host.driver!== 'windows') throw new Error(`Windows host ${hostId} not found`)
-
-    const ps = new NodePowerShell({
-      executionPolicy: 'Bypass',
-      noProfile: true
-    })
 
     // Use WinRM: New-PSSession -ComputerName host -Credential
     const credScript = `
@@ -121,10 +124,20 @@ class WindowsSkill extends BaseSkill {
       Invoke-Command -ComputerName ${host.hostname} -Credential $cred -ScriptBlock { ${script} }
     `
 
-    await ps.addCommand(credScript)
-    const output = await ps.invoke()
-    await ps.dispose()
-    return JSON.parse(output || '[]')
+    if (NodePowerShell) {
+      const ps = new NodePowerShell({
+        executionPolicy: 'Bypass',
+        noProfile: true
+      })
+      await ps.addCommand(credScript)
+      const output = await ps.invoke()
+      await ps.dispose()
+      return JSON.parse(output || '[]')
+    } else {
+      // Fallback to native powershell.exe via exec
+      const { stdout } = await execAsync(`powershell.exe -ExecutionPolicy Bypass -NoProfile -Command "${credScript.replace(/"/g, '`"')}"`)
+      return JSON.parse(stdout || '[]')
+    }
   }
 
   async healthCheck() {
