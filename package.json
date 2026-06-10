@@ -208,7 +208,7 @@
 		}
 	},
 	"optionalDependencies": {
-		"@whiskeysockets/baileys": "^7.0.0-rc.9",
+		"@whiskeysockets/baileys": "^7.0.0-rc12",
 		"mastercard-api-core": "^1.5.0"
 	},
 	"funding": {
