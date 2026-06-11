@@ -315,7 +315,7 @@ class WhatsAppChannel extends BaseChannel {
               if (require('fs').existsSync(credsFile)) {
                 require('fs').renameSync(credsFile, `${credsFile}.bak-${Date.now()}`);
               }
-            } catch (_) { }
+            } catch (_) { /* ignore */ }
           } else if (multideviceFailed) {
             logger.warn(
               `WhatsApp multidevice mismatch (code ${code}). Restart or re-pair the session.`,

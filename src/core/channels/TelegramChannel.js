@@ -15,10 +15,11 @@ const { logger } = require('../logger');
 const { printVoucher } = require('../printer');   // server-side fallback
 const { PrintBroker } = require('../print-broker'); // unified broker
 const { BaseChannel } = require('./BaseChannel');
-const { BRAND } = require('../config');
+const { BRAND, STATE_PATH } = require('../config');
 
 const { acquireBotLock, releaseBotLock } = require('../../utils/bot-lock');
 
+const LOCK_FILE = path.join(STATE_PATH, '.telegram_bot.lock');
 
 class TelegramChannel extends BaseChannel {
     static getMetadata() {
@@ -123,7 +124,7 @@ class TelegramChannel extends BaseChannel {
                 if (isConflict) {
                     logger.error(`TelegramChannel: 409 Conflict${context}. Another bot instance is polling. (Own PID: ${process.pid})`);
                     // Stop polling if conflict detected
-                    this.bot.stopPolling().catch(() => { });
+                    this.bot.stopPolling().catch(() => { /* ignore */ });
                     this.connected = false;
                     this.emit('status', 'conflict');
                     
@@ -569,7 +570,7 @@ class TelegramChannel extends BaseChannel {
         const email = match?.[1]?.trim();
 
         if (!email) {
-            return this.bot.sendMessage(chatId, "🔗 *Link Account*\nUsage: \`/link your@email.com\`\n\nThis connects your Telegram chat to your web-based wallet and vouchers.");
+            return this.bot.sendMessage(chatId, "🔗 *Link Account*\nUsage: `/link your@email.com`\n\nThis connects your Telegram chat to your web-based wallet and vouchers.");
         }
 
         if (!email.includes('@')) {
@@ -1962,7 +1963,7 @@ class TelegramChannel extends BaseChannel {
                     const all = await db.getPlans(false);
                     planObj = all.find(p => p.mikrotikProfile === planId || p.name === planId);
                 }
-            } catch (_) { }
+            } catch (_) { /* ignore */ }
 
             if (!planObj) {
                 const { getConfig } = require('../config');
@@ -2269,7 +2270,7 @@ class TelegramChannel extends BaseChannel {
         try {
             const UniversalBilling = require('../universal-billing');
             expiresAt = new UniversalBilling().calculateExpiry(planObj);
-        } catch (_) { }
+        } catch (_) { /* ignore */ }
 
         const codes = [];
         const errors = [];

@@ -365,7 +365,7 @@ class WebSocketChannel extends BaseChannel {
 
       // Map frontend intents to backend actions
       switch (intent) {
-        case 'purchase_plan':
+        case 'purchase_plan': {
           // Handle plan purchase via AI or direct logic
           const result = await this.agent.processInteraction(`purchase plan ${payload.planId}`, {
             channel: 'websocket',
@@ -379,8 +379,9 @@ class WebSocketChannel extends BaseChannel {
             message: result.result?.text || (result.success ? 'Plan purchased successfully' : 'Purchase failed')
           });
           break;
+        }
 
-        case 'redeem_voucher':
+        case 'redeem_voucher': {
           const redeemResult = await this.agent.processInteraction(`redeem voucher ${payload.code}`, {
             channel: 'websocket',
             userId: clientId,
@@ -393,8 +394,9 @@ class WebSocketChannel extends BaseChannel {
             message: redeemResult.result?.text || (redeemResult.success ? 'Voucher redeemed' : 'Redemption failed')
           });
           break;
+        }
 
-        default:
+        default: {
           // Generic intent handling via agent
           const genericResult = await this.agent.processInteraction(`${intent} ${JSON.stringify(payload)}`, {
             channel: 'websocket',
@@ -407,6 +409,7 @@ class WebSocketChannel extends BaseChannel {
             success: genericResult.success,
             result: genericResult.result
           });
+        }
       }
     } catch (error) {
       logger.error(`Intent handling failed: ${error.message}`);
