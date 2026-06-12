@@ -164,7 +164,7 @@
 		"cordova-plugin-camera": "^8.0.0",
 		"cordova-plugin-device": "^3.0.0",
 		"cordova-plugin-firebasex": "^19.1.0",
-		"cordova-plugin-inappbrowser": "^6.0.0",
+		"cordova-plugin-inappbrowser": "^6.0.1",
 		"cordova-plugin-local-notification": "^1.2.3",
 		"cordova-plugin-network-information": "^3.0.0",
 		"cordova-plugin-screen-orientation": "^3.0.4",
