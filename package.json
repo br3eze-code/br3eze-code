@@ -75,7 +75,7 @@
 		"axios": "^1.17.0",
 		"bcryptjs": "^2.4.3",
 		"better-sqlite3": "^12.8.0",
-		"boxen": "^7.1.1",
+		"boxen": "^8.0.1",
 		"chalk": "^4.1.2",
 		"commander": "^12.1.0",
 		"compression": "^1.7.4",
@@ -98,7 +98,7 @@
 		"ink-text-input": "^6.0.0",
 		"inquirer": "^8.2.7",
 		"ioredis": "^5.3.2",
-		"joi": "^18.1.2",
+		"joi": "^18.2.1",
 		"js-yaml": "^4.1.0",
 		"jsonwebtoken": "^9.0.2",
 		"morgan": "^1.10.0",
@@ -137,7 +137,7 @@
 		"xml2js": "^0.6.2",
 		"xss-clean": "^0.1.4",
 		"xterm": "^5.3.0",
-		"zod": "^3.22.0"
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.23.3",
@@ -164,7 +164,7 @@
 		"cordova-plugin-camera": "^8.0.0",
 		"cordova-plugin-device": "^3.0.0",
 		"cordova-plugin-firebasex": "^19.1.0",
-		"cordova-plugin-inappbrowser": "^6.0.0",
+		"cordova-plugin-inappbrowser": "^6.0.1",
 		"cordova-plugin-local-notification": "^1.2.3",
 		"cordova-plugin-network-information": "^3.0.0",
 		"cordova-plugin-screen-orientation": "^3.0.4",
