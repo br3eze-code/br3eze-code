@@ -60,14 +60,6 @@ describe('EventBus', () => {
 
 // ── VoucherAgent ──────────────────────────────────────────────────────────────
 
-// Mock database
-jest.mock('../../src/core/database', () => ({
-    getDatabase: jest.fn().mockResolvedValue({
-        getVoucher: jest.fn().mockResolvedValue(null),
-        createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
-    })
-}));
-
 describe('VoucherAgent — generate', () => {
     let voucher;
 
@@ -76,52 +68,49 @@ describe('VoucherAgent — generate', () => {
         voucher = require('../../src/core/voucher');
     });
 
-    test('generates a code for each valid plan', async () => {
+    test('generates a code for each valid plan', () => {
         const plans = [];
         for (const plan of plans) {
-            const code = await voucher.generate(plan);
+            const code = voucher.generate(plan);
             expect(typeof code).toBe('string');
             expect(code.length).toBeGreaterThan(0);
         }
     });
 
-    test('generated code contains the prefix from config', async () => {
-        const code = await voucher.generate();
+    test('generated code contains the prefix from config', () => {
+        const code = voucher.generate();
         expect(code.startsWith('STAR-')).toBe(true);
     });
 
-    test('generated code starts with "STAR-"', async () => {
-        const code = await voucher.generate('default');
+    test('generated code starts with "STAR-"', () => {
+        const code = voucher.generate('default');
         expect(code.startsWith('STAR-')).toBe(true);
     });
 
-    test('generates unique codes on repeated calls', async () => {
-        const codes = new Set();
-        for (let i = 0; i < 20; i++) {
-            codes.add(await voucher.generate());
-        }
+    test('generates unique codes on repeated calls', () => {
+        const codes = new Set(Array.from({ length: 20 }, () => voucher.generate()));
         expect(codes.size).toBe(20);
     });
 
-    test('defaults to "default" plan when no arg given', async () => {
-        const code = await voucher.generate();
+    test('defaults to "default" plan when no arg given', () => {
+        const code = voucher.generate();
         expect(code).toBeTruthy();
         expect(typeof code).toBe('string');
     });
 
-    test('throws for an invalid plan', async () => {
-        await expect(voucher.generate('invalid-plan')).rejects.toThrow(/Invalid plan/i);
+    test('throws for an invalid plan', () => {
+        expect(() => voucher.generate('invalid-plan')).toThrow(/Invalid plan/i);
     });
 
-    test('throws error listing valid plans', async () => {
-        await expect(voucher.generate('bad')).rejects.toThrow(/1hour|1day/i);
+    test('throws error listing valid plans', () => {
+        expect(() => voucher.generate('bad')).toThrow(/1hour|1day/i);
     });
 
-    test('emits voucher.created event', async () => {
+    test('emits voucher.created event', () => {
         const eventBus = require('../../src/core/eventBus');
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
-        await voucher.generate();
+        voucher.generate();
         expect(handler).toHaveBeenCalledWith(
             expect.objectContaining({ code: expect.any(String) })
         );

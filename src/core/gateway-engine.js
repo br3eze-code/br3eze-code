@@ -101,16 +101,11 @@ class Gateway extends EventEmitter {
     // Dynamic config injection for frontend
     this.app.get('/js/env.js', (req, res) => {
       res.type('application/javascript');
-      // Build gateway URL from actual request host (works from any network)
-      const reqHost = req.headers['x-forwarded-host'] || req.headers.host || `${req.hostname}:${this.config.port}`;
-      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-      const gatewayUrl = `${proto}://${reqHost}`;
       res.send(`
         window.ENV = {
           FIREBASE_PROJECT_ID: "${process.env.FIREBASE_PROJECT_ID || ''}",
           FIREBASE_API_KEY: "${process.env.FIREBASE_API_KEY || ''}",
-          GATEWAY_PORT: "${this.config.port}",
-          GATEWAY_URL: "${gatewayUrl}",
+          GATEWAY_PORT: "${process.env.GATEWAY_PORT || '19876'}",
           GATEWAY_TOKEN: "${this.config.token || ''}",
           ALLOWED_ORIGINS: "${process.env.ALLOWED_ORIGINS || '*'}"
         };
@@ -123,73 +118,18 @@ class Gateway extends EventEmitter {
     // ── Health ────────────────────────────────────────────────────────────────
     this.app.get('/health', (req, res) => {
       res.json({
-        status:    'healthy',
+        status: 'healthy',
         timestamp: new Date().toISOString(),
-        uptime:    Math.floor(process.uptime()),
-        channels:  Object.keys(this.channelManager.getStatus())
+        channels: Object.keys(this.channelManager.getStatus())
       });
-    });
-
-    // ── Auto-discovery for ci.html ────────────────────────────────────────────
-    // Returns the gateway token only when the request originates from localhost.
-    this.app.get('/api/token', (req, res) => {
-      const ip = req.ip || req.socket?.remoteAddress || '';
-      const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-      if (!isLocal) return res.status(403).json({ error: 'Local access only' });
-      res.json({
-        token:   this.config.token || '',
-        version: process.env.npm_package_version || '1.0.0',
-        port:    this.config.port
-      });
-    });
-
-    // ── Aggregate stats ───────────────────────────────────────────────────────
-    this.app.get('/api/stats', async (req, res) => {
-      try {
-        const token = this.config.token;
-        if (token) {
-          const provided = (req.headers['x-gateway-token'] || req.headers['authorization']?.slice(7) || '');
-          if (provided !== token) return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const result = { mikrotik: false, router: null, vouchers: null, metrics: null };
-
-        if (global.mikrotik?.state?.isConnected) {
-          result.mikrotik = true;
-          try { result.router = await global.mikrotik.getSystemResource(); } catch (_) { }
-        }
-
-        if (global.database) {
-          try {
-            const stats = await global.database.getStats();
-            result.vouchers = {
-              total:   stats.total   ?? 0,
-              active:  stats.active  ?? 0,
-              used:    stats.used    ?? 0,
-              revenue: stats.revenue ?? 0
-            };
-          } catch (_) { }
-        }
-
-        result.metrics = {
-          wsMsgs:  metrics.get('ws.messages') ?? 0,
-          clients: metrics.get('ws.clients')  ?? 0,
-          uptime:  Math.floor(process.uptime())
-        };
-
-        res.json(result);
-      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── Bearer token middleware for /api routes ────────────────────────────────
-    // Accepts: Authorization: Bearer <token>  OR  x-gateway-token: <token>
     this.app.use('/api', (req, res, next) => {
       const token = this.config.token;
       if (!token) return next(); // No token configured — open access
       const auth = req.headers['authorization'] || '';
-      const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-      const headerToken = req.headers['x-gateway-token'] || null;
-      const provided = bearerToken || headerToken;
+      const provided = auth.startsWith('Bearer ') ? auth.slice(7) : null;
       if (provided !== token) {
         return res.status(401).json({ error: 'Unauthorized — invalid or missing Bearer token' });
       }
@@ -337,41 +277,12 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/users/sync', async (req, res) => {
       try {
-        const { user, password, planId, expiry } = req.body;
+        const { user, planId } = req.body;
         if (!user || !planId) return res.status(400).json({ error: 'user and planId required' });
         if (global.mikrotik && global.mikrotik.state?.isConnected) {
-          const pass = password || user;
-          await global.mikrotik.addHotspotUser(user, pass, planId);
+          await global.mikrotik.addHotspotUser(user, user, planId);
         }
-        res.json({ ok: true, user, planId, expiry: expiry || null });
-      } catch (e) { res.status(500).json({ error: e.message }); }
-    });
-
-    // ── Session kick (replaces account-disable) ────────────────────────────────
-    this.app.post('/api/v1/users/kick', async (req, res) => {
-      try {
-        const { user } = req.body;
-        if (!user) return res.status(400).json({ error: 'user required' });
-        if (!global.mikrotik || !global.mikrotik.state?.isConnected) {
-          return res.status(503).json({ error: 'Router unavailable' });
-        }
-        // Kick active hotspot session; do NOT disable the account
-        await global.mikrotik.kickHotspotUser(user);
-        logger.info(`[Gateway] Kicked hotspot session for: ${user}`);
-        res.json({ ok: true, user, action: 'session_kicked' });
-      } catch (e) {
-        // Non-fatal: user may have no active session
-        logger.warn(`[Gateway] Kick failed for ${req.body?.user}: ${e.message}`);
-        res.json({ ok: false, error: e.message });
-      }
-    });
-
-    this.app.get('/api/v1/vouchers/:code', async (req, res) => {
-      try {
-        if (!global.database) return res.status(503).json({ error: 'Database not ready' });
-        const voucher = await global.database.getVoucher(req.params.code);
-        if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
-        res.json({ ok: true, voucher });
+        res.json({ ok: true });
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
@@ -512,44 +423,6 @@ class Gateway extends EventEmitter {
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
-    // ── Universal Print API ───────────────────────────────────────────────────
-    // Allows any channel, mobile client, or REST consumer to trigger a
-    // voucher print job. Automatically routes to BLE/USB Cordova client
-    // when one is connected, falls back to server thermal printer.
-    this.app.post('/api/v1/print', async (req, res) => {
-      try {
-        const { PrintBroker } = require('./print-broker');
-        const { code, voucher } = req.body;
-
-        let voucherData = voucher;
-        if (!voucherData && code) {
-          if (!global.database) return res.status(503).json({ error: 'Database not ready' });
-          const v = await global.database.getVoucher(code);
-          if (!v) return res.status(404).json({ error: `Voucher ${code} not found` });
-          voucherData = {
-            username: code, password: code,
-            profile: v.planName || v.plan,
-            loginUrl: v.loginUrl,
-            expires: v.expiresAt,
-            price: v.value, currency: v.currency,
-          };
-        }
-
-        if (!voucherData) return res.status(400).json({ error: 'Provide "code" or "voucher" payload' });
-
-        const result = await PrintBroker.getInstance().print(voucherData);
-        res.json({ ok: result.success, via: result.via, error: result.error });
-      } catch (e) { res.status(500).json({ error: e.message }); }
-    });
-
-    this.app.get('/api/v1/print/status', (req, res) => {
-      try {
-        const { PrintBroker } = require('./print-broker');
-        const mobile = PrintBroker.getInstance().getMobileClientStatus();
-        res.json({ ok: true, mobileClients: mobile.count, clients: mobile.clients });
-      } catch (e) { res.json({ ok: false, mobileClients: 0, clients: [] }); }
-    });
-
     // ── Mobile bridge ────────────────────────────────────────────────────────
     try {
       const mobileBridge = new MobileBridge();
@@ -619,19 +492,6 @@ class Gateway extends EventEmitter {
         token: this.config.token
       }
     });
-
-    // Attach PrintBroker to WebSocket channel so mobile clients (BLE/USB) are reachable
-    // from every channel in the system via the universal printVoucher() call.
-    try {
-      const wsChannel = this.channelManager.channels.get('websocket');
-      if (wsChannel?.adapter) {
-        const { PrintBroker } = require('./print-broker');
-        PrintBroker.getInstance().attachWebSocketChannel(wsChannel.adapter);
-        logger.info('[Gateway] PrintBroker attached to WebSocket channel — mobile printing enabled');
-      }
-    } catch (e) {
-      logger.warn(`[Gateway] PrintBroker attach skipped: ${e.message}`);
-    }
 
     // 2. WhatsApp Channel
     if (this.config.whatsapp?.enabled) {

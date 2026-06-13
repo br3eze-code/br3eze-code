@@ -73,28 +73,25 @@ class SMSChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
-        // 1. Initial sync/registration by platform ID
         await db.upsertUser(phoneNumber, {
           username: phoneNumber,
           platform: 'sms',
           channels: { sms: phoneNumber }
         }).catch(e => console.warn(`SMS user sync failed: ${e.message}`));
 
-        // 2. Bridge to Firebase Auth if possible (Identity Bridging)
+        // Resolve (or auto-provision) the Firebase Auth user for this phone number,
+        // then build a scoped UserDoc so handlers can only touch their own doc.
         const authUser = await db.resolveFirebaseUser(phoneNumber, {
           channel: 'sms',
           channelId: phoneNumber
         }).catch(() => null);
 
-        if (authUser?.uid) {
-          msg.userDoc = db.getUserDoc(authUser.uid);
-          msg._uid = authUser.uid;
-        } else {
-          msg.userDoc = db.getUserDoc(phoneNumber);
-          msg._uid = phoneNumber;
-        }
+        const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
 
-        await fn.call(this, phoneNumber, msg, match);
+        // Attach to context so any handler can do: ctx.userDoc.update({...})
+        const ctx = { phoneNumber, userDoc, uid: authUser?.uid || null, db };
+
+        await fn.call(this, phoneNumber, msg, match, ctx);
       } catch (err) {
         console.error(`SMSChannel handler error: ${err.message}`, { phoneNumber });
         await this.send(phoneNumber, `Error: ${err.message}`).catch(() => { });

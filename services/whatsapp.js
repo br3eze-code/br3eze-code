@@ -8,7 +8,7 @@ const {
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
-const logger = require('../src/core/logger'); // Using core logger directly for stability
+const logger = require('../utils/logger'); // Your existing logger
 
 class WhatsAppService {
     constructor(config = {}) {

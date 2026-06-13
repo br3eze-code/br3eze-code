@@ -47,7 +47,7 @@ const DEFAULT_CONFIG = {
         pass: process.env.MIKROTIK_PASS || '',
         port: parseInt(process.env.MIKROTIK_PORT) || 8728,
         reconnectInterval: 5000,
-        maxReconnectAttempts: Infinity
+        maxReconnectAttempts: 10
     },
     telegram: {
         token: '',
@@ -95,7 +95,6 @@ const DEFAULT_CONFIG = {
     printer: {
         type: process.env.PRINTER_TYPE || 'EPSON',
         interface: process.env.PRINTER_INTERFACE || 'tcp://192.168.88.254',
-        width: parseInt(process.env.PRINTER_WIDTH) || 80,
         timeout: parseInt(process.env.PRINTER_TIMEOUT) || 5000,
         enabled: process.env.PRINTER_ENABLED !== 'false'
     },
@@ -223,18 +222,6 @@ function getConfig() {
     }
     if (process.env.AGENTOS_GATEWAY_TOKEN) {
         loaded.gateway.token = process.env.AGENTOS_GATEWAY_TOKEN;
-    }
-
-    // Printer Overrides
-    loaded.printer = loaded.printer || {};
-    if (process.env.PRINTER_INTERFACE) {
-        loaded.printer.interface = process.env.PRINTER_INTERFACE;
-    }
-    if (process.env.PRINTER_TYPE) {
-        loaded.printer.type = process.env.PRINTER_TYPE;
-    }
-    if (process.env.PRINTER_ENABLED !== undefined) {
-        loaded.printer.enabled = process.env.PRINTER_ENABLED !== 'false';
     }
 
     // Ensure structures exist before setting properties

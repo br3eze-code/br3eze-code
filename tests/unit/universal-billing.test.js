@@ -66,7 +66,7 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
 
     // ── Expiry enforcement ────────────────────────────────────────────────────
 
-    test('kicks active users whose voucher is expired', async () => {
+    test('kicks and disables active users whose voucher is expired', async () => {
         mockMikrotik.executeTool.mockImplementation(async (tool) => {
             if (tool === 'users.report') return [
                 { username: 'user1', isActive: true,  disabled: false },
@@ -88,13 +88,15 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
         // Both kicked via executeTool
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user1' });
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user2' });
-        
+        // Both disabled on router
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'user1' });
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'user2' });
         // Both marked expired in DB
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user1');
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user2');
     });
 
-    test('does NOT kick an inactive user, but still expires them in DB', async () => {
+    test('does NOT kick an inactive user, but still disables and expires them', async () => {
         mockMikrotik.executeTool.mockImplementation(async (tool) => {
             if (tool === 'users.report') return [
                 { username: 'idle', isActive: false, disabled: false }
@@ -109,15 +111,14 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
 
         // No kick (not active)
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.kick', expect.anything());
-        // No disable
-        expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', { username: 'idle' });
-        // Still marked expired in DB
+        // Still disabled
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'idle' });
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('idle');
     });
 
     // ── Resilience ────────────────────────────────────────────────────────────
 
-    test('continues processing remaining users if kicking user throws for one', async () => {
+    test('continues processing remaining users if disableHotspotUser throws for one', async () => {
         mockMikrotik.executeTool.mockImplementation(async (tool) => {
             if (tool === 'users.report') return [
                 { username: 'user1', isActive: true, disabled: false },
@@ -129,20 +130,20 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
         mockDb.getVoucher.mockImplementation(async (u) => ({ code: u, status: 'active' }));
         billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'test' });
 
-        // user1 kick explodes — user2 must still be processed
+        // user1 disable explodes — user2 must still be processed
         mockMikrotik.executeTool.mockImplementation(async (tool, args) => {
             if (tool === 'users.report') return [
                 { username: 'user1', isActive: true, disabled: false },
                 { username: 'user2', isActive: true, disabled: false }
             ];
-            if (tool === 'user.kick' && args.username === 'user1') throw new Error('Router ID missing');
+            if (tool === 'user.disable' && args.username === 'user1') throw new Error('Router ID missing');
             return { kicked: true };
         });
 
         await billing.guardHotspot();
 
         // user2 still fully processed
-        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user2' });
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'user2' });
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user2');
 
         // user1 error was logged via logger (not console)
@@ -202,7 +203,7 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
 
     // ── PHASE 2 — Expired sweep ───────────────────────────────────────────────
 
-    test('PHASE 2: ignores users whose voucher is already marked expired in DB since disable logic is commented out', async () => {
+    test('PHASE 2: disables users whose voucher is already marked expired in DB', async () => {
         mockMikrotik.executeTool.mockResolvedValue([]); // no live router users
 
         mockDb.getVouchersByStatus.mockImplementation(async (status) => {
@@ -212,12 +213,13 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
 
         await billing.guardHotspot();
 
-        expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'old1' });
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'old2' });
     });
 
     // ── PHASE 3 — Active parity audit ────────────────────────────────────────
 
-    test('PHASE 3: expires DB-active vouchers that have passed their expiry date but does not disable them', async () => {
+    test('PHASE 3: expires DB-active vouchers that have passed their expiry date', async () => {
         mockMikrotik.executeTool.mockResolvedValue([]); // no live router users
 
         mockDb.getVouchersByStatus.mockImplementation(async (status) => {
@@ -231,7 +233,7 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
         await billing.guardHotspot();
 
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('stale');
-        expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
+        expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.disable', { username: 'stale' });
     });
 
     // ── Guard: MikroTik disconnected ──────────────────────────────────────────

@@ -5,12 +5,10 @@
  */
 
 const crypto = require('crypto');
-const { EventEmitter } = require('events');
 const { logger } = require('./logger');
 
-class UniversalBilling extends EventEmitter {
+class UniversalBilling {
     constructor(config = {}) {
-        super();
         this.db = config.database || null;
         this.mikrotik = config.mikrotik || null;
         this.resourceType = config.resourceType || 'network';
@@ -162,75 +160,89 @@ class UniversalBilling extends EventEmitter {
         };
     }
 
-
-    // ── M-Pesa / Mobile Money ─────────────────────────────────────────────────
+    // ── M-Pesa (Safaricom Daraja) ─────────────────────────────────────────────
 
     async _mpesaLink(plan, amount, currency, label, cfg) {
-        // Route to the correct mobile money provider
-        const mpesaProvider = process.env.MPESA_PROVIDER || 'safaricom';
-        return this._mpesaInitiateSTK(null, amount, plan, cfg, mpesaProvider);
+        // STK Push — no redirect URL; we send STK push and poll
+        const axios = require('axios');
+        const consumerKey = cfg?.credentials?.consumerKey || process.env.MPESA_CONSUMER_KEY;
+        const consumerSecret = cfg?.credentials?.consumerSecret || process.env.MPESA_CONSUMER_SECRET;
+        const shortcode = cfg?.credentials?.shortcode || process.env.MPESA_SHORTCODE;
+        const passkey = cfg?.credentials?.passkey || process.env.MPESA_PASSKEY;
+        const env = cfg?.credentials?.env || process.env.MPESA_ENV || 'sandbox';
+        const baseUrl = env === 'production'
+            ? 'https://api.safaricom.co.ke'
+            : 'https://sandbox.safaricom.co.ke';
+
+        if (!consumerKey || !consumerSecret) throw new Error('M-Pesa credentials not configured');
+
+        // 1. Get access token
+        const tokenResp = await axios.get(
+            `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
+            { auth: { username: consumerKey, password: consumerSecret } }
+        );
+        const token = tokenResp.data.access_token;
+
+        // 2. Return instructions — Telegram will show these to user
+        return (
+            `M-Pesa STK Push\n` +
+            `Send *${currency} ${amount}* to Paybill *${shortcode}*\n` +
+            `Account: AGT-${plan.toUpperCase()}\n\n` +
+            `_Or enter your phone to receive a payment prompt via the /pay command._`
+        );
     }
 
-    /**
-     * Initiate an STK Push / mobile money request.
-     * @param {string|null} phone  — null means no phone provided yet (returns instructions)
-     * @param {number} amount
-     * @param {string} plan
-     * @param {object} cfg
-     * @param {string} [providerOverride]  'safaricom' | 'vodacom' | 'mtn' | 'airtel'
-     */
-    async _mpesaInitiateSTK(phone, amount, plan, cfg, providerOverride) {
-        const { MobileMoney } = require('../services/mobile-money');
-        const mm = new MobileMoney();
-        const provider = providerOverride
-            || cfg?.credentials?.provider
-            || process.env.MPESA_PROVIDER
-            || 'safaricom';
-
-        if (!phone) {
-            // No phone supplied — return instructions text (Telegram will ask user for phone)
-            const shortcode = process.env.MPESA_SHORTCODE || cfg?.credentials?.shortcode || '174379';
-            return (
-                `📲 *Mobile Money Payment*\n\n` +
-                `Amount: *${amount}* (Plan: ${plan})\n` +
-                `Provider: *${provider}*\n\n` +
-                `Use /pay ${plan} <phone> to receive an STK push to your phone.\n` +
-                `Example: /pay 1Day +254712345678`
-            );
-        }
-
-        try {
-            const result = await mm.initiate(provider, phone, amount, `AGT-${plan}`);
-            logger.info(`[Billing] STK Push sent via ${provider} to ${phone} (${plan})`);
-            return result;
-        } catch (err) {
-            logger.error(`[Billing] STK Push failed (${provider}):`, err.message);
-            throw err;
-        }
-    }
-
-    /**
-     * Verify a mobile money payment by checkout ID.
-     */
     async _mpesaVerify(checkoutRequestId, cfg) {
-        const { MobileMoney } = require('../services/mobile-money');
-        const mm = new MobileMoney();
-        const provider = cfg?.credentials?.provider || process.env.MPESA_PROVIDER || 'safaricom';
+        const axios = require('axios');
+        const consumerKey = cfg?.credentials?.consumerKey || process.env.MPESA_CONSUMER_KEY;
+        const consumerSecret = cfg?.credentials?.consumerSecret || process.env.MPESA_CONSUMER_SECRET;
+        const shortcode = cfg?.credentials?.shortcode || process.env.MPESA_SHORTCODE;
+        const passkey = cfg?.credentials?.passkey || process.env.MPESA_PASSKEY;
+        const env = cfg?.credentials?.env || process.env.MPESA_ENV || 'sandbox';
+        const baseUrl = env === 'production'
+            ? 'https://api.safaricom.co.ke'
+            : 'https://sandbox.safaricom.co.ke';
+
+        if (!consumerKey || !consumerSecret || !checkoutRequestId) {
+            return { paid: false, reason: 'missing_credentials_or_id' };
+        }
 
         try {
-            const result = await mm.verify(provider, checkoutRequestId);
+            // 1. Get access token
+            const tokenResp = await axios.get(
+                `${baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
+                { auth: { username: consumerKey, password: consumerSecret } }
+            );
+            const token = tokenResp.data.access_token;
+
+            // 2. Query Status
+            const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+            const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString('base64');
+
+            const queryResp = await axios.post(
+                `${baseUrl}/mpesa/stkpushquery/v1/query`,
+                {
+                    BusinessShortCode: shortcode,
+                    Password: password,
+                    Timestamp: timestamp,
+                    CheckoutRequestID: checkoutRequestId
+                },
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+
+            // ResultCode 0 means success
+            const paid = queryResp.data?.ResultCode === '0';
             return {
-                paid:      result.paid,
+                paid,
                 reference: checkoutRequestId,
-                ...result
+                resultCode: queryResp.data?.ResultCode,
+                resultDesc: queryResp.data?.ResultDesc
             };
         } catch (error) {
-            logger.error('[Billing] M-Pesa verification failed:', error.message);
+            console.error('[M-Pesa] Verification failed:', error.response?.data || error.message);
             return { paid: false, reason: 'api_error', error: error.message };
         }
     }
-
-
 
     // ── Mastercard / Peach Payments ───────────────────────────────────────────
 
@@ -541,15 +553,6 @@ class UniversalBilling extends EventEmitter {
                         const status = await this.checkVoucherStatus(voucher, user, dbUser);
                         const isIdentified = !!(voucher || dbUser);
 
-                        // If user is a registered account (not a voucher) and has no active plan, expire them
-                        if (!status.expired && dbUser && !voucher) {
-                            const hasActivePlan = await this.hasPlan(dbUser);
-                            if (!hasActivePlan) {
-                                status.expired = true;
-                                status.reason = 'no_active_plan';
-                            }
-                        }
-
                         if (status.expired) {
                             logger.audit('Voucher Expired', { username: user.username, reason: status.reason });
                             logger.cyber(`[Enforcement] Expired: ${user.username} (Reason: ${status.reason})`);
@@ -560,21 +563,49 @@ class UniversalBilling extends EventEmitter {
                             }
 
                             // Disable user on router (Persistent enforcement)
-                            // await mikrotik.executeTool('user.disable', { username: user.username });
+                            await mikrotik.executeTool('user.disable', { username: user.username });
 
                             // Mark as expired in DB
                             if (voucher && voucher.status !== 'expired') {
                                 await this.db.expireVoucher(voucher.code || user.username);
                             }
 
-                            // ── Recurring Billing Check ─────────────────────
+                            // ── Recurring Billing Check ──────────────────────────────
+                            // If they have a plan and enough balance, auto-renew
                             if (dbUser && (voucher?.plan || dbUser.lastPlanId)) {
-                                const renewed = await this._attemptAutoRenewal(
-                                    dbUser, voucher, voucher?.plan || dbUser.lastPlanId, mikrotik
-                                );
-                                if (renewed) continue; // skip kick
+                                try {
+                                    const planId = voucher?.plan || dbUser.lastPlanId;
+                                    const cfg = this.config.payments || this._readConfigFile();
+                                    const cost = this._getPlanAmount(planId, cfg);
+                                    
+                                    const wallet = await this.db.getWallet(dbUser.id || dbUser.uid);
+                                    if (wallet && wallet.balance >= cost) {
+                                        logger.info(`[Billing] Auto-renewing plan ${planId} for user ${user.username} (Balance: ${wallet.balance})`);
+                                        
+                                        // Deduct credits
+                                        await this.db.deductCredits(dbUser.id || dbUser.uid, cost, `Auto-renewal: ${planId}`);
+                                        
+                                        // Re-enable on router
+                                        await mikrotik.executeTool('user.enable', { username: user.username });
+                                        
+                                        // Extend or re-activate voucher/subscription
+                                        if (voucher) {
+                                            const newExpiry = this.calculateExpiry(voucher.plan || planId);
+                                            await this.db.updateVoucher(voucher.code, {
+                                                status: 'active',
+                                                expiresAt: newExpiry,
+                                                redemption: { used: true, usedAt: new Date().toISOString(), remainingValue: 0 }
+                                            });
+                                        }
+                                        
+                                        logger.info(`[Billing] Auto-renewal successful for ${user.username}`);
+                                        continue; // Skip the kick/disable logic
+                                    }
+                                } catch (renewErr) {
+                                    logger.warn(`[Billing] Auto-renewal failed for ${user.username}: ${renewErr.message}`);
+                                }
                             }
-                            // ────────────────────────────────────────────────
+                            // ─────────────────────────────────────────────────────────
 
                             actionCount++;
                         } else if (user.disabled === true && isIdentified) {
@@ -602,7 +633,7 @@ class UniversalBilling extends EventEmitter {
                 for (const v of expiredVouchers.slice(0, 50)) {
                     if (mikrotik.isCircuitOpen) break;
                     try {
-                        // await mikrotik.executeTool('user.disable', { username: v.code });
+                        await mikrotik.executeTool('user.disable', { username: v.code });
                     } catch (e) { /* ignore */ }
                 }
             }
@@ -628,7 +659,7 @@ class UniversalBilling extends EventEmitter {
                         if (status.expired) {
                             logger.info(`[Guard] Deep Audit: Mark ${v.code} as expired (${status.reason})`);
                             await this.db.expireVoucher(v.code);
-                            // await mikrotik.executeTool('user.disable', { username: v.code });
+                            await mikrotik.executeTool('user.disable', { username: v.code });
                             actionCount++;
                         }
                     } catch (e) { /* ignore */ }
@@ -797,10 +828,7 @@ async checkVoucherStatus(voucher, usage = {}, user = null) {
     // Check for active subscriptions
     if (user.subscriptions && Array.isArray(user.subscriptions)) {
         const now = new Date();
-        const active = user.subscriptions.find(s => 
-            (s.status === 'active' || s.status === 'unused') && 
-            (!s.expiresAt || new Date(s.expiresAt) > now)
-        );
+        const active = user.subscriptions.find(s => !s.expiresAt || new Date(s.expiresAt) > now);
         if (active) return true;
     }
 
@@ -836,86 +864,6 @@ _readConfigFile() {
         return null;
     }
 }
-
-    // ── Auto-Renewal Engine ──────────────────────────────────────────────────
-
-    /**
-     * Attempt to auto-renew a user's plan with exponential backoff.
-     * Emits 'billing:renewal:success' or 'billing:renewal:failed'.
-     * @returns {boolean} true if renewed (caller should skip kick)
-     */
-    async _attemptAutoRenewal(dbUser, voucher, planId, mikrotik) {
-        const cfg  = this.config.payments || this._readConfigFile();
-        const cost = this._getPlanAmount(planId, cfg);
-        const uid  = dbUser.id || dbUser.uid;
-        const username = dbUser.username || voucher?.code;
-
-        let wallet;
-        try {
-            wallet = await this.db.getWallet(uid);
-        } catch (e) {
-            logger.warn(`[Billing] Could not fetch wallet for ${username}: ${e.message}`);
-            return false;
-        }
-
-        // Emit low-balance warning regardless of renewal outcome
-        if (wallet && wallet.balance < cost) {
-            this.emit('billing:lowBalance', { username, userId: uid, balance: wallet.balance, cost, planId });
-            logger.warn(`[Billing] Low balance: ${username} has ${wallet.balance} < ${cost} (plan: ${planId})`);
-            return false;
-        }
-
-        // Exponential backoff: up to 3 attempts
-        const MAX_ATTEMPTS = 3;
-        let lastErr;
-        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            try {
-                logger.info(`[Billing] Auto-renew attempt ${attempt}/${MAX_ATTEMPTS}: ${username} (plan: ${planId}, cost: ${cost})`);
-
-                await this.db.deductCredits(uid, cost, `Auto-renewal: ${planId} (attempt ${attempt})`);
-                await mikrotik.executeTool('user.enable', { username });
-
-                if (voucher) {
-                    const newExpiry = this.calculateExpiry(planId);
-                    await this.db.updateVoucher(voucher.code, {
-                        status:     'active',
-                        expiresAt:  newExpiry,
-                        redemption: { used: true, usedAt: new Date().toISOString(), remainingValue: 0 }
-                    });
-                }
-
-                // Record in audit trail
-                await this.db.logAuditTrail?.('auto-renewal', 'billing.renew', {
-                    username, planId, cost, attempt
-                }).catch(() => {});
-
-                this.emit('billing:renewal:success', { username, userId: uid, planId, cost, attempt });
-                logger.info(`[Billing] ✅ Auto-renewal success: ${username} (${planId})`);
-                return true;
-
-            } catch (err) {
-                lastErr = err;
-                logger.warn(`[Billing] Auto-renew attempt ${attempt} failed for ${username}: ${err.message}`);
-                if (attempt < MAX_ATTEMPTS) {
-                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
-                }
-            }
-        }
-
-        this.emit('billing:renewal:failed', { username, userId: uid, planId, cost, error: lastErr?.message });
-        logger.error(`[Billing] ❌ Auto-renewal failed after ${MAX_ATTEMPTS} attempts: ${username}`);
-        return false;
-    }
-
-    /**
-     * Public method: initiate a mobile money STK push for a user.
-     * @param {{ provider, phone, amount, plan }} opts
-     */
-    async initiatePayment({ provider, phone, amount, plan }) {
-        const cfg = this.config.payments || this._readConfigFile();
-        return this._mpesaInitiateSTK(phone, amount, plan, cfg, provider);
-    }
-
 } // end class UniversalBilling
 
 module.exports = UniversalBilling;

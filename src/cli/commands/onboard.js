@@ -764,9 +764,6 @@ module.exports = (program) => {
         chalk.gray(`WhatsApp : `) + (wantsWhatsApp ? chalk.green('enabled') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Slack    : `) + (wantsSlack ? chalk.green('enabled') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Discord  : `) + (wantsDiscord ? chalk.green('enabled') : chalk.red('disabled')) + `\n` +
-        chalk.gray(`SMS      : `) + (wantsSMS ? chalk.green(`enabled (${smsConfig.provider || 'twilio'})`) : chalk.red('disabled')) + `\n` +
-        chalk.gray(`USSD     : `) + (wantsUSSD ? chalk.green('enabled (AfricasTalking)') : chalk.red('disabled')) + `\n` +
-        chalk.gray(`Email    : `) + (wantsEmail ? chalk.green(`enabled (${emailConfig.host || 'SMTP'})`) : chalk.red('disabled')) + `\n` +
         chalk.gray(`Gateway  : `) + chalk.cyan(`ws://127.0.0.1:${gatewayConfig.port}`) + `\n` +
         chalk.gray(`Firebase : `) + (firebaseConfig.enabled ? chalk.green('connected') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Payments : `) + chalk.yellow(paymentConfig.provider),

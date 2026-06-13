@@ -14,8 +14,6 @@ class MemoryManager {
         return new (require('./adapters/RedisAdapter'))();
       case 'sqlite':
         return new (require('./adapters/SQLiteAdapter'))();
-      case 'obsidian':
-        return new (require('./adapters/ObsidianAdapter'))();
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }
@@ -70,24 +68,9 @@ class MemoryManager {
     return this.adapter.set(`user:${userId}:permissions`, permissions);
   }
 
-  async delete(key) {
-    if (typeof this.adapter.delete === 'function') {
-      return this.adapter.delete(key);
-    }
-    return false;
-  }
-
-  async list(prefix = '') {
-    if (typeof this.adapter.list === 'function') {
-      return this.adapter.list(prefix);
-    }
-    return [];
-  }
-
   async close() {
     return this.adapter.close();
   }
-
 
   getStatus() {
     return this.adapter.getStatus();

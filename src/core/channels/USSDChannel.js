@@ -47,23 +47,14 @@ class USSDChannel extends BaseChannel {
         }).catch(e => console.warn(`USSD user sync failed: ${e.message}`));
 
         // Resolve (or auto-provision) the caller's Firebase Auth record.
-        // 1. Sync identity (Register JID in local DB if new)
-        await db.upsertUser(phoneNumber, {
-          channel: 'ussd',
-          channelId: phoneNumber,
-          lastActive: new Date().toISOString()
-        });
-
-        // 2. Bridge to Firebase (Resolve canonical UID)
+        // Build a scoped UserDoc so handlers can only read/write their own doc.
         const authUser = await db.resolveFirebaseUser(phoneNumber, {
           channel: 'ussd',
           channelId: phoneNumber
         }).catch(() => null);
 
-        // 3. Fallback & Attach (Inject userDoc + _uid into ctx)
-        const _uid = authUser?.uid || phoneNumber;
-        const userDoc = db.getUserDoc(_uid);
-        const ctx = { phoneNumber, sessionId, userDoc, _uid, db };
+        const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
+        const ctx = { phoneNumber, sessionId, userDoc, uid: authUser?.uid || null, db };
 
         await fn.call(this, phoneNumber, msg, args, sessionId, ctx);
       } catch (err) {
@@ -123,16 +114,14 @@ class USSDChannel extends BaseChannel {
       return;
     }
 
-    const wrappedNL = this._rl(async (phoneNum, msgText, args, sessId, ctx) => {
+    const wrappedNL = this._rl(async (phoneNum, msgText, args, sessId) => {
       this.emit('message', {
         userId: phoneNum,
         sessionId: sessId,
         channel: 'ussd',
         channelId: phoneNum,
         text: msgText,
-        raw: rawData,
-        userDoc: ctx?.userDoc,
-        _uid: ctx?._uid
+        raw: rawData
       });
     });
     await wrappedNL(phoneNumber, text, [], sessionId);

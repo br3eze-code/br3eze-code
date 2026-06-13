@@ -45,9 +45,26 @@ function createApp() {
 
     // Health check
     app.get('/health', async (req, res) => {
+          const checks = await Promise.all([
+    checkMikroTikConnection(),
+    checkDatabaseConnection(),
+    checkMemoryUsage()
+  ]);
+         const healthy = checks.every(c => c.status === 'ok');
+  
         const mikrotik = await getMikroTikClient().catch(() => ({ isConnected: false }));
         const db = await getDatabase();
         const dbStats = await db.getStats();
+         res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'healthy' : 'unhealthy',
+    version: process.env.npm_package_version,
+    timestamp: new Date().toISOString(),
+    checks: {
+      mikrotik: checks[0],
+      database: checks[1],
+      memory: checks[2]
+    }
+  });
 
         res.json({
             status: 'ok',

@@ -12,14 +12,13 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { logger } = require('../logger');
-const { printVoucher } = require('../printer');   // server-side fallback
-const { PrintBroker } = require('../print-broker'); // unified broker
+const { printVoucher } = require('../printer');
 const { BaseChannel } = require('./BaseChannel');
-const { BRAND, STATE_PATH } = require('../config');
+const { BRAND } = require('../config');
 
-const { acquireBotLock, releaseBotLock } = require('../../utils/bot-lock');
-
+const { STATE_PATH } = require('../config');
 const LOCK_FILE = path.join(STATE_PATH, '.telegram_bot.lock');
+
 
 class TelegramChannel extends BaseChannel {
     static getMetadata() {
@@ -86,7 +85,6 @@ class TelegramChannel extends BaseChannel {
         this.rateLimiter = new Map();
         this.pendingReboots = new Set();
         this.pendingInputs = new Map(); // chatId -> { action, data }
-        this._alertState = new Map();   // key -> lastSentTimestamp
         this.cacheCleanup = setInterval(() => this._clearOldCache(), 60000);
 
         logger.info('TelegramChannel: constructed');
@@ -102,11 +100,38 @@ class TelegramChannel extends BaseChannel {
         }
 
         // ── Singleton Lock Check (Atomic) ────────────────────────────────────
-        if (!acquireBotLock()) {
-            logger.warn('TelegramChannel: could not acquire bot lock — another instance may be running. Polling will be skipped.');
-            return false;  // Return false so ChannelManager knows polling was skipped
-        }
+        try {
+            const acquireLock = () => {
+                try {
+                    const fd = fs.openSync(LOCK_FILE, 'wx');
+                    fs.writeSync(fd, process.pid.toString());
+                    fs.closeSync(fd);
+                    return true;
+                } catch (err) {
+                    if (err.code === 'EEXIST') {
+                        const pid = fs.readFileSync(LOCK_FILE, 'utf8').trim();
+                        if (parseInt(pid) === process.pid) return true;
 
+                        try {
+                            process.kill(parseInt(pid), 0);
+                            logger.warn(`TelegramChannel: 409 Prevented. Bot already running in PID ${pid}.`);
+                            return false;
+                        } catch (e) {
+                            logger.info(`TelegramChannel: stale lock for PID ${pid}, cleaning up...`);
+                            try { fs.unlinkSync(LOCK_FILE); } catch (_) { }
+                            return acquireLock(); // Recursive retry after cleanup
+                        }
+                    }
+                    throw err;
+                }
+            };
+
+            if (!acquireLock()) return this;
+
+        } catch (err) {
+            logger.error(`TelegramChannel: lock failed: ${err.message}`);
+            // Non-fatal, but likely to cause 409 Conflict
+        }
 
         // Prevent duplicate handler registration if re-initializing
         if (!this._handlersRegistered) {
@@ -122,34 +147,13 @@ class TelegramChannel extends BaseChannel {
                 const context = health.voltage ? ` [Voltage: ${health.voltage}V, Temp: ${health.temperature}C]` : '';
 
                 if (isConflict) {
-                    logger.error(`TelegramChannel: 409 Conflict${context}. Another bot instance is polling. (Own PID: ${process.pid})`);
-                    // Stop polling if conflict detected
-                    this.bot.stopPolling().catch(() => { /* ignore */ });
+                    logger.error(`TelegramChannel: 409 Conflict${context}. Another bot instance is polling.`);
+                    // Stop polling if conflict detected to allow the other instance to own it
+                    this.bot.stopPolling().catch(() => { });
                     this.connected = false;
                     this.emit('status', 'conflict');
-                    
-                    if (this._conflictRetryTimer) clearTimeout(this._conflictRetryTimer);
-                    // Attempt recovery after a delay if we still hold the lock
-                    this._conflictRetryTimer = setTimeout(() => {
-                        if (fs.existsSync(LOCK_FILE)) {
-                            const pid = fs.readFileSync(LOCK_FILE, 'utf8').trim();
-                            if (pid === process.pid.toString()) {
-                                logger.info('TelegramChannel: Retrying polling after conflict...');
-                                this.bot.startPolling({ restart: true }).catch(() => {});
-                            }
-                        }
-                    }, 30000); // 30s backoff
-                } else if (err.code === 'EFATAL' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.message?.includes('ETIMEDOUT')) {
+                } else if (err.code === 'EFATAL' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET') {
                     logger.debug(`TelegramChannel: Network interruption${context}. Auto-retrying...`);
-                    
-                    if (this._pollingRetryTimer) clearTimeout(this._pollingRetryTimer);
-                    // Ensure we resume polling if the library gave up
-                    this._pollingRetryTimer = setTimeout(() => {
-                        if (this.bot && !this.bot.isPolling()) {
-                            logger.info('TelegramChannel: Restarting polling after network error...');
-                            this.bot.startPolling({ restart: true }).catch(() => {});
-                        }
-                    }, 5000);
                 } else {
                     logger.error(`TelegramChannel polling error: ${err.message}${context}`);
                 }
@@ -163,24 +167,21 @@ class TelegramChannel extends BaseChannel {
         }
 
         if (!this.bot.isPolling()) {
-            // Do NOT await startPolling as it might block if the network is flaky
-            // and the library performs internal getMe calls.
-            this.bot.startPolling().then(() => {
+            try {
+                await this.bot.startPolling();
                 this.connected = true;
                 logger.info('TelegramChannel: polling started');
                 this.emit('status', 'connected');
-            }).catch((err) => {
+            } catch (err) {
                 logger.error(`TelegramChannel: failed to start polling: ${err.message}`);
                 this.connected = false;
-            });
+            }
         } else {
             this.connected = true;
         }
 
         return this;
     }
-    
-
 
     /**
      * Send a text message to a specific chat.
@@ -230,48 +231,34 @@ class TelegramChannel extends BaseChannel {
     }
 
     async destroy() {
-        logger.info('TelegramChannel: destroying...');
-        if (this.cacheCleanup) clearInterval(this.cacheCleanup);
-        if (this._conflictRetryTimer) clearTimeout(this._conflictRetryTimer);
-        if (this._pollingRetryTimer) clearTimeout(this._pollingRetryTimer);
+        clearInterval(this.cacheCleanup);
 
         try {
-            if (this.bot && this.bot.isPolling()) {
-                await Promise.race([this.bot.stopPolling(), new Promise(r => setTimeout(r, 2000))]);
+            if (this.bot.isPolling()) {
+                await this.bot.stopPolling();
             }
         } catch (e) {
             logger.warn(`TelegramChannel: Error stopping polling: ${e.message}`);
         }
 
-        if (this.bot) this.bot.removeAllListeners();
+        this.bot.removeAllListeners();
         this.connected = false;
 
         // Cleanup lock file
-        releaseBotLock();
-
-        await super.destroy();
-        logger.info('TelegramChannel: destroyed');
-    }
-
-    /**
-     * Check if ChatID or UID is authorized
-     * @param {string|number} chatId 
-     * @param {string} uid 
-     */
-    isAuthorized(chatId, uid = null) {
-        const allowed = this.config.allowed_ids || [];
-        if (allowed.length === 0) return true;
-        const sChatId = String(chatId);
-
-        for (const entry of allowed) {
-            const sEntry = String(entry).trim();
-            if (!sEntry) continue;
-            // 1. Direct match (ChatID or UID)
-            if (sEntry === sChatId || (uid && sEntry === uid)) return true;
-            // 2. Prefix match for UID
-            if (uid && sEntry === `uid:${uid}`) return true;
+        try {
+            if (fs.existsSync(LOCK_FILE)) {
+                const pid = fs.readFileSync(LOCK_FILE, 'utf8').trim();
+                if (pid === process.pid.toString()) {
+                    fs.unlinkSync(LOCK_FILE);
+                    logger.debug('TelegramChannel: lock file released');
+                }
+            }
+        } catch (e) {
+            logger.debug(`TelegramChannel: lock cleanup failed: ${e.message}`);
         }
-        return false;
+
+        super.destroy();
+        logger.info('TelegramChannel: destroyed');
     }
 
     // ── Rate limiting ────────────────────────────────────────────────────────
@@ -305,65 +292,19 @@ class TelegramChannel extends BaseChannel {
         return async (msg, match) => {
             const chatId = (msg?.chat?.id) ?? (msg?.message?.chat?.id);
             if (!chatId) return;
-            const sChatId = String(chatId);
 
-            // 1. Identity Resolution & Bridging
-            // Resolve identity FIRST to support UID-based authorization
-            let authUser = null;
-            let resolvedUid = null;
+            // Authorization check
+            const allowed = this.config.allowed_ids || [];
+            if (allowed.length > 0) {
+                // Filter for Telegram-specific IDs (those WITHOUT '@')
+                const telegramAllowed = allowed.filter(id => !String(id).includes('@'));
 
-            try {
-                const { getDatabase } = require('../database');
-                const db = await getDatabase();
-                const from = msg.from || msg.message?.from;
-
-                if (from && db.db) {
-                    // Only sync to Firestore when Firebase is reachable; otherwise SQLite-only
-                    await db.upsertUser(sChatId, {
-                        username: from.username || null,
-                        firstName: from.first_name || '',
-                        lastName: from.last_name || '',
-                        platform: 'telegram',
-                        channels: { telegram: sChatId },
-                    }).catch(e => logger.warn(`Telegram user sync failed: ${e.message}`));
-
-                    // Bridge to Firebase Auth (resolveFirebaseUser already guards db.db internally)
-                    authUser = await db.resolveFirebaseUser(sChatId, {
-                        channel: 'telegram',
-                        channelId: sChatId,
-                    }).catch(() => null);
-                } else if (from && db.sqlite) {
-                    // Offline path: sync to SQLite only, no Firebase round-trip
-                    await db.upsertUser(sChatId, {
-                        username: from.username || null,
-                        firstName: from.first_name || '',
-                        lastName: from.last_name || '',
-                        platform: 'telegram',
-                        channels: { telegram: sChatId },
-                    }).catch(e => logger.debug(`Telegram SQLite user sync failed: ${e.message}`));
+                if (!telegramAllowed.includes(chatId.toString())) {
+                    logger.warn(`Unauthorized Telegram access attempt from ${chatId}`);
+                    return; // Ignore unauthorized messages
                 }
-
-                if (authUser?.uid) {
-                    resolvedUid = authUser.uid;
-                    msg.userDoc = db.getUserDoc(resolvedUid);
-                    msg._uid    = resolvedUid;
-                    logger.debug(`[Telegram] Identity bridged: ${chatId} -> ${resolvedUid}`);
-                } else {
-                    // Fallback: use platform ID as the document ID
-                    msg.userDoc = db.getUserDoc(sChatId);
-                    msg._uid    = sChatId;
-                }
-            } catch (dbErr) {
-                logger.error(`Telegram database resolution failed: ${dbErr.message}`);
             }
 
-            // 2. Authorization Check (includes platform ID and resolved UID)
-            if (!this.isAuthorized(chatId, resolvedUid)) {
-                logger.warn(`Unauthorized Telegram access attempt from ${chatId} (UID: ${resolvedUid || 'none'})`);
-                return; // Ignore unauthorized messages
-            }
-
-            // 3. Rate Limiting
             const rlStatus = this._checkRateLimit(chatId);
             if (!rlStatus.allowed) {
                 const seconds = Math.ceil((rlStatus.resetTime - Date.now()) / 1000);
@@ -374,18 +315,38 @@ class TelegramChannel extends BaseChannel {
             msg._rl = rlStatus;
 
             try {
+                // ── Auto-register/Sync User ──────────────────────────────────
+                const { getDatabase } = require('../database');
+                const db = await getDatabase();
+                const from = msg.from || msg.message?.from;
+                if (from) {
+                    // Register by chatId (Telegram numeric ID) and persist the channel link
+                    await db.upsertUser(String(chatId), {
+                        username: from.username || null,
+                        firstName: from.first_name || '',
+                        lastName: from.last_name || '',
+                        platform: 'telegram',
+                        channels: { telegram: String(chatId) },
+                    }).catch(e => logger.warn(`Telegram user sync failed: ${e.message}`));
+
+                    // Resolve Firebase Auth uid and build a scoped UserDoc.
+                    // Attach to msg so handlers can call msg.userDoc.read() / .update().
+                    const authUser = await db.resolveFirebaseUser(String(chatId), {
+                        channel: 'telegram',
+                        channelId: String(chatId),
+                    }).catch(() => null);
+
+                    if (authUser?.uid) {
+                        msg.userDoc = db.getUserDoc(authUser.uid);
+                        msg._uid    = authUser.uid;
+                    }
+                }
+
                 await fn(msg, match);
             } catch (err) {
                 // Suppress Telegram's "message is not modified" — it is not an actionable error
                 // and must NOT create a new bubble via sendMessage.
                 if (err?.response?.body?.description?.includes('message is not modified')) return;
-
-                const isNetworkError = err.code === 'EFATAL' || err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.message?.includes('ETIMEDOUT');
-                if (isNetworkError) {
-                    logger.warn(`TelegramChannel handler network error: ${err.message}`, { chatId });
-                    return; // Do not attempt to send an error message if the network is down
-                }
-
                 logger.error(`TelegramChannel handler error: ${err.message}`, { chatId });
                 this.bot.sendMessage(chatId, `❌ Error: ${err.message}`).catch(() => { });
             }
@@ -443,12 +404,6 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/network/, this._rl(this._handleNetwork.bind(this)));
         this.bot.onText(/\/wallet/, this._rl(this._handleWallet.bind(this)));
         this.bot.onText(/\/mistakes/, this._rl(this._handleMistakes.bind(this)));
-        this.bot.onText(/\/vouchers/, this._rl(this._handleVoucherList.bind(this)));
-        this.bot.onText(/\/reprint/, this._rl(this._handleReprint.bind(this)));
-        this.bot.onText(/\/transfer\s+(\S+)(?:\s+(.+))?/, this._rl(this._handleTransfer.bind(this)));
-        this.bot.onText(/\/whoami/, this._rl(this._handleWhoAmI.bind(this)));
-        this.bot.onText(/\/link(?:\s+(.+))?/, this._rl(this._handleLink.bind(this)));
-        this.bot.onText(/\/printer(?:\s+(\S+)(?:\s+(.*))?)?/, this._rl(this._handlePrinter.bind(this)));
 
         this.bot.on('callback_query', this._rl(this._handleCallback.bind(this)));
 
@@ -499,7 +454,7 @@ class TelegramChannel extends BaseChannel {
     }
 
     async _handleDashboard(msg, opts = {}) {
-        await this._sendDashboard(msg, opts);
+        await this._sendDashboard(msg.chat.id, opts);
     }
 
     async _handleUsers(msg, opts = {}) {
@@ -526,162 +481,13 @@ class TelegramChannel extends BaseChannel {
         await this._sendStats(msg.chat.id, opts);
     }
 
-    async _handleWhoAmI(msg) {
-        const chatId = msg.chat.id;
-        const uid = msg._uid || chatId;
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        const user = await db.getUser(uid);
-
-        if (!user) {
-            return this.bot.sendMessage(chatId, "❓ *Identity Unknown*\nI haven't synced your record yet. Try sending a normal message first.", { parse_mode: 'Markdown' });
-        }
-
-        const isLinked = !!user.email || (user.uid && user.uid !== String(chatId));
-        const role = user.role || 'user';
-        const credits = (user.credits || 0).toFixed(2);
-
-        let text = `👤 *Your Profile*\n`;
-        text += `───────────────────\n`;
-        text += `🆔 ID: \`${chatId}\`\n`;
-        if (user.uid && user.uid !== String(chatId)) text += `🔗 Linked UID: \`${user.uid}\`\n`;
-        text += `🏷 Name: *${user.fullname || user.firstName || 'Anonymous'}*\n`;
-        text += `📧 Email: \`${user.email || 'Not linked'}\`\n`;
-        text += `🎭 Role: \`${role.toUpperCase()}\`\n`;
-        text += `💰 Credits: *$${credits}*\n`;
-        text += `───────────────────\n`;
-
-        if (!isLinked) {
-            text += `\n💡 *Tip:* Use \`/link your@email.com\` to connect your web account.`;
-        }
-
-        const reply_markup = {
-            inline_keyboard: [
-                [{ text: '🔄 Refresh', callback_data: 'process:whoami' }],
-                [{ text: '⬅️ Back', callback_data: 'process:start' }]
-            ]
-        };
-
-        await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
-    }
-
-    async _handleLink(msg, match) {
-        const chatId = msg.chat.id;
-        const email = match?.[1]?.trim();
-
-        if (!email) {
-            return this.bot.sendMessage(chatId, "🔗 *Link Account*\nUsage: `/link your@email.com`\n\nThis connects your Telegram chat to your web-based wallet and vouchers.");
-        }
-
-        if (!email.includes('@')) {
-            return this.bot.sendMessage(chatId, "❌ Invalid email format.");
-        }
-
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-
-        try {
-            this.bot.sendChatAction(chatId, 'typing');
-            const result = await db.resolveFirebaseUser(email, {
-                channel: 'telegram',
-                channelId: String(chatId)
-            });
-
-            if (result) {
-                // Link was successful (resolveFirebaseUser calls linkChannel internally if channel/channelId provided)
-                await this.bot.sendMessage(chatId, `✅ *Account Linked!*\nWelcome back, *${result.fullname || 'User'}*.\nYour Telegram ID is now connected to \`${email}\`.`, { parse_mode: 'Markdown' });
-                return this._handleWhoAmI(msg);
-            } else {
-                await this.bot.sendMessage(chatId, `❌ *User not found*\nWe couldn't find a web account with email \`${email}\`. Please register on our website first.`);
-            }
-        } catch (err) {
-            logger.error(`Link error: ${err.message}`);
-            await this.bot.sendMessage(chatId, `❌ *Linking failed*\n${err.message}`);
-        }
-    }
-
-    async _handlePrinter(msg, match) {
-        const chatId = msg.chat.id;
-        const action = match?.[1];
-        const value = match?.[2];
-
-        const { getPrinterStatus, setPrinterModel, printTestPage } = require('../printer');
-
-        if (!action) {
-            const status = getPrinterStatus();
-
-            // Mobile clients connected via WebSocket (Cordova BLE/USB)
-            const mobile = PrintBroker.getInstance().getMobileClientStatus();
-            const mobileLines = mobile.clients.map(c =>
-                `  📱 \`${c.clientId}\` — ${c.capability.toUpperCase()} (${c.platform})`
-            ).join('\n') || '  _None connected_';
-
-            let text = `🖨 *Thermal Printer Settings*\n\n`;
-            text += `📍 Port: \`${status.port || 'Auto'}\`\n`;
-            text += `🏷 Model: \`${status.model || 'Generic'}\`\n`;
-            text += `🔌 Interface: \`${status.interface || 'Serial'}\`\n`;
-            text += `🚦 Server: ${status.ready ? '✅ Ready' : '❌ Offline/Error'}\n\n`;
-            text += `📱 *Mobile Clients (BLE/USB):* ${mobile.count > 0 ? '✅ ' + mobile.count : '○ None'}\n`;
-            text += mobileLines + '\n\n';
-            text += `*Commands:*\n`;
-            text += `• \`/printer model tmv88\` - Epson TM-V88\n`;
-            text += `• \`/printer model pos58c\` - POS-58C (Generic 58mm)\n`;
-            text += `• \`/printer test\` - Print test page\n`;
-            text += `• \`/printer test mobile\` - Force mobile client test\n`;
-
-            const reply_markup = {
-                inline_keyboard: [
-                    [{ text: '🔄 Refresh', callback_data: 'printer:status' }, { text: '📄 Test Page', callback_data: 'printer:test' }],
-                    [{ text: '📱 Test Mobile', callback_data: 'printer:test_mobile' }, { text: '💻 Test Server', callback_data: 'printer:test_server' }],
-                    [{ text: '🟦 TM-V88', callback_data: 'printer:set_tmv88' }, { text: '🟩 POS-58C', callback_data: 'printer:set_pos58c' }],
-                    [{ text: '⬅️ Back', callback_data: 'process:start' }]
-                ]
-            };
-            return this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
-        }
-
-        if (action === 'test') {
-            const target = value?.toLowerCase();
-            if (target === 'mobile') {
-                await this.bot.sendMessage(chatId, '📱 Sending test job to mobile client...');
-                const testVoucher = {
-                    username: 'TEST-0000', password: 'TEST-0000',
-                    profile: 'TestPage', loginUrl: 'http://hotspot.local/test',
-                    price: 0, currency: 'USD'
-                };
-                const result = await PrintBroker.getInstance().print(testVoucher, { preferMobile: true });
-                const via = result.via === 'mobile' ? '📱 Mobile (BLE/USB)' : '💻 Server';
-                return this.bot.sendMessage(chatId,
-                    result.success
-                        ? `✅ Test page sent via ${via}!`
-                        : `❌ Mobile test failed: ${result.error}\n_Hint: Open the app and ensure BLE/USB printer is connected._`,
-                    { parse_mode: 'Markdown' }
-                );
-            }
-            // Default: let printVoucher route (mobile-first → server fallback)
-            await this.bot.sendMessage(chatId, '⏳ Sending test page to printer...');
-            const ok = await printTestPage();
-            return this.bot.sendMessage(chatId, ok ? '✅ Test page sent!' : '❌ Printing failed. Check connections.');
-        }
-
-        if (action === 'model') {
-            if (!value) return this.bot.sendMessage(chatId, 'Usage: `/printer model <tmv88|pos58c>`');
-            const model = value.toLowerCase();
-            if (model !== 'tmv88' && model !== 'pos58c') return this.bot.sendMessage(chatId, '❌ Unsupported model. Use `tmv88` or `pos58c`.');
-            setPrinterModel(model);
-            return this.bot.sendMessage(chatId, `✅ Printer model set to *${model.toUpperCase()}*.`, { parse_mode: 'Markdown' });
-        }
-    }
-
-
     async _handleVoucher(msg, match, opts = {}) {
         const chatId = msg.chat.id;
         const planId = typeof match === 'string' ? match : match?.[1];  // set if called as /voucher <planId>
 
         const { getDatabase } = require('../database');
         const db = await getDatabase();
-        const uid = msg._uid || chatId;
-        const user = await db.getUser(uid);
+        const user = await db.getUser(chatId);
         const isAdmin = user?.role === 'admin' || user?.role === 'reseller';
 
         if (planId && typeof planId === 'string') {
@@ -708,8 +514,7 @@ class TelegramChannel extends BaseChannel {
                 ];
             }
 
-            const uid = msg._uid || chatId;
-            const wallet = await db.getWallet(uid);
+            const wallet = await db.getWallet(chatId);
             const balance = wallet.balance || 0;
             const currency = wallet.currency || 'USD';
 
@@ -742,82 +547,6 @@ class TelegramChannel extends BaseChannel {
             }
         } catch (err) {
             await this.bot.sendMessage(chatId, `❌ Could not load plans: ${err.message}`);
-        }
-    }
-
-    async _handleVoucherList(msg, opts = {}) {
-        const chatId = msg.chat.id;
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        
-        try {
-            const vouchers = await db.getVouchers(10); // last 10
-            if (!vouchers || !vouchers.length) {
-                const noText = '🎫 No recent vouchers found.';
-                if (opts.editMessageId) return this._safeEdit(chatId, opts.editMessageId, noText);
-                return this.bot.sendMessage(chatId, noText);
-            }
-
-            let text = `🎫 *Recent Vouchers*\n\n`;
-            const keyboard = [];
-
-            vouchers.forEach(v => {
-                const code = v.code || v.id;
-                const used = v.used ? '✅' : '⏳';
-                text += `${used} \`${code}\` — ${v.planName || v.plan || 'default'}\n`;
-                keyboard.push([
-                    { text: `🖨 Print ${code}`, callback_data: `print:${code}` },
-                    { text: `✏️ Plan`, callback_data: `vupdate:${code}` }
-                ]);
-            });
-
-            keyboard.push([{ text: '🔙 Back', callback_data: 'process:voucher' }]);
-
-            if (opts.editMessageId) {
-                await this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } });
-            } else {
-                await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard } });
-            }
-        } catch (err) {
-            await this.bot.sendMessage(chatId, `❌ Failed to list vouchers: ${err.message}`);
-        }
-    }
-
-    async _handleReprint(msg) {
-        const chatId = msg.chat.id;
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        
-        try {
-            const last = await db.getVouchers(1);
-            if (!last || !last.length) throw new Error('No vouchers found to reprint');
-            
-            const v = last[0];
-            const code = v.code || v.id;
-            
-            await this.bot.sendMessage(chatId, `🖨 *Reprinting last voucher:* \`${code}\`...`, { parse_mode: 'Markdown' });
-            
-            const voucherData = {
-                username: code,
-                password: code,
-                profile: v.planName || v.plan,
-                loginUrl: v.loginUrl || `http://hotspot.local/login?username=${code}`,
-                expires: v.expiresAt,
-                price: v.value,
-                currency: v.currency,
-                duration: v.durationValue ? `${v.durationValue}${v.durationUnit === 'hours' ? 'h' : v.durationUnit === 'days' ? 'd' : v.durationUnit === 'weeks' ? 'w' : ''}` : undefined
-            };
-
-            const result = await PrintBroker.getInstance().print(voucherData);
-            const via = result.via === 'mobile' ? '📱 mobile (BLE/USB)' : '💻 server';
-
-            if (result.success) {
-                await this.bot.sendMessage(chatId, `✅ Print job sent via ${via}.`);
-            } else {
-                await this.bot.sendMessage(chatId, `❌ Print failed (${via}): ${result.error}`);
-            }
-        } catch (err) {
-            await this.bot.sendMessage(chatId, `❌ Reprint failed: ${err.message}`);
         }
     }
 
@@ -860,7 +589,7 @@ class TelegramChannel extends BaseChannel {
 
             // 3. Generation Dry-run
             const voucherAgent = require('../voucher');
-            const testCode = await voucherAgent.generate('default');
+            const testCode = voucherAgent.generate('default');
             report += `*Dry-run:*\n` +
                 `  Status: ✅ PASSED\n` +
                 `  Sample: \`${testCode}\`\n\n`;
@@ -918,9 +647,7 @@ class TelegramChannel extends BaseChannel {
             `/dashboard — System overview\n` +
             `/users — Active sessions\n` +
             `/stats — Router stats\n` +
-            `/voucher [plan] — Create voucher\n` +
-            `/vouchers — List recent vouchers\n` +
-            `/reprint — Reprint last voucher\n` +
+            `/voucher [1h|1d|1w] — Create voucher\n` +
             `/kick <user> — Disconnect user\n` +
             `/reboot — Router reboot\n` +
             `/pay — Payment / billing\n` +
@@ -1274,60 +1001,19 @@ class TelegramChannel extends BaseChannel {
         await this._processAI(chatId, text, msg);
     }
 
-    /**
-     * Escape text for Telegram MarkdownV2 so unbalanced/special chars never
-     * cause a silent 400 rejection.
-     */
-    _escapeMd(text) {
-        // MarkdownV2 special chars that must be escaped outside code spans
-        return String(text).replace(/([_*[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
-    }
-
-    /** Split a long string into chunks ≤ maxLen chars on newline boundaries */
-    _splitMessage(text, maxLen = 4000) {
-        if (text.length <= maxLen) return [text];
-        const chunks = [];
-        let remaining = text;
-        while (remaining.length > maxLen) {
-            let cut = remaining.lastIndexOf('\n', maxLen);
-            if (cut < 1) cut = maxLen;
-            chunks.push(remaining.slice(0, cut));
-            remaining = remaining.slice(cut).trimStart();
-        }
-        if (remaining) chunks.push(remaining);
-        return chunks;
-    }
-
     async _processAI(chatId, text, msg) {
         this.bot.sendChatAction(chatId, 'typing').catch(() => { });
 
         try {
             if (this.agent && typeof this.agent.processInteraction === 'function') {
-                const result = await this.agent.processInteraction({ text }, {
-                    userId: msg._uid || msg.from.id,
-                    platformId: msg.from.id,
-                    userDoc: msg.userDoc,
+                const result = await this.agent.processInteraction(text, {
+                    userId: msg.from.id,
                     username: msg.from.username,
                     channel: 'telegram',
                     channelId: chatId
                 });
-
-                // Safe reply extraction — never send raw JSON blobs
-                let reply = result?.result?.text || result?.text || result?.message || null;
-                if (!reply || typeof reply !== 'string') {
-                    reply = '🤖 I processed your request. Use /menu for available commands.';
-                }
-
-                // Send in plain text mode to avoid Markdown parse failures.
-                // The AI response may contain arbitrary characters that break MarkdownV2.
-                const chunks = this._splitMessage(reply, 4000);
-                for (const chunk of chunks) {
-                    await this.bot.sendMessage(chatId, chunk).catch(async (sendErr) => {
-                        // If plain send fails, log and send a short error notice
-                        logger.error(`[Telegram] sendMessage failed: ${sendErr.message}`, { chatId });
-                        await this.bot.sendMessage(chatId, '⚠️ Failed to send response. Try /menu for commands.').catch(() => {});
-                    });
-                }
+                const reply = result?.result?.text || result?.text || JSON.stringify(result);
+                await this.bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
             } else {
                 await this.bot.sendMessage(chatId,
                     `🤖 I received: "${text}"\n\nUse /menu for available commands.`
@@ -1337,7 +1023,7 @@ class TelegramChannel extends BaseChannel {
             logger.error('TelegramChannel AI error:', err);
             await this.bot.sendMessage(chatId,
                 '⚠️ AI processing error. Use /menu for manual commands.'
-            ).catch(() => {});
+            );
         }
     }
 
@@ -1407,96 +1093,6 @@ class TelegramChannel extends BaseChannel {
             case 'bulk':
                 await this._handleBulkVoucher(chatId, action, extra, messageId, query);
                 break;
-            case 'print':
-                await this._handlePrintCallback(chatId, action, messageId);
-                break;
-            case 'vupdate':
-                await this._handleVupdateCallback(chatId, action, extra, messageId);
-                break;
-            case 'reprint':
-                await this._handleReprint({ chat: { id: chatId } });
-                break;
-        }
-    }
-
-    async _handlePrintCallback(chatId, code, messageId) {
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        const v = await db.getVoucher(code);
-        
-        if (!v) return this.bot.sendMessage(chatId, `❌ Voucher ${code} not found.`);
-        
-        try {
-            await this.bot.sendMessage(chatId, `🖨 *Printing voucher:* \`${code}\`...`, { parse_mode: 'Markdown' });
-
-            const voucherData = {
-                username: code,
-                password: code,
-                profile: v.planName || v.plan,
-                loginUrl: v.loginUrl || `http://hotspot.local/login?username=${code}`,
-                expires: v.expiresAt,
-                price: v.value,
-                currency: v.currency,
-                duration: v.durationValue ? `${v.durationValue}${v.durationUnit === 'hours' ? 'h' : v.durationUnit === 'days' ? 'd' : v.durationUnit === 'weeks' ? 'w' : ''}` : undefined
-            };
-
-            const result = await PrintBroker.getInstance().print(voucherData);
-            const via = result.via === 'mobile' ? '📱 mobile (BLE/USB)' : '💻 server';
-
-            if (result.success) {
-                await this.bot.sendMessage(chatId, `✅ Printed \`${code}\` via ${via}.`);
-            } else {
-                await this.bot.sendMessage(chatId, `❌ Print failed (${via}): ${result.error}`);
-            }
-        } catch (err) {
-            await this.bot.sendMessage(chatId, `❌ Print failed: ${err.message}`);
-        }
-    }
-
-    async _handleVupdateCallback(chatId, code, newPlan, messageId) {
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        
-        if (!newPlan) {
-            // Show plan picker for updating
-            let plans = await db.getPlans(true).catch(() => []);
-            const rows = plans.map(p => ([{
-                text: `🔄 ${p.name}`,
-                callback_data: `vupdate:${code}:${p.mikrotikProfile || p.id || p.name}`
-            }]));
-            rows.push([{ text: '🔙 Cancel', callback_data: 'process:voucher' }]);
-            
-            return this._safeEdit(chatId, messageId, `✏️ *Update Plan for* \`${code}\`\n\nSelect new plan:`, {
-                parse_mode: 'Markdown',
-                reply_markup: { inline_keyboard: rows }
-            });
-        }
-
-        // Execute update
-        try {
-            const voucherAgent = require('../voucher');
-            await this._safeEdit(chatId, messageId, `⏳ *Updating* \`${code}\` to *${newPlan}*...`, { parse_mode: 'Markdown' });
-            
-            const updated = await voucherAgent.updateVoucher(code, newPlan);
-            
-            await this._safeEdit(chatId, messageId, `✅ *Voucher Updated*\n\nCode: \`${code}\`\nNew Plan: *${updated.planName || updated.plan}*\n\n_Sending to printer..._`, { parse_mode: 'Markdown' });
-            
-            const result = await PrintBroker.getInstance().print({
-                username: code,
-                password: code,
-                profile: updated.planName || updated.plan,
-                loginUrl: updated.loginUrl,
-                expires: updated.expiresAt,
-                price: updated.value,
-                currency: updated.currency,
-                duration: updated.durationValue ? `${updated.durationValue}${updated.durationUnit === 'hours' ? 'h' : updated.durationUnit === 'days' ? 'd' : updated.durationUnit === 'weeks' ? 'w' : ''}` : undefined
-            });
-            const via = result.via === 'mobile' ? '📱 mobile (BLE/USB)' : '💻 server';
-            if (!result.success) {
-                await this.bot.sendMessage(chatId, `⚠️ Voucher updated but print failed (${via}): ${result.error}`);
-            }
-        } catch (err) {
-            await this.bot.sendMessage(chatId, `❌ Update failed: ${err.message}`);
         }
     }
 
@@ -1792,8 +1388,7 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
-    async _sendDashboard(msg, opts = {}) {
-        const chatId = msg.chat ? msg.chat.id : msg;
+    async _sendDashboard(chatId, opts = {}) {
         const reply_markup = {
             inline_keyboard: [
                 [{ text: '🔄 Refresh', callback_data: 'process:dashboard' }],
@@ -1845,8 +1440,7 @@ class TelegramChannel extends BaseChannel {
                 `🖥️ *Router Status*: 🔴 Offline\n\n`;
 
             // Wallet / finance summary
-            const uid = msg?._uid || chatId;
-            const wallet = await db.getWallet(uid).catch(() => ({ balance: 0, currency: 'USD' }));
+            const wallet = await db.getWallet(chatId).catch(() => ({ balance: 0, currency: 'USD' }));
             const walletLine = `💳 Balance: *${(wallet.balance || 0).toFixed(2)} ${wallet.currency || 'USD'}*\n`;
 
             const text = `📊 *AgentOS Dashboard*\n\n` +
@@ -1963,7 +1557,7 @@ class TelegramChannel extends BaseChannel {
                     const all = await db.getPlans(false);
                     planObj = all.find(p => p.mikrotikProfile === planId || p.name === planId);
                 }
-            } catch (_) { /* ignore */ }
+            } catch (_) { }
 
             if (!planObj) {
                 const { getConfig } = require('../config');
@@ -2032,7 +1626,7 @@ class TelegramChannel extends BaseChannel {
             // ── Generate voucher code ─────────────────────────────────────────
             const voucherAgent = require('../voucher');
             const QRCode = require('qrcode');
-            const code = await voucherAgent.generate(profile);
+            const code = voucherAgent.generate(profile);
 
             // ── Build login URL (used in QR + DB) ────────────────────────────
             const routerIp = this.mikrotik?.config?.host || '192.168.88.1';
@@ -2096,11 +1690,7 @@ class TelegramChannel extends BaseChannel {
                     username: code,
                     password: code,
                     profile,
-                    loginUrl,
-                    expires: expiresAt,
-                    price: price,
-                    currency: user?.currency || 'USD',
-                    duration: planObj.durationValue ? `${planObj.durationValue}${planObj.durationUnit === 'hours' ? 'h' : planObj.durationUnit === 'days' ? 'd' : planObj.durationUnit === 'weeks' ? 'w' : ''}` : undefined
+                    loginUrl
                 }).catch(pErr => logger.error(`[Telegram] Background print failed for ${code}: ${pErr.message}`));
                 logger.info(`[Telegram] Printer handoff successful for voucher: ${code}`);
             } catch (pErr) {
@@ -2150,7 +1740,6 @@ class TelegramChannel extends BaseChannel {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '🖨 Reprint Voucher', callback_data: `print:${code}` }],
                         [{ text: '📤 Share Voucher', url: `https://t.me/share/url?url=${encodeURIComponent(`Voucher code: ${code}\nLogin: ${loginUrl}`)}&text=${encodeURIComponent(`🎫 ${planName} WiFi voucher`)}` }],
                         [{ text: '🎫 Create Another', callback_data: 'process:voucher' }],
                         [{ text: '⬅️ Back to Menu', callback_data: 'process:start' }],
@@ -2270,13 +1859,13 @@ class TelegramChannel extends BaseChannel {
         try {
             const UniversalBilling = require('../universal-billing');
             expiresAt = new UniversalBilling().calculateExpiry(planObj);
-        } catch (_) { /* ignore */ }
+        } catch (_) { }
 
         const codes = [];
         const errors = [];
 
         for (let i = 0; i < qty; i++) {
-            const code = await voucherAgent.generate(profile);
+            const code = voucherAgent.generate(profile);
             try {
                 await db.createVoucher(code, {
                     plan: profile, planName: planObj.name || planId,
@@ -2761,65 +2350,24 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
-    // destroy() is defined above at class initialization — using releaseBotLock()
-    // The duplicate here has been removed to avoid LOCK_FILE undefined reference.
-
-    async _handleTransfer(msg, match) {
-        const chatId = msg.chat.id;
-        const identifier = match[1];
-        const planId = match[2];
-
-        const { getDatabase } = require('../database');
-        const db = await getDatabase();
-        const currentUser = await db.getUser(msg._uid || chatId);
-        const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'reseller';
-
-        if (!isAdmin) return this.bot.sendMessage(chatId, '❌ *Access Denied:* Admin required.');
-        if (!identifier) return this.bot.sendMessage(chatId, '❌ Usage: `/transfer <user> [planId]`');
-
-        try {
-            const targetUser = await db.resolveUser(identifier);
-            if (!targetUser) return this.bot.sendMessage(chatId, `❌ User *${identifier}* not found.`);
-
-            let selectedPlan = planId;
-            if (!selectedPlan) {
-                return this.bot.sendMessage(chatId, `❌ Please specify a plan ID. Example: \`/transfer ${identifier} 1Day\``);
-            }
-
-            const plans = await db.getPlans();
-            const plan = plans.find(p => p.mikrotikProfile === selectedPlan || p.id === selectedPlan);
-            if (!plan) return this.bot.sendMessage(chatId, `❌ Plan *${selectedPlan}* not found.`);
-
-            const voucherAgent = require('../voucher');
-            const code = await voucherAgent.generate(selectedPlan);
-
-            await db.createVoucher(code, {
-                plan: selectedPlan,
-                duration: plan.durationValue ? `${plan.durationValue}${plan.durationUnit || ''}` : '24h',
-                userId: targetUser.id,
-                createdAt: new Date(),
-                createdBy: `telegram:${chatId}`
-            });
-
-            if (plan.price > 0) {
-                await db.updateUser(targetUser.id, { credits: (targetUser.credits || 0) + plan.price });
-                await db.logAudit('voucher.transfer', `telegram:${chatId}`, { targetId: targetUser.id, code, price: plan.price });
-            }
-
-            const text = `🎁 *Transfer Success*\n\n` +
-                `Recipient: *${targetUser.fullname || targetUser.username || targetUser.id}*\n` +
-                `Plan: *${plan.name}*\n` +
-                `Code: \`${code}\`\n\n` +
-                `_The user has been credited and can now use this voucher._`;
-
-            await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
-
-            if (targetUser.channels?.telegram) {
-                this.bot.sendMessage(targetUser.channels.telegram, `🎁 *Gift Received!*\nYou have been sent a *${plan.name}* voucher.\nCode: \`${code}\``, { parse_mode: 'Markdown' }).catch(() => {});
-            }
-        } catch (err) {
-            this.bot.sendMessage(chatId, `❌ Transfer failed: ${err.message}`);
+    async destroy() {
+        if (this.cacheCleanup) clearInterval(this.cacheCleanup);
+        if (this.bot) {
+            try {
+                await this.bot.stopPolling();
+            } catch (_) { }
         }
+        try {
+            if (fs.existsSync(LOCK_FILE)) {
+                const pid = fs.readFileSync(LOCK_FILE, 'utf8');
+                if (pid === process.pid.toString()) {
+                    fs.unlinkSync(LOCK_FILE);
+                    logger.info('TelegramChannel: lock file removed');
+                }
+            }
+        } catch (_) { }
+        this.connected = false;
+        await super.destroy();
     }
 }
 

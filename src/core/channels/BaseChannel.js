@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 const crypto = require('crypto');
 
 class BaseChannel extends EventEmitter {
+    static registry = {};
     static register(type, cls) {
         this.registry[type.toLowerCase()] = cls;
     }
@@ -66,20 +67,17 @@ class BaseChannel extends EventEmitter {
         };
     }
 
-    isAuthorized(userId, secondaryId = null) {
-        if (!userId && !secondaryId) return false;
+    isAuthorized(userId) {
+        if (!userId) return false;
         const allowed = this.config.allowed_ids || [];
         if (allowed.length === 0) return true;
 
-        const idsToCheck = [userId, secondaryId].filter(Boolean).map(id => String(id).toLowerCase());
-        
-        for (const idStr of idsToCheck) {
-            if (allowed.includes(idStr)) return true;
+        const idStr = String(userId).toLowerCase();
+        if (allowed.includes(idStr)) return true;
 
-            if (idStr.includes('@')) {
-                const number = idStr.split('@')[0];
-                if (allowed.some(a => a === number || a === `${number}@s.whatsapp.net` || a === `${number}@lid`)) return true;
-            }
+        if (idStr.includes('@')) {
+            const number = idStr.split('@')[0];
+            return allowed.some(a => a === number || a === `${number}@s.whatsapp.net` || a === `${number}@lid`);
         }
 
         return false;
@@ -97,8 +95,5 @@ class BaseChannel extends EventEmitter {
         this.removeAllListeners();
     }
 }
-
-// Static field assigned after class definition (Babel class-properties plugin not required)
-BaseChannel.registry = {};
 
 module.exports = { BaseChannel };

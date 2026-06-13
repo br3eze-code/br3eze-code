@@ -58,7 +58,6 @@ class SystemSkill extends BaseSkill {
         for (const [id, skill] of ctx.agent.registry.drivers.entries()) {
           try { results.skills[id] = await skill.healthCheck() }
           catch (e) { results.skills[id] = { status: 'error', error: e.message } }
-        }
         return results
 
       case 'sys.audit':

@@ -95,26 +95,13 @@ class DiscordChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
         
-        // 1. Initial sync/registration by platform ID
         await db.upsertUser(jid, {
           username: msg.author?.username || jid,
           platform: 'discord',
           channels: { discord: jid }
         }).catch(e => console.warn(`Discord user sync failed: ${e.message}`));
 
-        // 2. Bridge to Firebase Auth if possible (Identity Bridging)
-        const authUser = await db.resolveFirebaseUser(jid, { 
-          channel: 'discord', 
-          channelId: jid 
-        }).catch(() => null);
-
-        if (authUser?.uid) {
-          msg.userDoc = db.getUserDoc(authUser.uid);
-          msg._uid = authUser.uid;
-        } else {
-          msg.userDoc = db.getUserDoc(jid);
-          msg._uid = jid;
-        }
+        db.resolveFirebaseUser(jid, { channel: 'discord', channelId: jid }).catch(() => { });
 
         await fn.call(this, jid, msg, match);
       } catch (err) {

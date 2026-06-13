@@ -671,9 +671,6 @@ const { spawn, exec } = require('child_process');
 const crypto = require('crypto');
 const os = require('os');
 
-const isWindows = os.platform().startsWith('win');
-const isTermux = !!process.env.TERMUX_VERSION || (os.platform() === 'linux' && require('fs').existsSync('/data/data/com.termux'));
-
 const config = {
     masterUrl: process.argv.includes('--master')
         ? process.argv[process.argv.indexOf('--master') + 1]
@@ -681,18 +678,17 @@ const config = {
     nodeId: process.argv.includes('--node-id')
         ? process.argv[process.argv.indexOf('--node-id') + 1]
         : \`node_\${os.hostname()}_\${Date.now().toString(36)}\`,
-    platform: isWindows ? 'windows' : (isTermux ? 'termux' : 'linux'),
+    platform: os.platform().startsWith('win') ? 'windows' : 'linux',
     capabilities: {
         shell: true,
-        powershell: isWindows,
-        bash: !isWindows,
+        powershell: os.platform().startsWith('win'),
+        bash: !os.platform().startsWith('win'),
         ssh: true,
         file: true,
         system: true,
         network: true,
-        docker: !isWindows && !isTermux,
-        systemctl: !isWindows && !isTermux,
-        termux: isTermux
+        docker: false,
+        systemctl: !os.platform().startsWith('win')
     }
 };
 
@@ -771,8 +767,6 @@ class DesktopSlave {
                 result = await this.execSystem(command, params);
             } else if (command.startsWith('github.')) {
                 result = await this.execGitHub(command, params);
-            } else if (command.startsWith('termux.')) {
-                result = await this.execTermux(command, params);
             } else {
                 throw new Error(\`Unknown command: \${command}\`);
             }
@@ -827,61 +821,6 @@ class DesktopSlave {
 
     async execGitHub(command, params) {
         throw new Error('GitHub operations require OAuth configuration');
-    }
-
-    async execTermux(command, params) {
-        if (!this.config.capabilities.termux) {
-            throw new Error('Termux API operations are only available in a Termux environment');
-        }
-
-        const { exec } = require('child_process');
-        return new Promise((resolve, reject) => {
-            let cmdStr = '';
-            switch (command) {
-                case 'termux.toast':
-                    cmdStr = \`termux-toast "\${params.message || 'Hello from AgentOS!'}"\`;
-                    break;
-                case 'termux.vibrate':
-                    cmdStr = \`termux-vibrate -d \${params.duration || 500}\`;
-                    break;
-                case 'termux.battery':
-                    cmdStr = 'termux-battery-status';
-                    break;
-                case 'termux.wifi':
-                    cmdStr = 'termux-wifi-connectioninfo';
-                    break;
-                case 'termux.scan':
-                    cmdStr = 'termux-wifi-scaninfo';
-                    break;
-                case 'termux.tts':
-                    cmdStr = \`termux-tts-speak "\${params.text || 'Notification from AgentOS'}"\`;
-                    break;
-                case 'termux.sms':
-                    if (!params.number || !params.text) {
-                        return reject(new Error('SMS requires params.number and params.text'));
-                    }
-                    cmdStr = \`termux-sms-send -n \${params.number} "\${params.text}"\`;
-                    break;
-                case 'termux.contacts':
-                    cmdStr = 'termux-contact-list';
-                    break;
-                default:
-                    return reject(new Error(\`Unknown Termux command: \${command}\`));
-            }
-
-            exec(cmdStr, (error, stdout, stderr) => {
-                if (error) {
-                    return reject(new Error(\`Termux command failed: \${stderr || error.message}\`));
-                }
-                let data = stdout.trim();
-                try {
-                    if (data.startsWith('{') || data.startsWith('[')) {
-                        data = JSON.parse(data);
-                    }
-                } catch (e) {}
-                resolve({ success: true, command: cmdStr, result: data });
-            });
-        });
     }
 
     send(data) {

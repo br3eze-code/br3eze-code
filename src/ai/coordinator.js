@@ -130,7 +130,7 @@ When managing CCTV, you can target specific devices by their deviceId.`;
         const { getDatabase } = require('../core/database');
         const db = await getDatabase();
         const voucherAgent = require('../core/voucher');
-        const code = await voucherAgent.generate(params.plan || '1hour');
+        const code = voucherAgent.generate(params.plan || '1hour');
 
         const { DEFAULT_PLANS } = require('../core/database');
         const dateUtils = require('../utils/date');
@@ -339,14 +339,12 @@ When managing CCTV, you can target specific devices by their deviceId.`;
     };
   }
   async processInteraction(msg, context = {}) {
-    const text = typeof msg === 'string' ? msg : msg.text;
-    const userId = context.userId || msg.userId;
+    logger.debug(`Processing interaction from ${context.channel || 'unknown'}: ${msg.text}`);
 
-    logger.debug(`Processing interaction from ${context.channel || 'unknown'} (User: ${userId}): ${text}`);
-
-    const result = await this.processQuery(text, {
-      ...context,
-      userId
+    const result = await this.processQuery(msg.text, {
+      userId: msg.userId,
+      channel: context.channel,
+      ...context
     });
 
     return {

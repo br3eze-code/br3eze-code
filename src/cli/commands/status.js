@@ -99,13 +99,9 @@ module.exports = (program) => {
         } finally {
           if (mikrotik) {
             try {
-              // Ensure we don't await a disconnect on an already closing/closed connection
-              if (mikrotik.isConnected && !mikrotik.isClosing) {
-                await mikrotik.disconnect().catch(() => {});
-              }
-            } catch (e) {
-              // Silently ignore disconnect errors
-            }
+              const p = mikrotik.disconnect();
+              if (p && p.catch) p.catch(() => {});
+            } catch (e) {}
           }
         }
 

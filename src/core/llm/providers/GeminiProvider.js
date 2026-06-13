@@ -37,8 +37,7 @@ class GeminiProvider extends BaseProvider {
 
         const model = this.client.getGenerativeModel({
             model: this.model,
-            tools: tools.length ? [{ functionDeclarations: tools }] : [],
-            systemInstruction: this.config.systemPrompt ? { role: 'system', parts: [{ text: this.config.systemPrompt }] } : undefined
+            tools: tools.length ? [{ functionDeclarations: tools }] : []
         });
 
         const history = messages.slice(0, -1).map(m => ({

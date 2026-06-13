@@ -37,14 +37,12 @@ class AgentOS extends EventEmitter {
 
     // Legacy manager aliases for compatibility with ss35b patterns
     this.mikrotik = config?.mikrotik || require('./mikrotik').getManager();
-    this.databasePromise = require('./database').getDatabase();
-    this.database = null; // Will be set in initialize()
-    // Services (initialized in initialize() after database is ready)
+    this.database = require('./database').getDatabase();
     this.mastercard = new MastercardA2AService();
-    this.financial = null;
-    this.billing = null;
-    this.discovery = null;
-    this.orchestrator = null;
+    this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
+    this.billing = new (require('./universal-billing'))({ database: this.database });
+    this.discovery = new (require('./discovery'))({ mikrotik: this.mikrotik });
+    this.orchestrator = new AgentOSOrchestrator(this.mikrotik, this.database, this.channels, this);
 
     // Circuit breakers for external services
     this.breakers = {
@@ -102,16 +100,9 @@ class AgentOS extends EventEmitter {
     try {
       // Ensure database is ready first as other components depend on it
       logger.info('AgentOS: Initializing Database...');
-      this.database = await this.databasePromise;
       if (this.database && typeof this.database.initialize === 'function') {
         await this.database.initialize();
       }
-
-      // Initialize secondary services with resolved database
-      this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
-      this.billing = new (require('./universal-billing'))({ database: this.database });
-      this.discovery = new (require('./discovery'))({ mikrotik: this.mikrotik });
-      this.orchestrator = new AgentOSOrchestrator(this.mikrotik, this.database, this.channels, this);
 
       // Initialize memory (needed by other components)
       logger.info('AgentOS: Initializing Memory...');
@@ -318,8 +309,7 @@ Respond with JSON: {"skill": "skillName", "params": {}, "confidence": 0.9}
     skills: this.skills,
     memory: this.memory,
     llm: this.llm,
-    channels: this.channels,
-    userDoc: input.userDoc || context.userDoc
+    channels: this.channels
   };
 }
 
@@ -401,7 +391,6 @@ setupShutdownHandlers() {
       }
     }
 
-    if (this.billing && typeof this.billing.stopReaper === "function") { this.billing.stopReaper(); }
     await this.channels.closeAll();
     await this.memory.close();
     await this.health.stop();
@@ -471,7 +460,6 @@ getStatus() {
       if (this.telemetry && typeof this.telemetry.stop === 'function') {
         this.telemetry.stop();
       }
-      await this.skills.destroy();
       await this.health.stop();
       await this.channels.closeAll();
       await this.memory.close();
@@ -496,5 +484,5 @@ getStatus() {
 }
 
 module.exports = AgentOS;
-// Alias for legacy ss35b compatibility
+
 module.exports.AgentOSBot = AgentOS;

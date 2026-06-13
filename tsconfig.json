@@ -23,6 +23,7 @@
     // ── Extras ──────────────────────────────────────────────
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "allowJs": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

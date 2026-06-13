@@ -47,22 +47,19 @@ class SkillRegistry extends EventEmitter {
       const yamlManifest  = path.join(skillPath, 'manifest.yaml');
       const yamlManifest2 = path.join(skillPath, 'manifest.yml');
       const jsonManifest  = path.join(skillPath, 'skill.json');
-      const jsonManifest2 = path.join(skillPath, 'manifest.json');
 
       if (fss.existsSync(yamlManifest) || fss.existsSync(yamlManifest2)) {
         console.log(`[SkillRegistry] Found YAML manifest for ${path.basename(skillPath)}`);
         const file = fss.existsSync(yamlManifest) ? yamlManifest : yamlManifest2;
         manifest = yaml.load(await fs.readFile(file, 'utf8'));
-      } else if (fss.existsSync(jsonManifest) || fss.existsSync(jsonManifest2)) {
-        const file = fss.existsSync(jsonManifest) ? jsonManifest : jsonManifest2;
+      } else if (fss.existsSync(jsonManifest)) {
         console.log(`[SkillRegistry] Found JSON manifest for ${path.basename(skillPath)}`);
-        manifest = JSON.parse(await fs.readFile(file, 'utf8'));
+        manifest = JSON.parse(await fs.readFile(jsonManifest, 'utf8'));
       } else {
         console.log(`[SkillRegistry] No manifest found in ${skillPath}`);
         console.log(`  Checked: ${yamlManifest}`);
         console.log(`  Checked: ${yamlManifest2}`);
         console.log(`  Checked: ${jsonManifest}`);
-        console.log(`  Checked: ${jsonManifest2}`);
         throw new Error('No manifest.yaml or skill.json found');
       }
 
@@ -81,7 +78,7 @@ class SkillRegistry extends EventEmitter {
 
       // ── 3. Normalise to { execute, initialize, destroy, validate } ─────────
       const mod = (typeof impl === 'function' && impl.prototype?.execute)
-        ? new impl(this.config, logger)  // class
+        ? new impl()  // class
         : impl;
 
       const skill = {

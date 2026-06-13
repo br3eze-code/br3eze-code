@@ -3,22 +3,31 @@ name: Deploy AgentOS
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'helm/**'
+      - 'Dockerfile'
+      - 'package.json'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
+    name: Build Container
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     outputs:
       image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,9 +49,10 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v5
         with:
-          context:
+          context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -50,52 +60,93 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
+    name: Deploy to Kubernetes
     needs: build
     runs-on: ubuntu-latest
     environment: production
+    if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate secrets
+        run: |
+          [ -n "${{ secrets.KUBECONFIG }}" ] || { echo "❌ KUBECONFIG secret missing"; exit 1; }
+          [ -n "${{ secrets.KUBE_NAMESPACE }}" ] || { echo "⚠️  KUBE_NAMESPACE not set, using 'agentos'"; }
+          [ -n "${{ secrets.KUBE_INGRESS_HOST }}" ] || { echo "⚠️  KUBE_INGRESS_HOST not set, using 'agentos.local'"; }
+          echo "✓ Secrets validated"
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Kubeconfig
+      - name: Setup Kubernetes context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
 
+      - name: Create namespace
+        run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          echo "✓ Namespace: $NAMESPACE"
+
       - name: Create secrets
         run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create secret generic agentos \
-            --from-literal=gateway-token=${{ secrets.GATEWAY_TOKEN }} \
-            --from-literal=audit-secret=${{ secrets.AUDIT_SECRET }} \
-            --from-literal=gemini-api-key=${{ secrets.GEMINI_API_KEY }} \
-            --from-literal=mikrotik-api-token=${{ secrets.MIKROTIK_API_TOKEN }} \
-            --from-literal=aws-access-key-id=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --from-literal=aws-secret-access-key=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            --from-file=gcp-sa-key=/dev/null \
+            --from-literal=gateway-token="${{ secrets.GATEWAY_TOKEN }}" \
+            --from-literal=audit-secret="${{ secrets.AUDIT_SECRET }}" \
+            --from-literal=gemini-api-key="${{ secrets.GEMINI_API_KEY }}" \
+            --from-literal=mikrotik-api-token="${{ secrets.MIKROTIK_API_TOKEN }}" \
+            --from-literal=aws-access-key-id="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            --from-literal=aws-secret-access-key="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -n "$NAMESPACE" \
             --dry-run=client -o yaml | kubectl apply -f -
+          echo "✓ Secrets created"
 
-      - name: Create workspace ConfigMap
+      - name: Create ConfigMap
         run: |
-          kubectl create configmap agentos-workspace \
-            --from-file=workspace.json=./workspace.json \
-            --dry-run=client -o yaml | kubectl apply -f -
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          if [ -f workspace.json ]; then
+            kubectl create configmap agentos-workspace \
+              --from-file=workspace.json=./workspace.json \
+              -n "$NAMESPACE" \
+              --dry-run=client -o yaml | kubectl apply -f -
+            echo "✓ ConfigMap created"
+          else
+            echo "⚠️  workspace.json not found, skipping"
+          fi
 
       - name: Helm upgrade
         run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'agentos.local' }}"
+          IMAGE_TAG="${{ needs.build.outputs.digest }}"
+          
           helm upgrade --install agentos ./helm/agentos \
-            --namespace agentos \
+            --namespace "$NAMESPACE" \
             --create-namespace \
-            --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --set image.tag=${{ needs.build.outputs.image }} \
-            --set ingress.hosts[0].host=agentos.yourdomain.com \
+            --set image.repository="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            --set image.tag="$IMAGE_TAG" \
+            --set ingress.hosts[0].host="$INGRESS_HOST" \
             --wait --timeout 5m
+          echo "✓ Helm upgrade complete"
 
-      - name: Verify
+      - name: Verify deployment
         run: |
-          kubectl rollout status deployment/agentos -n agentos
-          kubectl get ing -n agentos
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          echo "Waiting for rollout..."
+          kubectl rollout status deployment/agentos -n "$NAMESPACE" --timeout=5m
+          echo "Getting ingress..."
+          kubectl get ing -n "$NAMESPACE"
+          echo "✓ Deployment verified"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          echo "⚠️  Deployment failed, rolling back..."
+          helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deployment)"

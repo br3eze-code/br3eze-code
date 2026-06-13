@@ -2,7 +2,7 @@
 // 1. CONFIGURATION
 // ============================================================================
 const CONFIG = {
-    API_KEY: window.GEMINI_CONFIG?.API_KEY || 'AIzaSyBHXTvmCGsppeT1b3R2vKD1pLOUS34Y4ZU',
+    API_KEY: window.GEMINI_CONFIG?.API_KEY || 'YOUR_KEY_HERE',
     MODEL: 'gemini-2.5-flash',
     MAX_HISTORY: 20,
     PROACTIVE_INTERVAL: 30000,
@@ -328,10 +328,40 @@ const MemorySystem = {
         const now = new Date();
 
         let context = `You are Br3eze Agent, an autonomous AI assistant.
-Time: ${now.toLocaleString()}
-User: ${user?.fullname || 'Guest'} (${user?.role || 'user'})
-Balance: $${user?.credits?.toFixed(2) || '0.00'}
-
+        Time: ${now.toLocaleString()}
+User: 
+u
+s
+e
+r
+?
+.
+f
+u
+l
+l
+n
+a
+m
+e
+∣
+∣
+′
+G
+u
+e
+s
+t
+′
+(
+user?.fullname∣∣ 
+′
+ Guest 
+′
+ (
+{user?.role || 'user'})
+Balance: 
+{user?.credits?.toFixed(2) || '0.00'}
 RULES:
 ALWAYS use tools instead of manual navigation instructions
 If a tool fails, explain the error and suggest alternatives
@@ -437,94 +467,11 @@ const ProactiveMonitor = {
 };
 
 // ============================================================================
-// 6. CHAT UI MODULE (Extending window.UI)
-// ============================================================================
-const AgentUI = {
-    get log() {
-        return document.getElementById('chatLog');
-    },
-
-    createBubble(id, sender, text = '') {
-        const chatLog = this.log;
-        if (!chatLog) return null;
-
-        const div = document.createElement('div');
-        div.id = `msg-${id}`;
-        div.className = `chat-message ${sender}`;
-
-        if (sender === 'bot') {
-            div.innerHTML = `<div class="bot-avatar"><i class="fas fa-robot"></i></div><div class="bubble bot" id="bubble-${id}">${this.format(text)}</div>`;
-        } else {
-            div.innerHTML = `<div class="bubble user">${this.format(text)}</div>`;
-        }
-
-        chatLog.appendChild(div);
-        this.scroll();
-        return div;
-    },
-
-    updateBubble(id, text) {
-        const bubble = document.getElementById(`bubble-${id}`);
-        if (bubble) {
-            bubble.innerHTML = this.format(text);
-            this.scroll();
-        }
-    },
-
-    addSystemButtons(text, buttons) {
-        const id = Date.now();
-        this.createBubble(id, 'bot', text);
-
-        const container = document.createElement('div');
-        container.className = 'chat-action-buttons';
-        container.style.marginTop = '8px';
-        container.style.display = 'flex';
-        container.style.gap = '8px';
-        container.style.flexWrap = 'wrap';
-
-        buttons.forEach(btn => {
-            const b = document.createElement('button');
-            b.className = `btn btn-sm chat-inline-btn ${btn.class || ''}`;
-            b.innerHTML = btn.label;
-            b.onclick = btn.onClick;
-            container.appendChild(b);
-        });
-
-        document.getElementById(`msg-${id}`)?.appendChild(container);
-        this.scroll();
-    },
-
-    addSystemMessage(text, actions = []) {
-        if (actions.length) this.addSystemButtons(text, actions);
-        else this.createBubble(Date.now(), 'bot', text);
-    },
-
-    format(text) {
-        if (!text) return '';
-        return text
-            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\n/g, '<br>');
-    },
-
-    scroll() {
-        const chatLog = this.log;
-        if (chatLog) chatLog.scrollTop = chatLog.scrollHeight;
-    }
-};
-
-// Extend the global UI object
-Object.assign(window.UI || {}, AgentUI);
-const UI = window.UI || AgentUI;
-
-// ============================================================================
-// 7. MAIN ORCHESTRATOR
+// 6. MAIN ORCHESTRATOR
 // ============================================================================
 const Br3ezeAgent = {
     async init() {
-        console.log('[Br3ezeAgent] Initializing...');
+        console.log('[Agent] Initializing...');
         await MemorySystem.init();
         ProactiveMonitor.init();
 
@@ -538,77 +485,7 @@ const Br3ezeAgent = {
             ProactiveMonitor.checkProactive();
         });
 
-        const input = document.getElementById('chatInput');
-        const btn = document.getElementById('chatActionBtn');
-
-        if (input) {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    Br3ezeAgent.processMessage(input.value);
-                }
-            });
-        }
-
-        if (btn) {
-            btn.addEventListener('click', () => {
-                Br3ezeAgent.processMessage(input?.value || '');
-            });
-        }
-
-        console.log('[Br3ezeAgent] Ready for commands');
-    },
-
-    open() {
-        document.getElementById('chatBoxModal')?.classList.add('active');
-        if (STATE.apiHistory.length === 0) {
-            const name = window.currentUser?.fullname?.split(' ')[0] || 'there';
-            setTimeout(() => {
-                UI.createBubble('intro', 'bot', `Hello ${name}! 👋 I'm Br3eze Agent. I can help you buy plans, redeem vouchers, check usage, and manage your account. What would you like to do?`);
-            }, 300);
-        }
-    },
-
-    close() {
-        document.getElementById('chatBoxModal')?.classList.remove('active');
-    },
-
-    async processMessage(text) {
-        if (!text || !text.trim()) return;
-        const msg = text.trim();
-
-        // Clear input field if it's there
-        const input = document.getElementById('chatInput');
-        if (input) input.value = '';
-
-        // Add user bubble
-        const userMsgId = Date.now();
-        UI.createBubble(userMsgId, 'user', msg);
-
-        // Add bot thinking bubble
-        const botMsgId = Date.now() + 1;
-        UI.createBubble(botMsgId, 'bot', 'Thinking...');
-
-        try {
-            const res = await this.processCommand(msg);
-            if (res.success) {
-                // If there's any clean readable response text after filtering JSON blocks
-                let displayText = res.response;
-                // Remove any json tool block from display text to keep UI clean
-                displayText = displayText.replace(/```json\s*\{\s*"toolCalls"[\s\S]*?\}\s*```/g, '').trim();
-                
-                if (displayText) {
-                    UI.updateBubble(botMsgId, displayText);
-                } else {
-                    // If the response was purely tool calling, show completed state
-                    UI.updateBubble(botMsgId, 'Executing requested action...');
-                }
-            } else {
-                UI.updateBubble(botMsgId, `⚠️ Error: ${res.error}`);
-            }
-        } catch (err) {
-            UI.updateBubble(botMsgId, `⚠️ Connection error: ${err.message}`);
-        }
+        console.log('[Agent] Ready for commands');
     },
 
     async processCommand(input) {
@@ -658,7 +535,7 @@ const Br3ezeAgent = {
 
             // Process tools
             for (const toolCall of toolCalls) {
-                const { name, args } = toolCall;
+                const { name, args, id } = toolCall;
 
                 // Check safety
                 const safety = SafetyGate.requiresConfirmation(name, args);
@@ -679,7 +556,7 @@ const Br3ezeAgent = {
                 const result = await ToolRegistry.execute(name, args);
 
                 // Add result to history
-                history.push({ role: 'model', parts: [{ text: `Tool result: ${JSON.stringify(result)}` }] });
+                history.push({ role: 'model', parts: [{ text: JSON.stringify(result) }] });
 
                 // Update context if needed
                 if (result.success && (name === 'purchase_plan' || name === 'redeem_voucher')) {
@@ -700,81 +577,114 @@ const Br3ezeAgent = {
     },
 
     async callGemini(history, context) {
-        const apiKey = window.AIBridge?.API_KEY || CONFIG.API_KEY;
-        const model = window.AIBridge?.MODEL || CONFIG.MODEL;
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const payload = {
+            contents: history.slice(-CONFIG.MAX_HISTORY),
+            systemInstruction: { parts: [{ text: context }] },
+            tools: [{
+                googleSearch: {}
+            }, {
+                createBubble(id, sender, text = '') {
+                    if (!this.log) return;
+                    const div = document.createElement('div');
+                    div.id = `msg-${id}`;
+                    div.className = `chat-message ${sender}`;
 
-        // Build a robust system prompt including tool definitions
-        const toolSpecs = Object.values(ToolRegistry.definitions).map(d => {
-            return `- ${d.name}: ${d.description}. Parameters: ${JSON.stringify(d.parameters)}`;
-        }).join('\n');
+                    if (sender === 'bot') {
+                        div.innerHTML = `<div class="bot-avatar"><i class="fas fa-robot"></i></div><div class="bubble bot" id="bubble-${id}">${this.format(text)}</div>`;
+                    } else {
+                        div.innerHTML = `<div class="bubble user">${this.format(text)}</div>`;
+                    }
 
-        const systemPrompt = `${context}
+                    this.log.appendChild(div);
+                    this.scroll();
+                    return div;
+                },
 
-AVAILABLE TOOLS:
-${toolSpecs}
+                updateBubble(id, text) {
+                    const bubble = document.getElementById(`bubble-${id}`);
+                    if (bubble) {
+                        bubble.innerHTML = this.format(text);
+                        this.scroll();
+                    }
+                },
 
-TOOL CALL FORMAT:
-If you want to call a tool, you MUST append a JSON markdown block to your response exactly like this:
-\`\`\`json
-{
-  "toolCalls": [
-    {
-      "name": "tool_name",
-      "args": {"arg1": "value1"}
-    }
-  ]
-}
-\`\`\`
-Only call tools defined in the AVAILABLE TOOLS list. Do not explain the JSON format to the user; just output it.`;
+                addSystemButtons(text, buttons) {
+                    const id = Date.now();
+                    this.createBubble(id, 'bot', text);
 
-        // Format history for the request
-        const apiContents = history.map(h => {
-            const partText = typeof h.parts[0] === 'string' ? h.parts[0] : (h.parts[0].text || '');
-            return {
-                role: h.role === 'assistant' || h.role === 'model' ? 'model' : 'user',
-                parts: [{ text: partText }]
-            };
-        });
+                    const container = document.createElement('div');
+                    container.className = 'chat-action-buttons';
+                    container.style.marginTop = '8px';
 
-        const response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: apiContents,
-                systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: { temperature: 0.2, maxOutputTokens: 800 }
-            })
-        });
+                    buttons.forEach(btn => {
+                        const b = document.createElement('button');
+                        b.className = `btn btn-sm chat-inline-btn ${btn.class || ''}`;
+                        b.innerHTML = btn.label;
+                        b.onclick = btn.onClick;
+                        container.appendChild(b);
+                    });
 
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
+                    document.getElementById(`msg-${id}`)?.appendChild(container);
+                    this.scroll();
+                },
 
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        return { text: reply };
-    },
+                addSystemMessage(text, actions = []) {
+                    if (actions.length) this.addSystemButtons(text, actions);
+                    else this.createBubble(Date.now(), 'bot', text);
+                },
 
-    extractToolCalls(text) {
-        if (!text) return [];
-        // Match standard markdown JSON block
-        const match = text.match(/```json\s*(\{\s*"toolCalls"[\s\S]*?\})\s*```/) || text.match(/(\{\s*"toolCalls"[\s\S]*?\})/);
-        if (match) {
-            try {
-                const parsed = JSON.parse(match[1]);
-                if (Array.isArray(parsed.toolCalls)) {
-                    return parsed.toolCalls;
+                format(text) {
+                    return text
+                        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/`([^`]+)`/g, '<code>$1</code>')
+                        .replace(/\n/g, '<br>');
+                },
+
+                scroll() {
+                    if (this.log) this.log.scrollTop = this.log.scrollHeight;
                 }
-            } catch (e) {
-                console.error('[Br3ezeAgent] Failed to parse tool calls from text:', e);
-            }
-        }
-        return [];
-    },
+            };
+            // ============================================================================
+            // 8. PUBLIC API
+            // ============================================================================
+            return {
+                async init() {
+                    await MemorySystem.init();
+                    ProactiveMonitor.start();
+                    const input = document.getElementById('chatInput');
+                    const btn = document.getElementById('chatActionBtn');
 
-    get state() { return STATE; },
-    get tools() { return ToolRegistry; }
-};
+                    if (input) {
+                        input.addEventListener('keypress', (e) => {
+                            if (e.key === 'Enter') Core.processMessage(input.value);
+                        });
+                    }
 
-// Export to window
-window.Br3ezeAgent = Br3ezeAgent;
-window.Br3ezeAgent.init();
+                    if (btn) {
+                        btn.addEventListener('click', () => Core.processMessage(input?.value || ''));
+                    }
+
+                    console.log('[OpenClaw Agent] v3.1 Enhanced Native Online');
+                },
+
+                open() {
+                    document.getElementById('chatBoxModal')?.classList.add('active');
+                    if (STATE.apiHistory.length === 0) {
+                        const name = window.currentUser?.fullname?.split(' ')[0] || 'there';
+                        setTimeout(() => {
+                            UI.createBubble('intro', 'bot', `Hello ${name}! 👋 I'm Br3eze Agent. I can help you buy plans, redeem vouchers, check usage, and manage your account. What would you like to do?`);
+                        }, 300);
+                    }
+                },
+
+                close() {
+                    document.getElementById('chatBoxModal')?.classList.remove('active');
+                },
+
+                send: Core.processMessage,
+
+                // Expose for debugging
+                get state() { return STATE; },
+                get tools() { return ToolRegistry; }

@@ -22,7 +22,6 @@ class OllamaProvider extends BaseProvider {
         this.model = config.model || process.env.OLLAMA_MODEL || 'llama3';
         this.base = config.baseURL || process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
         this.availableModels = [];
-        this.available = false; // set true after successful connect
     }
 
     async initialize() {
@@ -35,13 +34,9 @@ class OllamaProvider extends BaseProvider {
             if (!exists) {
                 logger.warn(`Ollama model ${this.model} not found locally. Ensure it is pulled.`);
             }
-            this.available = true;
         } catch (err) {
-            // Degrade gracefully — log a warning but do NOT throw.
-            // This allows AgentOS to start without Ollama running
-            // (e.g. in tests or when using a different LLM provider).
-            logger.warn(`[Ollama] Service unavailable at ${this.base}: ${err.message}. LLM features will be disabled.`);
-            this.available = false;
+            logger.error(`Ollama connection error: ${err.message}`);
+            throw new Error(`Ollama service unavailable at ${this.base}`);
         }
     }
 
@@ -49,9 +44,6 @@ class OllamaProvider extends BaseProvider {
      * Generate text or tool calls using the chat endpoint.
      */
     async generate(messages, tools = []) {
-        if (!this.available) {
-            throw new Error(`Ollama service unavailable at ${this.base}. Start Ollama or configure a different LLM_PROVIDER.`);
-        }
         const ollamaMessages = messages.map(m => {
             const mapped = {
                 role: m.role,

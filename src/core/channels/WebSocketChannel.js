@@ -38,25 +38,10 @@ class WebSocketChannel extends BaseChannel {
     });
 
     this.wss.on('connection', (ws, req) => {
-      // Use the stable clientId sent by the frontend (persisted in localStorage)
-      // so the same browser always maps to the same channels.websocket entry
-      // in Firestore — no more duplicate orphaned UUIDs per reconnect.
-      const urlParams = new URLSearchParams(req.url?.split('?')[1] || '');
-      const requestedId = urlParams.get('clientId') || '';
-      const UUID4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      const clientId = UUID4_RE.test(requestedId) ? requestedId : crypto.randomUUID();
+      const clientId = crypto.randomUUID();
+      this.clients.set(clientId, { ws, authenticated: true });
 
-      // Grab uid early so _rl() has it before auth.identify arrives
-      const earlyUid = urlParams.get('uid') || null;
-
-      this.clients.set(clientId, { ws, authenticated: true, earlyUid, isAlive: true });
-
-      ws.on('pong', () => {
-        const client = this.clients.get(clientId);
-        if (client) client.isAlive = true;
-      });
-
-      logger.info(`WebSocket client connected: ${clientId}${earlyUid ? ' uid:' + earlyUid : ''}`);
+      logger.info(`WebSocket client connected: ${clientId}`);
 
       // Hello message
       this.sendToWs(ws, {
@@ -64,9 +49,7 @@ class WebSocketChannel extends BaseChannel {
         payload: {
           service: 'AgentOS',
           version: '2026.4.11',
-          timestamp: new Date().toISOString(),
-          // Echo back the clientId so the frontend can confirm its ID was accepted
-          clientId
+          timestamp: new Date().toISOString()
         }
       });
 
@@ -77,86 +60,15 @@ class WebSocketChannel extends BaseChannel {
       this.connected = true;
     });
 
-    const interval = setInterval(() => {
-      this.wss.clients.forEach((ws) => {
-        const client = Array.from(this.clients.values()).find(c => c.ws === ws);
-        if (client) {
-          if (client.isAlive === false) return ws.terminate();
-          client.isAlive = false;
-          ws.ping();
-        }
-      });
-    }, 30000);
-
-    this.wss.on('close', () => clearInterval(interval));
-
     logger.info(`WebSocket channel initialized on ${this.path}`);
-
-    // Attach PrintBroker so mobile print ACKs are routed correctly
-    try {
-      const { PrintBroker } = require('../print-broker');
-      PrintBroker.getInstance().attachWebSocketChannel(this);
-    } catch (e) {
-      logger.warn(`[WebSocketChannel] PrintBroker attach failed: ${e.message}`);
-    }
-  }
-
-  /**
-   * Rate Limit & Auth Wrapper
-   * Harmonizes identity resolution across all AgentOS channels.
-   */
-  _rl(fn) {
-    return async (clientId, msg, ...extra) => {
-      try {
-        const db = await this.agent.database;
-        if (!db) return await fn.call(this, clientId, msg, ...extra);
-
-        const channelId = clientId;
-
-        // 1. Sync identity (Register client in local DB if new)
-        await db.upsertUser(channelId, {
-          channel: 'websocket',
-          channelId: channelId,
-          lastActive: new Date().toISOString()
-        });
-
-        // 2. Bridge to Firebase (Resolve canonical UID if linked)
-        const authUser = await db.resolveFirebaseUser(channelId, {
-          channel: 'websocket',
-          channelId: channelId
-        }).catch(() => null);
-
-        // 3. Fallback & Attach (Canonical ID is the UID if available, else the clientId)
-        const _uid = authUser?.uid || channelId;
-        const userDoc = db.getUserDoc(_uid);
-
-        // Inject identity into the message object for downstream consumption
-        if (typeof msg === 'object' && msg !== null) {
-          msg.userDoc = userDoc;
-          msg._uid = _uid;
-        }
-
-        await fn.call(this, clientId, msg, ...extra);
-      } catch (err) {
-        logger.error(`WebSocket identity resolution failed: ${err.message}`, { clientId });
-        await fn.call(this, clientId, msg, ...extra);
-      }
-    };
   }
 
   verifyClient(info) {
     const url = new URL(info.req.url, `http://${info.req.headers.host}`);
     const token = url.searchParams.get('token') || info.req.headers['x-agentos-token'];
-    const expected = this.config.token || process.env.GATEWAY_TOKEN || process.env.AGENTOS_GATEWAY_TOKEN;
+    const expected = this.config.token || (process.env.GATEWAY_TOKEN);
 
-    // No token configured on the server → open/dev mode, allow all connections
-    if (!expected) {
-      logger.warn('[WebSocketChannel] No gateway token configured — accepting unauthenticated connections (dev mode)');
-      return true;
-    }
-
-    // Token required but not provided → reject
-    if (!token) return false;
+    if (!token || !expected) return false;
 
     try {
       return (
@@ -169,15 +81,15 @@ class WebSocketChannel extends BaseChannel {
   }
 
   async handleIncomingMessage(clientId, data) {
-    this.messageCount++; // test
+    this.messageCount++;
     try {
       const message = JSON.parse(data);
       
       // Standardize message for AgentOS
       if (message.type === 'interaction' || message.type === 'message') {
-        this.emit('message', { // test
+        this.emit('message', {
           text: message.text || message.payload?.text,
-          userId: clientId, // test2
+          userId: clientId,
           channel: 'websocket',
           raw: message
         });
@@ -199,53 +111,6 @@ class WebSocketChannel extends BaseChannel {
         this.sendToWs(client.ws, { type: 'pong', timestamp: Date.now() });
         break;
 
-      // ── Firebase identity bridge ───────────────────────────────────────────
-      // The frontend sends this after firebase.auth().onAuthStateChanged fires.
-      // We call resolveFirebaseUser() and link channels.websocket to the STABLE
-      // clientId (persisted in the browser's localStorage) so that:
-      //   db.getUserByChannel('websocket', stableId) works across reconnects
-      // — identical to how TelegramChannel uses a stable chatId.
-      case 'auth.identify': {
-        const uid   = message.uid;
-        const email = message.email;
-        // Prefer the stable clientId from the message (localStorage-persisted UUID)
-        // over the server-assigned one so channels.websocket is always consistent.
-        const UUID4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        const stableChannelId = (message.clientId && UUID4_RE.test(message.clientId))
-          ? message.clientId
-          : clientId;
-
-        if (uid || email) {
-          try {
-            const db = this.agent?.database;
-            if (db) {
-              const identifier = uid || email;
-              const authUser = await db.resolveFirebaseUser(identifier, {
-                channel: 'websocket',
-                channelId: stableChannelId   // always the same UUID across reconnects
-              }).catch(() => null);
-
-              if (authUser?.uid) {
-                const existing = this.clients.get(clientId) || {};
-                this.clients.set(clientId, {
-                  ...existing,
-                  firebaseUid: authUser.uid,
-                  email: authUser.email,
-                  stableChannelId   // store so _rl() can use it for intent routing
-                });
-                logger.info(`[WebSocketChannel] Identity bridged: ws:${stableChannelId} -> uid:${authUser.uid}`);
-                this.sendToWs(client.ws, { type: 'auth.identified', uid: authUser.uid, clientId: stableChannelId });
-              } else {
-                logger.debug(`[WebSocketChannel] auth.identify: no Firebase record for ${identifier}`);
-              }
-            }
-          } catch (e) {
-            logger.warn(`[WebSocketChannel] auth.identify failed: ${e.message}`);
-          }
-        }
-        break;
-      }
-
       case 'node.register':
         this._handleNodeRegister(clientId, client.ws, message.payload);
         break;
@@ -253,40 +118,6 @@ class WebSocketChannel extends BaseChannel {
       case 'node.unregister':
         this._handleNodeUnregister(clientId);
         break;
-
-      // ── Cordova/Android printer registration ─────────────────────────────
-      // The mobile app sends this after connecting to declare it has a printer.
-      // payload: { capability: 'ble'|'usb'|'any', platform: 'android', model: '...' }
-      case 'printer.register': {
-        const existing = this.clients.get(clientId) || {};
-        const cap = message.payload?.capability || message.payload?.printer || 'any';
-        this.clients.set(clientId, {
-          ...existing,
-          capabilities: { ...(existing.capabilities || {}), printer: cap },
-          platform: message.payload?.platform || existing.platform || 'android',
-          printerModel: message.payload?.model || null,
-        });
-        logger.info(`[WebSocketChannel] Client ${clientId} registered printer capability: ${cap}`);
-        this.sendToWs(client.ws, { type: 'printer.registered', capability: cap });
-        break;
-      }
-
-      // ── Print result ACK from Cordova app ─────────────────────────────────
-      // The mobile app sends this after completing (or failing) a print job.
-      // payload: { jobId: '...', success: bool, error?: '...' }
-      case 'print.result': {
-        try {
-          const { PrintBroker } = require('../print-broker');
-          PrintBroker.getInstance()._handleMobileAck({
-            jobId:   message.jobId   || message.payload?.jobId,
-            success: message.success ?? message.payload?.success ?? false,
-            error:   message.error   || message.payload?.error,
-          });
-        } catch (e) {
-          logger.warn(`[WebSocketChannel] print.result routing failed: ${e.message}`);
-        }
-        break;
-      }
 
       case 'command.invoke':
         this._handleCommandInvoke(clientId, client.ws, message);
@@ -340,85 +171,6 @@ class WebSocketChannel extends BaseChannel {
       case 'cli.exec':
         this._handleCliExec(clientId, message);
         break;
-
-      case 'intent':
-        this._handleIntent(clientId, client.ws, message);
-        break;
-    }
-  }
-
-  async _handleIntent(clientId, ws, msg) {
-    const { intent, payload } = msg;
-    logger.info(`Intent received: ${intent} from ${clientId}`);
-
-    try {
-      // Opportunistically update user router context if provided by WifiWizard
-      if (payload.bssid || payload.ssid) {
-        await this.db.upsertUser(clientId, {
-          channel: 'websocket',
-          channelId: clientId,
-          lastActive: new Date().toISOString(),
-          currentRouter: payload.bssid || null,
-          currentSSID: payload.ssid || null
-        });
-      }
-
-      // Map frontend intents to backend actions
-      switch (intent) {
-        case 'purchase_plan': {
-          // Handle plan purchase via AI or direct logic
-          const result = await this.agent.processInteraction(`purchase plan ${payload.planId}`, {
-            channel: 'websocket',
-            userId: clientId,
-            metadata: payload
-          });
-          this.sendToWs(ws, {
-            type: 'intent.result',
-            intent,
-            success: result.success,
-            message: result.result?.text || (result.success ? 'Plan purchased successfully' : 'Purchase failed')
-          });
-          break;
-        }
-
-        case 'redeem_voucher': {
-          const redeemResult = await this.agent.processInteraction(`redeem voucher ${payload.code}`, {
-            channel: 'websocket',
-            userId: clientId,
-            metadata: payload
-          });
-          this.sendToWs(ws, {
-            type: 'intent.result',
-            intent,
-            success: redeemResult.success,
-            message: redeemResult.result?.text || (redeemResult.success ? 'Voucher redeemed' : 'Redemption failed')
-          });
-          break;
-        }
-
-        default: {
-          // Generic intent handling via agent
-          const genericResult = await this.agent.processInteraction(`${intent} ${JSON.stringify(payload)}`, {
-            channel: 'websocket',
-            userId: clientId,
-            metadata: payload
-          });
-          this.sendToWs(ws, {
-            type: 'intent.result',
-            intent,
-            success: genericResult.success,
-            result: genericResult.result
-          });
-        }
-      }
-    } catch (error) {
-      logger.error(`Intent handling failed: ${error.message}`);
-      this.sendToWs(ws, {
-        type: 'intent.result',
-        intent,
-        success: false,
-        error: error.message
-      });
     }
   }
 
@@ -554,22 +306,14 @@ class WebSocketChannel extends BaseChannel {
 
   async _handleToolInvoke(clientId, ws, msg) {
     try {
-      if (!this.agent) throw new Error('AI Agent service unavailable');
-      const result = await this.agent.executeTool(msg.tool, msg.params || {}, {
-        channel: 'websocket',
-        userId: clientId
-      });
-
-      // Tools return { success: false, error } as a resolved value — not a thrown error.
-      // Propagate the tool-level failure correctly so the frontend doesn't see a false positive.
-      const toolSucceeded = !(result && result.success === false);
+      if (!global.mikrotik) throw new Error('MikroTik service unavailable');
+      const result = await global.mikrotik.executeTool(msg.tool, msg.params || []);
       this.sendToWs(ws, {
         type: 'tool.result',
         id: msg.id,
         tool: msg.tool,
         result,
-        success: toolSucceeded,
-        ...(toolSucceeded ? {} : { error: result.error || 'Tool reported failure' })
+        success: true
       });
     } catch (error) {
       this.sendToWs(ws, {

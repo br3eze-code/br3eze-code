@@ -59,11 +59,7 @@ class ChannelManager extends EventEmitter {
         });
       }
 
-      // Opt-IN only: WHATSAPP_ENABLED must be explicitly 'true'.
-      // The old opt-out default ('!== false') caused a second Baileys socket to
-      // start alongside any already-running WhatsApp session, making WhatsApp
-      // force-close the competing socket's Signal Protocol sessions in a loop.
-      if (process.env.WHATSAPP_ENABLED === 'true') {
+      if (process.env.WHATSAPP_ENABLED !== 'false') {
         channelConfigs.push({
           type: 'whatsapp',
           config: {
@@ -86,16 +82,37 @@ class ChannelManager extends EventEmitter {
           config: this.agent.config[type]
         });
       }
-    }
 
-    for (const chan of channelConfigs) {
-      logger.info(`ChannelManager: Registering ${chan.type} channel...`);
-      await this.register(chan);
+      if (this.agent.config.email && this.agent.config.email.enabled && !channelConfigs.find(c => c.type === 'email')) {
+        channelConfigs.push({
+          type: 'email',
+          config: this.agent.config.email
+        });
+      }
+
+      if (this.agent.config.sms && this.agent.config.sms.enabled && !channelConfigs.find(c => c.type === 'sms')) {
+        channelConfigs.push({
+          type: 'sms',
+          config: this.agent.config.sms
+        });
+      }
+
+      if (this.agent.config.ussd && this.agent.config.ussd.enabled && !channelConfigs.find(c => c.type === 'ussd')) {
+        channelConfigs.push({
+          type: 'ussd',
+          config: this.agent.config.ussd
+        });
+      }
+
+      for (const chan of channelConfigs) {
+        logger.info(`ChannelManager: Registering ${chan.type} channel...`);
+        await this.register(chan);
+      }
     }
-  }
+  } // ← closes initialize()
 
   static registerAdapter(type, adapterClass) {
-    BaseChannel.register(type, adapterClass);
+    ChannelManager.adapters.set(type, adapterClass);
   }
 
   async register(channelConfig) {

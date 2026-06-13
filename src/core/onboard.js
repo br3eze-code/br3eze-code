@@ -57,26 +57,8 @@ function generateSetupScript(config = {}) {
 
     const AGENTOS_IP = new URL(AGENTOS_NODE_URL).hostname;
 
-    // Discover wireless interfaces or use provided config
-    const interfaces = config.interfaces || [];
-    let wirelessCommands = '';
-
-    if (interfaces.length > 0) {
-        wirelessCommands = '/interface wireless\n';
-        interfaces.forEach(iface => {
-            const band = iface.band || (iface.name.includes('5') ? '5ghz-a/n/ac' : '2ghz-b/g/n');
-            const freq = iface.frequency || (band.includes('2ghz') ? 2462 : 5180);
-            wirelessCommands += `set [ find default-name=${iface.name} ] band=${band} disabled=no frequency=${freq} mode=ap-bridge security-profile=open-hotspot ssid="${iface.ssid || 'Br3eze Africa'}"\n`;
-        });
-    } else {
-        // Fallback: Dynamic loop in RSC itself to enable all default interfaces
-        wirelessCommands = `:foreach i in=[/interface wireless find] do={\n` +
-                          `  :local ifaceName [/interface wireless get $i default-name];\n` +
-                          `  :local band [/interface wireless get $i band];\n` +
-                          `  :local ssid "${config.SSID || 'Br3eze Africa'}";\n` +
-                          `  /interface wireless set $i disabled=no mode=ap-bridge security-profile=open-hotspot ssid=$ssid;\n` +
-                          `}\n`;
-    }
+    // Use the logic from the refactored root onboard.js
+    // I will use a cleaner template approach here.
 
     return `/interface bridge
 add name=bridge1
@@ -97,7 +79,8 @@ add name=LAN
 /interface wireless security-profiles
 set [ find default=yes ] supplicant-identity=MikroTik
 add name=open-hotspot supplicant-identity=MikroTik
-${wirelessCommands}
+/interface wireless
+set [ find default-name=wlan1 ] band=2ghz-b/g/n disabled=no frequency=2462 mode=ap-bridge security-profile=open-hotspot ssid="Br3eze Africa"
 /ip hotspot profile
 set [ find default=yes ] dns-name=hotspot.local
 add dns-name=captive.local hotspot-address=192.168.88.1 login-by=http-chap,http-pap,trial,mac,cookie name=enforce-portal trial-uptime-limit=5m

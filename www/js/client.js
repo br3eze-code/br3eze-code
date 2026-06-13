@@ -212,5 +212,4 @@ const Client = new AgentOSClient();
 if (typeof window !== 'undefined') {
     window.AgentOSClient = AgentOSClient;
     window.Client = Client;
-    window.App = Client; // Alias for legacy/admin code
 }

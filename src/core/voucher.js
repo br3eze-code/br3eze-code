@@ -48,10 +48,11 @@ class VoucherAgent {
         return plans;
     }
     
-    async generate(plan = 'default') {
+    generate(plan = 'default') {
         const validPlans = this._validPlans;
         let matchedPlan = plan;
         if (!validPlans.has(plan)) {
+            // Attempt case-insensitive match
             const lowerPlan = plan.toLowerCase();
             let found = false;
             for (const valid of validPlans) {
@@ -68,42 +69,27 @@ class VoucherAgent {
         plan = matchedPlan;
 
         const config = this._config;
-        const chars = config.alphabet || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        const crypto = require('crypto');
+        const chars = config.alphabet || config.charset || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         
         const genPart = (len = 4) => {
             let s = '';
-            for (let i = 0; i < len; i++) {
-                const idx = crypto.randomInt(0, chars.length);
-                s += chars.charAt(idx);
-            }
+            for (let i = 0; i < len; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
             return s;
         };
 
+        // If format is like XXXX-XXXX, we replace groups of X with genPart
         const format = config.format || 'XXXX-XXXX';
-        const prefix = config.prefix || 'STAR';
+        let codePart = format.replace(/X+/g, (m) => genPart(m.length));
         
-        let code;
-        let attempts = 0;
-        const { getDatabase } = require('./database');
-        const db = await getDatabase();
-
-        // Ensure uniqueness
-        while (attempts < 10) {
-            let codePart = format.replace(/X+/g, (m) => genPart(m.length));
-            code = prefix ? `${prefix}-${codePart}` : codePart;
-            
-            const existing = await db.getVoucher(code);
-            if (!existing) break;
-            attempts++;
-        }
+        const prefix = config.prefix || 'STAR';
+        const code = `${prefix}-${codePart}`;
 
         eventBus.emit('voucher.created', { code, plan, createdAt: new Date().toISOString() });
         return code;
     }
     
     async createVoucher(plan = 'default') {
-        const code = await this.generate(plan);
+        const code = this.generate(plan);
         const password = code; // Using code as password for simplicity in hotspots
         
         // Provision to MikroTik if available
@@ -130,47 +116,6 @@ class VoucherAgent {
             loginUrl: loginUrl || `http://hotspot.local/login?username=${code}&password=${password}`,
             createdAt: new Date().toISOString()
         };
-    }
-
-    async updateVoucher(code, plan = 'default') {
-        const { getDatabase } = require('./database');
-        const db = await getDatabase();
-        const existing = await db.getVoucher(code);
-        
-        if (!existing) {
-            throw new Error(`Voucher '${code}' not found in database.`);
-        }
-
-        // 1. Update on MikroTik if available
-        let loginUrl = existing.loginUrl || '';
-        if (global.mikrotik && global.mikrotik.isConnected) {
-            try {
-                const result = await global.mikrotik.executeTool('user.edit', {
-                    username: code,
-                    profile: plan
-                });
-                if (result.updated) {
-                    // Re-fetch status to get updated login URL if needed (though usually same)
-                    const status = await global.mikrotik.getUserStatus(code);
-                    if (status.session) {
-                        // If active, maybe we need to kick them to apply new profile? 
-                        // But user.edit usually applies to new sessions.
-                    }
-                }
-            } catch (err) {
-                console.error(`[Voucher] MikroTik update failed for ${code}: ${err.message}`);
-            }
-        }
-
-        // 2. Update in Database
-        await db.updateVoucher(code, {
-            plan: plan,
-            status: 'active',
-            updatedAt: new Date().toISOString()
-        });
-
-        const updated = await db.getVoucher(code);
-        return updated;
     }
 
     redeem(code, user) {

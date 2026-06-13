@@ -1,8 +1,7 @@
 {
   "users": {
     "telegram:123456": { "role": "user", "routers": ["site-a", "site-b"] },
-    "telegram:789012": { "role": "admin", "routers": ["*"] },
-    "telegram:7733493073": { "role": "admin", "routers": ["*"] }
+    "telegram:789012": { "role": "admin", "routers": ["*"] }
   },
   "roles": {
     "user": {

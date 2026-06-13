@@ -4,7 +4,7 @@ const eventBus = require('../core/eventBus');
 
 class Bot {
     constructor(token, agent) {
-        this.bot = new TelegramBot(token, { polling: true }); 
+        this.bot = new TelegramBot(token, { polling: false }); 
         this.agent = agent;
         this.init();
     }

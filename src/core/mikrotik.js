@@ -33,9 +33,9 @@ const toolSchemas = {
 };
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DEFAULT_TIMEOUT = 10_000;
+const DEFAULT_TIMEOUT = 30_000;
 const RECONNECT_INTERVAL = 5_000;
-const MAX_RECONNECT_DELAY = 300_000; // 5 minutes max backoff
+const MAX_RECONNECT_ATTEMPTS = 10;
 const HEARTBEAT_INTERVAL = 30_000;
 
 // ── Error Classes ─────────────────────────────────────────────────────────────
@@ -142,7 +142,6 @@ class MikroTikManager extends EventEmitter {
         this.state = {
             conn: null,
             isConnected: false,
-            isInitialized: false,
             reconnectAttempts: 0,
             lastError: null,
             lastConnectedAt: null,
@@ -191,8 +190,7 @@ class MikroTikManager extends EventEmitter {
         if (this.state.client) {
             this.state.client.removeAllListeners();
             try {
-                const p = this.state.client.disconnect();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
+                this.state.client.disconnect();
             } catch (e) {
                 logger.warn('MikroTik disconnect error during destroy:', e.message);
             }
@@ -282,13 +280,6 @@ class MikroTikManager extends EventEmitter {
             ['api.raw', this.executeRawAPI],
             ['vouchers.cleanup', this.cleanupExpiredVouchers],
             ['system.full_stats', this.getFullSystemStats],
-
-            // Wireless
-            ['wireless.interfaces', this.getWirelessInterfaces],
-            ['wireless.monitor', this.monitorWireless],
-            ['wireless.scan', this.scanWireless],
-            ['wireless.frequency_usage', this.getFrequencyUsage],
-            ['wireless.auto_channels', this.autoAssignChannels],
         ];
 
         for (const [name, fn] of tools) {
@@ -334,7 +325,6 @@ class MikroTikManager extends EventEmitter {
 
             this.state.conn = await client.connect();
             this.state.isConnected = true;
-            this.state.isInitialized = true;
             this.state.reconnectAttempts = 0;
             this.state.lastConnectedAt = new Date().toISOString();
             this.state.lastError = null;
@@ -352,18 +342,8 @@ class MikroTikManager extends EventEmitter {
             this.state.isConnected = false;
             this.state.lastError = error;
 
-            let details = error.message || 'Unknown error';
-            if (error.code) details += ` (Code: ${error.code})`;
-            if (error.errno) {
-                details += ` (Errno: ${error.errno})`;
-                if (error.errno === -4039 || error.errno === -110 || error.code === 'ETIMEDOUT') {
-                    details += ' - Router unreachable (offline or booting)';
-                }
-            }
-            if (error.address) details += ` (Address: ${error.address})`;
-
             const connError = new ConnectionError(
-                `Failed to connect to MikroTik at ${this.config.host}:${this.config.port}: ${details}`,
+                `Failed to connect to MikroTik: ${error.message}`,
                 error
             );
 
@@ -375,40 +355,22 @@ class MikroTikManager extends EventEmitter {
     }
 
     disconnect() {
-        if (this.state.isClosing) return;
-        this.state.isClosing = true;
-
+        // Guard: skip if already disconnected to prevent duplicate log noise
         if (!this.state.isConnected && !this.state.client) {
-            this.state.isClosing = false;
+            logger.debug('MikroTik already disconnected — skipping duplicate disconnect call');
             return;
         }
-
         logger.info('Disconnecting from MikroTik...');
         this._clearIntervals();
 
         if (this.state.client) {
-            try {
-                this.state.client.removeAllListeners();
-                // We don't await here as it might hang, but we catch errors
-                const p = this.state.client.disconnect();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
-                
-                if (typeof this.state.client.close === 'function') {
-                    try { 
-                        const cp = this.state.client.close(); 
-                        if (cp && typeof cp.catch === 'function') cp.catch(() => {});
-                    } catch (_) {}
-                }
-            } catch (e) {
-                logger.debug('MikroTik client disconnect error: ' + e.message);
-            }
+            this.state.client.removeAllListeners();
+            try { this.state.client.disconnect(); } catch (e) { logger.warn('Close error:', e.message); }
             this.state.client = null;
         }
 
         this.state.conn = null;
         this.state.isConnected = false;
-        this.state.isInitialized = false;
-        this.state.isClosing = false;
         this.emit('disconnected', { timestamp: new Date().toISOString() });
         logger.info('🔌 MikroTik disconnected');
     }
@@ -431,16 +393,11 @@ class MikroTikManager extends EventEmitter {
         if (!this.state.isConnected || !this.state.conn) return;
         try {
             // Heartbeat now fetches health to keep 'voltage' and 'cpu' updated
-            // Enforce a strict 10s timeout to catch dead/stale socket connections
-            const health = await Promise.race([
-                this.getSystemHealth(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Heartbeat timeout: router unresponsive')), 10000))
-            ]);
+            const health = await this.getSystemHealth();
             this.state.lastKnownHealth = health; // Update last known health
-            this.state.isInitialized = true; // Confirm actual reachability
             this.emit('healthUpdate', health);
         } catch (error) {
-            logger.warn('Heartbeat failed — connection lost: ' + error.message);
+            logger.warn('Heartbeat failed — connection lost');
             this._handleDisconnect(error);
         }
     }
@@ -449,22 +406,12 @@ class MikroTikManager extends EventEmitter {
         if (!this.state.isConnected && !this.state.conn) return;
 
         this.state.isConnected = false;
-        this.state.isInitialized = false;
         this.state.lastError = error;
 
         // Clean up connection resources
         if (this.state.client) {
             this.state.client.removeAllListeners();
-            try {
-                const p = this.state.client.disconnect();
-                if (p && typeof p.catch === 'function') p.catch(() => {});
-            } catch (_) { }
-            try {
-                if(typeof this.state.client.close === 'function') {
-                    const cp = this.state.client.close();
-                    if (cp && typeof cp.catch === 'function') cp.catch(() => {});
-                }
-            } catch (_) { }
+            try { this.state.client.disconnect(); } catch (_) { }
             this.state.client = null;
         }
         this.state.conn = null;
@@ -501,7 +448,7 @@ class MikroTikManager extends EventEmitter {
      * @private
      */
     async _writeRaw(parts) {
-        await this._ensureConnected();
+        this._ensureConnected();
 
         const rawApi = this._getRawApi();
         if (!rawApi || typeof rawApi.write !== 'function') {
@@ -541,11 +488,16 @@ class MikroTikManager extends EventEmitter {
     }
 
     _scheduleReconnect() {
-        this.state.reconnectAttempts++;
-        const delay = Math.min(RECONNECT_INTERVAL * Math.pow(2, this.state.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
-        logger.info(`Scheduling MikroTik reconnect (attempt ${this.state.reconnectAttempts}) in ${delay}ms`);
+        if (this.state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            logger.error(`Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
+            this.emit('maxReconnectReached', { attempts: this.state.reconnectAttempts });
+            return;
+        }
 
-        if (this.intervals.reconnect) clearTimeout(this.intervals.reconnect);
+        this.state.reconnectAttempts++;
+        const delay = Math.min(RECONNECT_INTERVAL * Math.pow(2, this.state.reconnectAttempts - 1), 60_000);
+        logger.info(`Scheduling reconnect ${this.state.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
+
         this.intervals.reconnect = setTimeout(() => {
             this.connect().catch(err => logger.error('Scheduled reconnect failed:', err.message));
         }, delay);
@@ -565,7 +517,7 @@ class MikroTikManager extends EventEmitter {
 
     // ── Guard ─────────────────────────────────────────────────────────────────
 
-    async _ensureConnected() {
+    _ensureConnected() {
         if (!this.state.isConnected || !this.state.client || !this.state.conn) {
             const reason = !this.state.isConnected ? 'not marked as connected' :
                 !this.state.client ? 'client is null' : 'connection handler is null';
@@ -595,7 +547,7 @@ class MikroTikManager extends EventEmitter {
         }
 
         return this.circuitBreaker.execute(async () => {
-            await this._ensureConnected();
+            this._ensureConnected();
 
             const tool = this.tools.get(toolName);
             if (!tool) {
@@ -631,7 +583,6 @@ class MikroTikManager extends EventEmitter {
     getState() {
         return {
             isConnected: this.state.isConnected,
-            isInitialized: this.state.isInitialized,
             host: this.config.host,
             port: this.config.port,
             reconnectAttempts: this.state.reconnectAttempts,
@@ -668,27 +619,24 @@ class MikroTikManager extends EventEmitter {
 
         let sharedUsers = 1;
 
-        let limitUptime = null;
-        let limitBytesTotal = null;
-
         if (typeof usernameOrObj === 'object' && !passwordArg) {
             username = usernameOrObj.username;
             password = usernameOrObj.password;
             profile = this._normalizeProfile(usernameOrObj.profile || 'default');
             sharedUsers = usernameOrObj.sharedUsers || 1;
-            limitUptime = usernameOrObj.limitUptime || null;
-            limitBytesTotal = usernameOrObj.limitBytesTotal || null;
         } else {
             profile = this._normalizeProfile(profileArg);
         }
 
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username || !password) {
             throw new ToolExecutionError('user.add', 'Username and password are required');
         }
 
         // --- Duration & Limits ---
+        let limitUptime = null;
+        let limitBytesTotal = null;
         let plan = null;
 
         try {
@@ -853,7 +801,7 @@ class MikroTikManager extends EventEmitter {
 
 
     async getHotspotProfiles() {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             const profiles = await this.state.conn.menu('/ip/hotspot/user/profile').get();
             return profiles.map(p => ({
@@ -872,7 +820,7 @@ class MikroTikManager extends EventEmitter {
 
     async updateHotspotProfile(params = {}) {
         const { name, sharedUsers, rateLimit, sessionTimeout, idleTimeout } = params;
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             const update = {};
             if (sharedUsers !== undefined) update['shared-users'] = sharedUsers;
@@ -904,7 +852,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getSystemResource() {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             const resources = await this.state.conn.menu('/system/resource').get();
             return resources[0] || {};
@@ -916,7 +864,7 @@ class MikroTikManager extends EventEmitter {
     async removeHotspotUser(usernameOrObj) {
         let username = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.target || usernameOrObj.id) : usernameOrObj;
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username) throw new ToolExecutionError('user.remove', 'Username required');
 
         const users = await this.state.conn
@@ -946,7 +894,7 @@ class MikroTikManager extends EventEmitter {
         let username = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.target) : usernameOrObj;
         let params = typeof usernameOrObj === 'object' ? usernameOrObj : paramsArg;
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username) throw new ToolExecutionError('user.edit', 'Username required');
 
         const users = await this.state.conn
@@ -980,7 +928,7 @@ class MikroTikManager extends EventEmitter {
             ? (usernameOrObj.username || usernameOrObj.target || usernameOrObj.id || usernameOrObj.name)
             : usernameOrObj;
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username) throw new ToolExecutionError('user.disable', 'Username required');
 
         try {
@@ -1019,7 +967,7 @@ class MikroTikManager extends EventEmitter {
             ? (usernameOrObj.username || usernameOrObj.target || usernameOrObj.id || usernameOrObj.name)
             : usernameOrObj;
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username) throw new ToolExecutionError('user.enable', 'Username required');
 
         try {
@@ -1050,7 +998,7 @@ class MikroTikManager extends EventEmitter {
 
     async addHotspotProfile(params) {
         let { name, sharedUsers, rateLimit, transparentProxy, macCookieTimeout } = params;
-        await this._ensureConnected();
+        this._ensureConnected();
 
         if (!name) throw new ToolExecutionError('profile.add', 'Profile name is required');
 
@@ -1068,7 +1016,7 @@ class MikroTikManager extends EventEmitter {
 
     async editHotspotProfile(params) {
         let { id, name, ...updates } = params;
-        await this._ensureConnected();
+        this._ensureConnected();
 
         if (!id && !name) throw new ToolExecutionError('profile.edit', 'Profile ID or name is required');
 
@@ -1091,7 +1039,7 @@ class MikroTikManager extends EventEmitter {
 
     async removeHotspotProfile(params) {
         let { id, name } = params;
-        await this._ensureConnected();
+        this._ensureConnected();
 
         let targetId = id;
         if (!targetId && name) {
@@ -1107,12 +1055,12 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getAllHotspotUsers() {
-        await this._ensureConnected();
+        this._ensureConnected();
         return this.state.conn.menu('/ip/hotspot/user').get();
     }
 
     async getActiveUsers() {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             // Using _writeRaw for high reliability in state reporting
             return await this._writeRaw(['/ip/hotspot/active/print']);
@@ -1167,7 +1115,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getUserReport() {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             const [users, active] = await Promise.all([
                 this.state.conn.menu('/ip/hotspot/user').get(),
@@ -1204,7 +1152,7 @@ class MikroTikManager extends EventEmitter {
         let target = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.name || usernameOrObj.target || usernameOrObj.id) : usernameOrObj;
         if (!target) return { success: false, error: 'Username or ID required' };
 
-        await this._ensureConnected();
+        this._ensureConnected();
 
         // Try to determine if target is an ID (* prefix)
         const isId = String(target).startsWith('*');
@@ -1238,7 +1186,7 @@ class MikroTikManager extends EventEmitter {
         let target = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.name || usernameOrObj.target || usernameOrObj.id) : usernameOrObj;
         if (!target) throw new ToolExecutionError('user.stats', 'Username or ID required');
 
-        await this._ensureConnected();
+        this._ensureConnected();
         const isId = String(target).startsWith('*');
 
         const [users, active] = await Promise.all([
@@ -1277,7 +1225,7 @@ class MikroTikManager extends EventEmitter {
     async kickUser(usernameOrObj) {
         let username = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.target || usernameOrObj.id) : usernameOrObj;
 
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!username || typeof username !== 'string' || username.trim() === '') {
             throw new ToolExecutionError('user.kick', 'A valid username is required to kick');
         }
@@ -1297,14 +1245,12 @@ class MikroTikManager extends EventEmitter {
             return { kicked: false, username, reason: 'No active sessions match this username' };
         }
 
-        const addresses = [];
         for (const session of sessionsToKick) {
             const id = this._getId(session);
             if (!id) {
                 logger.warn(`Skipping kick for user ${username}: session has no ID`);
                 continue;
             }
-            if (session.address) addresses.push(session.address);
             try {
                 // remove() is the standard way to terminate an active session
                 await this.state.conn.menu('/ip/hotspot/active').remove(id);
@@ -1316,13 +1262,13 @@ class MikroTikManager extends EventEmitter {
         }
 
         this.emit('userKicked', { username, count: sessionsToKick.length });
-        return { kicked: true, username, count: sessionsToKick.length, address: addresses.join(', ') || 'N/A' };
+        return { kicked: true, username, count: sessionsToKick.length };
     }
 
     // ── System Tools ──────────────────────────────────────────────────────────
 
     async getSystemStats(force = false) {
-        await this._ensureConnected();
+        this._ensureConnected();
 
         const cacheKey = 'system_stats';
         if (!force) {
@@ -1399,13 +1345,13 @@ class MikroTikManager extends EventEmitter {
         }
     }
     async getLogs(lines = 10) {
-        await this._ensureConnected();
+        this._ensureConnected();
         const logs = await this.state.conn.menu('/log').get();
         return logs.slice(-Math.max(1, Math.min(lines, 1000)));
     }
 
     async getUptime() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const res = await this.state.conn.menu('/system/resource').get();
         const raw = res[0] || {};
         return {
@@ -1416,7 +1362,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getIdentity() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const identity = await this.state.conn.menu('/system/identity').get();
         const res = await this.state.conn.menu('/system/resource').get();
         const raw = res[0] || {};
@@ -1434,7 +1380,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getSystemHealth() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const stats = await this.getSystemStats();
         const cpu = Number(stats['cpu-load']) || 0;
         const memPct = Number(stats['memory-usage-percent']) || 0;
@@ -1458,7 +1404,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getSystemResources() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const stats = await this.getSystemStats();
         return {
             cpu: stats['cpu-load'],
@@ -1478,7 +1424,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async createBackup() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const now = new Date();
         const date = now.toISOString().slice(0, 10).replace(/-/g, '');
         const time = now.toTimeString().slice(0, 5).replace(':', '');
@@ -1489,7 +1435,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async shutdown() {
-        await this._ensureConnected();
+        this._ensureConnected();
         logger.warn('Initiating system shutdown...');
         try {
             const conn = this.state.conn;
@@ -1510,7 +1456,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async reboot() {
-        await this._ensureConnected();
+        this._ensureConnected();
         logger.warn('Initiating system reboot...');
         try {
             const conn = this.state.conn;
@@ -1533,7 +1479,7 @@ class MikroTikManager extends EventEmitter {
     // ── Network Tools ─────────────────────────────────────────────────────────
 
     async ping(host, count = 4) {
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!host || !host.match(/^[\w.-]+$/)) {
             throw new ToolExecutionError('ping', 'Invalid host format');
         }
@@ -1547,7 +1493,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async traceroute(host) {
-        await this._ensureConnected();
+        this._ensureConnected();
         if (!host || !host.match(/^[\w.-]+$/)) {
             throw new ToolExecutionError('traceroute', 'Invalid host format');
         }
@@ -1555,7 +1501,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async speedtest(iface = 'ether1') {
-        await this._ensureConnected();
+        this._ensureConnected();
         // RouterOS speed-test is async — we trigger it and return status
         try {
             await this._writeRaw(['/tool/speed-test', `=interface=${iface}`, '=duration=10s']);
@@ -1566,13 +1512,13 @@ class MikroTikManager extends EventEmitter {
     }
 
     async flushDnsCache() {
-        await this._ensureConnected();
+        this._ensureConnected();
         await this._writeRaw(['/ip/dns/cache/flush']);
         return { flushed: true, timestamp: new Date().toISOString() };
     }
 
     async getIpAddresses() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const addrs = await this.state.conn.menu('/ip/address').get();
         return addrs.map(a => ({
             address: a['address'],
@@ -1583,7 +1529,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getRoutes(limit = 20) {
-        await this._ensureConnected();
+        this._ensureConnected();
         const routes = await this.state.conn.menu('/ip/route').get();
         return routes.slice(0, limit).map(r => ({
             dst: r['dst-address'],
@@ -1595,7 +1541,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getDnsSettings() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const dns = await this.state.conn.menu('/ip/dns').get();
         const d = dns[0] || {};
         return {
@@ -1611,7 +1557,7 @@ class MikroTikManager extends EventEmitter {
     // ── Firewall Tools ────────────────────────────────────────────────────────
 
     async getFirewallRules(type = 'filter') {
-        await this._ensureConnected();
+        this._ensureConnected();
         const validTypes = ['filter', 'nat', 'mangle', 'raw'];
         if (!validTypes.includes(type)) {
             throw new ToolExecutionError('firewall.list', `Invalid type '${type}'. Valid: ${validTypes.join(', ')}`);
@@ -1620,7 +1566,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getFirewallSummary() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const [filter, nat, mangle, raw, conns] = await Promise.all([
             this.state.conn.menu('/ip/firewall/filter').get(),
             this.state.conn.menu('/ip/firewall/nat').get(),
@@ -1632,13 +1578,13 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getActiveConnections(limit = 30) {
-        await this._ensureConnected();
+        this._ensureConnected();
         const conns = await this.state.conn.menu('/ip/firewall/connection').get();
         return conns.slice(0, limit);
     }
 
     async getNatRules(limit = 20) {
-        await this._ensureConnected();
+        this._ensureConnected();
         const rules = await this.state.conn.menu('/ip/firewall/nat').get();
         return rules.slice(0, limit).map(r => ({
             chain: r['chain'],
@@ -1650,7 +1596,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async addToBlockList(target, list = 'blocked', comment = 'Blocked via AgentOS') {
-        await this._ensureConnected();
+        this._ensureConnected();
 
         const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(target);
         const isMAC = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(target);
@@ -1667,7 +1613,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async removeFromBlockList(target, list = 'blocked') {
-        await this._ensureConnected();
+        this._ensureConnected();
 
         const items = await this.state.conn
             .menu('/ip/firewall/address-list')
@@ -1690,27 +1636,27 @@ class MikroTikManager extends EventEmitter {
     // ── DHCP & Network Discovery ──────────────────────────────────────────────
 
     async getDhcpLeases() {
-        await this._ensureConnected();
+        this._ensureConnected();
         return this.state.conn.menu('/ip/dhcp-server/lease').get();
     }
 
     async getInterfaces() {
-        await this._ensureConnected();
+        this._ensureConnected();
         return this.state.conn.menu('/interface').get();
     }
 
     async getArpTable() {
-        await this._ensureConnected();
+        this._ensureConnected();
         return this.state.conn.menu('/ip/arp').get();
     }
 
     async getNeighbors() {
-        await this._ensureConnected();
+        this._ensureConnected();
         return this.state.conn.menu('/ip/neighbor').get();
     }
 
     async executeCLI(cmd) {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             let parts = Array.isArray(cmd) ? cmd : String(cmd).split(' ').filter(Boolean);
 
@@ -1739,7 +1685,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async executeRawAPI(cmd) {
-        await this._ensureConnected();
+        this._ensureConnected();
         try {
             const parts = Array.isArray(cmd) ? cmd : String(cmd).split(' ').filter(Boolean);
             return await this._writeRaw(parts);
@@ -1752,7 +1698,7 @@ class MikroTikManager extends EventEmitter {
     async bandwidth(params = {}) {
         const { target, duration = 10 } = params;
         if (!target) throw new Error('Target IP/Host required for bandwidth test');
-        await this._ensureConnected();
+        this._ensureConnected();
         return await this._writeRaw([
             '/tool/bandwidth-test',
             `=address=${target}`,
@@ -1764,7 +1710,7 @@ class MikroTikManager extends EventEmitter {
     async flood(params = {}) {
         const { target, count = 100 } = params;
         if (!target) throw new Error('Target IP required for flood-ping');
-        await this._ensureConnected();
+        this._ensureConnected();
         return await this._writeRaw([
             '/tool/flood-ping',
             `=address=${target}`,
@@ -1783,8 +1729,8 @@ class MikroTikManager extends EventEmitter {
 
     async cleanupExpiredVouchers(params = {}) {
         const { dryRun = false, force = false } = params;
-        await this._ensureConnected();
-
+        this._ensureConnected();
+        
         try {
             const { getDatabase } = require('./database');
             const db = await getDatabase();
@@ -1821,7 +1767,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     async getFullSystemStats() {
-        await this._ensureConnected();
+        this._ensureConnected();
         const [resources, health, identity, neighbors] = await Promise.all([
             this.getSystemResources(),
             this.getSystemHealth(),
@@ -1840,87 +1786,6 @@ class MikroTikManager extends EventEmitter {
 
     availableTools() {
         return Array.from(this.tools.keys());
-    }
-
-    // ── Wireless Management ──────────────────────────────────────────────────
-
-    async getWirelessInterfaces() {
-        await this._ensureConnected();
-        try {
-            const ifaces = await this.state.conn.menu('/interface/wireless').get();
-            return ifaces.map(i => ({
-                id: this._getId(i),
-                name: i.name,
-                band: i.band,
-                frequency: i.frequency,
-                ssid: i.ssid,
-                disabled: i.disabled === 'true'
-            }));
-        } catch (err) {
-            throw new ToolExecutionError('wireless.interfaces', err.message);
-        }
-    }
-
-    async monitorWireless(name) {
-        await this._ensureConnected();
-        try {
-            return await this.state.conn.menu('/interface/wireless').exec('monitor', { interface: name, once: true });
-        } catch (err) {
-            throw new ToolExecutionError('wireless.monitor', err.message);
-        }
-    }
-
-    async scanWireless(name) {
-        await this._ensureConnected();
-        try {
-            return await this.state.conn.menu('/interface/wireless').exec('scan', { '.id': name, duration: '5s' });
-        } catch (err) {
-            try {
-                return await this.state.conn.menu('/interface/wireless/scan').where('interface', name).get();
-            } catch (e) {
-                throw new ToolExecutionError('wireless.scan', err.message);
-            }
-        }
-    }
-
-    async getFrequencyUsage(name) {
-        await this._ensureConnected();
-        try {
-            return await this.state.conn.menu('/interface/wireless/frequency-monitor').exec('frequency-monitor', { '.id': name, duration: '5s' });
-        } catch (err) {
-            throw new ToolExecutionError('wireless.frequency_usage', err.message);
-        }
-    }
-
-    async autoAssignChannels() {
-        await this._ensureConnected();
-        try {
-            const ifaces = await this.getWirelessInterfaces();
-            const results = [];
-            const channels2ghz = [2412, 2437, 2462];
-            const channels5ghz = [5180, 5200, 5220, 5240, 5745, 5765, 5785, 5805];
-            let count2ghz = 0;
-            let count5ghz = 0;
-
-            for (const iface of ifaces) {
-                if (iface.disabled) continue;
-
-                if (iface.band.includes('2ghz')) {
-                    const freq = channels2ghz[count2ghz % channels2ghz.length];
-                    await this.state.conn.menu('/interface/wireless').update(iface.id, { frequency: String(freq) });
-                    results.push({ name: iface.name, band: iface.band, frequency: freq });
-                    count2ghz++;
-                } else if (iface.band.includes('5ghz')) {
-                    const freq = channels5ghz[count5ghz % channels5ghz.length];
-                    await this.state.conn.menu('/interface/wireless').update(iface.id, { frequency: String(freq) });
-                    results.push({ name: iface.name, band: iface.band, frequency: freq });
-                    count5ghz++;
-                }
-            }
-            return { action: 'auto_assigned_channels', assignments: results };
-        } catch (err) {
-            throw new ToolExecutionError('wireless.auto_channels', err.message);
-        }
     }
 }
 // ── Connection Pool ───────────────────────────────────────────────────────────
@@ -2004,20 +1869,9 @@ async function testConnection(config = null) {
         });
 
         conn = await Promise.race([client.connect(), safetyTimeout]);
-        const [resource] = await Promise.race([conn.menu('/system/resource').get(), safetyTimeout]);
-        const [identity] = await Promise.race([conn.menu('/system/identity').get(), safetyTimeout]);
+        await Promise.race([conn.menu('/system/resource').get(), safetyTimeout]);
 
-        return {
-            success: true,
-            message: 'Connection successful',
-            details: {
-                model: resource?.['board-name'],
-                version: resource?.version,
-                identity: identity?.name,
-                uptime: resource?.uptime,
-                cpu: resource?.['cpu-load']
-            }
-        };
+        return { success: true, message: 'Connection successful' };
     } catch (error) {
         return { success: false, message: error.message, code: error.code || 'UNKNOWN_ERROR' };
     } finally {
