@@ -1,0 +1,474 @@
+###############################################################################
+# AgentOS — Cloud Run Service Manifest (Production-Hardened)
+# Project : br3eze-africa-312df
+# Region  : africa-south1 (Johannesburg)
+# Image   : ghcr.io/br3eze-code/br3eze-code:latest
+# Deploy  : gcloud run services replace hosting.yaml --region=africa-south1
+###############################################################################
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+
+metadata:
+  name: agentos
+  namespace: br3eze-africa-312df
+  labels:
+    app: agentos
+    env: production
+    managed-by: gcloud
+    version: "2026.05.20"
+    tier: critical
+    cost-center: infrastructure
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: all
+    run.googleapis.com/description: "AgentOS — AI-powered MikroTik network management & hotspot billing"
+    # Binary Authorization (ensure only signed images deploy)
+    run.googleapis.com/binary-authorization: default
+    # Cloud SQL connector (if needed later)
+    # run.googleapis.com/cloudsql-instances: br3eze-africa-312df:africa-south1:agentos-db
+    # Customer-managed encryption key
+    # run.googleapis.com/encryption-key: projects/br3eze-africa-312df/locations/africa-south1/keyRings/agentos/cryptoKeys/app-key
+
+spec:
+  template:
+    metadata:
+      annotations:
+        ##################################################################
+        # Scaling — warm start optimization with burst handling
+        ##################################################################
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        # Scale based on concurrent requests + CPU (not just requests)
+        autoscaling.knative.dev/metric: "concurrency"
+        autoscaling.knative.dev/target-concurrency: "50"
+        # Scale-up speed: 0% → 100% in 15s during traffic spikes
+        autoscaling.knative.dev/scale-up-delay: "0s"
+        autoscaling.knative.dev/scale-down-delay: "5m"
+        # Max scale burst: allow 2x target before throttling
+        autoscaling.knative.dev/max-scale-up-rate: "2"
+
+        ##################################################################
+        # Startup / execution — optimized for long-running AI daemon
+        ##################################################################
+        run.googleapis.com/startup-cpu-boost: "true"
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        # Max instance lifetime before graceful replacement (prevents memory leaks)
+        run.googleapis.com/max-instance-request-concurrency: "80"
+
+        ##################################################################
+        # Observability — structured logging & tracing
+        ##################################################################
+        run.googleapis.com/execution-environment: gen2
+        # Enable Cloud Trace integration
+        run.googleapis.com/secrets: "tracing-enabled"
+        # Enable Cloud Profiler for CPU/memory profiling
+        # run.googleapis.com/profiler: "true"
+
+        ##################################################################
+        # VPC — private connectivity to MikroTik routers & internal services
+        ##################################################################
+        # Uncomment when VPC connector is provisioned:
+        # run.googleapis.com/vpc-access-connector: projects/br3eze-africa-312df/locations/africa-south1/connectors/agentos-vpc
+        # run.googleapis.com/vpc-access-egress: private-ranges-only
+
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      # Graceful shutdown: 30s for in-flight requests to complete
+      # (Cloud Run sends SIGTERM, app has 30s before SIGKILL)
+      # Configure in app: process.on('SIGTERM', gracefulShutdown)
+
+      serviceAccountName: agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com
+
+      containers:
+        - name: agentos
+          image: ghcr.io/br3eze-code/br3eze-code:latest
+          # Pin to digest for immutability in production:
+          # image: ghcr.io/br3eze-code/br3eze-code@sha256:abc123...
+
+          ports:
+            - name: http1
+              containerPort: 3000
+            # Optional: gRPC port for internal service mesh
+            # - name: h2c
+            #   containerPort: 50051
+
+          ##################################################################
+          # Resource tuning — balanced for Node.js AI workloads
+          ##################################################################
+          resources:
+            limits:
+              cpu: "2"
+              memory: "2Gi"          # Increased: AI models need headroom
+              ephemeral-storage: "1Gi"  # For /tmp sessions, model cache
+            # requests ignored by Cloud Run, kept for documentation
+            requests:
+              cpu: "1"
+              memory: "512Mi"
+
+          ##################################################################
+          # Security hardening
+          ##################################################################
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000          # Non-root UID
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true  # Immutable container
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+
+          ##################################################################
+          # Environment variables (all secrets via Secret Manager)
+          ##################################################################
+          env:
+            # ---- Runtime ------------------------------------------------
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: GATEWAY_HOST
+              value: "0.0.0.0"
+            - name: GCP_PROJECT_ID
+              value: br3eze-africa-312df
+            - name: GCP_REGION
+              value: africa-south1
+            - name: FIREBASE_PROJECT_ID
+              value: br3eze-africa-312df
+
+            # ---- Session & memory management ----------------------------
+            - name: SESSION_MODE
+              value: isolated
+            - name: MEMORY_BASE_PATH
+              value: /tmp/sessions
+            - name: SESSION_TTL_SECONDS
+              value: "3600"          # 1h ephemeral session cleanup
+            - name: MAX_SESSION_SIZE_MB
+              value: "50"
+
+            # ---- Observability ------------------------------------------
+            - name: LOG_LEVEL
+              value: info
+            - name: LOG_FORMAT
+              value: json            # Structured logging for Cloud Logging
+            - name: ENABLE_CLOUD_TRACE
+              value: "true"
+            - name: ENABLE_CLOUD_PROFILER
+              value: "false"
+            - name: METRICS_PORT
+              value: "9090"          # Prometheus-style metrics sidecar
+
+            # ---- Skills & AI --------------------------------------------
+            - name: SKILLS_PATH
+              value: /app/src/skills
+            - name: AI_MODEL_CACHE_PATH
+              value: /tmp/models
+            - name: AI_MAX_TOKENS_PER_REQUEST
+              value: "4096"
+            - name: AI_REQUEST_TIMEOUT_MS
+              value: "30000"
+            - name: ENABLE_AI_FALLBACK
+              value: "true"          # Fallback to local model if APIs fail
+
+            # ---- Network & MikroTik -------------------------------------
+            - name: MIKROTIK_CONNECTION_TIMEOUT_MS
+              value: "10000"
+            - name: MIKROTIK_MAX_CONCURRENT_CONNECTIONS
+              value: "50"
+            - name: NETWORK_HEALTH_CHECK_INTERVAL_MS
+              value: "30000"
+
+            # ---- Rate limiting & circuit breaker ------------------------
+            - name: RATE_LIMIT_REQUESTS_PER_MINUTE
+              value: "1000"
+            - name: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+              value: "5"
+            - name: CIRCUIT_BREAKER_RESET_TIMEOUT_MS
+              value: "30000"
+
+            # ---- Core auth (Secret Manager) -----------------------------
+            - name: GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gateway-token
+                  key: latest
+            - name: AUDIT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: audit-secret
+                  key: latest
+
+            # ---- AI providers (Secret Manager) --------------------------
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gemini-api-key
+                  key: latest
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: anthropic-api-key
+                  key: latest
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-api-key
+                  key: latest
+
+            # ---- MikroTik (Secret Manager) ------------------------------
+            - name: DRIVER_MIKROTIK_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mikrotik-api-token
+                  key: latest
+
+            # ---- Payments (Secret Manager) ------------------------------
+            - name: PAYNOW_INTEGRATION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: paynow-integration-id
+                  key: latest
+            - name: PAYNOW_INTEGRATION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: paynow-integration-key
+                  key: latest
+            - name: MASTERCARD_CONSUMER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mastercard-consumer-key
+                  key: latest
+            - name: MASTERCARD_CONSUMER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mastercard-consumer-secret
+                  key: latest
+
+            # ---- Messaging (Secret Manager) -----------------------------
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-bot-token
+                  key: latest
+
+            # ---- AWS (Secret Manager, optional) -------------------------
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-access-key-id
+                  key: latest
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-secret-access-key
+                  key: latest
+
+            # ---- Database (Secret Manager, if using Cloud SQL) ----------
+            # - name: DATABASE_URL
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: database-url
+            #       key: latest
+
+            # ---- Redis (Secret Manager, for session caching) ------------
+            # - name: REDIS_URL
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: redis-url
+            #       key: latest
+
+          ##################################################################
+          # Volume mounts — GCP SA key + ephemeral model cache
+          ##################################################################
+          volumeMounts:
+            - name: gcp-sa-key
+              mountPath: /var/secrets/gcp
+              readOnly: true
+            - name: tmp-sessions
+              mountPath: /tmp/sessions
+            - name: tmp-models
+              mountPath: /tmp/models
+            # Optional: Mount config map for feature flags
+            # - name: feature-flags
+            #   mountPath: /app/config
+            #   readOnly: true
+
+          ##################################################################
+          # Health probes — comprehensive app health
+          ##################################################################
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 3000
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "true"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10      # 50s max startup (AI model loading)
+            timeoutSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "true"
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
+            successThreshold: 1
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+              httpHeaders:
+                - name: X-Health-Check
+                  value: "true"
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3
+            successThreshold: 1
+
+      ##################################################################
+      # Volumes — secrets + ephemeral storage
+      ##################################################################
+      volumes:
+        - name: gcp-sa-key
+          secret:
+            secretName: gcp-sa-key
+            items:
+              - key: latest
+                path: sa-key.json
+                mode: 0400
+        - name: tmp-sessions
+          emptyDir:
+            medium: Memory           # tmpfs — fast, auto-cleared
+            sizeLimit: 100Mi
+        - name: tmp-models
+          emptyDir:
+            medium: Memory
+            sizeLimit: 500Mi
+        # Optional: Feature flags config map
+        # - name: feature-flags
+        #   configMap:
+        #     name: agentos-features
+        #     items:
+        #       - key: flags.json
+        #         path: flags.json
+
+  ##################################################################
+  # Traffic — blue/green ready with tag-based routing
+  ##################################################################
+  traffic:
+    - percent: 100
+      latestRevision: true
+      tag: prod                    # Route: prod-agentos-xxx.a.run.app
+    # - percent: 0
+    #   revisionName: agentos-00001-abc
+    #   tag: canary                # Route: canary-agentos-xxx.a.run.app
+
+  ##################################################################
+  # IAM — service-level access (supplement with gcloud commands)
+  ##################################################################
+  # See Quick-start commands below for IAM bindings
+
+---
+###############################################################################
+# Supporting Resources (apply separately or via Config Connector)
+###############################################################################
+
+# --- Alerting Policy: High Error Rate ---
+# apiVersion: monitoring.cnrm.cloud.google.com/v1beta1
+# kind: MonitoringAlertPolicy
+# metadata:
+#   name: agentos-high-error-rate
+# spec:
+#   displayName: "AgentOS High Error Rate"
+#   combiner: OR
+#   conditions:
+#     - displayName: "Error rate > 5%"
+#       conditionThreshold:
+#         filter: >
+#           resource.type="cloud_run_revision"
+#           AND metric.type="run.googleapis.com/request_count"
+#           AND metric.labels.response_code_class="5xx"
+#         aggregations:
+#           - alignmentPeriod: 300s
+#             perSeriesAligner: ALIGN_RATE
+#         comparison: COMPARISON_GT
+#         thresholdValue: 0.05
+#         duration: 300s
+#   notificationChannels:
+#     - projects/br3eze-africa-312df/notificationChannels/CHANNEL_ID
+
+###############################################################################
+# Quick-start Commands
+###############################################################################
+#
+# === PRE-DEPLOY VALIDATION ===
+# gcloud run services replace hosting.yaml --region=africa-south1 \\
+#   --project=br3eze-africa-312df --dry-run
+#
+# === DEPLOY ===
+# gcloud run services replace hosting.yaml --region=africa-south1 \\
+#   --project=br3eze-africa-312df
+#
+# === SECRETS SETUP (one-time per secret) ===
+# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \\
+#               openai-api-key mikrotik-api-token paynow-integration-id \\
+#               paynow-integration-key mastercard-consumer-key \\
+#               mastercard-consumer-secret telegram-bot-token \\
+#               aws-access-key-id aws-secret-access-key gcp-sa-key; do
+#   echo "Creating secret: $secret"
+#   gcloud secrets create "$secret" --replication-policy=automatic \\
+#     --project=br3eze-africa-312df 2>/dev/null || echo "  Already exists"
+# done
+#
+# === GRANT SECRET ACCESS TO SA ===
+# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \\
+#               openai-api-key mikrotik-api-token paynow-integration-id \\
+#               paynow-integration-key mastercard-consumer-key \\
+#               mastercard-consumer-secret telegram-bot-token \\
+#               aws-access-key-id aws-secret-access-key gcp-sa-key; do
+#   gcloud secrets add-iam-policy-binding "$secret" \\
+#     --member="serviceAccount:agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com" \\
+#     --role="roles/secretmanager.secretAccessor" \\
+#     --project=br3eze-africa-312df
+# done
+#
+# === IAM: ALLOW UNAUTHENTICATED (hotspot portal) ===
+# gcloud run services add-iam-policy-binding agentos \\
+#   --region=africa-south1 \\
+#   --member="allUsers" \\
+#   --role="roles/run.invoker" \\
+#   --project=br3eze-africa-312df
+#
+# === IAM: RESTRICT TO INTERNAL ONLY (admin APIs) ===
+# gcloud run services add-iam-policy-binding agentos \\
+#   --region=africa-south1 \\
+#   --member="serviceAccount:admin-sa@br3eze-africa-312df.iam.gserviceaccount.com" \\
+#   --role="roles/run.invoker" \\
+#   --project=br3eze-africa-312df
+#
+# === VIEW REVISIONS ===
+# gcloud run revisions list --service=agentos --region=africa-south1 \\
+#   --project=br3eze-africa-312df
+#
+# === ROLLBACK ===
+# gcloud run services update-traffic agentos --to-revisions=agentos-00001-abc=100 \\
+#   --region=africa-south1 --project=br3eze-africa-312df
+#
+# === LOGS ===
+# gcloud logging read "resource.type=cloud_run_revision \\
+#   AND resource.labels.service_name=agentos" --limit=50 --format=json
+#
+# === METRICS ===
+# gcloud monitoring metrics list --filter="metric.type:run.googleapis.com"
+###############################################################################
