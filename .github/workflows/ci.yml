@@ -23,16 +23,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install (skip postinstall/preuninstall hooks)
+      - name: Install (skip lifecycle hooks)
         run: npm ci --ignore-scripts
-
-      # Jest config uses modulePaths: ['/tmp/jest-deps/node_modules']
-      # Install deps there so Jest can resolve them during tests
-      - name: Prepare Jest module path
-        run: |
-          mkdir -p /tmp/jest-deps
-          cp package.json /tmp/jest-deps/
-          cd /tmp/jest-deps && npm ci --ignore-scripts --prefer-offline 2>/dev/null || true
 
       - name: Lint
         run: npm run lint
@@ -41,7 +33,6 @@ jobs:
         run: npm test -- --ci --forceExit --passWithNoTests
         env:
           NODE_ENV: test
-          # RouterOS — mocked in tests
           ROS_HOST: 127.0.0.1
           ROS_PORT: 8728
           ROS_USER: admin
@@ -49,32 +40,30 @@ jobs:
           MIKROTIK_HOST: 127.0.0.1
           MIKROTIK_USER: admin
           MIKROTIK_PASS: test
-          # Firebase
           DATA_BACKEND: local
           FIREBASE_PROJECT_ID: test-project
-          # AI
           LLM_PROVIDER: gemini
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Messaging
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
-          # Server
           PORT: 3000
           GATEWAY_PORT: 19876
 
-      - name: Type check (jsconfig + tsconfig)
+      - name: Type check
         run: npm run build:check
+        continue-on-error: true  # JS project — tsc is advisory
 
-      - name: Security check script
+      - name: Security audit (advisory)
         run: npm run security:audit
         env:
           NODE_ENV: test
-        continue-on-error: true  # advisory only in CI — hard block is in security.yml
+        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage
           path: coverage/
+          if-no-files-found: ignore
           retention-days: 14

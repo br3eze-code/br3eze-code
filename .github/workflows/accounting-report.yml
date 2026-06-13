@@ -2,22 +2,16 @@ name: 🧾 Daily Accounting Report
 
 on:
   schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-    # Run weekly on Monday at 2 AM UTC for full week report
-    - cron: '0 2 * * 1'
+    - cron: '0 2 * * *'    # daily 02:00 UTC
+    - cron: '0 2 * * 1'    # weekly Monday 02:00 UTC
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
     paths:
       - 'scripts/accounting-report.js'
       - '.github/workflows/accounting-report.yml'
       - 'package.json'
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
     paths:
       - 'scripts/accounting-report.js'
       - '.github/workflows/accounting-report.yml'
@@ -26,17 +20,17 @@ on:
       from:
         description: 'Start date (YYYY-MM-DD)'
         required: true
-        default: '2026-05-01'
+        default: '2026-06-01'
       to:
         description: 'End date (YYYY-MM-DD)'
         required: true
-        default: '2026-05-26'
+        default: '2026-06-13'
       mode:
         description: 'Report mode'
         required: false
         default: 'daily'
       verbose:
-        description: 'Enable verbose logging'
+        description: 'Verbose logging'
         required: false
         type: boolean
         default: false
@@ -46,58 +40,49 @@ jobs:
     name: Generate Accounting Report
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: false
 
     permissions:
       contents: read
       actions: read
 
     outputs:
-      report_path: ${{ steps.report.outputs.path }}
+      report_path:   ${{ steps.report.outputs.path }}
       total_revenue: ${{ steps.report.outputs.total_revenue }}
-      total_txns: ${{ steps.report.outputs.total_txns }}
+      total_txns:    ${{ steps.report.outputs.total_txns }}
       anomaly_count: ${{ steps.report.outputs.anomaly_count }}
-      failure_rate: ${{ steps.report.outputs.failure_rate }}
-      period: ${{ steps.report.outputs.period }}
+      failure_rate:  ${{ steps.report.outputs.failure_rate }}
+      # Fix: expose period so downstream jobs can reference it
+      period:        ${{ steps.dates.outputs.from }}
+      artifact_name: ${{ steps.artifact_name.outputs.name }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
+        run: npm ci --ignore-scripts
 
       - name: Validate script exists
         run: |
           if [ ! -f "scripts/accounting-report.js" ]; then
-            echo "❌ Script not found: scripts/accounting-report.js"
+            echo "❌ scripts/accounting-report.js not found"
+            echo "   Create it or remove this workflow trigger."
             exit 1
           fi
-          echo "✓ Script validated"
+          echo "✓ Script found"
 
       - name: Configure Firebase credentials
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "⚠️  WARNING: FIREBASE_SERVICE_ACCOUNT secret not configured"
-            echo "Set this secret in Settings → Secrets and variables → Actions"
+            echo "❌ FIREBASE_SERVICE_ACCOUNT secret not set"
             exit 1
           fi
           echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-key.json
@@ -112,182 +97,138 @@ jobs:
             FROM="${{ github.event.inputs.from }}"
             TO="${{ github.event.inputs.to }}"
           else
-            # For scheduled runs: yesterday
             FROM=$(date -u -d 'yesterday' +%Y-%m-%d)
             TO=$(date -u -d 'yesterday' +%Y-%m-%d)
           fi
-          
           echo "from=$FROM" >> $GITHUB_OUTPUT
-          echo "to=$TO" >> $GITHUB_OUTPUT
-          echo "📅 Report period: $FROM → $TO"
+          echo "to=$TO"     >> $GITHUB_OUTPUT
+          echo "📅 Period: $FROM → $TO"
+
+      # Fix: artifact name must be consistent across jobs — compute once
+      - name: Set artifact name
+        id: artifact_name
+        run: echo "name=accounting-reports-${{ steps.dates.outputs.from }}" >> $GITHUB_OUTPUT
 
       - name: Run accounting report
         id: report
         run: |
           VERBOSE_FLAG=""
-          if [ "${{ github.event.inputs.verbose }}" == "true" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
-            VERBOSE_FLAG="--verbose"
-          fi
-          
+          [ "${{ github.event.inputs.verbose }}" == "true" ] && VERBOSE_FLAG="--verbose"
+          [ "${{ github.event_name }}" == "pull_request" ]   && VERBOSE_FLAG="--verbose"
+
           node scripts/accounting-report.js \
-            --from ${{ steps.dates.outputs.from }} \
-            --to ${{ steps.dates.outputs.to }} \
-            --mode ${{ github.event.inputs.mode || 'daily' }} \
-            --out reports/accounting \
+            --from "${{ steps.dates.outputs.from }}" \
+            --to   "${{ steps.dates.outputs.to }}" \
+            --mode "${{ github.event.inputs.mode || 'daily' }}" \
+            --out  reports/accounting \
             $VERBOSE_FLAG
-          
-          echo "✓ Report generated successfully"
+
+          echo "✓ Report generated"
 
       - name: Validate report output
-        id: validate
         run: |
-          REQUIRED_FILES=(
-            "reports/accounting/summary.json"
-            "reports/accounting/report.csv"
-            "reports/accounting/anomalies.json"
-            "reports/accounting/summary.md"
-          )
-          
-          for file in "${REQUIRED_FILES[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "❌ Missing required file: $file"
-              exit 1
-            fi
-            echo "✓ Found: $file"
+          for file in \
+            reports/accounting/summary.json \
+            reports/accounting/report.csv \
+            reports/accounting/anomalies.json \
+            reports/accounting/summary.md; do
+            [ -f "$file" ] && echo "✓ $file" || { echo "❌ Missing: $file"; exit 1; }
           done
-          
-          echo "✓ All report files validated"
 
-      - name: Display summary
-        if: always()
-        run: |
-          if [ -f "reports/accounting/summary.json" ]; then
-            echo "📊 Accounting Report Summary:"
-            jq '.summary | to_entries[] | "  \(.key): \(.value)"' reports/accounting/summary.json
-          fi
-
-      - name: Check for anomalies
+      - name: Check for high-severity anomalies
         id: anomalies
         if: always()
         run: |
-          ANOMALY_FILE="reports/accounting/anomalies.json"
-          if [ -f "$ANOMALY_FILE" ]; then
-            TOTAL=$(jq 'length' "$ANOMALY_FILE")
-            HIGH=$(jq '[.[] | select(.severity == "high")] | length' "$ANOMALY_FILE")
-            MEDIUM=$(jq '[.[] | select(.severity == "medium")] | length' "$ANOMALY_FILE")
-            LOW=$(jq '[.[] | select(.severity == "low")] | length' "$ANOMALY_FILE")
-            
-            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          FILE="reports/accounting/anomalies.json"
+          if [ -f "$FILE" ]; then
+            HIGH=$(jq '[.[] | select(.severity == "high")] | length' "$FILE")
             echo "high=$HIGH" >> $GITHUB_OUTPUT
-            echo "medium=$MEDIUM" >> $GITHUB_OUTPUT
-            echo "low=$LOW" >> $GITHUB_OUTPUT
-            
-            if [ "$HIGH" -gt 0 ]; then
-              echo "⚠️  High-severity anomalies: $HIGH"
-              jq '.[] | select(.severity == "high")' "$ANOMALY_FILE"
-            fi
+            [ "$HIGH" -gt 0 ] && jq '.[] | select(.severity == "high")' "$FILE"
           fi
 
-      - name: Upload reports to artifacts
+      - name: Upload reports artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: accounting-reports-${{ steps.dates.outputs.from }}
+          # Fix: use consistent name derived from date (not run_id)
+          name: ${{ steps.artifact_name.outputs.name }}
           path: reports/accounting/
           retention-days: 90
           if-no-files-found: warn
           compression-level: 9
 
-      - name: Upload summary as JSON artifact
+      - name: Upload summary JSON
         if: always() && hashFiles('reports/accounting/summary.json') != ''
         uses: actions/upload-artifact@v4
         with:
+          # Fix: consistent name so notify-success can download it
           name: report-summary-json-${{ steps.dates.outputs.from }}
           path: reports/accounting/summary.json
           retention-days: 180
 
-      - name: Cleanup sensitive files
+      - name: Cleanup credentials
         if: always()
-        run: |
-          rm -f /tmp/firebase-key.json
-          echo "✓ Sensitive files cleaned up"
+        run: rm -f /tmp/firebase-key.json
 
   notify-success:
     name: Notify Success
     runs-on: ubuntu-latest
     needs: accounting-report
     if: success()
-
     steps:
-      - name: Download report summary
+      - name: Download summary
         uses: actions/download-artifact@v4
         with:
+          # Fix: use period output (now correctly set above)
           name: report-summary-json-${{ needs.accounting-report.outputs.period }}
           path: reports/
+        continue-on-error: true
 
-      - name: Post success summary
+      - name: Post summary
         run: |
-          echo "✅ Accounting report completed successfully"
-          echo ""
-          echo "📊 Summary:"
-          echo "  • Period: ${{ needs.accounting-report.outputs.period }}"
-          echo "  • Total Revenue: ${{ needs.accounting-report.outputs.total_revenue }}"
-          echo "  • Transactions: ${{ needs.accounting-report.outputs.total_txns }}"
-          echo "  • Anomalies: ${{ needs.accounting-report.outputs.anomaly_count }}"
-          echo "  • Failure Rate: ${{ needs.accounting-report.outputs.failure_rate }}%"
-          echo ""
-          echo "📁 Reports stored in artifacts for 90 days"
+          echo "✅ Accounting report complete"
+          echo "  Period:       ${{ needs.accounting-report.outputs.period }}"
+          echo "  Revenue:      ${{ needs.accounting-report.outputs.total_revenue }}"
+          echo "  Transactions: ${{ needs.accounting-report.outputs.total_txns }}"
+          echo "  Anomalies:    ${{ needs.accounting-report.outputs.anomaly_count }}"
+          echo "  Failure rate: ${{ needs.accounting-report.outputs.failure_rate }}%"
 
   notify-failure:
     name: Notify Failure
     runs-on: ubuntu-latest
     needs: accounting-report
     if: failure()
-
     steps:
       - name: Log failure
         run: |
-          echo "❌ Accounting report job failed"
-          echo ""
-          echo "Possible causes:"
-          echo "  • Firebase credentials not configured (FIREBASE_SERVICE_ACCOUNT secret)"
-          echo "  • Network issues accessing Firestore"
-          echo "  • Invalid date range provided"
-          echo "  • Script runtime error"
-          echo ""
-          echo "📋 Check workflow logs for details:"
-          echo "   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "❌ Accounting report failed"
+          echo "Causes: missing FIREBASE_SERVICE_ACCOUNT, missing script, network error, or invalid date range"
+          echo "Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   quality-gate:
     name: Quality Gate Check
     runs-on: ubuntu-latest
     needs: accounting-report
     if: always()
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Download report
         uses: actions/download-artifact@v4
         with:
-          name: accounting-reports-${{ github.run_id }}
+          # Fix: use the artifact_name output so this always matches
+          name: ${{ needs.accounting-report.outputs.artifact_name }}
           path: reports/
         continue-on-error: true
 
       - name: Validate data quality
         if: hashFiles('reports/accounting/anomalies.json') != ''
         run: |
-          ANOMALIES=$(cat reports/accounting/anomalies.json)
-          HIGH_COUNT=$(echo "$ANOMALIES" | jq '[.[] | select(.severity == "high")] | length')
-          
-          if [ "$HIGH_COUNT" -gt 0 ]; then
-            echo "⚠️  Quality gate: High-severity anomalies detected ($HIGH_COUNT)"
-            echo "$ANOMALIES" | jq '.[] | select(.severity == "high")'
-            
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              exit 1
-            fi
+          HIGH=$(jq '[.[] | select(.severity == "high")] | length' reports/accounting/anomalies.json)
+          if [ "$HIGH" -gt 0 ]; then
+            echo "⚠️  $HIGH high-severity anomalies"
+            jq '.[] | select(.severity == "high")' reports/accounting/anomalies.json
+            [ "${{ github.event_name }}" == "pull_request" ] && exit 1 || true
           else
-            echo "✓ Quality gate passed: No high-severity anomalies"
+            echo "✓ Quality gate passed"
           fi
