@@ -75,7 +75,7 @@
 		"axios": "^1.17.0",
 		"bcryptjs": "^2.4.3",
 		"better-sqlite3": "^12.8.0",
-		"boxen": "^7.1.1",
+		"boxen": "^8.0.1",
 		"chalk": "^4.1.2",
 		"commander": "^12.1.0",
 		"compression": "^1.7.4",
