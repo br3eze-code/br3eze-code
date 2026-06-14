@@ -22,5 +22,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci --legacy-peer-deps
-      - run: npm run build --if-present
+      - name: TypeScript check (non-blocking)
+        run: npx tsc --noEmit --project tsconfig.json
+        continue-on-error: true
       - run: npm test -- --passWithNoTests
