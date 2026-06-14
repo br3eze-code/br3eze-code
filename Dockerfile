@@ -4,7 +4,7 @@
 # ============================================
 # BUILDER STAGE - Install dependencies
 # ============================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ RUN npm ci --omit=dev --legacy-peer-deps && \
 # ============================================
 # PRODUCTION STAGE - Runtime image
 # ============================================
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init ca-certificates
@@ -55,5 +55,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 # Start application with dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "server.js"]
+CMD ["node", "bin/agentos.js", "gateway"]
 
