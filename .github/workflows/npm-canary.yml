@@ -1,0 +1,51 @@
+name: NPM Canary
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/dependabot.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  canary:
+    name: Publish Canary
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://npm.pkg.github.com
+
+      - name: Install
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: Stamp canary version
+        id: ver
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          SHA="${{ github.sha }}"
+          SHORT="${SHA:0:7}"
+          CANARY="${BASE}-canary.${SHORT}"
+          npm version "$CANARY" --no-git-tag-version
+          echo "canary=$CANARY" >> $GITHUB_OUTPUT
+
+      - name: Publish canary to GitHub Packages
+        run: npm publish --tag canary --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish canary to npmjs.com
+        run: npm publish --tag canary --access public --registry https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true  # NPM_TOKEN optional
+
