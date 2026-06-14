@@ -76,7 +76,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push' && secrets.GCP_SA_KEY != ''
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout
@@ -128,9 +128,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push' && secrets.KUBECONFIG != ''
+    if: github.event_name == 'push'
 
     steps:
+      - name: Check KUBECONFIG secret
+        run: |
+          if [ -z "${{ secrets.KUBECONFIG }}" ]; then
+            echo "KUBECONFIG secret not set — skipping k8s deploy"
+            exit 0
+          fi
       - name: Checkout
         uses: actions/checkout@v4
 
