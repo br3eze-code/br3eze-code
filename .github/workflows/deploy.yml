@@ -13,10 +13,14 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  GCP_PROJECT: br3eze-africa-312df
+  GCP_REGION: africa-south1
+  CLOUD_RUN_SERVICE: agentos
 
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build:
@@ -25,6 +29,7 @@ jobs:
     outputs:
       image: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
+      image_uri: ${{ steps.image_uri.outputs.uri }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,22 +64,75 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    name: Deploy to Kubernetes
+      - name: Set image URI output
+        id: image_uri
+        run: |
+          SHORT_SHA="${{ github.sha }}"
+          echo "uri=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA:0:7}" >> $GITHUB_OUTPUT
+
+  # ── Cloud Run deploy ────────────────────────────────────────────────────
+  deploy-cloudrun:
+    name: Deploy to Cloud Run
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && secrets.GCP_SA_KEY != ''
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate secrets
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Deploy to Cloud Run
         run: |
-          [ -n "${{ secrets.KUBECONFIG }}" ] || { echo "❌ KUBECONFIG secret missing"; exit 1; }
-          [ -n "${{ secrets.KUBE_NAMESPACE }}" ] || { echo "⚠️  KUBE_NAMESPACE not set, using 'agentos'"; }
-          [ -n "${{ secrets.KUBE_INGRESS_HOST }}" ] || { echo "⚠️  KUBE_INGRESS_HOST not set, using 'agentos.local'"; }
-          echo "✓ Secrets validated"
+          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
+            --image "${{ needs.build.outputs.image_uri }}" \
+            --region "${{ env.GCP_REGION }}" \
+            --project "${{ env.GCP_PROJECT }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 3000 \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --timeout 300 \
+            --set-secrets="FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,GATEWAY_TOKEN=GATEWAY_TOKEN:latest" \
+            --set-env-vars="NODE_ENV=production,PORT=3000,GCP_PROJECT=${{ env.GCP_PROJECT }},GCP_REGION=${{ env.GCP_REGION }}" \
+            --quiet
+          echo "✅ Cloud Run deployed"
+
+      - name: Get Cloud Run URL
+        run: |
+          URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
+            --region ${{ env.GCP_REGION }} \
+            --project ${{ env.GCP_PROJECT }} \
+            --format 'value(status.url)')
+          echo "🌍 Service URL: $URL"
+
+  # ── Kubernetes / Helm deploy (optional, skips if KUBECONFIG missing) ────
+  deploy-k8s:
+    name: Deploy to Kubernetes
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.event_name == 'push' && secrets.KUBECONFIG != ''
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Helm
         uses: azure/setup-helm@v4
@@ -91,62 +149,31 @@ jobs:
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
-          echo "✓ Namespace: $NAMESPACE"
 
       - name: Create secrets
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create secret generic agentos \
             --from-literal=gateway-token="${{ secrets.GATEWAY_TOKEN }}" \
-            --from-literal=audit-secret="${{ secrets.AUDIT_SECRET }}" \
             --from-literal=gemini-api-key="${{ secrets.GEMINI_API_KEY }}" \
-            --from-literal=mikrotik-api-token="${{ secrets.MIKROTIK_API_TOKEN }}" \
-            --from-literal=aws-access-key-id="${{ secrets.AWS_ACCESS_KEY_ID }}" \
-            --from-literal=aws-secret-access-key="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            --from-literal=anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
             -n "$NAMESPACE" \
             --dry-run=client -o yaml | kubectl apply -f -
-          echo "✓ Secrets created"
-
-      - name: Create ConfigMap
-        run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          if [ -f workspace.json ]; then
-            kubectl create configmap agentos-workspace \
-              --from-file=workspace.json=./workspace.json \
-              -n "$NAMESPACE" \
-              --dry-run=client -o yaml | kubectl apply -f -
-            echo "✓ ConfigMap created"
-          else
-            echo "⚠️  workspace.json not found, skipping"
-          fi
 
       - name: Helm upgrade
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'agentos.local' }}"
-          IMAGE_TAG="${{ needs.build.outputs.digest }}"
-          
           helm upgrade --install agentos ./helm/agentos \
             --namespace "$NAMESPACE" \
             --create-namespace \
             --set image.repository="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
-            --set image.tag="$IMAGE_TAG" \
+            --set image.tag="${{ needs.build.outputs.digest }}" \
             --set ingress.hosts[0].host="$INGRESS_HOST" \
             --wait --timeout 5m
-          echo "✓ Helm upgrade complete"
-
-      - name: Verify deployment
-        run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          echo "Waiting for rollout..."
-          kubectl rollout status deployment/agentos -n "$NAMESPACE" --timeout=5m
-          echo "Getting ingress..."
-          kubectl get ing -n "$NAMESPACE"
-          echo "✓ Deployment verified"
 
       - name: Rollback on failure
         if: failure()
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          echo "⚠️  Deployment failed, rolling back..."
-          helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deployment)"
+          helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deploy)"
