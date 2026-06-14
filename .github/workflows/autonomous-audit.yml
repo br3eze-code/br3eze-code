@@ -31,7 +31,7 @@ jobs:
 
       # --ignore-scripts skips postinstall.js and preuninstall.js
       - name: Install (no hooks)
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps
 
       - name: Run Audit Skill Chain
         run: node .github/scripts/run-skill-chain.js
