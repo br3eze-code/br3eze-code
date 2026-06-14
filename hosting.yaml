@@ -16,7 +16,7 @@ metadata:
     app: agentos
     env: production
     managed-by: gcloud
-    version: "2026.05.20"
+    version: "2026.06.14"
     tier: critical
     cost-center: infrastructure
   annotations:
@@ -54,15 +54,11 @@ spec:
         run.googleapis.com/startup-cpu-boost: "true"
         run.googleapis.com/cpu-throttling: "false"
         run.googleapis.com/execution-environment: gen2
-        # Max instance lifetime before graceful replacement (prevents memory leaks)
         run.googleapis.com/max-instance-request-concurrency: "80"
 
         ##################################################################
         # Observability — structured logging & tracing
         ##################################################################
-        run.googleapis.com/execution-environment: gen2
-        # Enable Cloud Trace integration
-        run.googleapis.com/secrets: "tracing-enabled"
         # Enable Cloud Profiler for CPU/memory profiling
         # run.googleapis.com/profiler: "true"
 
@@ -101,21 +97,22 @@ spec:
           resources:
             limits:
               cpu: "2"
-              memory: "2Gi"          # Increased: AI models need headroom
-              ephemeral-storage: "1Gi"  # For /tmp sessions, model cache
+              memory: "2Gi"              # Increased: AI models need headroom
+              ephemeral-storage: "1Gi"   # For /tmp sessions, model cache
             # requests ignored by Cloud Run, kept for documentation
             requests:
               cpu: "1"
               memory: "512Mi"
 
           ##################################################################
-          # Security hardening
+          # Security hardening — aligned with Dockerfile (nodejs uid 1001)
           ##################################################################
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1000          # Non-root UID
+            runAsUser: 1001              # Matches Dockerfile adduser nodejs -u 1001
+            runAsGroup: 1001
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true  # Immutable container
+            readOnlyRootFilesystem: true # Immutable container (/tmp via emptyDir)
             capabilities:
               drop:
                 - ALL
@@ -146,7 +143,7 @@ spec:
             - name: MEMORY_BASE_PATH
               value: /tmp/sessions
             - name: SESSION_TTL_SECONDS
-              value: "3600"          # 1h ephemeral session cleanup
+              value: "3600"              # 1h ephemeral session cleanup
             - name: MAX_SESSION_SIZE_MB
               value: "50"
 
@@ -154,13 +151,13 @@ spec:
             - name: LOG_LEVEL
               value: info
             - name: LOG_FORMAT
-              value: json            # Structured logging for Cloud Logging
+              value: json                # Structured logging for Cloud Logging
             - name: ENABLE_CLOUD_TRACE
               value: "true"
             - name: ENABLE_CLOUD_PROFILER
               value: "false"
             - name: METRICS_PORT
-              value: "9090"          # Prometheus-style metrics sidecar
+              value: "9090"              # Prometheus-style metrics sidecar
 
             # ---- Skills & AI --------------------------------------------
             - name: SKILLS_PATH
@@ -172,7 +169,7 @@ spec:
             - name: AI_REQUEST_TIMEOUT_MS
               value: "30000"
             - name: ENABLE_AI_FALLBACK
-              value: "true"          # Fallback to local model if APIs fail
+              value: "true"              # Fallback to local model if APIs fail
 
             # ---- Network & MikroTik -------------------------------------
             - name: MIKROTIK_CONNECTION_TIMEOUT_MS
@@ -309,7 +306,7 @@ spec:
                   value: "true"
             initialDelaySeconds: 5
             periodSeconds: 5
-            failureThreshold: 10      # 50s max startup (AI model loading)
+            failureThreshold: 10       # 50s max startup (AI model loading)
             timeoutSeconds: 5
 
           livenessProbe:
@@ -349,7 +346,7 @@ spec:
                 mode: 0400
         - name: tmp-sessions
           emptyDir:
-            medium: Memory           # tmpfs — fast, auto-cleared
+            medium: Memory             # tmpfs — fast, auto-cleared
             sizeLimit: 100Mi
         - name: tmp-models
           emptyDir:
@@ -369,10 +366,10 @@ spec:
   traffic:
     - percent: 100
       latestRevision: true
-      tag: prod                    # Route: prod-agentos-xxx.a.run.app
+      tag: prod                        # Route: prod-agentos-xxx.a.run.app
     # - percent: 0
     #   revisionName: agentos-00001-abc
-    #   tag: canary                # Route: canary-agentos-xxx.a.run.app
+    #   tag: canary                    # Route: canary-agentos-xxx.a.run.app
 
   ##################################################################
   # IAM — service-level access (supplement with gcloud commands)
@@ -413,60 +410,60 @@ spec:
 ###############################################################################
 #
 # === PRE-DEPLOY VALIDATION ===
-# gcloud run services replace hosting.yaml --region=africa-south1 \\
+# gcloud run services replace hosting.yaml --region=africa-south1 \
 #   --project=br3eze-africa-312df --dry-run
 #
 # === DEPLOY ===
-# gcloud run services replace hosting.yaml --region=africa-south1 \\
+# gcloud run services replace hosting.yaml --region=africa-south1 \
 #   --project=br3eze-africa-312df
 #
 # === SECRETS SETUP (one-time per secret) ===
-# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \\
-#               openai-api-key mikrotik-api-token paynow-integration-id \\
-#               paynow-integration-key mastercard-consumer-key \\
-#               mastercard-consumer-secret telegram-bot-token \\
+# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \
+#               openai-api-key mikrotik-api-token paynow-integration-id \
+#               paynow-integration-key mastercard-consumer-key \
+#               mastercard-consumer-secret telegram-bot-token \
 #               aws-access-key-id aws-secret-access-key gcp-sa-key; do
 #   echo "Creating secret: $secret"
-#   gcloud secrets create "$secret" --replication-policy=automatic \\
+#   gcloud secrets create "$secret" --replication-policy=automatic \
 #     --project=br3eze-africa-312df 2>/dev/null || echo "  Already exists"
 # done
 #
 # === GRANT SECRET ACCESS TO SA ===
-# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \\
-#               openai-api-key mikrotik-api-token paynow-integration-id \\
-#               paynow-integration-key mastercard-consumer-key \\
-#               mastercard-consumer-secret telegram-bot-token \\
+# for secret in gateway-token audit-secret gemini-api-key anthropic-api-key \
+#               openai-api-key mikrotik-api-token paynow-integration-id \
+#               paynow-integration-key mastercard-consumer-key \
+#               mastercard-consumer-secret telegram-bot-token \
 #               aws-access-key-id aws-secret-access-key gcp-sa-key; do
-#   gcloud secrets add-iam-policy-binding "$secret" \\
-#     --member="serviceAccount:agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com" \\
-#     --role="roles/secretmanager.secretAccessor" \\
+#   gcloud secrets add-iam-policy-binding "$secret" \
+#     --member="serviceAccount:agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com" \
+#     --role="roles/secretmanager.secretAccessor" \
 #     --project=br3eze-africa-312df
 # done
 #
 # === IAM: ALLOW UNAUTHENTICATED (hotspot portal) ===
-# gcloud run services add-iam-policy-binding agentos \\
-#   --region=africa-south1 \\
-#   --member="allUsers" \\
-#   --role="roles/run.invoker" \\
+# gcloud run services add-iam-policy-binding agentos \
+#   --region=africa-south1 \
+#   --member="allUsers" \
+#   --role="roles/run.invoker" \
 #   --project=br3eze-africa-312df
 #
 # === IAM: RESTRICT TO INTERNAL ONLY (admin APIs) ===
-# gcloud run services add-iam-policy-binding agentos \\
-#   --region=africa-south1 \\
-#   --member="serviceAccount:admin-sa@br3eze-africa-312df.iam.gserviceaccount.com" \\
-#   --role="roles/run.invoker" \\
+# gcloud run services add-iam-policy-binding agentos \
+#   --region=africa-south1 \
+#   --member="serviceAccount:admin-sa@br3eze-africa-312df.iam.gserviceaccount.com" \
+#   --role="roles/run.invoker" \
 #   --project=br3eze-africa-312df
 #
 # === VIEW REVISIONS ===
-# gcloud run revisions list --service=agentos --region=africa-south1 \\
+# gcloud run revisions list --service=agentos --region=africa-south1 \
 #   --project=br3eze-africa-312df
 #
 # === ROLLBACK ===
-# gcloud run services update-traffic agentos --to-revisions=agentos-00001-abc=100 \\
+# gcloud run services update-traffic agentos --to-revisions=agentos-00001-abc=100 \
 #   --region=africa-south1 --project=br3eze-africa-312df
 #
 # === LOGS ===
-# gcloud logging read "resource.type=cloud_run_revision \\
+# gcloud logging read "resource.type=cloud_run_revision \
 #   AND resource.labels.service_name=agentos" --limit=50 --format=json
 #
 # === METRICS ===
