@@ -96,14 +96,14 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            echo "⚠️  WARNING: FIREBASE_SERVICE_ACCOUNT secret not configured"
-            echo "Set this secret in Settings → Secrets and variables → Actions"
-            exit 1
+            echo "⚠️  FIREBASE_SERVICE_ACCOUNT not set — running in offline/mock mode"
+            echo "FIREBASE_OFFLINE=true" >> $GITHUB_ENV
+          else
+            echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-key.json
+            chmod 600 /tmp/firebase-key.json
+            echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-key.json" >> $GITHUB_ENV
+            echo "✓ Firebase credentials configured"
           fi
-          echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-key.json
-          chmod 600 /tmp/firebase-key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-key.json" >> $GITHUB_ENV
-          echo "✓ Firebase credentials configured"
 
       - name: Calculate date range
         id: dates
