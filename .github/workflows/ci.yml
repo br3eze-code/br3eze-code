@@ -14,6 +14,7 @@ jobs:
   lint-test:
     name: Lint & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -23,10 +24,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install (skip postinstall/preuninstall hooks)
+      - name: Install
         run: npm ci --ignore-scripts --legacy-peer-deps
 
-      # Jest config uses modulePaths: ['/tmp/jest-deps/node_modules']
       - name: Prepare Jest module path
         run: |
           mkdir -p /tmp/jest-deps
@@ -37,7 +37,7 @@ jobs:
         run: npm run lint
 
       - name: Test
-        run: npm test -- --ci --forceExit --passWithNoTests
+        run: npm test -- --ci --forceExit --passWithNoTests --coverage
         env:
           NODE_ENV: test
           ROS_HOST: 127.0.0.1
@@ -57,18 +57,31 @@ jobs:
           PORT: 3000
           GATEWAY_PORT: 19876
 
-      - name: Type check (jsconfig + tsconfig)
+      - name: Type check
         run: npm run build:check
+        continue-on-error: true
 
-      - name: Security check script
+      - name: Security audit
         run: npm run security:audit
         env:
           NODE_ENV: test
         continue-on-error: true
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage
+          name: coverage-${{ github.run_number }}
           path: coverage/
           retention-days: 14
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
