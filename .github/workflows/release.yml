@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/dependabot.yml'
+      - 'docs/**'
 
 permissions:
   contents: write
@@ -16,77 +17,89 @@ jobs:
   release:
     name: Auto-release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     outputs:
       version: ${{ steps.version.outputs.version }}
-      released: ${{ steps.release.outputs.released }}
+      bumped: ${{ steps.bump.outputs.bumped }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node 22 (GitHub Packages)
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22.x
           cache: npm
           registry-url: https://npm.pkg.github.com
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline --legacy-peer-deps
+      - name: Install
+        run: npm ci --ignore-scripts --prefer-offline --legacy-peer-deps
 
       - name: Compute CalVer
         id: version
         run: |
           TODAY=$(date -u +"%Y.%-m")
-          COUNT=$(git log --oneline --after="$(date -u +%Y-%m-%d)T00:00:00Z" | wc -l | tr -d ' ')
+          # Count commits today (UTC)
+          COUNT=$(git log --oneline \
+            --after="$(date -u +%Y-%m-%d)T00:00:00Z" \
+            --before="$(date -u +%Y-%m-%dT%H:%M:%SZ)" | wc -l | tr -d ' ')
           PATCH=$((COUNT > 0 ? COUNT : 1))
-          NEW_VERSION="${TODAY}.${PATCH}"
+          NEW="${TODAY}.${PATCH}"
           CURRENT=$(node -p "require('./package.json').version")
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "AgentOS version: $NEW_VERSION (was $CURRENT)"
+          echo "version=$NEW"     >> $GITHUB_OUTPUT
+          echo "📦 Version: $CURRENT → $NEW"
 
       - name: Bump package.json
         id: bump
         run: |
           CURRENT="${{ steps.version.outputs.current }}"
           NEW="${{ steps.version.outputs.version }}"
-          if [ "$CURRENT" != "$NEW" ]; then
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "bumped=false" >> $GITHUB_OUTPUT
+            echo "⏭  Version unchanged ($CURRENT) — skipping release"
+          else
             npm version "$NEW" --no-git-tag-version
             echo "bumped=true" >> $GITHUB_OUTPUT
-          else
-            echo "bumped=false" >> $GITHUB_OUTPUT
+            echo "✅ Bumped to $NEW"
           fi
 
       - name: Generate changelog
         id: changelog
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV" ]; then
             LOG=$(git log --oneline -20 --pretty="- %s (%h)")
           else
-            LOG=$(git log "${PREV_TAG}..HEAD" --oneline --pretty="- %s (%h)")
+            LOG=$(git log "${PREV}..HEAD" --oneline --pretty="- %s (%h)")
           fi
-          echo "log<<EOF" >> $GITHUB_OUTPUT
-          echo "$LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "log<<CHANGELOG_EOF"
+            echo "$LOG"
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Commit version bump
         if: steps.bump.outputs.bumped == 'true'
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
-          git diff --cached --quiet && echo "Nothing to commit, skipping" && exit 0
-          git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          git diff --cached --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: release v${{ steps.version.outputs.version }} [skip ci]"
           git pull --rebase origin main
           git push origin HEAD:main
 
+      - name: Tag release
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          git tag -a "v${{ steps.version.outputs.version }}" \
+            -m "AgentOS v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
       - name: Create GitHub Release
-        id: release
         if: steps.bump.outputs.bumped == 'true'
         uses: softprops/action-gh-release@v2
         with:
@@ -95,14 +108,22 @@ jobs:
           body: |
             ## 🤖 AgentOS v${{ steps.version.outputs.version }}
 
-            **Network Intelligence Platform — MikroTik · Telegram · WhatsApp · AI**
+            **Network Intelligence OS — MikroTik · Telegram · WhatsApp · AI**
+            **Region:** africa-south1 · **Runtime:** Node 22 · **Platform:** Cloud Run
 
             ### Changes
             ${{ steps.changelog.outputs.log }}
 
             ### Install
             ```bash
+            # npm registry
             npm install br3eze-code@${{ steps.version.outputs.version }}
+
+            # GitHub Packages
+            npm install @br3eze-code/br3eze-code@${{ steps.version.outputs.version }}
+
+            # Docker
+            docker pull ghcr.io/br3eze-code/br3eze-code:${{ steps.version.outputs.version }}
             ```
           draft: false
           prerelease: false
@@ -110,26 +131,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Publish to GitHub Packages (ghcr npm registry) ────────────────
-      - name: Publish to GitHub Packages
+      # ── Publish to GitHub Packages ─────────────────────────────────────────
+      - name: Publish → GitHub Packages
         if: steps.bump.outputs.bumped == 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Publish to npmjs.com ───────────────────────────────────────────
-      - name: Setup Node 22 (npmjs.com)
+      # ── Publish to npmjs.com ───────────────────────────────────────────────
+      - name: Setup Node for npmjs.com
         if: steps.bump.outputs.bumped == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
 
-      - name: Publish to npmjs.com
+      - name: Publish → npmjs.com
         if: steps.bump.outputs.bumped == 'true'
-        run: |
-          # Temporarily point registry to npmjs for this publish
-          npm publish --access public --registry https://registry.npmjs.org
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
+        continue-on-error: true   # don't block if NPM_TOKEN not yet set
