@@ -16,15 +16,18 @@ on:
         default: 'internal'
         type: choice
         options: [internal, alpha, beta, production]
+      version_code:
+        description: 'Override versionCode (leave blank for auto)'
+        required: false
 
 permissions:
   contents: read
 
 jobs:
   cordova-build:
-    name: Cordova Build & Sign
+    name: Cordova Build & Sign → ${{ github.event.inputs.track || 'internal' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
@@ -43,14 +46,34 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
       - name: Install Node deps
         run: npm ci --ignore-scripts --legacy-peer-deps
 
       - name: Install Cordova CLI
         run: npm install -g cordova@13
 
+      - name: Set versionCode
+        id: vc
+        run: |
+          if [ -n "${{ github.event.inputs.version_code }}" ]; then
+            VC="${{ github.event.inputs.version_code }}"
+          else
+            VC="${{ github.run_number }}"
+          fi
+          echo "code=$VC" >> $GITHUB_OUTPUT
+          echo "📱 versionCode: $VC"
+
       - name: Add Android platform
-        run: cordova platform add android --save || true
+        run: cordova platform add android@12 --save || true
 
       - name: Cordova prepare
         run: cordova prepare android
@@ -60,43 +83,46 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.keystore
           chmod 600 /tmp/release.keystore
 
-      - name: Cordova build release APK/AAB
+      - name: Build release AAB
         run: |
           cordova build android --release \
             -- \
             --keystore=/tmp/release.keystore \
             --storePassword="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             --alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
-            --password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+            --password="${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            --versionCode="${{ steps.vc.outputs.code }}"
 
-      - name: Find built AAB/APK
-        id: find_apk
+      - name: Locate artifacts
+        id: artifacts
         run: |
-          AAB=$(find platforms/android -name "*.aab" | head -1)
+          AAB=$(find platforms/android -name "*.aab" -not -path "*/debug/*" | head -1)
           APK=$(find platforms/android -name "*-release*.apk" | head -1)
           echo "aab=$AAB" >> $GITHUB_OUTPUT
           echo "apk=$APK" >> $GITHUB_OUTPUT
-          echo "Built: AAB=$AAB  APK=$APK"
+          echo "AAB: $AAB  APK: $APK"
+          [ -f "$AAB" ] || { echo "❌ No AAB found"; exit 1; }
 
-      - name: Upload APK artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: agentos-release-${{ github.run_number }}
+          name: agentos-android-${{ steps.vc.outputs.code }}
           path: |
-            ${{ steps.find_apk.outputs.aab }}
-            ${{ steps.find_apk.outputs.apk }}
+            ${{ steps.artifacts.outputs.aab }}
+            ${{ steps.artifacts.outputs.apk }}
           retention-days: 30
 
       - name: Publish to Google Play
-        if: steps.find_apk.outputs.aab != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.br3eze.agentos
-          releaseFiles: ${{ steps.find_apk.outputs.aab }}
+          releaseFiles: ${{ steps.artifacts.outputs.aab }}
           track: ${{ github.event.inputs.track || 'internal' }}
           status: completed
+          inAppUpdatePriority: 3
           changesNotSentForReview: false
+          whatsNewDirectory: ''
 
       - name: Cleanup keystore
         if: always()
