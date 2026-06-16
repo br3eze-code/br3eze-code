@@ -733,11 +733,12 @@ class Database {
         for (const v of pending) {
             if (v.expiresAt && new Date(v.expiresAt) <= now) {
                 await this.redeemVoucher(v.id, { reason: 'expired', expiredAt: new Date().toISOString() });
-                // eslint-disable-next-line no-use-before-define
+                // eslint-disable no-use-before-define
                 if (mikrotik.isConnected) {
                     await mikrotik.removeHotspotUser(v.id).catch(() => { });
                     await mikrotik.kickUser(v.id).catch(() => { });
                 }
+                // eslint-enable no-use-before-define
                 count++;
             }
         }
