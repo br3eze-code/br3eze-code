@@ -83,20 +83,20 @@ async function extractPDF(input) {
 function parseInvoiceFields(text) {
     return {
         invoiceNumber: _matchFirst(text, [
-            /invoice\s*#?\s*[:\-]?\s*([A-Z0-9\-]+)/i,
-            /inv\.?\s*no\.?\s*[:\-]?\s*([A-Z0-9\-]+)/i
+            /invoice\s*#?\s*[:-]?\s*([A-Z0-9-]+)/i,
+            /inv\.?\s*no\.?\s*[:-]?\s*([A-Z0-9-]+)/i
         ]),
         date: _matchFirst(text, [
-            /(?:invoice\s+)?date\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
-            /dated?\s*[:\-]?\s*(\w+ \d{1,2},?\s*\d{4})/i
+            /(?:invoice\s+)?date\s*[:-]?\s*(\d{1,2}[\/-\.]\d{1,2}[\/-\.]\d{2,4})/i,
+            /dated?\s*[:-]?\s*(\w+ \d{1,2},?\s*\d{4})/i
         ]),
         amount: _matchFirst(text, [
-            /total\s+(?:amount\s+)?(?:due\s+)?[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i,
-            /amount\s+payable\s*[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i,
-            /grand\s+total\s*[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i
+            /total\s+(?:amount\s+)?(?:due\s+)?[:-]?\s*\$?([\d,]+\.?\d{0,2})/i,
+            /amount\s+payable\s*[:-]?\s*\$?([\d,]+\.?\d{0,2})/i,
+            /grand\s+total\s*[:-]?\s*\$?([\d,]+\.?\d{0,2})/i
         ]),
         vendor: _matchFirst(text, [
-            /(?:from|vendor|billed?\s+by|supplier)\s*[:\-]?\s*([^\n]{3,60})/i
+            /(?:from|vendor|billed?\s+by|supplier)\s*[:-]?\s*([^\n]{3,60})/i
         ]),
         lineItems: _extractLineItems(text),
         raw: text

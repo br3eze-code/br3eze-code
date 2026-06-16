@@ -3,8 +3,10 @@ name: Security
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
-    - cron: '0 3 * * 1'  # Monday 03:00 UTC
+    - cron: '0 3 * * 1'   # Weekly Monday 03:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -14,7 +16,7 @@ permissions:
 
 jobs:
   npm-audit:
-    name: npm audit (high+)
+    name: npm audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,11 +25,22 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: npm audit --audit-level=high
-        continue-on-error: true   # audit findings shouldn't block CI
+      - run: npm audit --audit-level=high --json > npm-audit.json || true
+      - name: Summarise audit
+        run: |
+          CRITICAL=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.critical||0)")
+          HIGH=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.high||0)")
+          echo "Critical: $CRITICAL  High: $HIGH"
+          [ "$CRITICAL" -gt 0 ] && echo "⚠️  Critical vulnerabilities found!" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-${{ github.run_number }}
+          path: npm-audit.json
+          retention-days: 30
 
   security-check-script:
-    name: scripts/security-check.js
+    name: Security check script
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,8 +49,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - name: Run repo security check script
-        run: node scripts/security-check.js
+      - run: node scripts/security-check.js
         env:
           NODE_ENV: test
           DATA_BACKEND: local
@@ -45,8 +57,9 @@ jobs:
         continue-on-error: true
 
   codeql:
-    name: CodeQL (JavaScript)
+    name: CodeQL
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
@@ -57,7 +70,27 @@ jobs:
         with:
           languages: javascript
           queries: security-and-quality
+          config: |
+            paths-ignore:
+              - 'node_modules'
+              - 'platforms'
+              - 'www/lib'
+              - 'docs'
+              - '**/*.min.js'
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
         with:
           category: /language:javascript
+        continue-on-error: true   # CodeQL quota issues shouldn't block
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
