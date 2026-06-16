@@ -87,10 +87,15 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
-          git diff --cached --quiet && echo "Nothing to commit" && exit 0
+          if git diff --cached --quiet; then
+            echo "ℹ️  Nothing to commit — version already at ${{ steps.version.outputs.version }}"
+            exit 0
+          fi
           git commit -m "chore: release v${{ steps.version.outputs.version }} [skip ci]"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # Rebase on top of any concurrent commits, then push
+          git fetch origin main
+          git rebase origin/main || git rebase --abort
+          git push origin HEAD:main --force-with-lease
 
       - name: Tag release
         if: steps.bump.outputs.bumped == 'true'
