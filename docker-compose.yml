@@ -1,12 +1,14 @@
 version: '3.8'
 
 services:
-agentos:
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mikrotik-auth
+      args:
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: ghcr.io/br3eze-code/br3eze-code:latest
+    container_name: agentos
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -14,47 +16,64 @@ agentos:
       - NODE_ENV=production
       - PORT=3000
       - LOG_LEVEL=info
-       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LOG_FORMAT=json
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - FIREBASE_SERVICE_ACCOUNT_PATH=/app/config/serviceAccountKey.json
-      - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
+      - FIREBASE_SERVICE_ACCOUNT=${FIREBASE_SERVICE_ACCOUNT}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-br3eze-africa-312df}
       - MIKROTIK_HOST=${MIKROTIK_HOST}
       - MIKROTIK_USER=${MIKROTIK_USER}
       - MIKROTIK_PASSWORD=${MIKROTIK_PASSWORD}
-      - MIKROTIK_REST_URL=${MIKROTIK_REST_URL}
-      - SERVER_URL=${SERVER_URL}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-   volumes:
+      - GATEWAY_TOKEN=${GATEWAY_TOKEN}
+      - SESSION_MODE=isolated
+      - MEMORY_BASE_PATH=/tmp/sessions
+      - DATA_BACKEND=${DATA_BACKEND:-local}
+    volumes:
       - ./skills:/app/skills
-      - ./config:/app/config
       - ./data:/app/data
-      - ./logs:/app/logs
+      - agentos-logs:/app/logs
+    tmpfs:
+      - /tmp/sessions:size=100m
+      - /tmp/models:size=500m
     networks:
-      - mikrotik-network
+      - agentos-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health',(r)=>r.statusCode===200?process.exit(0):process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '1.0'
+          memory: 1G
         reservations:
           cpus: '0.25'
           memory: 256M
+    depends_on:
+      redis:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
-    container_name: mikrotik-redis
+    container_name: agentos-redis
     restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
     volumes:
       - redis-data:/data
     networks:
-      - mikrotik-network
+      - agentos-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   nginx:
     image: nginx:alpine
-    container_name: mikrotik-nginx
+    container_name: agentos-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -62,27 +81,16 @@ agentos:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./mikrotik/hotspot:/var/www/hotspot:ro
+      - ./www:/var/www/hotspot:ro
     depends_on:
       - app
     networks:
-      - mikrotik-network
-
-        postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: agentos
-      POSTGRES_USER: agentos
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+      - agentos-network
 
 volumes:
   redis-data:
-  postgres_data:
-
+  agentos-logs:
 
 networks:
-  mikrotik-network:
+  agentos-network:
     driver: bridge

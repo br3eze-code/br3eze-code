@@ -5,10 +5,24 @@ on:
     branches: [main]
     paths:
       - 'src/**'
-      - 'helm/**'
+      - 'agentos.js'
+      - 'bin/**'
+      - 'adapters/**'
+      - 'agents/**'
       - 'Dockerfile'
       - 'package.json'
+      - 'hosting.yaml'
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: false
+        default: 'production'
+        type: choice
+        options: [production, staging]
+      image_tag:
+        description: 'Docker image tag (leave blank for latest)'
+        required: false
 
 env:
   REGISTRY: ghcr.io
@@ -23,16 +37,22 @@ permissions:
   id-token: write
 
 jobs:
+  # ── Build ──────────────────────────────────────────────────────────────────
   build:
     name: Build Container
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build.outputs.digest }}
-      image_uri: ${{ steps.image_uri.outputs.uri }}
+      image_uri: ${{ steps.uri.outputs.uri }}
+      version: ${{ steps.ver.outputs.version }}
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: ver
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -52,94 +72,110 @@ jobs:
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.ver.outputs.version }}
 
       - name: Build and push
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
 
-      - name: Set image URI output
-        id: image_uri
+      - name: Set image URI
+        id: uri
         run: |
-          SHORT_SHA="${{ github.sha }}"
-          echo "uri=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT_SHA:0:7}" >> $GITHUB_OUTPUT
+          SHORT="${{ github.sha }}"
+          echo "uri=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT:0:7}" >> $GITHUB_OUTPUT
 
-  # ── Cloud Run deploy ────────────────────────────────────────────────────
+  # ── Cloud Run ──────────────────────────────────────────────────────────────
   deploy-cloudrun:
-    name: Deploy to Cloud Run
+    name: Deploy → Cloud Run (${{ github.event.inputs.environment || 'production' }})
     needs: build
     runs-on: ubuntu-latest
-    environment: production
-    if: github.event_name == 'push' && secrets.GCP_SA_KEY != ''
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Setup gcloud CLI
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ env.GCP_PROJECT }}
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
-
-      - name: Deploy to Cloud Run
+      - name: Deploy via hosting.yaml
         run: |
-          gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
-            --image "${{ needs.build.outputs.image_uri }}" \
-            --region "${{ env.GCP_REGION }}" \
-            --project "${{ env.GCP_PROJECT }}" \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 3000 \
-            --memory 512Mi \
-            --cpu 1 \
-            --min-instances 0 \
-            --max-instances 3 \
-            --timeout 300 \
-            --set-secrets="FIREBASE_SERVICE_ACCOUNT=FIREBASE_SERVICE_ACCOUNT:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,GATEWAY_TOKEN=GATEWAY_TOKEN:latest" \
-            --set-env-vars="NODE_ENV=production,PORT=3000,GCP_PROJECT=${{ env.GCP_PROJECT }},GCP_REGION=${{ env.GCP_REGION }}" \
-            --quiet
-          echo "✅ Cloud Run deployed"
+          # Use hosting.yaml for full production-hardened deploy
+          # Patch image tag to the freshly built digest
+          IMAGE="${{ needs.build.outputs.image_uri }}"
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}"
+          fi
 
-      - name: Get Cloud Run URL
+          # Inline-replace image in hosting.yaml for this deploy
+          sed "s|ghcr.io/br3eze-code/br3eze-code:latest|${IMAGE}|g" hosting.yaml > /tmp/hosting-deploy.yaml
+
+          gcloud run services replace /tmp/hosting-deploy.yaml \
+            --region="${{ env.GCP_REGION }}" \
+            --project="${{ env.GCP_PROJECT }}"
+
+          echo "✅ Deployed: $IMAGE"
+
+      - name: Get service URL
+        id: url
         run: |
           URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
-            --region ${{ env.GCP_REGION }} \
-            --project ${{ env.GCP_PROJECT }} \
-            --format 'value(status.url)')
-          echo "🌍 Service URL: $URL"
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT }} \
+            --format='value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "🌍 AgentOS live at: $URL"
 
-  # ── Kubernetes / Helm deploy (optional, skips if KUBECONFIG missing) ────
+      - name: Smoke test
+        run: |
+          URL="${{ steps.url.outputs.url }}"
+          echo "Testing $URL/health ..."
+          for i in 1 2 3 4 5; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${{ secrets.GATEWAY_TOKEN }}" \
+              "$URL/health" || echo "000")
+            echo "  Attempt $i: HTTP $STATUS"
+            [ "$STATUS" = "200" ] && echo "✅ Health check passed" && exit 0
+            sleep 10
+          done
+          echo "⚠️  Health check did not return 200 — check Cloud Run logs"
+          exit 1
+        continue-on-error: true
+
+  # ── Kubernetes / Helm (conditional) ───────────────────────────────────────
   deploy-k8s:
-    name: Deploy to Kubernetes
+    name: Deploy → Kubernetes
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push' && secrets.KUBECONFIG != ''
+    timeout-minutes: 15
+    if: ${{ secrets.KUBECONFIG != '' }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Setup Kubernetes context
+      - name: Set Kubernetes context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
@@ -147,33 +183,31 @@ jobs:
 
       - name: Create namespace
         run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create secrets
+      - name: Sync secrets
         run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create secret generic agentos \
             --from-literal=gateway-token="${{ secrets.GATEWAY_TOKEN }}" \
             --from-literal=gemini-api-key="${{ secrets.GEMINI_API_KEY }}" \
             --from-literal=anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
-            -n "$NAMESPACE" \
-            --dry-run=client -o yaml | kubectl apply -f -
+            --from-literal=telegram-bot-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Helm upgrade
         run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'agentos.local' }}"
+          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           helm upgrade --install agentos ./helm/agentos \
-            --namespace "$NAMESPACE" \
-            --create-namespace \
+            --namespace "$NS" --create-namespace \
             --set image.repository="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
             --set image.tag="${{ needs.build.outputs.digest }}" \
-            --set ingress.hosts[0].host="$INGRESS_HOST" \
-            --wait --timeout 5m
+            --set app.version="${{ needs.build.outputs.version }}" \
+            --wait --timeout 5m --atomic
 
       - name: Rollback on failure
         if: failure()
         run: |
-          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deploy)"
+          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          helm rollback agentos -n "$NS" || echo "⚠️  No previous release to rollback to"

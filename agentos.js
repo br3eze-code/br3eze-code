@@ -370,7 +370,9 @@ class ConversationSession {
     constructor(sessionId = crypto.randomUUID()) {
         this.sessionId = sessionId;
         this.messages = [];
+        // eslint-disable-next-line no-use-before-define
         this.transcript = new TranscriptStore();
+        // eslint-disable-next-line no-use-before-define
         this.usage = new UsageTracker();
         this._path = `./data/sessions/${sessionId}.json`;
     }
@@ -731,10 +733,12 @@ class Database {
         for (const v of pending) {
             if (v.expiresAt && new Date(v.expiresAt) <= now) {
                 await this.redeemVoucher(v.id, { reason: 'expired', expiredAt: new Date().toISOString() });
+                // eslint-disable no-use-before-define
                 if (mikrotik.isConnected) {
                     await mikrotik.removeHotspotUser(v.id).catch(() => { });
                     await mikrotik.kickUser(v.id).catch(() => { });
                 }
+                // eslint-enable no-use-before-define
                 count++;
             }
         }
@@ -977,6 +981,7 @@ class NodeRegistry {
 
     add(name, ip, user, pass, port = CONFIG.MIKROTIK.PORT) {
         if (this._nodes.has(name)) this._nodes.get(name).disconnect();
+        // eslint-disable-next-line no-use-before-define
         const node = new MikroTikManager({ ip, user, pass, port });
         this._nodes.set(name, node);
         logger.info(`NodeRegistry: registered "${name}" (${ip})`);
@@ -1137,6 +1142,7 @@ class SkillRegistry {
         return {
             name: toolName,
             call: (...args) => {
+                // eslint-disable-next-line no-use-before-define
                 const node = context?.node || mikrotik;
                 return node.executeTool(toolName, ...args);
             },
@@ -1267,7 +1273,7 @@ class MikroTikManager {
 
     async updateCredentials(ip, user, pass) {
         if (this.conn) {
-            try { this.api.close(); } catch { }
+            try { this.api.close(); } catch (_err) { /* ignore close errors during reconnect */ }
         }
         this.conn = null;
         this.isConnected = false;

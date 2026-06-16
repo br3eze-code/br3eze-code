@@ -6,6 +6,8 @@ on:
     paths-ignore:
       - '**.md'
       - '.github/dependabot.yml'
+      - 'docs/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +17,7 @@ jobs:
   canary:
     name: Publish Canary
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -32,20 +35,35 @@ jobs:
         id: ver
         run: |
           BASE=$(node -p "require('./package.json').version")
-          SHA="${{ github.sha }}"
-          SHORT="${SHA:0:7}"
-          CANARY="${BASE}-canary.${SHORT}"
+          SHORT="${{ github.sha }}"
+          CANARY="${BASE}-canary.${SHORT:0:7}"
           npm version "$CANARY" --no-git-tag-version
           echo "canary=$CANARY" >> $GITHUB_OUTPUT
+          echo "📦 Canary: $CANARY"
 
-      - name: Publish canary to GitHub Packages
+      - name: Publish → GitHub Packages
         run: npm publish --tag canary --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish canary to npmjs.com
-        run: npm publish --tag canary --access public --registry https://registry.npmjs.org
+      - name: Setup for npmjs.com
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish → npmjs.com
+        run: npm publish --tag canary --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        continue-on-error: true  # NPM_TOKEN optional
+        continue-on-error: true
 
+      - name: Summary
+        run: |
+          echo "## 📦 Canary Published" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** \`${{ steps.ver.outputs.canary }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Install with:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "npm install br3eze-code@canary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

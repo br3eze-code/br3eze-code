@@ -11,8 +11,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --omit=dev --legacy-peer-deps && \
+# Install production dependencies
+# --ignore-scripts prevents postinstall/preuninstall from running in Docker
+# --legacy-peer-deps handles zod/openai peer dep resolution
+RUN npm ci --omit=dev --ignore-scripts --legacy-peer-deps && \
     npm cache clean --force
 
 # ============================================
@@ -26,12 +28,12 @@ RUN apk add --no-cache dumb-init ca-certificates
 # Create app directory
 WORKDIR /app
 
-# Create non-root user
+# Create non-root user (uid 1001 matches hosting.yaml runAsUser)
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Create required directories with proper ownership
-RUN mkdir -p logs skills certs data && \
+RUN mkdir -p logs skills certs data tmp/sessions tmp/models && \
     chown -R nodejs:nodejs /app
 
 # Copy dependencies from builder stage
@@ -56,4 +58,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 # Start application with dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "bin/agentos.js", "gateway"]
-

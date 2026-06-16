@@ -1,18 +1,54 @@
-node_modules
-npm-debug.log
-logs
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Secrets & env
 .env
-.env.local
-.env.*.local
-.git
-.gitignore
-README.md
-.coverage
-coverage
-.nyc_output
+.env.*
+!.env.example
+serviceAccountKey.json
+*.pem
+*.key
+*.p12
+
+# Dev & test
 *.test.js
 *.spec.js
 tests/
+test-planner/
+coverage/
+.nyc_output/
+jest.config.*
+
+# Build artifacts
+dist/
+build/
+platforms/
+.cordova/
+
+# Docs & media
 docs/
+README.md
+CONTRIBUTING.md
+*.md
+!LICENSE
+
+# CI & tooling
+.github/
 .vscode/
 .idea/
+.git/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large binary assets
+docs/images/
+www/img/
