@@ -190,7 +190,7 @@ jobs:
 
       - name: Upload reports to artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: accounting-reports-${{ steps.dates.outputs.from }}
           path: reports/accounting/
@@ -200,7 +200,7 @@ jobs:
 
       - name: Upload summary as JSON artifact
         if: always() && hashFiles('reports/accounting/summary.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: report-summary-json-${{ steps.dates.outputs.from }}
           path: reports/accounting/summary.json
