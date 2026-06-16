@@ -174,7 +174,7 @@ class ModelArmor {
         const violations = [];
         if (/ignore\s+(?:previous\s+)?instructions?|system\s+prompt|jailbreak/i.test(text))
             violations.push('prompt_injection');
-        if (/\b(password|api[_-]?key|secret|private[_-]?key|bearer\s+[a-zA-Z0-9._\-]+)\b/i.test(text))
+        if (/\b(password|api[_-]?key|secret|private[_-]?key|bearer\s+[a-zA-Z0-9._-]+)\b/i.test(text))
             violations.push('sensitive_data');
         if (/<script[\s>]|javascript:/i.test(text))
             violations.push('xss_payload');
