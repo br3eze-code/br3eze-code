@@ -1,215 +1,101 @@
 /**
- * AgentOS WiFi Manager - API Client
- * Version: 2026.5.0
- * Features: REST API communication with server
+ * AgentOS Hermes — client.js
+ * REST API client  · v1 / v2 / v3
  */
+'use strict';
 
-class AgentOSClient {
-    constructor() {
-        this.serverUrl = '';
-        this.token = '';
-        this.timeout = CONFIG.API_TIMEOUT;
+const Client = (() => {
+  let _base = '', _token = '';
+
+  function configure(url, token) {
+    _base  = url.replace(/\/$/, '');
+    _token = token || '';
+  }
+
+  async function request(path, opts = {}) {
+    if (!_base) throw new Error('Gateway URL not configured');
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), CFG.API_TIMEOUT_MS);
+    try {
+      const res = await fetch(_base + path, {
+        method:  opts.method || 'GET',
+        signal:  ctrl.signal,
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${_token}`,
+          ...(opts.headers || {}),
+        },
+        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      });
+      clearTimeout(tid);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      return json;
+    } catch(e) {
+      clearTimeout(tid);
+      if (e.name === 'AbortError') throw new Error('Request timed out');
+      throw e;
     }
+  }
 
-    setConfig(serverUrl, token) {
-        this.serverUrl = serverUrl.replace(/\/$/, ''); // Remove trailing slash
-        this.token = token;
-    }
+  // ── v1 ────────────────────────────────────────────────────────
+  const v1 = {
+    health:          ()    => request(`${CFG.API}/health`),
+    systemStats:     ()    => request(`${CFG.API}/system/stats`),
+    systemResources: ()    => request(`${CFG.API}/system/resources`),
+    systemIdentity:  ()    => request(`${CFG.API}/system/identity`),
+    ping:            (h,n) => request(`${CFG.API}/system/ping`, { method:'POST', body:{host:h,count:n||4}}),
+    reboot:          ()    => request(`${CFG.API}/system/reboot`, { method:'POST'}),
 
-    getServerUrl() {
-        return this.serverUrl;
-    }
+    activeUsers:     ()    => request(`${CFG.API}/users/active`),
+    allUsers:        ()    => request(`${CFG.API}/users/all`),
+    addUser:         (u,p,pl)=> request(`${CFG.API}/users/add`,{method:'POST',body:{username:u,password:p,profile:pl}}),
+    delUser:         (u)   => request(`${CFG.API}/users/${encodeURIComponent(u)}`,{method:'DELETE'}),
+    disconnect:      (id)  => request(`${CFG.API}/users/${id}/disconnect`,{method:'POST'}),
 
-    getToken() {
-        return this.token;
-    }
+    voucherStats:    ()    => request(`${CFG.API}/vouchers/stats`),
+    vouchers:        (f)   => request(`${CFG.API}/vouchers?${new URLSearchParams(f||{})}`),
+    getVoucher:      (c)   => request(`${CFG.API}/vouchers/${encodeURIComponent(c)}`),
+    createVoucher:   (d)   => request(`${CFG.API}/vouchers`,{method:'POST',body:d}),
+    redeemVoucher:   (c,u) => request(`${CFG.API}/vouchers/redeem`,{method:'POST',body:{code:c,user:u}}),
+    voucherQR:       (c)   => request(`${CFG.API}/vouchers/${encodeURIComponent(c)}/qr`),
+    bulkVouchers:    (n,p) => request(`${CFG.API3}/bulk/vouchers`,{method:'POST',body:{count:n,plan:p}}),
 
-    async request(endpoint, options = {}) {
-        const url = `${this.serverUrl}${endpoint}`;
+    plans:           ()    => request(`${CFG.API}/plans`),
+    profiles:        ()    => request(`${CFG.API}/hotspot/profiles`),
+    tools:           ()    => request(`${CFG.API}/tools`),
+    runTool:         (t,p) => request(`${CFG.API}/tools/${t}`,{method:'POST',body:p||{}}),
+    execute:         (t,p) => request(`${CFG.API}/execute`,{method:'POST',body:{tool:t,params:p||{}}}),
+    nodes:           ()    => request(`${CFG.API}/nodes`),
+    diagnostics:     ()    => request(`${CFG.API}/diagnostics`),
+    interfaces:      ()    => request(`${CFG.API}/system/resources`),
+  };
 
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            timeout: this.timeout
-        };
+  // ── v2 ────────────────────────────────────────────────────────
+  const v2 = {
+    health:          ()    => request(`${CFG.API2}/health`),
+    ask:             (p,s) => request(`${CFG.API2}/ask`,{method:'POST',body:{prompt:p,sessionId:s}}),
+    financialSummary:()    => request(`${CFG.API2}/financial/summary`),
+    financialReport: ()    => request(`${CFG.API2}/financial/report`),
+    channels:        ()    => request(`${CFG.API2}/channels`),
+    providers:       ()    => request(`${CFG.API2}/providers`),
+    analyticsVouchers:()   => request(`${CFG.API2}/analytics/vouchers`),
+    analyticsSystem: ()    => request(`${CFG.API2}/analytics/system`),
+    nodes:           ()    => request(`${CFG.API2}/nodes`),
+    sessions:        ()    => request(`${CFG.API2}/sessions`),
+  };
 
-        if (this.token) {
-            defaultOptions.headers['Authorization'] = `Bearer ${this.token}`;
-        }
+  // ── v3 ────────────────────────────────────────────────────────
+  const v3 = {
+    diagnosticsFull: ()    => request(`${CFG.API3}/diagnostics/full`),
+    connectivity:    ()    => request(`${CFG.API3}/diagnostics/connectivity`),
+    config:          ()    => request(`${CFG.API3}/config`),
+    bulkVouchers:    (n,p) => request(`${CFG.API3}/bulk/vouchers`,{method:'POST',body:{count:n,plan:p}}),
+    bulkDisconnect:  (ids) => request(`${CFG.API3}/bulk/users/disconnect`,{method:'POST',body:{ids}}),
+  };
 
-        const mergedOptions = {
-            ...defaultOptions,
-            ...options,
-            headers: {
-                ...defaultOptions.headers,
-                ...(options.headers || {})
-            }
-        };
-
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-            const response = await fetch(url, {
-                ...mergedOptions,
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || `HTTP ${response.status}`);
-            }
-
-            return data;
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                throw new Error('Request timeout');
-            }
-            throw error;
-        }
-    }
-
-    // Authentication
-    async login(username, password) {
-        const data = await this.request('/api/auth/login', {
-            method: 'POST',
-            body: JSON.stringify({ username, password })
-        });
-
-        if (data.success && data.token) {
-            this.token = data.token;
-            await storage.saveSetting(STORAGE_KEYS.API_TOKEN, data.token);
-        }
-
-        return data;
-    }
-
-    // Health check
-    async health() {
-        return this.request('/health');
-    }
-
-    // System tools
-    async executeTool(tool, params = []) {
-        // Try WebSocket first for real-time
-        if (wsClient.isConnected()) {
-            try {
-                return await wsClient.executeTool(tool, params);
-            } catch (e) {
-                console.warn('[Client] WS tool failed, falling back to HTTP:', e.message);
-            }
-        }
-
-        // Fallback to HTTP
-        return this.request('/api/tool/execute', {
-            method: 'POST',
-            body: JSON.stringify({ tool, params })
-        });
-    }
-
-    // Router endpoints
-    async getRouterStatus() {
-        return this.executeTool('router.status');
-    }
-
-    async getRouterUsers() {
-        return this.executeTool('router.users');
-    }
-
-    async getActiveUsers() {
-        return this.executeTool('router.active');
-    }
-
-    async kickUser(username) {
-        return this.executeTool('router.kick', [username]);
-    }
-
-    async rebootRouter() {
-        return this.executeTool('router.reboot');
-    }
-
-    async backupRouter() {
-        return this.executeTool('router.backup');
-    }
-
-    // Voucher endpoints
-    async listVouchers(limit = 50, used = null) {
-        let url = `/api/vouchers?limit=${limit}`;
-        if (used !== null) {
-            url += `&used=${used}`;
-        }
-        return this.request(url);
-    }
-
-    async createVoucher(plan, count = 1) {
-        return this.request('/api/vouchers', {
-            method: 'POST',
-            body: JSON.stringify({ plan, count })
-        });
-    }
-
-    async redeemVoucher(code, user) {
-        return this.request('/api/vouchers/redeem', {
-            method: 'POST',
-            body: JSON.stringify({ code, user })
-        });
-    }
-
-    async getVoucherStats() {
-        return this.request('/api/vouchers/stats');
-    }
-
-    // Network tools
-    async ping(host, count = 4) {
-        return this.executeTool('network.ping', [host, count]);
-    }
-
-    async getInterfaces() {
-        return this.executeTool('network.interfaces');
-    }
-
-    // System tools
-    async getSystemStats() {
-        return this.executeTool('system.stats');
-    }
-
-    async getSystemHealth() {
-        return this.executeTool('system.health');
-    }
-
-    // Audit
-    async getAuditLog(limit = 50) {
-        return this.request(`/api/audit?limit=${limit}`);
-    }
-
-    // Available tools
-    async listTools() {
-        if (wsClient.isConnected()) {
-            return wsClient.listTools();
-        }
-        return this.request('/api/tools');
-    }
-
-    // Check connection
-    async isOnline() {
-        try {
-            await this.health();
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-}
-
-// Global client instance
-const Client = new AgentOSClient();
-
-// Export for use in other modules
-if (typeof window !== 'undefined') {
-    window.AgentOSClient = AgentOSClient;
-    window.Client = Client;
-}
+  return { configure, request, v1, v2, v3,
+    getBase: () => _base,
+    hasConfig: () => !!_base,
+  };
+})();
