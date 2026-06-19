@@ -87,7 +87,7 @@ function parseInvoiceFields(text) {
             /inv\.?\s*no\.?\s*[:-]?\s*([A-Z0-9-]+)/i
         ]),
         date: _matchFirst(text, [
-            /(?:invoice\s+)?date\s*[:-]?\s*(\d{1,2}[\/-\.]\d{1,2}[\/-\.]\d{2,4})/i,
+            /(?:invoice\s+)?date\s*[:-]?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i,
             /dated?\s*[:-]?\s*(\w+ \d{1,2},?\s*\d{4})/i
         ]),
         amount: _matchFirst(text, [

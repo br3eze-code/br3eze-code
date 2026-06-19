@@ -24,41 +24,30 @@ const credential = (
 
 if (!credential) throw new Error('Firebase credentials not configured — set FIREBASE_PROJECT_ID / PRIVATE_KEY / CLIENT_EMAIL');
 
-admin.initializeApp({
-    credential,
-    databaseURL:   process.env.FIREBASE_DATABASE_URL,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET
-});
+let db, auth, storage, messaging;
 
-        // Enable Firestore offline persistence (for server)
-        const db = admin.firestore();
-        db.settings({
-            ignoreUndefinedProperties: true,
-            timestampsInSnapshots: true
-        });
+try {
+    admin.initializeApp({
+        credential,
+        databaseURL:   process.env.FIREBASE_DATABASE_URL,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+    });
 
-        logger.info('✅ Firebase Admin SDK initialized successfully');
+    // Enable Firestore offline persistence (for server)
+    db = admin.firestore();
+    db.settings({
+        ignoreUndefinedProperties: true,
+        timestampsInSnapshots: true
+    });
 
-        return {
-            admin,
-            auth: admin.auth(),
-            db,
-            storage: admin.storage(),
-            messaging: admin.messaging()
-        };
+    auth = admin.auth();
+    storage = admin.storage();
+    messaging = admin.messaging();
 
-    } catch (error) {
-        logger.error('❌ Firebase initialization error:', error);
-        throw error;
-    }
-};
+    logger.info('✅ Firebase Admin SDK initialized successfully');
+} catch (error) {
+    logger.error('❌ Firebase initialization error:', error);
+    throw error;
+}
 
-const { auth, db, storage, messaging } = initializeFirebase();
-
-module.exports = {
-    admin,
-    auth,
-    db,
-    storage,
-    messaging
-};
+module.exports = { admin, auth, db, storage, messaging };

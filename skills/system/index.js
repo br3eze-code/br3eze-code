@@ -47,28 +47,32 @@ class SystemSkill extends BaseSkill {
 
   async execute(toolName, args, ctx) {
     switch (toolName) {
-      case 'sys.ping':
+      case 'sys.ping': {
         if (!/^[a-zA-Z0-9.-]+$/.test(args.host)) throw new Error('Invalid host')
         const cmd = process.platform === 'win32'? `ping -n ${args.count || 4} ${args.host}` : `ping -c ${args.count || 4} ${args.host}`
         const { stdout } = await execAsync(cmd, { timeout: 10000 })
         return { host: args.host, output: stdout.trim() }
+      }
 
-      case 'sys.doctor':
+      case 'sys.doctor': {
         const results = { agentos: 'ok', skills: {} }
         for (const [id, skill] of ctx.agent.registry.drivers.entries()) {
           try { results.skills[id] = await skill.healthCheck() }
           catch (e) { results.skills[id] = { status: 'error', error: e.message } }
+        }
         return results
+      }
 
       case 'sys.audit':
         return ctx.agent.db.getAuditLogs({ hours: args.hours || 24, userId: ctx.userId })
 
-      case 'sys.help':
+      case 'sys.help': {
         const role = ctx.agent.auth.getUserRole(ctx.userId)
         const tools = [...ctx.agent.registry.tools.entries()]
         .filter(([name]) => ctx.agent.auth.canUseTool(role, name))
         .map(([name, { schema }]) => ({ tool: name, risk: schema.risk, desc: schema.description }))
         return { role, tools }
+      }
 
       default:
         throw new Error(`Unknown tool ${toolName}`)
