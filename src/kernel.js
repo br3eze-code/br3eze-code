@@ -1,36 +1,24 @@
 'use strict';
 /**
- * AgentKernel — Thin event-emitting orchestrator
- * @module kernel
- * @version 2026.03.27
+ * src/kernel.js — backward-compatibility shim
+ * ─────────────────────────────────────────────────────────────────
+ * All existing callers of require('./kernel') or require('../kernel')
+ * continue to work unchanged. The real implementation now lives in
+ * src/core/agentKernel.js (domain-agnostic) so MikroTik is no longer
+ * hardwired into the kernel.
+ *
+ * MikroTik-specific behaviour that was inline here:
+ *   - getManager() call moved to src/domains/network/index.js
+ *   - execute() still available via AgentKernel.dispatch()
+ *
+ * Do NOT delete this file — it is the stable require path.
+ * ─────────────────────────────────────────────────────────────────
  */
-const tools = require('./tools');
 
-const EventEmitter = require('events');
-const { getManager } = require('./core/mikrotik');
- 
-class AgentKernel extends EventEmitter {
-    constructor() {
-        super();
-        this.state = {
-            mikrotik: 'disconnected',
-            power:    'stable',
-            clients:  0
-        };
-    }
- 
-    async execute(toolName, params = {}) {
-        const mikrotik = getManager();
- 
-        if (!mikrotik.state.isConnected) {
-            throw new Error('Router offline — cannot execute tool');
-        }
- 
-        this.emit('command:run', { tool: toolName, params });
-        const result = await mikrotik.executeTool(toolName, params);
-        this.emit('command:done', { tool: toolName, result });
-        return result;
-    }
-}
+const AgentKernel = require('./core/agentKernel');
 
+// Re-export for existing callers that do:
+//   const AgentKernel = require('./kernel')
+//   const kernel = new AgentKernel()
+//   kernel.execute(...)  ← still works via dispatch()
 module.exports = AgentKernel;
