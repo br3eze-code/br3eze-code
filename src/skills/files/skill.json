@@ -1,0 +1,8 @@
+{
+  "name": "files",
+  "version": "1.0.0",
+  "description": "OneDrive + Google Drive: upload, download, list, sync, share",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

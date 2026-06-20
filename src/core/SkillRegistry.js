@@ -78,7 +78,11 @@ class SkillRegistry extends EventEmitter {
 
       // ── 3. Normalise to { execute, initialize, destroy, validate } ─────────
       const mod = (typeof impl === 'function' && impl.prototype?.execute)
-        ? new impl()  // class
+        ? new impl(
+            this.config?.skills?.[manifest.name] || this.config?.[manifest.name] || {},
+            logger,
+            this.config?.workspace || {}
+          )  // class — BaseSkill contract: constructor(config, logger, workspace)
         : impl;
 
       const skill = {

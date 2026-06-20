@@ -1,0 +1,8 @@
+{
+  "name": "flstudio",
+  "version": "1.0.0",
+  "description": "Control FL Studio via OSC/MIDI: transport, mixer, playlist, patterns, automation",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

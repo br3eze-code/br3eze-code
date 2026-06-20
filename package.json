@@ -139,7 +139,16 @@
     "zod": "^3.23.8",
     "cron-parser": "^4.9.0",
     "@slack/web-api": "^7.8.0",
-    "@slack/socket-mode": "^2.0.2"
+    "@slack/socket-mode": "^2.0.2",
+    "cheerio": "^1.2.0",
+    "googleapis": "^144.0.0",
+    "tonal": "^6.4.0",
+    "@slack/bolt": "^4.7.3",
+    "osc": "^2.4.5",
+    "franc": "^5.0.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "midi-writer-js": "^3.2.1",
+    "compromise": "^14.15.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
