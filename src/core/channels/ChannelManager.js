@@ -82,32 +82,21 @@ class ChannelManager extends EventEmitter {
           config: this.agent.config[type]
         });
       }
+    }
 
-      if (this.agent.config.email && this.agent.config.email.enabled && !channelConfigs.find(c => c.type === 'email')) {
-        channelConfigs.push({
-          type: 'email',
-          config: this.agent.config.email
-        });
-      }
+    // ── CLI channel: opt-in via config.cli.enabled, AGENTOS_CLI_CHANNEL=true,
+    //    or auto-enabled when running interactively in the foreground (a TTY,
+    //    not a detached --daemon process) and not explicitly disabled ───────
+    const cliExplicitlyDisabled = this.agent.config.cli?.enabled === false;
+    const cliExplicitlyEnabled = this.agent.config.cli?.enabled === true || process.env.AGENTOS_CLI_CHANNEL === 'true';
+    const cliInteractiveDefault = Boolean(process.stdin.isTTY) && !this.agent.config.daemon;
+    if (!channelConfigs.find(c => c.type === 'cli') && !cliExplicitlyDisabled && (cliExplicitlyEnabled || cliInteractiveDefault)) {
+      channelConfigs.push({ type: 'cli', config: this.agent.config.cli || {} });
+    }
 
-      if (this.agent.config.sms && this.agent.config.sms.enabled && !channelConfigs.find(c => c.type === 'sms')) {
-        channelConfigs.push({
-          type: 'sms',
-          config: this.agent.config.sms
-        });
-      }
-
-      if (this.agent.config.ussd && this.agent.config.ussd.enabled && !channelConfigs.find(c => c.type === 'ussd')) {
-        channelConfigs.push({
-          type: 'ussd',
-          config: this.agent.config.ussd
-        });
-      }
-
-      for (const chan of channelConfigs) {
-        logger.info(`ChannelManager: Registering ${chan.type} channel...`);
-        await this.register(chan);
-      }
+    for (const chan of channelConfigs) {
+      logger.info(`ChannelManager: Registering ${chan.type} channel...`);
+      await this.register(chan);
     }
   } // ← closes initialize()
 
