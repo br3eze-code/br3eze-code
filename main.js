@@ -77,6 +77,7 @@ program
 // ── Command Registration ──────────────────────────────────────────────────────
 require('./src/cli/commands/onboard')(program);
 require('./src/cli/commands/gateway')(program);
+require('./src/cli/commands/ask')(program);
 require('./src/cli/commands/networks')(program);
 require('./src/cli/commands/users')(program);
 require('./src/cli/commands/voucher')(program);

@@ -196,10 +196,14 @@ module.exports = (program) => {
                 global.memoryManager = memoryManager;
                 global.nodeRegistry = nodeRegistry;
 
-                // 2. AI Engine
-                const aiInstance = process.env.GEMINI_API_KEY
-                    ? new (require('@google/generative-ai').GoogleGenerativeAI)(process.env.GEMINI_API_KEY)
-                    : null;
+                // 2. AI Engine — LLMCoordinator (multi-LLM: Gemini/Anthropic/OpenAI per LLM_PROVIDER)
+                const LLMCoordinator = require('../../core/llm/LLMCoordinator');
+                let llmCoordinator = null;
+                try {
+                    llmCoordinator = new LLMCoordinator();
+                } catch (err) {
+                    logger.warn(`LLMCoordinator not initialized: ${err.message}. AskEngine running rule-only.`);
+                }
 
                 const askEngine = new AskEngine({
                     mikrotik,
@@ -208,7 +212,7 @@ module.exports = (program) => {
                     billing,
                     discovery,
                     memory: memoryManager,
-                    ai: aiInstance
+                    llm: llmCoordinator
                 });
                 global.askEngine = askEngine;
 
