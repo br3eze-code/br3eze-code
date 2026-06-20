@@ -311,6 +311,48 @@ class Gateway extends EventEmitter {
       res.json({ tools: global.mikrotik.getAvailableTools() });
     });
 
+    // ── Scheduled tasks (cron / interval / once) ────────────────────────────────
+    this.app.get('/api/v1/tasks', (req, res) => {
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
+      res.json({ tasks: global.taskScheduler.listTasks({ domain: req.query.domain }) });
+    });
+
+    this.app.post('/api/v1/tasks', (req, res) => {
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
+      try {
+        const { domain, prompt, scheduleType, scheduleValue } = req.body || {};
+        if (!prompt || !scheduleType || !scheduleValue) {
+          return res.status(400).json({ error: 'prompt, scheduleType, and scheduleValue are required' });
+        }
+        const task = global.taskScheduler.createTask({ domain, prompt, scheduleType, scheduleValue });
+        res.json({ ok: true, task });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/tasks/:id/run', async (req, res) => {
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
+      try {
+        const task = global.taskScheduler.getTask(req.params.id);
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+        const result = await global.taskScheduler.runTask(task);
+        res.json({ ok: true, result });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/tasks/:id/enabled', (req, res) => {
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
+      try {
+        const task = global.taskScheduler.setEnabled(req.params.id, !!req.body?.enabled);
+        res.json({ ok: true, task });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.delete('/api/v1/tasks/:id', (req, res) => {
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
+      global.taskScheduler.deleteTask(req.params.id);
+      res.json({ ok: true });
+    });
+
     // ── Financial trends ──────────────────────────────────────────────────────
     this.app.get('/api/v1/trends', async (req, res) => {
       try {

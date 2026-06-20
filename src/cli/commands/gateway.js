@@ -68,6 +68,10 @@ module.exports = (program) => {
                         logger.error('Error during gateway stop:', e);
                     }
                 }
+
+                if (global.taskScheduler) {
+                    try { global.taskScheduler.stop(); } catch (_) { }
+                }
                 
                 try { if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile); } catch (_) { }
                 
@@ -207,6 +211,17 @@ module.exports = (program) => {
                     ai: aiInstance
                 });
                 global.askEngine = askEngine;
+
+                // 3a. Task Scheduler — cron/interval/once jobs dispatched through AskEngine
+                try {
+                    const TaskScheduler = require('../../core/taskScheduler');
+                    const taskScheduler = new TaskScheduler({ engine: askEngine });
+                    taskScheduler.on('error', (err) => logger.error('TaskScheduler error:', err.message));
+                    taskScheduler.start();
+                    global.taskScheduler = taskScheduler;
+                } catch (err) {
+                    logger.warn(`TaskScheduler not started: ${err.message}`);
+                }
 
                 // 3. Connect to MikroTik (non-fatal)
                 try {

@@ -5,10 +5,12 @@
  * AgentOS port of PicoClaw's task-scheduler.ts (MIT, © 2026 BreakCafe,
  * https://github.com/breakcafe/picoclaw). The cron/interval/once
  * next-run math is a direct translation; the execution path was
- * rewritten to dispatch through AgentKernel instead of PicoClaw's
- * Claude-only agent engine, so it works across AgentOS's multi-LLM
- * (Gemini / Anthropic / OpenAI) domains. See /THIRD_PARTY_LICENSES.md
- * for the original license text.
+ * rewritten to dispatch through AgentKernel.dispatch() or, since
+ * AgentKernel isn't wired into the live gateway yet, AskEngine.run()
+ * (the path src/cli/commands/gateway.js actually exercises via
+ * global.askEngine) — instead of PicoClaw's Claude-only agent engine,
+ * so it works across AgentOS's multi-LLM (Gemini/Anthropic/OpenAI)
+ * domains. See /THIRD_PARTY_LICENSES.md for the original license text.
  *
  * Falls back to in-memory storage when SQLite is unavailable (CI/test),
  * matching src/core/sessionManager.js's pattern.
@@ -97,12 +99,25 @@ class TaskScheduler extends EventEmitter {
    * @param {string} [opts.dbPath] Directory for agentos.sqlite (shared with SessionManager's default)
    * @param {number} [opts.pollIntervalMs] How often to check for due tasks (default 30s)
    */
+  /**
+   * @param {object} opts
+   * @param {object} [opts.kernel]  AgentKernel instance — dispatch(agentConfig, context)
+   * @param {object} [opts.engine]  AskEngine instance (or anything with .run(prompt)) — the
+   *                                actually-wired runtime path via global.askEngine in
+   *                                src/cli/commands/gateway.js. Exactly one of kernel/engine
+   *                                is required.
+   * @param {string} [opts.dbPath] Directory for agentos.sqlite (shared with SessionManager's default)
+   * @param {number} [opts.pollIntervalMs] How often to check for due tasks (default 30s)
+   */
   constructor(opts = {}) {
     super();
-    if (!opts.kernel || typeof opts.kernel.dispatch !== 'function') {
-      throw new Error('TaskScheduler requires { kernel } implementing dispatch(agentConfig, context)');
+    const hasKernel = opts.kernel && typeof opts.kernel.dispatch === 'function';
+    const hasEngine = opts.engine && typeof opts.engine.run === 'function';
+    if (!hasKernel && !hasEngine) {
+      throw new Error('TaskScheduler requires either { kernel } with dispatch(agentConfig, context) or { engine } with run(prompt)');
     }
-    this._kernel = opts.kernel;
+    this._kernel = opts.kernel || null;
+    this._engine = opts.engine || null;
     this._mem = new Map();
     this._db = null;
     this._timer = null;
@@ -244,11 +259,23 @@ class TaskScheduler extends EventEmitter {
     let error;
 
     try {
-      const session = await this._kernel.dispatch(
-        { domain: task.domain, prompt: task.prompt },
-        { isScheduledTask: true, taskId: task.id }
-      );
-      resultText = session?.result ?? null;
+      let resultOut;
+      if (this._kernel) {
+        const session = await this._kernel.dispatch(
+          { domain: task.domain, prompt: task.prompt },
+          { isScheduledTask: true, taskId: task.id }
+        );
+        resultOut = session?.result ?? null;
+      } else {
+        const out = await this._engine.run(task.prompt);
+        resultOut = out?.result ?? null;
+        if (out?.type === 'error') {
+          status = 'error';
+          error = String(resultOut);
+          resultOut = null;
+        }
+      }
+      resultText = resultOut;
     } catch (err) {
       status = 'error';
       error = err instanceof Error ? err.message : String(err);
