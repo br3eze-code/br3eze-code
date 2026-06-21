@@ -27,10 +27,10 @@ module.exports = (program) => {
     program
         .command('gateway')
         .description('Run, inspect, and query the WebSocket Gateway')
-        .option('--daemon, -d', 'Run as background service')
+        .option('-d, --daemon', 'Run as background service')
         .option('--port <port>', 'Override gateway port')
         .option('--force', 'Kill existing process on port')
-        .option('--verbose, -v', 'Verbose logging')
+        .option('-v, --verbose', 'Verbose logging')
         .action(async (options) => {
             // Dynamic import for @clack/prompts
             const { intro, outro, log, spinner: clackSpinner, cancel, confirm, isCancel } = await import('@clack/prompts');
@@ -45,6 +45,30 @@ module.exports = (program) => {
 
             const config = getConfig();
             const Port = options.port || config.gateway?.port || 19876;
+
+            // ── --daemon: spawn a detached background copy of this same command
+            //    and exit. AGENTOS_DAEMON_CHILD guards against re-spawning when
+            //    the detached child re-enters this same action handler. ────────
+            if (options.daemon && !process.env.AGENTOS_DAEMON_CHILD) {
+                const logDir = path.join(STATE_PATH, 'logs');
+                if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+                const logFile = path.join(logDir, 'gateway.daemon.log');
+                const out = fs.openSync(logFile, 'a');
+                const err = fs.openSync(logFile, 'a');
+
+                const childArgs = process.argv.slice(2).filter(a => a !== '--daemon' && a !== '-d');
+                const child = spawn(process.execPath, [process.argv[1], ...childArgs], {
+                    detached: true,
+                    stdio: ['ignore', out, err],
+                    env: { ...process.env, AGENTOS_DAEMON_CHILD: '1' }
+                });
+                child.unref();
+
+                console.log(chalk.green(`✓ Gateway starting in background (PID: ${child.pid})`));
+                console.log(chalk.gray(`  Logs: ${logFile}`));
+                console.log(chalk.gray(`  Stop: agentos gateway:stop`));
+                process.exit(0);
+            }
 
             // ── PID file / single-instance guard ────────────────────────────
             const pidFile = path.join(STATE_PATH, 'gateway.pid');
@@ -253,7 +277,8 @@ module.exports = (program) => {
                 const gateway = new AgentOSGateway({
                     ...config,
                     port: Port,
-                    verbose: options.verbose
+                    verbose: options.verbose,
+                    daemon: !!process.env.AGENTOS_DAEMON_CHILD
                 });
                 gateway.askEngine = askEngine;
                 global.gateway = gateway;

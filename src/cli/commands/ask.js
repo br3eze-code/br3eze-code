@@ -106,20 +106,47 @@ async function runStandalone(prompt, { stream }) {
     return askEngine.run(prompt);
 }
 
+const readline = require('readline');
+
+function startRepl(dispatch, { json }) {
+    console.log('AgentOS interactive ask — type a message and press Enter. Ctrl+C or "exit" to quit.\n');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: '› ' });
+    rl.prompt();
+
+    rl.on('line', async (line) => {
+        const prompt = line.trim();
+        if (!prompt) { rl.prompt(); return; }
+        if (['exit', 'quit', ':q'].includes(prompt.toLowerCase())) { rl.close(); return; }
+
+        try {
+            const result = await dispatch(prompt);
+            if (json) {
+                console.log(JSON.stringify(result, null, 2));
+            } else {
+                console.log(typeof result?.result === 'string' ? result.result : JSON.stringify(result?.result, null, 2));
+            }
+        } catch (err) {
+            console.error(`error: ${err.message}`);
+        }
+        console.log('');
+        rl.prompt();
+    });
+
+    rl.on('close', () => {
+        console.log('\nGoodbye.');
+        process.exit(0);
+    });
+}
+
 module.exports = (program) => {
     program
-        .command('ask <prompt...>')
-        .description('Ask AgentOS a question or give it a command (uses the running gateway if up, else one-shot)')
-        .option('--stream', 'Stream the response token-by-token')
+        .command('ask [prompt...]')
+        .description('Ask AgentOS a question or give it a command. Omit the prompt to start an interactive session.')
+        .option('--stream', 'Stream the response token-by-token (standalone mode only)')
         .option('--json', 'Print the full raw response as JSON')
         .option('--port <port>', 'Gateway port to target', (v) => parseInt(v, 10))
         .action(async (promptParts, options) => {
-            const prompt = promptParts.join(' ');
-            if (!prompt.trim()) {
-                console.error('Usage: agentos ask "<your question or command>"');
-                process.exitCode = 1;
-                return;
-            }
+            const prompt = (promptParts || []).join(' ');
 
             const { STATE_PATH, CONFIG_PATH } = global.AGENTOS || {};
             let config = {};
@@ -132,15 +159,25 @@ module.exports = (program) => {
             const port = options.port || config.gateway?.port || 19876;
             const usingGateway = STATE_PATH && gatewayIsRunning(STATE_PATH);
 
+            const dispatch = (p) => usingGateway
+                ? postJSON({ host: config.gateway?.host, port, token: config.gateway?.token }, { prompt: p, stream: false })
+                : runStandalone(p, { stream: false });
+
+            if (!prompt.trim()) {
+                if (!process.stdin.isTTY) {
+                    console.error('Usage: agentos ask "<your question or command>" (or run with no args in an interactive terminal)');
+                    process.exitCode = 1;
+                    return;
+                }
+                return startRepl(dispatch, { json: !!options.json });
+            }
+
             try {
                 if (usingGateway) {
                     if (options.stream) {
                         console.error('--stream is only supported in standalone mode (no gateway running); printing full response instead.');
                     }
-                    const result = await postJSON(
-                        { host: config.gateway?.host, port, token: config.gateway?.token },
-                        { prompt, stream: false }
-                    );
+                    const result = await dispatch(prompt);
                     if (options.json) {
                         console.log(JSON.stringify(result, null, 2));
                     } else {

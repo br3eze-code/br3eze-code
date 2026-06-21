@@ -18,8 +18,8 @@ module.exports = (program) => {
   users
     .command('list')
     .description('List active hotspot users')
-    .option('--all, -a', 'Show all users (not just active)')
-    .option('--limit, -l <n>', 'Limit results', '20')
+    .option('-a, --all', 'Show all users (not just active)')
+    .option('-l, --limit <n>', 'Limit results', '20')
     .action(async (options) => {
       const s = spinner();
       s.start(options.all ? 'Fetching all hotspot users…' : 'Fetching active sessions…');
@@ -114,7 +114,7 @@ module.exports = (program) => {
   users
     .command('remove <username>')
     .description('Remove a hotspot user')
-    .option('--force, -f', 'Force removal even if currently active')
+    .option('-f, --force', 'Force removal even if currently active')
     .action(async (username, options) => {
       try {
         const mikrotik = await getMikroTikClient();
