@@ -5,7 +5,6 @@
 
 'use strict';
 
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
 const { getMikroTikClient } = require('../../core/mikrotik');
 
 module.exports = (program) => {
@@ -21,6 +20,7 @@ module.exports = (program) => {
     .option('-a, --all', 'Show all users (not just active)')
     .option('-l, --limit <n>', 'Limit results', '20')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(options.all ? 'Fetching all hotspot users…' : 'Fetching active sessions…');
 
@@ -70,6 +70,7 @@ module.exports = (program) => {
     .command('kick <username>')
     .description('Disconnect an active user')
     .action(async (username) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Kicking ${username}…`);
       try {
@@ -93,6 +94,7 @@ module.exports = (program) => {
     .description('Add a hotspot user')
     .option('--profile <profile>', 'User profile / plan', 'default')
     .action(async (username, password, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const pass = password || username;
       const s = spinner();
       s.start(`Creating user "${username}" (profile: ${options.profile})…`);
@@ -116,6 +118,7 @@ module.exports = (program) => {
     .description('Remove a hotspot user')
     .option('-f, --force', 'Force removal even if currently active')
     .action(async (username, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       try {
         const mikrotik = await getMikroTikClient();
 
@@ -145,6 +148,7 @@ module.exports = (program) => {
     .command('status <username>')
     .description('Check user connection status')
     .action(async (username) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Looking up ${username}…`);
       try {
@@ -177,6 +181,7 @@ module.exports = (program) => {
     .command('transfer <from> <to> <amount>')
     .description('Transfer credits between users (P2P)')
     .action(async (from, to, amount) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Transferring ${amount} credits  ${from} → ${to}…`);
       try {

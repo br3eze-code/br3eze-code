@@ -6,7 +6,6 @@
 'use strict';
 
 const fs   = require('fs');
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
 const { CONFIG_PATH } = require('../../core/config');
 
 module.exports = (program) => {
@@ -30,6 +29,7 @@ module.exports = (program) => {
     .command('list')
     .description('List configured Dahua devices')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📷 Dahua Devices');
       const s = spinner();
       s.start('Fetching device list…');
@@ -57,6 +57,7 @@ module.exports = (program) => {
     .option('-d, --device <id>', 'Device ID')
     .option('-c, --channel <n>', 'Channel number')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📸 Dahua Snapshot');
       const s = spinner();
       s.start(`Fetching snapshot${options.device ? ` for device ${options.device}` : ''}…`);
@@ -87,6 +88,7 @@ module.exports = (program) => {
     .option('-d, --device <id>', 'Device ID')
     .option('--force', 'Skip confirmation prompt')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       if (!options.force) {
         const target = options.device || 'all devices';
         const ok = await confirm({ message: `Reboot ${target}?`, initialValue: false });

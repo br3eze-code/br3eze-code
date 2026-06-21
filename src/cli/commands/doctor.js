@@ -1,7 +1,6 @@
 'use strict';
 
 const chalk = require('chalk');
-const { intro, outro, spinner, note, log } = require('@clack/prompts');
 const { execSync } = require('child_process');
 const fs = require('fs');
 const dgram = require('dgram');
@@ -13,6 +12,7 @@ module.exports = (program) => {
     .option('--fix', 'Auto-repair issues')
     .option('--deep', 'Deep system scan')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
 
       intro(chalk.bgBlue.black.bold(` 🔧 ${BRAND.name} Health Check `));

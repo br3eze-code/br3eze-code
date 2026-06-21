@@ -186,6 +186,13 @@ class EmailChannel extends BaseChannel {
       provider: this.provider
     };
   }
+
+  async destroy() {
+    if (this.transporter && typeof this.transporter.close === 'function') {
+      try { this.transporter.close(); } catch (_) { /* already closed */ }
+    }
+    await super.destroy();
+  }
 }
 
 BaseChannel.register('email', EmailChannel);

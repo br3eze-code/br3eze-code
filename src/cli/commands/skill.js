@@ -6,7 +6,6 @@
 
 const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
-const { intro, outro, note, log } = require('@clack/prompts');
 const path   = require('path');
 
 module.exports = (program) => {
@@ -19,6 +18,7 @@ module.exports = (program) => {
     .command('list')
     .description('List all installed skills')
     .action(async () => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
         const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});
@@ -54,6 +54,7 @@ module.exports = (program) => {
       return { ...prev, [k]: val };
     }, {})
     .action(async (skillName, options) => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
         const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});
@@ -81,6 +82,7 @@ module.exports = (program) => {
     .command('info <skillName>')
     .description('Show skill manifest and parameters')
     .action(async (skillName) => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
         const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});

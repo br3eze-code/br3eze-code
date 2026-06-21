@@ -5,7 +5,6 @@
 
 const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
-const { intro, outro, note, log } = require('@clack/prompts');
 
 module.exports = (program) => {
   program
@@ -14,6 +13,7 @@ module.exports = (program) => {
     .option('--type <type>', 'Domain type: network, cloud, container, iot, hybrid')
     .option('--workspace <id>', 'Target workspace')
     .action(async (action, options) => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       const domains = {
         network: { name: 'Network Infrastructure', icon: '📡', adapters: ['mikrotik', 'unifi', 'cisco'] },
         cloud: { name: 'Cloud Compute', icon: '☁️', adapters: ['aws', 'azure', 'gcp'] },

@@ -6,7 +6,6 @@
 const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
 const fs = require('fs');
-const { intro, outro, note, log } = require('@clack/prompts');
 
 module.exports = (program) => {
     const config = program
@@ -17,7 +16,8 @@ module.exports = (program) => {
     config
         .command('get <path>')
         .description('Get a config value by dot-notation path  (e.g. mikrotik.ip)')
-        .action((path) => {
+        .action(async (path) => {
+            const { intro, outro, note, log } = await import('@clack/prompts');
             const { CONFIG_PATH } = global.AGENTOS;
 
             if (!fs.existsSync(CONFIG_PATH)) {
@@ -39,7 +39,8 @@ module.exports = (program) => {
     config
         .command('set <path> <value>')
         .description('Set a config value by dot-notation path  (e.g. mikrotik.port 8729)')
-        .action((path, value) => {
+        .action(async (path, value) => {
+            const { intro, outro, note, log } = await import('@clack/prompts');
             const { CONFIG_PATH } = global.AGENTOS;
 
             if (!fs.existsSync(CONFIG_PATH)) {
@@ -72,7 +73,8 @@ module.exports = (program) => {
     config
         .command('edit')
         .description('Edit configuration in default editor')
-        .action(() => {
+        .action(async () => {
+            const { intro, outro, note, log } = await import('@clack/prompts');
             const { CONFIG_PATH } = global.AGENTOS;
             const editor = process.env.EDITOR || 'nano';
 
@@ -85,7 +87,8 @@ module.exports = (program) => {
         .command('show')
         .description('Display full configuration')
         .option('--sensitive', 'Show sensitive values (tokens, passwords)')
-        .action((options) => {
+        .action(async (options) => {
+            const { intro, outro, note, log } = await import('@clack/prompts');
             const { CONFIG_PATH } = global.AGENTOS;
 
             intro('📄 Configuration');

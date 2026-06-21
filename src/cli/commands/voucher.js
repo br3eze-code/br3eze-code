@@ -7,7 +7,6 @@
 
 const fs   = require('fs');
 const QRCode = require('qrcode');
-const { intro, outro, spinner, note, log, select, isCancel } = require('@clack/prompts');
 const { getDatabase } = require('../../core/database');
 
 // ── Plan definitions (mirrors 36.js CONFIG.VOUCHER_PLANS) ────────────────────
@@ -32,6 +31,7 @@ module.exports = (program) => {
     .option('--qty <n>', 'Quantity to generate', '1')
     .option('--qr', 'Save QR code to file', false)
     .action(async (plan, options) => {
+      const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
 
       if (!fs.existsSync(CONFIG_PATH)) {
@@ -130,6 +130,7 @@ module.exports = (program) => {
     .option('--used', 'Show only used vouchers')
     .option('--active', 'Show only active vouchers')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start('Fetching vouchers…');
 
@@ -163,6 +164,7 @@ module.exports = (program) => {
     .command('revoke <code>')
     .description('Revoke an unused voucher')
     .action(async (code) => {
+      const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Revoking ${code}…`);
       try {
@@ -185,6 +187,7 @@ module.exports = (program) => {
     .command('debug')
     .description('Voucher system diagnostics')
     .action(async () => {
+      const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
       intro(`${BRAND.emoji}  Voucher Diagnostics`);
 

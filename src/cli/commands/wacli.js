@@ -8,7 +8,6 @@
 const fs   = require('fs');
 const path = require('path');
 
-const { intro, outro, spinner, note, log, isCancel } = require('@clack/prompts');
 const qrcode       = require('qrcode-terminal');
 const { getConfig } = require('../../core/config');
 
@@ -20,6 +19,7 @@ module.exports = (program) => {
     .option('--status',        'Show current WhatsApp auth state')
     .option('--debug-vouchers','Run voucher system diagnostics')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, isCancel } = await import('@clack/prompts');
       const config   = getConfig();
       const waConfig = config.whatsapp || { enabled: true };
 

@@ -7,7 +7,6 @@
 
 const fs   = require('fs');
 const path = require('path');
-const { intro, outro, spinner, note, log } = require('@clack/prompts');
 const { getDatabase } = require('../../core/database');
 const { costTracker } = require('../../core/cost-tracker');
 
@@ -18,6 +17,7 @@ module.exports = (program) => {
     .alias('s')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
 
       const statusData = {
@@ -117,7 +117,7 @@ module.exports = (program) => {
         if (options.json) {
           console.log(JSON.stringify(statusData, null, 2));
         } else {
-          renderStatus(statusData, BRAND);
+          renderStatus(statusData, BRAND, { intro, outro, note });
         }
 
       } catch (error) {
@@ -129,7 +129,7 @@ module.exports = (program) => {
 
 // ── Renderer ─────────────────────────────────────────────────────────────────
 
-function renderStatus(data, brand) {
+function renderStatus(data, brand, { intro, outro, note }) {
   intro(`${brand.emoji}  ${brand.name} Status`);
 
   // ── System Identity ──────────────────────────────────────────

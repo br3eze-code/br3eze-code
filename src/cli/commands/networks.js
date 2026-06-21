@@ -5,7 +5,6 @@
 
 'use strict';
 
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
 
 module.exports = (program) => {
   const network = program
@@ -19,6 +18,7 @@ module.exports = (program) => {
     .description('Ping test from router')
     .option('--count, -c <n>', 'Number of pings', '4')
     .action(async (host, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Pinging ${host}…`);
       try {
@@ -43,6 +43,7 @@ module.exports = (program) => {
     .command('scan')
     .description('Scan for connected devices (DHCP leases)')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start('Scanning DHCP leases…');
       try {
@@ -70,6 +71,7 @@ module.exports = (program) => {
     .description('Show firewall rules')
     .option('--type <type>', 'Rule type: filter | nat | mangle', 'filter')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Fetching ${options.type} rules…`);
       try {
@@ -98,6 +100,7 @@ module.exports = (program) => {
     .description('Block an IP or MAC address')
     .option('--reason <reason>', 'Block reason', 'Manual block via CLI')
     .action(async (target, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Blocking ${target}…`);
       try {
@@ -117,6 +120,7 @@ module.exports = (program) => {
     .command('unblock <target>')
     .description('Unblock an IP or MAC address')
     .action(async (target) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const ok = await confirm({ message: `Unblock ${target}?` });
       if (isCancel(ok) || !ok) { log.warn('Cancelled.'); return; }
 
@@ -138,6 +142,7 @@ module.exports = (program) => {
     .command('sync-profiles')
     .description('Sync hotspot user profiles from MikroTik → database')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('🔄 Profile Sync');
       const s = spinner();
       s.start('Fetching profiles from MikroTik…');
