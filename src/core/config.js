@@ -3,9 +3,17 @@ const path = require('path');
 const os = require('os');
 require('dotenv').config();
 
+function getPkgVersion() {
+    try {
+        return require('../../package.json').version;
+    } catch (_) {
+        return '0.0.0';
+    }
+}
+
 const BRAND = {
     name: 'AgentOS',
-    version: '2026.5.4',
+    version: getPkgVersion(),
     emoji: '🤖',
     tagline: 'Network Intelligence, Simplified'
 };
