@@ -594,22 +594,11 @@ module.exports = (program) => {
       // ── Step 4: AI Provider ───────────────────────────────────────────────
       note(chalk.gray('Pick the AI brain powering your agents.'), chalk.magentaBright.bold('🧠 Step 4 — AI Provider'));
       // Load all providers via LLMCoordinator to ensure they are registered
+      const { BaseProvider } = require('../../core/llm/providers/BaseProvider');
       const LLMCoordinator = require('../../core/llm/LLMCoordinator');
-      new LLMCoordinator('none'); // Force-load all providers
+      try { new LLMCoordinator('gemini'); } catch (_) { /* just registering provider classes, key isn't needed yet */ }
 
       const registry = BaseProvider.getRegistry();
-      const aiChoices = Object.entries(registry)
-        .map(([id, cls]) => {
-          try {
-            const meta = cls.getMetadata();
-            return { value: id, name: meta.name };
-          } catch (e) {
-            return { value: id, name: id.charAt(0).toUpperCase() + id.slice(1) };
-          }
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      aiChoices.push({ value: 'none', name: 'None / Bring Your Own' });
 
       const { aiProvider } = await prompt({
         type: 'list',
@@ -633,6 +622,10 @@ module.exports = (program) => {
         ],
         default: existingConfig.ai?.provider || 'gemini'
       });
+
+      if (aiProvider !== 'none' && !registry[aiProvider]) {
+        log.warn(`'${aiProvider}' isn't registered as an available provider — it may not work until that's fixed.`);
+      }
 
       let aiKey = '';
       if (aiProvider !== 'none') {
@@ -800,6 +793,36 @@ module.exports = (program) => {
             }
           } catch (err) {
             s.stop(`— Error applying setup: ${err.message}`);
+          }
+        }
+      }
+
+      // ── Step 6.5: GitHub Account ───────────────────────────────────────────
+      note(chalk.gray('Optional: connect a GitHub account for repo/codegen features and `agentos whoami`.'), chalk.whiteBright.bold('🔗 Step 6.5 — GitHub Account'));
+      const { readCredentials: _readGhCreds, writeCredentials: _writeGhCreds, deviceFlowLogin: _ghDeviceFlow } = require('./login')._internal;
+      const alreadyLoggedIn = _readGhCreds();
+      if (alreadyLoggedIn) {
+        log.info(`Already connected as ${alreadyLoggedIn.login}.`);
+      } else {
+        const { wantsGitHub } = await prompt({ type: 'confirm', name: 'wantsGitHub', message: 'Connect a GitHub account now?', default: false });
+        if (wantsGitHub) {
+          const ghClientId = process.env.GITHUB_CLIENT_ID;
+          if (!ghClientId) {
+            log.warn('GITHUB_CLIENT_ID not set — skipping. Set it later and run `agentos login`.');
+          } else {
+            try {
+              const { accessToken, scope } = await _ghDeviceFlow({ clientId: ghClientId, scope: 'read:user repo', log, note });
+              const userRes = await fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'AgentOS-CLI' } });
+              const user = await userRes.json();
+              if (userRes.ok) {
+                _writeGhCreds({ provider: 'github', login: user.login, name: user.name || user.login, avatar: user.avatar_url, accessToken, scope });
+                log.success(`Connected as ${user.login}`);
+              } else {
+                log.warn(`Could not fetch GitHub profile: ${user.message || 'unknown error'}`);
+              }
+            } catch (err) {
+              log.warn(`GitHub connection skipped: ${err.message}`);
+            }
           }
         }
       }
