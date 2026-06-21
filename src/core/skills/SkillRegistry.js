@@ -7,7 +7,7 @@ class SkillRegistry {
     this.manifests = new Map();
   }
 
-  async loadFromDirectory(skillsPath) {
+  async loadFromDirectory(skillsPath, config = {}) {
     const fs = require('fs').promises;
     const path = require('path');
     
@@ -40,8 +40,8 @@ class SkillRegistry {
             continue;
           }
 
-          const skillModule = require(codePath);
-          this.register(manifest, skillModule);
+          const skillModule = require(path.resolve(codePath));
+          this.register(manifest, skillModule, config);
           logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
         } catch (err) {
           logger.error(`Failed to load skill ${entry.name}: ${err.stack || err.message || err}`);
@@ -50,16 +50,17 @@ class SkillRegistry {
     }
   }
 
-  register(manifest, implementation) {
+  register(manifest, implementation, config = {}) {
     let executor;
+    const skillConfig = config?.skills?.[manifest.name] || config?.[manifest.name] || {};
+    const workspace = config?.workspace || {};
 
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
       // Class-based skill (e.g. DahuaSkill extends BaseSkill)
-      // Instantiate with empty stubs so it doesn't crash at load time
       const instance = new implementation(
-        {},                                      // config
+        skillConfig,                             // config — per-skill slice of the real config
         logger,                                  // logger
-        {}                                       // workspace — populated at execute time
+        workspace                                // workspace
       );
       executor = (toolName, args, ctx) => instance.execute(toolName, args, ctx || {});
     } else if (typeof implementation?.execute === 'function') {

@@ -33,7 +33,7 @@ class AICoordinator extends EventEmitter {
   async _initSkills() {
     const path = require('path');
     const skillsPath = path.join(__dirname, '../skills');
-    await this.skillRegistry.loadFromDirectory(skillsPath);
+    await this.skillRegistry.loadFromDirectory(skillsPath, this.config);
     
     // Build tool-to-skill map
     for (const manifest of this.skillRegistry.list()) {
