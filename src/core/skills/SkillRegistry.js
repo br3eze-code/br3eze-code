@@ -5,6 +5,7 @@ class SkillRegistry {
   constructor() {
     this.skills = new Map();
     this.manifests = new Map();
+    this.implementations = new Map(); // skillName -> implementation class/object for static introspection
   }
 
   async loadFromDirectory(skillsPath, config = {}) {
@@ -81,6 +82,7 @@ class SkillRegistry {
       validate: implementation.validate || (() => true)
     });
     this.manifests.set(manifest.name, manifest);
+    this.implementations.set(manifest.name, implementation);
   }
 
   async execute(skillName, toolName, args = {}, context = {}) {

@@ -35,14 +35,25 @@ class AICoordinator extends EventEmitter {
     const skillsPath = path.join(__dirname, '../skills');
     await this.skillRegistry.loadFromDirectory(skillsPath, this.config);
     
-    // Build tool-to-skill map
+    // Build tool-to-skill map — check both manifest.tools AND static getTools() on the class
     for (const manifest of this.skillRegistry.list()) {
+      const skillName = manifest.name;
+
+      // 1. Tools declared in the manifest (skill.json "tools" array)
       if (manifest.tools) {
         if (Array.isArray(manifest.tools)) {
-          manifest.tools.forEach(t => this.toolToSkillMap.set(t.name, manifest.name));
+          manifest.tools.forEach(t => this.toolToSkillMap.set(t.name, skillName));
         } else {
-          Object.keys(manifest.tools).forEach(tn => this.toolToSkillMap.set(tn, manifest.name));
+          Object.keys(manifest.tools).forEach(tn => this.toolToSkillMap.set(tn, skillName));
         }
+      }
+
+      // 2. Tools declared on the skill class via static getTools() (the common pattern —
+      //    21 of 23 skills use this and have nothing in manifest.tools)
+      const impl = this.skillRegistry.implementations?.get(skillName);
+      if (impl && typeof impl.getTools === 'function') {
+        const classTools = impl.getTools();
+        Object.keys(classTools).forEach(tn => this.toolToSkillMap.set(tn, skillName));
       }
     }
 
