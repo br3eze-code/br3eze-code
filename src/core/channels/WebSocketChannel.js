@@ -215,11 +215,10 @@ class WebSocketChannel extends BaseChannel {
 
     // Use AI coordinator to handle the command
     try {
-      const result = await this.agent.processInteraction(command, {
-        channel: 'websocket',
-        userId: clientId,
-        isCli: true
-      });
+      const result = await this.agent.processInteraction(
+        { text: command, userId: clientId },
+        { channel: 'websocket', isCli: true }
+      );
       
       this.sendToWs(client.ws, {
         type: 'cli.result',

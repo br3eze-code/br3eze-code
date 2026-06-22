@@ -4,7 +4,7 @@ description: Core management tools for printers, messaging, and system-wide oper
 author: AgentOS Team
 entry: index.js
 tools:
-  - name: broadcast
+  - name: agentos.broadcast
     description: Send a message to all enabled communication channels (Telegram, Slack, Discord, WhatsApp)
     parameters:
       message:
@@ -15,16 +15,16 @@ tools:
         type: boolean
         description: If true, prefixes with alert emoji
         default: false
-  - name: printer.test
+  - name: agentos.printer.test
     description: Print a diagnostic test page to the connected thermal printer
     parameters:
       text:
         type: string
         description: Optional text to include in the test print
-  - name: channels.status
+  - name: agentos.channels.status
     description: Get connection status and metadata for all messaging channels
     parameters: {}
-  - name: voucher.create
+  - name: agentos.voucher.create
     description: Create a new MikroTik hotspot voucher and optionally print it
     parameters:
       profile:
