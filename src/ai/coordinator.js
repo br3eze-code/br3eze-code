@@ -344,30 +344,38 @@ When managing CCTV, target devices by their deviceId.`;
   }
 
   async executeTool(name, params, context = {}) {
-    // 1. Check static toolRegistry
-    const tool = this.toolRegistry.get(name);
-    if (tool) return await tool.execute(params, context);
+    const { getUserSandbox } = require('./userSandbox');
+    const sandbox = getUserSandbox({ db: this.db });
+    const userId = context.userId || 'system';
 
-    // 2. Check toolToSkillMap (Individual tools like 'user.kick')
-    const skillName = this.toolToSkillMap.get(name);
-    if (skillName) {
-      return await this.skillRegistry.execute(skillName, name, params, {
-        ...context,
-        logger,
-        mikrotik: this.mikrotik
-      });
-    }
+    // ── RBAC + sandbox gate (nanoclaw PermissionPolicy pattern) ────────────
+    // Build a lazy executor so sandbox can intercept without running the real call
+    const realExecutor = async (args, ctx) => {
+      // 1. Static toolRegistry
+      const tool = this.toolRegistry.get(name);
+      if (tool) return await tool.execute(args, ctx);
 
-    // 3. Check SkillRegistry (Direct skill names like 'mikrotik')
-    if (this.skillRegistry.skills.has(name)) {
-      return await this.skillRegistry.execute(name, params, {
-        ...context,
-        logger,
-        mikrotik: this.mikrotik
-      });
-    }
+      // 2. toolToSkillMap (fully-qualified tool names like 'user.kick')
+      const skillName = this.toolToSkillMap.get(name);
+      if (skillName) {
+        return await this.skillRegistry.execute(skillName, name, args, {
+          ...ctx, logger, mikrotik: this.mikrotik
+        });
+      }
 
-    throw new Error(`Unknown tool: ${name}`);
+      // 3. Direct skill name
+      if (this.skillRegistry.skills.has(name)) {
+        return await this.skillRegistry.execute(name, args, {
+          ...ctx, logger, mikrotik: this.mikrotik
+        });
+      }
+
+      throw new Error(`Unknown tool: ${name}`);
+    };
+
+    return sandbox.execute(userId, name, params, realExecutor, {
+      ...context, mikrotik: this.mikrotik
+    });
   }
 
   getConversationHistory(userId) {
