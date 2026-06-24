@@ -374,7 +374,11 @@ When managing CCTV, target devices by their deviceId.`;
     };
 
     return sandbox.execute(userId, name, params, realExecutor, {
-      ...context, mikrotik: this.mikrotik
+      ...context,
+      mikrotik: this.mikrotik,
+      // channels can set a defaultRole in their config (e.g. telegram defaultRole:'operator')
+      // so unprovisioned users get a sensible level instead of the most restrictive 'user' role
+      fallbackRole: context.channelRole || context.defaultRole || 'user',
     });
   }
 

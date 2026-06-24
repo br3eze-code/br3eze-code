@@ -188,10 +188,16 @@ class UserSandbox extends EventEmitter {
     return null;
   }
 
-  async getRole(userId) {
+  async getRole(userId, { fallbackRole } = {}) {
     const user = await this.getUser(userId);
-    if (!user) return getRole('user');
-    return getRole(user.role || 'user');
+    if (!user) return getRole(fallbackRole || 'user');
+    return getRole(user.role || fallbackRole || 'user');
+  }
+
+  /** Resolve the effective role name string for a user (not the role object) */
+  async getRoleName(userId) {
+    const user = await this.getUser(userId);
+    return user?.role || 'user';
   }
 
   async setRole(actorId, targetId, newRole) {
@@ -239,8 +245,8 @@ class UserSandbox extends EventEmitter {
 
   // ── Execution context (smartcomputer-ai pattern) ───────────────────────
 
-  async createContext(userId, { routerId = null } = {}) {
-    const role = await this.getRole(userId);
+  async createContext(userId, { routerId = null, fallbackRole = 'user' } = {}) {
+    const role = await this.getRole(userId, { fallbackRole });
     const user = await this.getUser(userId);
     return new SandboxInterceptor({ userId, role, routerId, db: this.db, user });
   }
@@ -248,9 +254,11 @@ class UserSandbox extends EventEmitter {
   /**
    * The main execution gate — used by AICoordinator and channel handlers.
    * nanoclaw-style: authorize → (approval gate) → (rate-limit) → execute
+   * ctx.fallbackRole lets channels grant unprovisioned users a default access level
+   * (e.g. a Telegram bot with defaultRole:'operator' so operators aren't auto-blocked).
    */
   async execute(userId, toolName, args, executor, ctx = {}) {
-    const role = await this.getRole(userId);
+    const role = await this.getRole(userId, { fallbackRole: ctx.fallbackRole || 'user' });
     const interceptor = new SandboxInterceptor({ userId, role, routerId: ctx.routerId, db: this.db });
     const wrapped = interceptor.wrap(toolName, executor);
     return wrapped(args, ctx);
@@ -318,4 +326,4 @@ function getUserSandbox(opts) {
   return _instance;
 }
 
-module.exports = { UserSandbox, getUserSandbox, AuthError, getRole, getRoleForUser, anyMatch, toolMatches };
+module.exports = { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };

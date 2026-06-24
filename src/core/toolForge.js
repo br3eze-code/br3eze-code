@@ -77,10 +77,28 @@ class VMSandbox {
         warn:  (...a) => logger.warn(`[forge:${spec.toolName}]`, ...a),
         error: (...a) => logger.error(`[forge:${spec.toolName}]`, ...a),
       },
-      JSON, Math, Date, parseInt, parseFloat, isNaN, isFinite,
+      // ── Core JS builtins — must be explicitly whitelisted in vm.createContext ──
+      // Without these, even basic operations like filter(Boolean), new Map(),
+      // Array.from(), parseInt(), etc. silently fail or return wrong results.
+      JSON, Math, Date, Promise,
+      parseInt, parseFloat, isNaN, isFinite, isFinite,
       encodeURIComponent, decodeURIComponent,
-      // Promise needed for async functions inside the VM
-      Promise,
+      // Type constructors and built-in classes
+      Boolean, Number, String, Array, Object, Symbol, BigInt,
+      RegExp, Error, TypeError, RangeError, SyntaxError,
+      // Collections
+      Map, Set, WeakMap, WeakSet,
+      // Array helpers
+      ArrayBuffer, Uint8Array, Int32Array, Float64Array,
+      // Structured cloning / serialization
+      structuredClone: typeof structuredClone !== 'undefined' ? structuredClone : (v) => JSON.parse(JSON.stringify(v)),
+      // Text codec
+      TextEncoder: typeof TextEncoder !== 'undefined' ? TextEncoder : undefined,
+      TextDecoder: typeof TextDecoder !== 'undefined' ? TextDecoder : undefined,
+      // Crypto (non-sensitive — random UUIDs, hashing)
+      crypto: { randomUUID: () => require('crypto').randomUUID() },
+      // Timing (read-only — no side effects)
+      performance: { now: () => require('perf_hooks').performance.now() },
     };
 
     if (spec.capabilities.includes(CAPABILITY.FETCH)) {
