@@ -1,3 +1,4 @@
+const { EventEmitter } = require('events');
 // src/plugins/adapters/aws-adapter.js
 const BaseAdapter = require('../base-adapter');
 const { Resource } = require('../../core/resource-model');

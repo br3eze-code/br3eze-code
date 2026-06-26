@@ -1,3 +1,4 @@
+const { EventEmitter } = require('events');
 // src/plugins/adapters/docker-adapter.js
 const BaseAdapter = require('../base-adapter');
 const Docker = require('dockerode');

@@ -1,3 +1,4 @@
+const { EventEmitter } = require('events');
 // src/plugins/adapters/mikrotik-adapter.js
 const BaseAdapter = require('../base-adapter');
 const { RouterOSClient } = require('routeros-client');

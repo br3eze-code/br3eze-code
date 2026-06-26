@@ -1,3 +1,4 @@
+const { EventEmitter } = require('events');
 // src/plugins/base-adapter.js
 /**
  * Base Adapter Interface - All infrastructure providers must implement this

@@ -3,8 +3,8 @@
  * Creates or updates a hotspot user on MikroTik RouterOS
  */
 
-const { getMikroTikClient } = require('../../../../core/mikrotik');
-const { logger } = require('../../../../core/logger');
+const { getMikroTikClient } = require('../../../core/mikrotik');
+const { logger } = require('../../../core/logger');
 
 async function handler(context, input) {
     const { username, profile } = input;

@@ -35,78 +35,163 @@ class AICoordinator extends EventEmitter {
     const skillsPath = path.join(__dirname, '../skills');
     await this.skillRegistry.loadFromDirectory(skillsPath, this.config);
     
-    // Build tool-to-skill map
+    // Build tool-to-skill map — check both manifest.tools AND static getTools() on the class
     for (const manifest of this.skillRegistry.list()) {
+      const skillName = manifest.name;
+
+      // 1. Tools declared in the manifest (skill.json "tools" array)
       if (manifest.tools) {
         if (Array.isArray(manifest.tools)) {
-          manifest.tools.forEach(t => this.toolToSkillMap.set(t.name, manifest.name));
+          manifest.tools.forEach(t => this.toolToSkillMap.set(t.name, skillName));
         } else {
-          Object.keys(manifest.tools).forEach(tn => this.toolToSkillMap.set(tn, manifest.name));
+          Object.keys(manifest.tools).forEach(tn => this.toolToSkillMap.set(tn, skillName));
         }
+      }
+
+      // 2. Tools declared on the skill class via static getTools() (the common pattern —
+      //    21 of 23 skills use this and have nothing in manifest.tools)
+      const impl = this.skillRegistry.implementations?.get(skillName);
+      if (impl && typeof impl.getTools === 'function') {
+        const classTools = impl.getTools();
+        Object.keys(classTools).forEach(tn => this.toolToSkillMap.set(tn, skillName));
       }
     }
 
     logger.info(`AICoordinator: Loaded ${this.skillRegistry.skills.size} skills and ${this.toolToSkillMap.size} tools`);
 
-    // Refresh model with new system prompt containing all loaded tools
+    // Refresh model with full function declarations after skills are loaded
     this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.0-flash-exp",
-      systemInstruction: this.getSystemPrompt()
+      systemInstruction: this.getSystemPrompt(),
+      tools: [{ functionDeclarations: this._buildFunctionDeclarations() }]
     });
   }
 
-  getSystemPrompt() {
-    let prompt = `You manage network infrastructure, CCTV systems, and IoT devices via unified skills.
-Available tools:
-${this._getToolsDescription()}
-`;
-
+  /** Build Gemini-native function declarations from all registered tools */
+  _buildFunctionDeclarations() {
+    const decls = [];
+    this.toolRegistry.forEach((tool, name) => {
+      decls.push({
+        name: name.replace(/\./g, '__'),
+        description: tool.description || name,
+        parameters: this._normalizeParams(tool.parameters)
+      });
+    });
     if (this.skillRegistry) {
       for (const manifest of this.skillRegistry.list()) {
-        if (manifest.tools) {
-          for (const [toolName, tool] of Object.entries(manifest.tools)) {
-            prompt += `- ${toolName}: ${tool.description}\n`;
-          }
+        const impl = this.skillRegistry.implementations?.get(manifest.name);
+        const classTools = (impl && typeof impl.getTools === 'function') ? impl.getTools() : {};
+        const manifestTools = manifest.tools || {};
+        const allTools = Array.isArray(manifestTools)
+          ? Object.fromEntries(manifestTools.map(t => [t.name, t]))
+          : { ...manifestTools, ...classTools };
+        for (const [toolName, tool] of Object.entries(allTools)) {
+          decls.push({
+            name: toolName.replace(/\./g, '__'),
+            description: tool.description || toolName,
+            parameters: this._normalizeParams(tool.parameters)
+          });
         }
       }
     }
+    return decls;
+  }
 
-    prompt += `\nRespond naturally but include structured data when tools are needed.
-If a user asks for a voucher, create it immediately without asking confirmation.
-If rebooting or performing high-risk actions, always ask for confirmation first.
-When managing CCTV, you can target specific devices by their deviceId.`;
+  _normalizeParams(params) {
+    if (!params) return { type: 'OBJECT', properties: {}, required: [] };
+    if (params.type === 'object' || params.type === 'OBJECT') {
+      const props = {};
+      for (const [k, v] of Object.entries(params.properties || {})) {
+        props[k] = { type: (v.type || 'STRING').toUpperCase(), description: v.description || k };
+      }
+      return { type: 'OBJECT', properties: props, required: params.required || [] };
+    }
+    return { type: 'OBJECT', properties: {}, required: [] };
+  }
 
-    return prompt;
+  getSystemPrompt() {
+    return `You are AgentOS — an AI agent managing network infrastructure (MikroTik routers, hotspots, CCTV, IoT).
+Use the provided function tools to answer requests. Prefer calling a tool over guessing.
+Always confirm before rebooting hardware or deleting data.
+If a voucher is requested, create it immediately without further confirmation.
+When managing CCTV, target devices by their deviceId.`;
   }
 
   _getToolsDescription() {
     let desc = '';
-    // Add static tools
-    this.toolRegistry.forEach((tool, name) => {
-      desc += `- ${name}: ${tool.description || 'System tool'}\n`;
-    });
-
-    // Add dynamic skills
+    this.toolRegistry.forEach((tool, name) => { desc += `- ${name}: ${tool.description || ''}\n`; });
     if (this.skillRegistry) {
       for (const manifest of this.skillRegistry.list()) {
-        if (manifest.tools) {
-          // If tools is array (YAML format)
-          if (Array.isArray(manifest.tools)) {
-            manifest.tools.forEach(t => {
-              desc += `- ${t.name}: ${t.description}\n`;
-            });
-          } else {
-            // If tools is object (JSON format)
-            for (const [toolName, tool] of Object.entries(manifest.tools)) {
-              desc += `- ${toolName}: ${tool.description}\n`;
-            }
+        const impl = this.skillRegistry.implementations?.get(manifest.name);
+        if (impl && typeof impl.getTools === 'function') {
+          for (const [n, t] of Object.entries(impl.getTools())) {
+            desc += `- ${n}: ${t.description || ''}\n`;
           }
-        } else if (manifest.description) {
-          desc += `- ${manifest.name}: ${manifest.description}\n`;
         }
       }
     }
     return desc;
+  }
+
+  async processQuery(text, context = {}) {
+    try {
+      const intent = await this.qnap.classifyIntent(text);
+      if (intent.confidence > 0.9 && intent.action !== 'unknown') {
+        return await this.executeDirectCommand(intent, context);
+      }
+
+      const chat = this.model.startChat({
+        history: this.getConversationHistory(context.userId),
+        generationConfig: { temperature: 0.2, topP: 0.8, topK: 40 }
+      });
+
+      let result = await chat.sendMessage(text);
+      let response = result.response;
+
+      // ── Native Gemini function-calling loop ──────────────────────────────
+      const MAX_TOOL_TURNS = 8;
+      let toolTurns = 0;
+      while (toolTurns < MAX_TOOL_TURNS) {
+        const calls = (typeof response.functionCalls === 'function' ? response.functionCalls() : null) || [];
+        if (!calls.length) break;
+        toolTurns++;
+
+        const toolResults = await Promise.all(calls.map(async (call) => {
+          const toolName = call.name.replace(/__/g, '.');
+          let toolResult;
+          try {
+            toolResult = await this.executeTool(toolName, call.args || {}, context);
+          } catch (err) {
+            toolResult = { error: err.message };
+          }
+          return { functionResponse: { name: call.name, response: { result: toolResult } } };
+        }));
+
+        result = await chat.sendMessage(toolResults);
+        response = result.response;
+      }
+
+      const responseText = typeof response.text === 'function' ? response.text() : (response.text || '');
+      if (!responseText) return { error: true, message: 'No response from AI' };
+
+      // Legacy JSON tool-call fallback for models that don't use native fn-calling
+      const toolCall = this.parseToolCall(responseText);
+      if (toolCall) {
+        const toolResult = await this.executeTool(toolCall.name, toolCall.params, context);
+        return {
+          response: this.formatToolResponse(toolCall.name, toolResult),
+          data: toolResult,
+          suggestions: this.getSuggestions(toolCall.name)
+        };
+      }
+
+      this.updateConversationHistory(context.userId, text, responseText);
+      return { response: responseText, suggestions: ['Show users', 'Create voucher', 'System stats'] };
+
+    } catch (error) {
+      logger.error('AICoordinator processQuery error:', error);
+      return { error: true, message: 'AI processing failed. Try /users or /voucher 1day' };
+    }
   }
 
   _registerStaticTools() {
@@ -259,35 +344,59 @@ When managing CCTV, you can target specific devices by their deviceId.`;
   }
 
   async executeTool(name, params, context = {}) {
-    // 1. Check static toolRegistry
-    const tool = this.toolRegistry.get(name);
-    if (tool) return await tool.execute(params, context);
+    const { getUserSandbox } = require('./userSandbox');
+    const sandbox = getUserSandbox({ db: this.db });
+    const userId = context.userId || 'system';
 
-    // 2. Check toolToSkillMap (Individual tools like 'user.kick')
-    const skillName = this.toolToSkillMap.get(name);
-    if (skillName) {
-      return await this.skillRegistry.execute(skillName, name, params, {
-        ...context,
-        logger,
-        mikrotik: this.mikrotik
-      });
-    }
+    // ── RBAC + sandbox gate (nanoclaw PermissionPolicy pattern) ────────────
+    // Build a lazy executor so sandbox can intercept without running the real call
+    const realExecutor = async (args, ctx) => {
+      // 1. Static toolRegistry
+      const tool = this.toolRegistry.get(name);
+      if (tool) return await tool.execute(args, ctx);
 
-    // 3. Check SkillRegistry (Direct skill names like 'mikrotik')
-    if (this.skillRegistry.skills.has(name)) {
-      return await this.skillRegistry.execute(name, params, {
-        ...context,
-        logger,
-        mikrotik: this.mikrotik
-      });
-    }
+      // 2. toolToSkillMap (fully-qualified tool names like 'user.kick')
+      const skillName = this.toolToSkillMap.get(name);
+      if (skillName) {
+        return await this.skillRegistry.execute(skillName, name, args, {
+          ...ctx, logger, mikrotik: this.mikrotik
+        });
+      }
 
-    throw new Error(`Unknown tool: ${name}`);
+      // 3. Direct skill name
+      if (this.skillRegistry.skills.has(name)) {
+        return await this.skillRegistry.execute(name, args, {
+          ...ctx, logger, mikrotik: this.mikrotik
+        });
+      }
+
+      throw new Error(`Unknown tool: ${name}`);
+    };
+
+    return sandbox.execute(userId, name, params, realExecutor, {
+      ...context,
+      mikrotik: this.mikrotik,
+      // channels can set a defaultRole in their config (e.g. telegram defaultRole:'operator')
+      // so unprovisioned users get a sensible level instead of the most restrictive 'user' role
+      fallbackRole: context.channelRole || context.defaultRole || 'user',
+    });
   }
 
   getConversationHistory(userId) {
     if (!userId) return [];
     return this.conversationContext.get(userId) || [];
+  }
+
+  updateConversationHistory(userId, userText, modelText) {
+    if (!userId) return;
+    const history = this.conversationContext.get(userId) || [];
+    history.push(
+      { role: 'user', parts: [{ text: userText }] },
+      { role: 'model', parts: [{ text: modelText }] }
+    );
+    // Keep last 20 turns (40 entries) to avoid context window overflow
+    if (history.length > 40) history.splice(0, history.length - 40);
+    this.conversationContext.set(userId, history);
   }
 
   _getPlanPrice(plan) {

@@ -1006,12 +1006,10 @@ class TelegramChannel extends BaseChannel {
 
         try {
             if (this.agent && typeof this.agent.processInteraction === 'function') {
-                const result = await this.agent.processInteraction(text, {
-                    userId: msg.from.id,
-                    username: msg.from.username,
-                    channel: 'telegram',
-                    channelId: chatId
-                });
+                const result = await this.agent.processInteraction(
+                    { text, userId: msg.from.id, username: msg.from.username },
+                    { channel: 'telegram', channelId: chatId }
+                );
                 const reply = result?.result?.text || result?.text || JSON.stringify(result);
                 await this.bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
             } else {

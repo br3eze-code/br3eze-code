@@ -1,5 +1,5 @@
 const { Client } = require('ssh2')
-const { BaseSkill } = require('../base.js')
+const { BaseSkill } = require('./base.js')
 
 class LinuxSkill extends BaseSkill {
   static id = 'linux'

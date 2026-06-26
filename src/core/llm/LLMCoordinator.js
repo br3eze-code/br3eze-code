@@ -102,14 +102,14 @@ class LLMCoordinator {
             ? [{ role: 'user', content: messages }] 
             : messages;
             
-        await this.hooks.trigger('pre_llm', { messages: msgs, options });
+        await this.hooks.runBefore?.('llm.generate', { messages: msgs, options });
         
         try {
             const result = await this.provider.generate(msgs, options.tools || []);
-            await this.hooks.trigger('post_llm', { messages: msgs, result });
+            await this.hooks.runAfter?.('llm.generate', { messages: msgs, options }, result);
             return result;
         } catch (err) {
-            await this.hooks.trigger('llm_error', { messages: msgs, error: err });
+            await this.hooks.runError?.('llm.generate', { messages: msgs, options }, err);
             throw err;
         }
     }

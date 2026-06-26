@@ -8,8 +8,8 @@ const EventEmitter           = require('events');
 const { TranscriptStore }    = require('./transcript');
 const { saveSession, loadSession } = require('./sessionStore');
 const { PermissionMode, PermissionEnforcer, PermissionDenial } = require('./permissions');
-const { getMikroTikClient }  = require('./mikrotik');
-const { logger }             = require('./logger');
+const { getMikroTikClient }  = require('./core/mikrotik');
+const { logger }             = require('./core/logger');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 

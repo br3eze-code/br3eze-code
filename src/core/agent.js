@@ -1,10 +1,10 @@
 // src/core/agent.js
 
-const { ToolRegistry } = require('./registry')
+const { ToolRegistry } = require('./tool-registry')
 const { AuthEngine } = require('./auth')
-const { ApprovalEngine } = require('./approvals')
+const { ApprovalEngine } = require('./approval')
 const { AuditLogger } = require('./audit')
-const { AskEngine } = require('./askengine')
+const AskEngine = require('./ask-engine')
 const { logger } = require('../utils/logger')
 
 class Agent {
