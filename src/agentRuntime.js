@@ -8,8 +8,8 @@ const EventEmitter       = require('events');
 const { AgentEngine }    = require('./agentEngine');
 const { PermissionMode, PermissionDenial } = require('./permissions');
 const { getTaskRegistry, TaskStatus }    = require('./taskRegistry');
-const { getMikroTikClient }  = require('./mikrotik');
-const { logger }             = require('./logger');
+const { getMikroTikClient }  = require('./core/mikrotik');
+const { logger }             = require('./core/logger');
 
 // ── Tool manifest ─────────────────────────────────────────────────────────────
 

@@ -17,3 +17,5 @@ class BaseChannel {
     }));
   }
 }
+
+module.exports = { BaseChannel };

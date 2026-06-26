@@ -1,3 +1,4 @@
+const { BaseChannel } = require('./BaseChannel');
 // src/channels/index.js
 class ChannelManager {
   constructor(runtime) {

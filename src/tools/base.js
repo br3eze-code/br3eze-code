@@ -62,3 +62,5 @@ class DatabaseMigrationTool extends BaseTool {
     };
   }
 }
+
+module.exports = { BaseTool };
