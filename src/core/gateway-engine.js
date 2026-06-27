@@ -140,12 +140,14 @@ class Gateway extends EventEmitter {
     this.app.post('/api/v1/ask', async (req, res) => {
       const { prompt, stream: wantStream } = req.body || {};
       if (!prompt) return res.status(400).json({ error: 'prompt required' });
-      if (!this.askEngine) return res.status(503).json({ error: 'AskEngine not initialized' });
+      // gateway.js sets this.askEngine after construction; also accept global fallback
+      const engine = this.askEngine || global.askEngine;
+      if (!engine) return res.status(503).json({ error: 'AskEngine not initialized' });
 
       if (wantStream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
         try {
-          for await (const ev of this.askEngine.stream(prompt)) {
+          for await (const ev of engine.stream(prompt)) {
             res.write(`data: ${JSON.stringify(ev)}\n\n`);
           }
         } catch (e) {
@@ -154,12 +156,95 @@ class Gateway extends EventEmitter {
         res.end();
       } else {
         try {
-          const result = await this.askEngine.run(prompt);
+          const result = await engine.run(prompt);
           res.json({ ok: true, ...result });
         } catch (e) {
           res.status(500).json({ error: e.message });
         }
       }
+    });
+
+    // ── Users / Roles API ────────────────────────────────────────────────────
+    this.app.get('/api/v1/users/roles', (req, res) => {
+      try {
+        const { roles } = require('../policies/roles.json');
+        res.json({ roles });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    this.app.get('/api/v1/users/platform', async (req, res) => {
+      try {
+        const { getUserSandbox } = require('./userSandbox');
+        const sandbox = getUserSandbox({ db: global.database });
+        const users = await sandbox.listUsers({ role: req.query.role, limit: parseInt(req.query.limit) || 50 });
+        res.json({ users });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/users/platform/:uid/role', async (req, res) => {
+      try {
+        const { getUserSandbox } = require('./userSandbox');
+        const sandbox = getUserSandbox({ db: global.database });
+        const operatorId = req.user?.id || 'gateway';
+        await sandbox.setRole(operatorId, req.params.uid, req.body.role);
+        res.json({ ok: true });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    // ── ToolForge API ────────────────────────────────────────────────────────
+    this.app.get('/api/v1/forge/active', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        res.json({ tools: getToolForge().listActive() });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    this.app.get('/api/v1/forge/proposals', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        const forge = getToolForge();
+        res.json({ proposals: forge.listProposals(req.query.status ? { status: req.query.status } : {}) });
+      } catch (e) { res.status(500).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/forge/propose', async (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        const forge = getToolForge({ skillRegistry: this.ai?.skillRegistry });
+        const propId = await forge.propose({ ...req.body, proposedBy: req.user?.id || 'api' });
+        res.json({ ok: true, proposalId: propId });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/forge/proposals/:id/approve', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        const result = getToolForge().approve(req.params.id, { by: req.user?.id || 'api' });
+        res.json({ ok: true, proposal: result });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.post('/api/v1/forge/proposals/:id/reject', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        const result = getToolForge().reject(req.params.id, { by: req.user?.id || 'api', reason: req.body?.reason });
+        res.json({ ok: true, proposal: result });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.delete('/api/v1/forge/tools/:id', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        getToolForge().revoke(req.params.id, { by: req.user?.id || 'api' });
+        res.json({ ok: true });
+      } catch (e) { res.status(400).json({ error: e.message }); }
+    });
+
+    this.app.get('/api/v1/forge/receipts', (req, res) => {
+      try {
+        const { getToolForge } = require('./toolForge');
+        res.json({ receipts: getToolForge().listReceipts(parseInt(req.query.limit) || 50) });
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── A2A Protocol Routes ───────────────────────────────────────────────────

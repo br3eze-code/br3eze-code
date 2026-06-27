@@ -22,7 +22,11 @@ const credential = (
         : null
 );
 
-if (!credential) throw new Error('Firebase credentials not configured — set FIREBASE_PROJECT_ID / PRIVATE_KEY / CLIENT_EMAIL');
+if (!credential) {
+    logger.warn('⚠️  Firebase credentials not configured — db/auth/storage will be null. Set FIREBASE_PROJECT_ID / FIREBASE_PRIVATE_KEY / FIREBASE_CLIENT_EMAIL.');
+    module.exports = { admin: null, auth: null, db: null, storage: null, messaging: null };
+    return;
+}
 
 let db, auth, storage, messaging;
 
