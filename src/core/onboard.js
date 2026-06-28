@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AgentOS Onboarding Service
  * Consolidates routing script generation, agent provisioning, and system setup.
  */
@@ -82,7 +82,7 @@ add name=open-hotspot supplicant-identity=MikroTik
 /interface wireless
 set [ find default-name=wlan1 ] band=2ghz-b/g/n disabled=no frequency=2462 mode=ap-bridge security-profile=open-hotspot ssid="Br3eze Africa"
 /ip hotspot profile
-set [ find default=yes ] dns-name=hotspot.local
+set [ find default=yes ] dns-name=br3eze.africa
 add dns-name=captive.local hotspot-address=192.168.88.1 login-by=http-chap,http-pap,trial,mac,cookie name=enforce-portal trial-uptime-limit=5m
 /ip hotspot user profile
 set [ find default=yes ] on-login="\\

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * AgentOS Onboarding Runner
  * This script serves as the primary entry point for onboarding new routers.
@@ -30,7 +30,7 @@ async function main() {
         port,
         dryRun: isDryRun,
         // Map common .env names to template variables
-        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || 'http://hotspot.local',
+        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || 'http://br3eze.africa',
         FIREBASE_URL: process.env.FIREBASE_URL || process.env.FIREBASE_DATABASE_URL,
         FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || 'AIzaSy_DEFAULT_KEY',
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN,

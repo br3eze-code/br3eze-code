@@ -1,4 +1,4 @@
-// NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
+﻿// NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
 // inside initialize(), never at the top level via require().
 const path = require('path');
 const fs = require('fs');
@@ -632,7 +632,7 @@ class WhatsAppChannel extends BaseChannel {
     const dateUtils = require('../../utils/date');
     const expiresAt = planObj.durationValue && planObj.durationUnit ?
       dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-    const loginUrl = `http://${mt?.state?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+    const loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
     await db.createVoucher(code, {
       plan: planId,

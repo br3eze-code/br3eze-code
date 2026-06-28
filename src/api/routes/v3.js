@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Routes v3 — AgentOS Advanced
  * Bulk · Skills · Audit · Diagnostics · Chaos · Workflows
  * @module api/routes/v3
@@ -62,7 +62,7 @@ router.post('/bulk/vouchers', async (req, res) => {
 
     for (let i = 0; i < n; i++) {
       const code = `BLK-${part()}-${part()}`;
-      const loginUrl = `http://${global.mikrotik?.config?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+      const loginUrl = `http://${global.mikrotik?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
       const v = await global.database.createVoucher(code, {
         plan, planName: planObj.name || plan,
         durationUnit: planObj.durationUnit || null, durationValue: planObj.durationValue || null,

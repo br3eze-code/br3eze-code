@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 /**
  * VoucherAgent — Voucher generation & event emission
  * @module core/voucher
@@ -113,7 +113,7 @@ class VoucherAgent {
             username: code,
             password: password,
             profile: plan,
-            loginUrl: loginUrl || `http://hotspot.local/login?username=${code}&password=${password}`,
+            loginUrl: loginUrl || `http://br3eze.africa/login?username=${code}&password=${password}`,
             createdAt: new Date().toISOString()
         };
     }

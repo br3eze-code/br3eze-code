@@ -1,4 +1,4 @@
-const { printVoucher } = require('../src/core/printer');
+﻿const { printVoucher } = require('../src/core/printer');
 const { logger } = require('../src/core/logger');
 
 // Override config locally for the test if arguments are provided
@@ -43,7 +43,7 @@ async function runTest() {
         username: 'debug_user_99',
         password: 'debug_password',
         profile: 'Debug-Profile',
-        loginUrl: 'http://hotspot.local/login?username=debug_user_99&password=debug_password'
+        loginUrl: 'http://br3eze.africa/login?username=debug_user_99&password=debug_password'
     };
 
     logger.info('Sending print command...');

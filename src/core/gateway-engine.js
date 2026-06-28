@@ -1,4 +1,4 @@
-// src/core/gateway-engine.js 
+﻿// src/core/gateway-engine.js 
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -302,7 +302,7 @@ class Gateway extends EventEmitter {
         const mt = global.mikrotik;
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
           dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-        const loginUrl = `http://${mt?.config?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${mt?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         const vData = {
           ...req.body,
@@ -508,7 +508,7 @@ class Gateway extends EventEmitter {
         const crypto = require('crypto');
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         if (global.database) {
           await global.database.createVoucher(code, {

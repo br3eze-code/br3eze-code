@@ -1,4 +1,4 @@
-const { BaseDriver } = require('../base.js');
+﻿const { BaseDriver } = require('../base.js');
 const { logger } = require('../../core/logger');
 
 class AgentOSCoreDriver extends BaseDriver {
@@ -72,7 +72,7 @@ class AgentOSCoreDriver extends BaseDriver {
             username: 'TEST-USER',
             password: 'TEST-PASSWORD',
             profile: 'DIAGNOSTIC',
-            loginUrl: 'http://hotspot.local/login'
+            loginUrl: 'http://br3eze.africa/login'
           });
           return { success: true, message: 'Test page sent to printer' };
         } catch (err) {

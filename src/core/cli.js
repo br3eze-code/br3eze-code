@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const QRCode = require('qrcode');
 const crypto = require('crypto');
@@ -330,7 +330,7 @@ class AgentOSCLI {
 
         const expiresAt = planObj.durationValue && planObj.durationUnit
             ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-        const loginUrl = `http://${this.mikrotik?.state?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         const vData = { plan, planName: planObj.name || plan, durationUnit: planObj.durationUnit || null,
             durationValue: planObj.durationValue || null, deviceLimit: planObj.deviceLimit || 1,
@@ -493,7 +493,7 @@ class AgentOSCLI {
         if (!code) { this._warn('Usage: qr <code>'); return; }
         const v = await this.database.getVoucher(code);
         if (!v) { this._err('Voucher not found'); return; }
-        const url = `http://${this.config?.MIKROTIK?.IP || 'hotspot.local'}/login.html?code=${code}`;
+        const url = `http://${this.config?.MIKROTIK?.IP || 'br3eze.africa'}/login.html?code=${code}`;
         try {
             const qr = await QRCode.toString(JSON.stringify({ code, plan: v.plan, url }), { type: 'terminal', small: true });
             console.log(pc.cyan(qr));

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
@@ -255,7 +255,7 @@ class WebSocketCLI {
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
                 dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-            const loginUrl = `http://${mikrotik?.state?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+            const loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
             
             const vData = { 
                 plan,
