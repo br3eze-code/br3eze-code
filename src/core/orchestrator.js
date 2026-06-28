@@ -7,12 +7,16 @@ const { logger } = require('./logger');
 
 class AgentOSOrchestrator {
     constructor(mikrotik, db, gateway, bot) {
-        this.mikrotik = mikrotik;
+        this._mikrotik = mikrotik;
         this.db = db;
         this.gateway = gateway;
         this.bot = bot;
         this._knownMacs = new Set();
         this._intervals = [];
+    }
+
+    get mikrotik() {
+        return this._mikrotik || this.bot?.mikrotik;
     }
 
     start() {
@@ -30,7 +34,7 @@ class AgentOSOrchestrator {
     }
 
     async _provisionRouter() {
-        if (!this.mikrotik.isConnected) return;
+        if (!this.mikrotik || !this.mikrotik.isConnected) return;
         logger.info('Provisioning router (Day 1 checks)…');
 
         // 3. Ensure hotspot profiles exist
@@ -70,7 +74,9 @@ class AgentOSOrchestrator {
             if (now.getHours() === 4 && now.getMinutes() === 0) {
                 logger.info('Cron: Triggering automated daily reboot (4:00 AM)');
                 this.bot?.sendToAll?.('🔄 *Automated System Maintenance:* Router is rebooting.');
-                await this.mikrotik.reboot().catch(() => { });
+                if (this.mikrotik) {
+                    await this.mikrotik.reboot().catch(() => { });
+                }
             }
 
             // Heartbeat Every 24 Hours
@@ -83,7 +89,7 @@ class AgentOSOrchestrator {
 
     _monitorSystem() {
         const sysInterval = setInterval(async () => {
-            if (!this.mikrotik.isConnected) return;
+            if (!this.mikrotik || !this.mikrotik.isConnected) return;
             try {
                 const s = await this.mikrotik.getSystemStats();
                 const cpu = parseInt(s?.['cpu-load']) || 0;
@@ -93,12 +99,13 @@ class AgentOSOrchestrator {
                 if (cpu > 90) {
                     this.bot?.alertOnce?.('cpu-high', `⚠️ *High CPU:* ${cpu}%`);
                 }
+
                 if ((1 - fm / tm) > 0.85) {
                     this.bot?.alertOnce?.('mem-high', `⚠️ *High Memory:* ${Math.round((1 - fm / tm) * 100)}% used`);
                 }
 
                 // Hardware health checks
-                const health = this.mikrotik.state?.lastKnownHealth;
+                const health = this.mikrotik?.state?.lastKnownHealth;
                 if (health) {
                     const voltage = parseFloat(health.voltage);
                     const temp = parseFloat(health.temperature);
@@ -120,7 +127,7 @@ class AgentOSOrchestrator {
     _monitorNewDevices() {
         let firstScan = true;
         const devInterval = setInterval(async () => {
-            if (!this.mikrotik.isConnected) return;
+            if (!this.mikrotik || !this.mikrotik.isConnected) return;
             try {
                 const arp = await this.mikrotik.getArpTable();
                 for (const dev of arp.filter(e => e.address && e['mac-address'])) {
@@ -152,7 +159,6 @@ class AgentOSOrchestrator {
                 logger.error(`Voucher expiry task: ${err.message}`);
             }
         }, 60 * 60_000); // Hourly check
-        this._intervals.push(expInterval);
     }
 }
 
