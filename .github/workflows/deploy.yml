@@ -5,54 +5,30 @@ on:
     branches: [main]
     paths:
       - 'src/**'
-      - 'agentos.js'
-      - 'bin/**'
-      - 'adapters/**'
-      - 'agents/**'
+      - 'server/**'
+      - 'helm/**'
       - 'Dockerfile'
       - 'package.json'
-      - 'hosting.yaml'
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: false
-        default: 'production'
-        type: choice
-        options: [production, staging]
-      image_tag:
-        description: 'Docker image tag (leave blank for latest)'
-        required: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  GCP_PROJECT: br3eze-africa-312df
-  GCP_REGION: africa-south1
-  CLOUD_RUN_SERVICE: agentos
 
 permissions:
   contents: read
   packages: write
-  id-token: write
 
 jobs:
-  # ── Build ──────────────────────────────────────────────────────────────────
   build:
     name: Build Container
     runs-on: ubuntu-latest
-    timeout-minutes: 25
     outputs:
-      digest: ${{ steps.build.outputs.digest }}
-      image_uri: ${{ steps.uri.outputs.uri }}
-      version: ${{ steps.ver.outputs.version }}
-
+      image: ${{ steps.meta.outputs.tags }}
+      tag:   ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Get version
-        id: ver
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,148 +42,105 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.ver.outputs.version }}
 
       - name: Build and push
         id: build
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: true
 
-      - name: Set image URI
-        id: uri
-        run: |
-          SHORT="${{ github.sha }}"
-          echo "uri=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${SHORT:0:7}" >> $GITHUB_OUTPUT
-
-  # ── Cloud Run ──────────────────────────────────────────────────────────────
-  deploy-cloudrun:
-    name: Deploy → Cloud Run (${{ github.event.inputs.environment || 'production' }})
-    needs: build
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'production' }}
-    timeout-minutes: 15
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.GCP_PROJECT }}
-
-      - name: Deploy via hosting.yaml
-        run: |
-          # Use hosting.yaml for full production-hardened deploy
-          # Patch image tag to the freshly built digest
-          IMAGE="${{ needs.build.outputs.image_uri }}"
-          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}"
-          fi
-
-          # Inline-replace image in hosting.yaml for this deploy
-          sed "s|ghcr.io/br3eze-code/br3eze-code:latest|${IMAGE}|g" hosting.yaml > /tmp/hosting-deploy.yaml
-
-          gcloud run services replace /tmp/hosting-deploy.yaml \
-            --region="${{ env.GCP_REGION }}" \
-            --project="${{ env.GCP_PROJECT }}"
-
-          echo "✅ Deployed: $IMAGE"
-
-      - name: Get service URL
-        id: url
-        run: |
-          URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} \
-            --region=${{ env.GCP_REGION }} \
-            --project=${{ env.GCP_PROJECT }} \
-            --format='value(status.url)')
-          echo "url=$URL" >> $GITHUB_OUTPUT
-          echo "🌍 AgentOS live at: $URL"
-
-      - name: Smoke test
-        run: |
-          URL="${{ steps.url.outputs.url }}"
-          echo "Testing $URL/health ..."
-          for i in 1 2 3 4 5; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer ${{ secrets.GATEWAY_TOKEN }}" \
-              "$URL/health" || echo "000")
-            echo "  Attempt $i: HTTP $STATUS"
-            [ "$STATUS" = "200" ] && echo "✅ Health check passed" && exit 0
-            sleep 10
-          done
-          echo "⚠️  Health check did not return 200 — check Cloud Run logs"
-          exit 1
-        continue-on-error: true
-
-  # ── Kubernetes / Helm (conditional) ───────────────────────────────────────
-  deploy-k8s:
-    name: Deploy → Kubernetes
+  deploy:
+    name: Deploy to Kubernetes
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 15
-    if: ${{ secrets.KUBECONFIG != '' }}
-
+    if: github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate secrets
+        run: |
+          [ -n "${{ secrets.KUBECONFIG }}" ] || { echo "❌ KUBECONFIG secret missing"; exit 1; }
+          echo "✓ Secrets validated"
 
       - name: Install Helm
-        uses: azure/setup-helm@v5
+        uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
-      - name: Set Kubernetes context
-        uses: azure/k8s-set-context@v5
+      - name: Setup Kubernetes context
+        uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
 
       - name: Create namespace
         run: |
-          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f -
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          echo "✓ Namespace: $NAMESPACE"
 
-      - name: Sync secrets
+      - name: Create secrets
         run: |
-          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create secret generic agentos \
             --from-literal=gateway-token="${{ secrets.GATEWAY_TOKEN }}" \
+            --from-literal=audit-secret="${{ secrets.AUDIT_SECRET }}" \
             --from-literal=gemini-api-key="${{ secrets.GEMINI_API_KEY }}" \
-            --from-literal=anthropic-api-key="${{ secrets.ANTHROPIC_API_KEY }}" \
-            --from-literal=telegram-bot-token="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
+            --from-literal=mikrotik-api-token="${{ secrets.MIKROTIK_API_TOKEN }}" \
+            --from-literal=aws-access-key-id="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            --from-literal=aws-secret-access-key="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -n "$NAMESPACE" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          echo "✓ Secrets created"
+
+      - name: Create ConfigMap
+        run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          if [ -f workspace.json ]; then
+            kubectl create configmap agentos-workspace \
+              --from-file=workspace.json=./workspace.json \
+              -n "$NAMESPACE" \
+              --dry-run=client -o yaml | kubectl apply -f -
+          fi
 
       - name: Helm upgrade
         run: |
-          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'agentos.local' }}"
+          # Use short SHA tag (not digest) for Helm image.tag
+          IMAGE_TAG="${{ needs.build.outputs.tag }}"
+
           helm upgrade --install agentos ./helm/agentos \
-            --namespace "$NS" --create-namespace \
+            --namespace "$NAMESPACE" \
+            --create-namespace \
             --set image.repository="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
-            --set image.tag="${{ needs.build.outputs.digest }}" \
-            --set app.version="${{ needs.build.outputs.version }}" \
-            --wait --timeout 5m --atomic
+            --set image.tag="$IMAGE_TAG" \
+            --set ingress.hosts[0].host="$INGRESS_HOST" \
+            --wait --timeout 5m
+          echo "✓ Helm upgrade complete — $IMAGE_TAG"
+
+      - name: Verify deployment
+        run: |
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          kubectl rollout status deployment/agentos -n "$NAMESPACE" --timeout=5m
+          kubectl get ing -n "$NAMESPACE"
+          echo "✓ Deployment verified"
 
       - name: Rollback on failure
         if: failure()
         run: |
-          NS="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          helm rollback agentos -n "$NS" || echo "⚠️  No previous release to rollback to"
+          NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
+          helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deploy)"
