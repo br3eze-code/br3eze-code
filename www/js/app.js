@@ -15,6 +15,24 @@ const App = (() => {
     _loadSettingsIntoForm();
     _restoreActivity();
 
+    // Make KPI cards clickable
+    document.querySelectorAll('.kpi-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const nav = card.dataset.nav;
+        if (nav) {
+          if (nav === 'financial') {
+            switchTab('tools');
+            executeTool('financial.summary');
+          } else {
+            switchTab(nav);
+          }
+        } else if (card.id === 'kpi-health-card') {
+          switchTab('tools');
+          executeTool('system.health');
+        }
+      });
+    });
+
     const url   = Store.get(KEYS.URL, '');
     const token = Store.get(KEYS.TOKEN, '');
     if (url) {
