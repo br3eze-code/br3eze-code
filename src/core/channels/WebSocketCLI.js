@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
@@ -268,8 +268,6 @@ class WebSocketCLI {
                 createdBy: 'ws-cli' 
             };
 
-            await db.createVoucher(code, vData);
-            
             if (mikrotik.state.isConnected) {
                 const _durationToMikrotik = (p) => {
                     if (!p || !p.durationValue || !p.durationUnit) return null;
@@ -282,13 +280,23 @@ class WebSocketCLI {
                         default: return null;
                     }
                 };
-                await mikrotik.addHotspotUser({
-                    username: code, password: code, profile: plan,
-                    sharedUsers: vData.deviceLimit,
-                    ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) })
-                }).catch(() => { });
+                try {
+                    const routerLoginUrl = await mikrotik.addHotspotUser({
+                        username: code, password: code, profile: plan,
+                        sharedUsers: vData.deviceLimit,
+                        ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) })
+                    });
+                    if (routerLoginUrl) {
+                        loginUrl = routerLoginUrl;
+                        vData.loginUrl = routerLoginUrl;
+                    }
+                } catch (e) {
+                    logger.error(`WebSocketCLI Mikrotik Sync Failed: ${e.message}`);
+                }
             }
-            this._out({ type: 'success', message: `🎫 Code: ${code}  Plan: ${plan}${mikrotik.state.isConnected ? '\n✅ Auto-provisioned' : ''}` });
+
+            await db.createVoucher(code, vData);
+            this._out({ type: 'success', message: `🎫 Code: ${code}  Plan: ${plan}\nPortal URL: ${loginUrl}${mikrotik.state.isConnected ? '\n✅ Auto-provisioned' : ''}` });
         } catch (err) { this._out({ type: 'error', message: err.message }); }
     }
 
