@@ -3,10 +3,18 @@
 
 'use strict';
 
+const path = require('path');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 
-const db = new Database('agentos.db');
+// Use absolute path so the DB is always at the project root regardless of CWD
+const DB_PATH = path.join(__dirname, '..', '..', 'agentos.db');
+const db = new Database(DB_PATH);
+
+// Enable WAL mode for concurrent-write safety and better performance
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+db.pragma('synchronous = NORMAL');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS receipts (
@@ -25,10 +33,10 @@ CREATE TABLE IF NOT EXISTS receipts (
 `);
 
 function generateReference() {
+    // Use uuid for collision-free references even at high transaction volume
     const prefix = 'STAR';
-    const time = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${prefix}-${time}-${rand}`;
+    const uid = uuidv4().replace(/-/g, '').substring(0, 12).toUpperCase();
+    return `${prefix}-${uid}`;
 }
 
 function getReceipt(reference) {

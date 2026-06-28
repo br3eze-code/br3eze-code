@@ -392,8 +392,10 @@ module.exports = (program) => {
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
       const { logger } = require('../../core/logger');
 
-      // Silence console logs during onboarding
-      logger.transports.forEach(t => { if (t instanceof require('winston').transports.Console) t.silent = true; });
+      // Silence ALL winston transports during onboarding to avoid log noise
+      // (instanceof Console check is unreliable for wrapped/custom transports)
+      logger.transports.forEach(t => { t.silent = true; })
+      const restoreLogs = () => logger.transports.forEach(t => { t.silent = false; });
 
       intro(chalk.bgCyan.black.bold(` 🚀 ${BRAND.name} Setup — v${BRAND.version} `));
 
@@ -1081,6 +1083,7 @@ module.exports = (program) => {
       }
 
       outro(chalk.bgGreen.black.bold(' ✨ AgentOS is configured and ready! Run: agentos gateway '));
+      restoreLogs();
       process.exit(0);
     });
 };

@@ -3,7 +3,8 @@
 
 'use strict';
 
-const { getRouterConnection } = require('./connection.js');
+const path = require('path');
+const { getRouterConnection } = require(path.join(__dirname, 'connection.js'));
 
 /**
  * TOOL: mikrotik.createUser
@@ -43,7 +44,9 @@ async function createUser({ name, password, profile = 'default', context }) {
         };
 
     } catch (err) {
-        throw new Error('MikroTik createUser failed: ' + err.message);
+        const wrapped = new Error('MikroTik createUser failed: ' + err.message);
+        wrapped.cause = err;
+        throw wrapped;
     }
 }
 
