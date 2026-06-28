@@ -55,17 +55,19 @@ module.exports = (program) => {
         const mkConfig = config.mikrotik || (config.adapters && config.adapters.mikrotik) || {};
 
         if (!mkConfig.host && !mkConfig.ip) {
-          throw new Error('MikroTik config missing');
+          s.stop(chalk.yellow('⚠ MikroTik not configured'));
+          checks.push({ name: 'MikroTik', status: 'warn', details: 'Not configured' });
+        } else {
+          const result = await testMikroTikConnection(mkConfig);
+          if (!result.success) throw new Error(result.message || 'Connection failed');
+
+          s.stop(chalk.green('✓ MikroTik connected'));
+          checks.push({ name: 'MikroTik', status: 'ok', details: mkConfig.host || mkConfig.ip });
         }
-
-        const result = await testMikroTikConnection(mkConfig);
-        if (!result.success) throw new Error(result.message || 'Connection failed');
-
-        s.stop(chalk.green('✓ MikroTik connected'));
-        checks.push({ name: 'MikroTik', status: 'ok', details: mkConfig.host || mkConfig.ip });
       } catch (e) {
-        s.stop(chalk.red(`✗ MikroTik error: ${e.message}`));
-        checks.push({ name: 'MikroTik', status: 'error', details: e.message });
+        // Connection failures (timeouts, refused) are warnings — router may be offline
+        s.stop(chalk.yellow(`⚠ MikroTik unreachable: ${e.message}`));
+        checks.push({ name: 'MikroTik', status: 'warn', details: e.message });
       }
 
       // Check 3: Firebase Connectivity
@@ -286,6 +288,9 @@ module.exports = (program) => {
         if (db) await db.close();
       } catch (_) { }
 
-      return;
+      // Force exit: channel checks (Telegram, WhatsApp etc.) create open handles
+      // that prevent the event loop from draining naturally.
+      const exitCode = errors > 0 ? 1 : 0;
+      process.exit(exitCode);
     });
 };

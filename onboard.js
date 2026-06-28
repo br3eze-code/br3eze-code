@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * AgentOS Onboarding Runner
  * This script serves as the primary entry point for onboarding new routers.

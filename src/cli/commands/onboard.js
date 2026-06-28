@@ -828,5 +828,6 @@ module.exports = (program) => {
       }
 
       outro(chalk.bgGreen.black.bold(' ✨ AgentOS is configured and ready! Run: agentos gateway '));
+      process.exit(0);
     });
 };
