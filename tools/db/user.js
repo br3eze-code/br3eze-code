@@ -1,13 +1,12 @@
-// db/user.js
-// Persistent User Database Layer (AgentOS Core)
+// tools/db/user.js
+// Persistent User Database Layer (AgentOS Core) — CJS
 
-import Database from "better-sqlite3";
+'use strict';
 
-const db = new Database("agentos.db");
+const Database = require('better-sqlite3');
 
-// ─────────────────────────────
-// 🧱 INIT TABLE
-// ─────────────────────────────
+const db = new Database('agentos.db');
+
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -22,3 +21,5 @@ CREATE TABLE IF NOT EXISTS users (
   updatedAt TEXT
 );
 `);
+
+module.exports = { db };
