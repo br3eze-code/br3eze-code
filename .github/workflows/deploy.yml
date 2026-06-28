@@ -119,7 +119,7 @@ jobs:
       - name: Helm upgrade
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
-          INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'agentos.local' }}"
+          INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'br3eze.africa' }}"
           # Use short SHA tag (not digest) for Helm image.tag
           IMAGE_TAG="${{ needs.build.outputs.tag }}"
 
