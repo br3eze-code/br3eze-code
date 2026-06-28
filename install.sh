@@ -100,7 +100,7 @@ Wants=network-online.target
 Type=simple
 User=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/node bin/agentos.js
+ExecStart=/usr/bin/node bin/agentos.js gateway
 Restart=always
 RestartSec=5
 StandardOutput=journal
@@ -121,7 +121,7 @@ RestrictNamespaces=true
 LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictRealtime=true
-ReadWritePaths=$INSTALL_DIR/logs $INSTALL_DIR/data
+ReadWritePaths=$INSTALL_DIR/logs $INSTALL_DIR/data $INSTALL_DIR/.agentos
 
 [Install]
 WantedBy=multi-user.target

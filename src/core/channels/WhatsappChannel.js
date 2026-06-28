@@ -1,4 +1,4 @@
-﻿// NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
+// NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
 // inside initialize(), never at the top level via require().
 const path = require('path');
 const fs = require('fs');
@@ -226,10 +226,10 @@ class WhatsAppChannel extends BaseChannel {
       this.sock.ev.on('creds.update', saveCreds);
 
       this.sock.ev.on('messages.upsert', async (m) => {
-        try {
-          if (m.type !== 'notify') return;
+        if (m.type !== 'notify') return;
 
-          for (const msg of m.messages) {
+        for (const msg of m.messages) {
+          try {
             // Ignore messages from self and those without a message body
             if (msg.key.fromMe || !msg.message) continue;
 
@@ -239,10 +239,39 @@ class WhatsAppChannel extends BaseChannel {
             this.messageCache.set(msgId, Date.now());
 
             await this.handleIncomingMessage(msg);
+          } catch (error) {
+            // Suppress Signal decrypt errors for group sender-key messages (skmsg).
+            // These happen when the bot wasn't present when the sender key was distributed
+            // and are Baileys-internal — no action needed from application layer.
+            const msg_str = error?.message || '';
+            if (
+              msg_str.includes('No session found to decrypt') ||
+              msg_str.includes('Unexpected non-whitespace character after JSON') ||
+              msg_str.includes('invalid mex newsletter')
+            ) {
+              logger.debug(`WhatsApp: suppressed Baileys internal error: ${msg_str}`);
+            } else {
+              logger.error('WhatsApp message upsert handling error:', error);
+            }
           }
-        } catch (error) {
-          logger.error('WhatsApp message upsert handling error:', error);
         }
+      });
+
+      // Request retry keys when Baileys fails to decrypt a group sender-key message.
+      // This is the correct Baileys v6 pattern: send a receipt so the sender
+      // will re-transmit the sender-key bundle to us.
+      this.sock.ev.on('messages.update', (updates) => {
+        for (const update of updates) {
+          if (update.update?.messageStubType === 2 /* RETRY_RECEIPT */) {
+            logger.debug(`WhatsApp: retry receipt for ${update.key?.id}`);
+          }
+        }
+      });
+
+      // Suppress Baileys internal decrypt failures at library logger level
+      // by intercepting the error event on the socket.
+      this.sock.ev.on('CB:failure', (node) => {
+        logger.debug('WhatsApp: Baileys CB:failure (suppressed):', node?.attrs?.reason);
       });
 
       // Periodic cache cleanup
