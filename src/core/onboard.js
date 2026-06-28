@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AgentOS Onboarding Service
  * Consolidates routing script generation, agent provisioning, and system setup.
  */
@@ -888,11 +888,11 @@ async function runWizard() {
                 if (host === CANCEL) return CANCEL; S.smtpHost = host.trim();
                 const port = await ask(() => text({ message: pc.cyan('6/8') + '  SMTP Port', placeholder: '587', initialValue: S.smtpPort }));
                 if (port === CANCEL) return CANCEL; S.smtpPort = port.trim() || '587';
-                const user = await ask(() => text({ message: pc.cyan('6/8') + '  SMTP Username', placeholder: 'you@example.com', initialValue: S.smtpUser, validate: v => v.trim() ? undefined : 'Required' }));
+                const user = await ask(() => text({ message: pc.cyan('6/8') + '  SMTP Username', placeholder: 'you@br3eze.africa', initialValue: S.smtpUser, validate: v => v.trim() ? undefined : 'Required' }));
                 if (user === CANCEL) return CANCEL; S.smtpUser = user.trim();
                 const pass = await ask(() => clackPwd({ message: pc.cyan('6/8') + '  SMTP Password', validate: v => v.length >= 1 ? undefined : 'Required' }));
                 if (pass === CANCEL) return CANCEL; S.smtpPass = pass;
-                const from = await ask(() => text({ message: pc.cyan('6/8') + '  From Address', placeholder: 'agentos@yourdomain.com', initialValue: S.smtpFrom }));
+                const from = await ask(() => text({ message: pc.cyan('6/8') + '  From Address', placeholder: 'agentos@br3eze.africa', initialValue: S.smtpFrom }));
                 if (from === CANCEL) return CANCEL; S.smtpFrom = from.trim();
             }
 
