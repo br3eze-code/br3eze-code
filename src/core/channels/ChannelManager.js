@@ -59,7 +59,7 @@ class ChannelManager extends EventEmitter {
         });
       }
 
-      if (process.env.WHATSAPP_ENABLED !== 'false') {
+      if (process.env.WHATSAPP_ENABLED === 'true') {
         channelConfigs.push({
           type: 'whatsapp',
           config: {

@@ -58,12 +58,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
 
-      - name: Summary
+      - name: Summaryeze
         run: |
           echo "## 📦 Canary Published" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** \`${{ steps.ver.outputs.canary }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Install with:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install @br3eze-code/agentos@canary" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @br3eze-code@canary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
