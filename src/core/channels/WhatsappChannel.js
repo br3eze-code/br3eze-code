@@ -702,11 +702,18 @@ class WhatsAppChannel extends BaseChannel {
         }
       };
 
-      await mt.addHotspotUser({
-        username: code, password: code, profile: planId,
-        sharedUsers: planObj.deviceLimit || 1,
-        ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) })
-      }).catch(e => logger.error(`WhatsApp Mikrotik Sync Failed: ${e.message}`));
+      try {
+        const routerLoginUrl = await mt.addHotspotUser({
+          username: code, password: code, profile: planId,
+          sharedUsers: planObj.deviceLimit || 1,
+          ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) })
+        });
+        if (routerLoginUrl) {
+          loginUrl = routerLoginUrl;
+        }
+      } catch (e) {
+        logger.error(`WhatsApp Mikrotik Sync Failed: ${e.message}`);
+      }
     }
 
     // Generate QR

@@ -120,6 +120,9 @@ module.exports = (program) => {
           renderStatus(statusData, BRAND, { intro, outro, note });
         }
 
+        // Force exit: DB + MikroTik handles stay open otherwise
+        process.exit(0);
+
       } catch (error) {
         log.error(`Status failed: ${error.message}`);
         process.exit(1);

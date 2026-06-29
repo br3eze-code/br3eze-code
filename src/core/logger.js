@@ -143,9 +143,12 @@ const logger = winston.createLogger({
         setImmediate(() => this.emit('logged', info));
         const message = Buffer.from(JSON.stringify(info));
         this.client.send(message, 0, message.length, this.port, this.host, (err) => {
-          if (err) console.error('UDP Log Error:', err);
+          // Only report UDP errors in non-production; do not crash the process
+          if (err && process.env.NODE_ENV !== 'production') {
+            process.stderr.write(`UDP Log Error: ${err.message}\n`);
+          }
+          if (callback) callback(); // call after send attempt completes
         });
-        if (callback) callback();
       }
     })({ level: 'debug' })
   ],

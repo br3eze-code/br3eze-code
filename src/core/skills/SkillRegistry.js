@@ -57,17 +57,22 @@ class SkillRegistry {
     const workspace = config?.workspace || {};
 
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
-      // Class-based skill (e.g. DahuaSkill extends BaseSkill)
-      const instance = new implementation(
-        skillConfig,                             // config — per-skill slice of the real config
-        logger,                                  // logger
-        workspace                                // workspace
-      );
+      // Class-based skill (e.g. DahuaSkill extends BaseSkill) — execute(toolName, args, ctx)
+      const instance = new implementation(skillConfig, logger, workspace);
       executor = (toolName, args, ctx) => instance.execute(toolName, args, ctx || {});
     } else if (typeof implementation?.execute === 'function') {
-      // Plain object with execute fn
-      executor = (toolName, args, ctx) =>
-        implementation.execute.call(implementation, toolName, args, ctx);
+      // Plain-object singleton — could use legacy (params, context) OR (toolName, args, ctx).
+      // Discriminate by arity: arity <= 2 → legacy (params, context) contract.
+      // We normalise by forwarding toolName inside params so both contracts are satisfied.
+      const fn = implementation.execute.bind(implementation);
+      if (fn.length <= 2) {
+        // Legacy contract: execute({ action, params, ... }, context)
+        executor = (toolName, args, ctx) =>
+          fn({ action: toolName, ...(args || {}) }, ctx || {});
+      } else {
+        // Modern contract: execute(toolName, args, ctx)
+        executor = (toolName, args, ctx) => fn(toolName, args, ctx || {});
+      }
     } else if (typeof implementation === 'function') {
       // Plain function
       executor = (params, ctx) => implementation(params, ctx);
@@ -112,6 +117,30 @@ class SkillRegistry {
 
   list() {
     return Array.from(this.manifests.values());
+  }
+
+  /** Count of registered skills */
+  count() {
+    return this.skills.size;
+  }
+
+  /** Check if skill exists */
+  has(name) {
+    return this.skills.has(name);
+  }
+
+  /** Get skill entry */
+  get(name) {
+    return this.skills.get(name);
+  }
+
+  /** Get all skill descriptions */
+  getDescriptions() {
+    return Array.from(this.skills.values()).map(s => ({
+      name:        s.manifest.name,
+      description: s.manifest.description,
+      version:     s.manifest.version
+    }));
   }
 }
 

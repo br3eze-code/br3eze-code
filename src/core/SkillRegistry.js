@@ -141,28 +141,45 @@ class SkillRegistry extends EventEmitter {
   }
 
   wrapExecution(executeFn) {
+    // Detect arity: class-based skills bind execute(toolName, args, ctx) — 3 params.
+    // Plain-object skills bind execute(params, context) — 2 params.
+    const isClassContract = executeFn.length >= 3;
+
     return async (params, context) => {
+      // params may be a plain args object OR { toolName, ...args } from executeTool.
+      // Pull toolName out if present, so we can route correctly.
+      let toolName, args;
+      if (isClassContract) {
+        toolName = (typeof params === 'object' && params !== null && params.__toolName__)
+          ? params.__toolName__
+          : (typeof params === 'string' ? params : undefined);
+        args = (toolName && typeof params === 'object') ? { ...params } : (params || {});
+        if (args.__toolName__) delete args.__toolName__;
+      }
+
       // Run before hooks
       for (const hook of this.hooks.beforeExecute) {
         await hook(params, context);
       }
-      
+
       try {
         // Validate parameters
-        if (context.skill?.manifest?.parameters) {
-          this.validateParams(params, context.skill.manifest.parameters);
+        if (context?.skill?.manifest?.parameters) {
+          this.validateParams(isClassContract ? args : params, context.skill.manifest.parameters);
         }
-        
-        // Execute
-        const result = await executeFn(params, context);
-        
+
+        // Execute — bridge to correct contract
+        const result = isClassContract
+          ? await executeFn(toolName, args, context)
+          : await executeFn(params, context);
+
         // Run after hooks
         for (const hook of this.hooks.afterExecute) {
           await hook(result, context);
         }
-        
+
         return result;
-        
+
       } catch (error) {
         // Run error hooks
         for (const hook of this.hooks.onError) {
@@ -252,19 +269,24 @@ class SkillRegistry extends EventEmitter {
   }
 
   async executeTool(toolFullName, params, context) {
-    const [skillName, ...toolPath] = toolFullName.split('.');
-    const toolName = toolPath.join('.');
-    
+    const dotIdx = toolFullName.indexOf('.');
+    if (dotIdx === -1) {
+      // No dot — execute the whole skill with params
+      const skill = this.skills.get(toolFullName);
+      if (!skill) throw new Error(`Skill not found: ${toolFullName}`);
+      return await skill.execute(params, context);
+    }
+
+    const skillName = toolFullName.slice(0, dotIdx);
+    const toolName  = toolFullName.slice(dotIdx + 1);
+
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill not found: ${skillName}`);
-    
-    // If the skill has multiple tools, pass the toolName to the execute function
-    if (toolName) {
-      return await skill.execute(toolName, params, context);
-    }
-    
-    // Otherwise just execute the skill with params
-    return await skill.execute(params, context);
+
+    // Pass toolName as a hidden envelope field so wrapExecution can route it
+    // to class-based skills which use execute(toolName, args, ctx).
+    const paramsWithTool = { __toolName__: toolName, ...(params || {}) };
+    return await skill.execute(paramsWithTool, context);
   }
 
   addHook(type, handler) {

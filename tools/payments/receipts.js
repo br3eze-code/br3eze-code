@@ -1,135 +1,140 @@
-import Database from "better-sqlite3";
-import { v4 as uuidv4 } from "uuid";
+// tools/payments/receipts.js
+// Payment Receipt Database Layer — CJS
 
-const db = new Database("agentos.db");
+'use strict';
+
+const path = require('path');
+const Database = require('better-sqlite3');
+const { v4: uuidv4 } = require('uuid');
+
+// Use absolute path so the DB is always at the project root regardless of CWD
+const DB_PATH = path.join(__dirname, '..', '..', 'agentos.db');
+const db = new Database(DB_PATH);
+
+// Enable WAL mode for concurrent-write safety and better performance
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+db.pragma('synchronous = NORMAL');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS receipts (
   id TEXT PRIMARY KEY,
   reference TEXT UNIQUE,
   username TEXT,
-  method TEXT, -- ecoCash | zipit | stripe | cash
+  method TEXT,
   amount REAL,
   currency TEXT DEFAULT 'USD',
   plan TEXT,
   voucherCode TEXT,
-  status TEXT DEFAULT 'paid', -- pending | paid | failed | refunded
+  status TEXT DEFAULT 'paid',
   createdAt TEXT,
   metadata TEXT
 );
 `);
-export function createReceipt({
-    username,
-    method,
-    amount,
-    currency = "USD",
-    plan,
-    voucherCode = null,
-    metadata = {}
-}) {
+
+function generateReference() {
+    // Use uuid for collision-free references even at high transaction volume
+    const prefix = 'STAR';
+    const uid = uuidv4().replace(/-/g, '').substring(0, 12).toUpperCase();
+    return `${prefix}-${uid}`;
+}
+
+function getReceipt(reference) {
+    return db.prepare('SELECT * FROM receipts WHERE reference = ?').get(reference) || null;
+}
+
+function createReceipt({ username, method, amount, currency = 'USD', plan, voucherCode = null, metadata = {} }) {
     const reference = generateReference();
     const now = new Date().toISOString();
-
-    const stmt = db.prepare(`
-    INSERT INTO receipts (
-      id, reference, username, method, amount,
-      currency, plan, voucherCode, status, createdAt, metadata
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-    stmt.run(
-        uuidv4(),
-        reference,
-        username,
-        method,
-        amount,
-        currency,
-        plan,
-        voucherCode,
-        "paid",
-        now,
-        JSON.stringify(metadata)
-    );
-
+    db.prepare(`
+        INSERT INTO receipts (id, reference, username, method, amount, currency, plan, voucherCode, status, createdAt, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), reference, username, method, amount, currency, plan, voucherCode, 'paid', now, JSON.stringify(metadata));
     return getReceipt(reference);
 }
-function generateReference() {
-    const prefix = "STAR";
-    const time = Date.now().toString(36).toUpperCase();
-    const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
 
-    return `${prefix}-${time}-${rand}`;
+function getReceiptsByUser(username) {
+    return db.prepare('SELECT * FROM receipts WHERE username = ? ORDER BY createdAt DESC').all(username);
 }
-export function getReceipt(reference) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE reference = ?");
-    return stmt.get(reference) || null;
-}
-export function getReceiptsByUser(username) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE username = ? ORDER BY createdAt DESC");
-    return stmt.all(username);
-}
-export function updateReceiptStatus(reference, status) {
-    const stmt = db.prepare("UPDATE receipts SET status = ? WHERE reference = ?");
-    stmt.run(status, reference);
+
+function updateReceiptStatus(reference, status) {
+    db.prepare('UPDATE receipts SET status = ? WHERE reference = ?').run(status, reference);
     return getReceipt(reference);
 }
-export function getPendingReceipts() {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE status = 'pending'");
-    return stmt.all();
+
+function getPendingReceipts() {
+    return db.prepare("SELECT * FROM receipts WHERE status = 'pending'").all();
 }
-export function listReceipts() {
-    const stmt = db.prepare(`SELECT * FROM receipts ORDER BY createdAt DESC`);
-    return stmt.all();
+
+function listReceipts() {
+    return db.prepare('SELECT * FROM receipts ORDER BY createdAt DESC').all();
 }
-export function deleteReceipt(reference) {
-    const stmt = db.prepare("DELETE FROM receipts WHERE reference = ?");
-    stmt.run(reference);
+
+function deleteReceipt(reference) {
+    db.prepare('DELETE FROM receipts WHERE reference = ?').run(reference);
     return { success: true };
 }
-export function getReceiptsByVoucher(voucherCode) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE voucherCode = ? ORDER BY createdAt DESC");
-    return stmt.all(voucherCode);
+
+function getReceiptsByVoucher(voucherCode) {
+    return db.prepare('SELECT * FROM receipts WHERE voucherCode = ? ORDER BY createdAt DESC').all(voucherCode);
 }
-export function getReceiptsByDateRange(startDate, endDate) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE createdAt BETWEEN ? AND ? ORDER BY createdAt DESC");
-    return stmt.all(startDate, endDate);
+
+function getReceiptsByDateRange(startDate, endDate) {
+    return db.prepare('SELECT * FROM receipts WHERE createdAt BETWEEN ? AND ? ORDER BY createdAt DESC').all(startDate, endDate);
 }
-export function getReceiptsByMethod(method) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE method = ? ORDER BY createdAt DESC");
-    return stmt.all(method);
+
+function getReceiptsByMethod(method) {
+    return db.prepare('SELECT * FROM receipts WHERE method = ? ORDER BY createdAt DESC').all(method);
 }
-export function getReceiptsByPlan(plan) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE plan = ? ORDER BY createdAt DESC");
-    return stmt.all(plan);
+
+function getReceiptsByPlan(plan) {
+    return db.prepare('SELECT * FROM receipts WHERE plan = ? ORDER BY createdAt DESC').all(plan);
 }
-export function getReceiptsByStatus(status) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE status = ? ORDER BY createdAt DESC");
-    return stmt.all(status);
+
+function getReceiptsByStatus(status) {
+    return db.prepare('SELECT * FROM receipts WHERE status = ? ORDER BY createdAt DESC').all(status);
 }
-export function getReceiptsByAmountRange(minAmount, maxAmount) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE amount BETWEEN ? AND ? ORDER BY createdAt DESC");
-    return stmt.all(minAmount, maxAmount);
+
+function getReceiptsByAmountRange(minAmount, maxAmount) {
+    return db.prepare('SELECT * FROM receipts WHERE amount BETWEEN ? AND ? ORDER BY createdAt DESC').all(minAmount, maxAmount);
 }
-export function getReceiptsByCurrency(currency) {
-    const stmt = db.prepare("SELECT * FROM receipts WHERE currency = ? ORDER BY createdAt DESC");
-    return stmt.all(currency);
+
+function getReceiptsByCurrency(currency) {
+    return db.prepare('SELECT * FROM receipts WHERE currency = ? ORDER BY createdAt DESC').all(currency);
 }
-export function formatReceipt(reference) {
+
+function formatReceipt(reference) {
     const r = getReceipt(reference);
-
-    if (!r) return "Receipt not found";
-
+    if (!r) return 'Receipt not found';
     return (
-        `🧾 PAYMENT RECEIPT
-━━━━━━━━━━━━━━━━━━━
-Ref: ${r.reference}
-User: ${r.username}
-Plan: ${r.plan}
-Method: ${r.method}
-Amount: ${r.currency} ${r.amount}
-Status: ${r.status}
-Date: ${r.createdAt}
-━━━━━━━━━━━━━━━━━━━
-Thank you for using AgentOS`
+        `🧾 PAYMENT RECEIPT\n` +
+        `━━━━━━━━━━━━━━━━━━━\n` +
+        `Ref: ${r.reference}\n` +
+        `User: ${r.username}\n` +
+        `Plan: ${r.plan}\n` +
+        `Method: ${r.method}\n` +
+        `Amount: ${r.currency} ${r.amount}\n` +
+        `Status: ${r.status}\n` +
+        `Date: ${r.createdAt}\n` +
+        `━━━━━━━━━━━━━━━━━━━\n` +
+        `Thank you for using AgentOS`
     );
 }
+
+module.exports = {
+    createReceipt,
+    getReceipt,
+    getReceiptsByUser,
+    updateReceiptStatus,
+    getPendingReceipts,
+    listReceipts,
+    deleteReceipt,
+    getReceiptsByVoucher,
+    getReceiptsByDateRange,
+    getReceiptsByMethod,
+    getReceiptsByPlan,
+    getReceiptsByStatus,
+    getReceiptsByAmountRange,
+    getReceiptsByCurrency,
+    formatReceipt
+};

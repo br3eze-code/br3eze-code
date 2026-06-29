@@ -50,9 +50,14 @@ setup_environment() {
  
     set -a; source .env; set +a
  
+    # Only TELEGRAM_BOT_TOKEN is strictly required for gateway mode.
+    # Domain-specific vars (ROS_HOST, ROS_PASS, etc.) are optional — warn, do not fail.
     required_vars=(
         "TELEGRAM_BOT_TOKEN"
         "TELEGRAM_ALLOWED_CHAT_ID"
+    )
+ 
+    optional_vars=(
         "ROS_HOST"
         "ROS_PASS"
     )
@@ -61,6 +66,12 @@ setup_environment() {
         if [ -z "${!var:-}" ]; then
             log_error "Required variable $var not set in .env"
             exit 1
+        fi
+    done
+
+    for var in "${optional_vars[@]}"; do
+        if [ -z "${!var:-}" ]; then
+            log_warn "Optional variable $var not set — domain-specific features may be disabled"
         fi
     done
     log_info "Environment OK"
@@ -129,9 +140,9 @@ deploy_cloud_run() {
 }
 
 
-# ── Firebase ──────────────────────────────────────────────────
+# ── Firebase ────────────────────────────────────────────
 setup_firebase() {
-    log_info "Deploying Firebase rules and indexes..."
+    log_info "Deploying Firebase (rules, indexes, and hosting)..."
     command -v firebase >/dev/null 2>&1 || {
         log_warn "firebase-tools not installed — skipping (npm install -g firebase-tools)"
         return 0
@@ -140,14 +151,40 @@ setup_firebase() {
         || log_warn "Indexes deployment skipped"
     firebase deploy --only firestore:rules && log_info "Rules deployed" \
         || log_warn "Rules deployment skipped"
+    firebase deploy --only hosting && log_info "Hosting (www/) deployed" \
+        || log_warn "Hosting deployment skipped"
 }
 
-# ── Main ──────────────────────────────────────────────────────
+# ── Firebase Hosting only ──────────────────────────────────
+deploy_www() {
+    log_info "Deploying www/ to Firebase Hosting..."
+    command -v firebase >/dev/null 2>&1 || {
+        log_error "firebase-tools not installed — run: npm install -g firebase-tools"
+        exit 1
+    }
+    firebase deploy --only hosting && log_info "Hosting deployed ✔" \
+        || { log_error "Hosting deploy failed"; exit 1; }
+}
+
+# ── Firebase local debug serve ─────────────────────────────
+serve_www() {
+    log_info "Starting Firebase local hosting server..."
+    command -v firebase >/dev/null 2>&1 || {
+        log_error "firebase-tools not installed — run: npm install -g firebase-tools"
+        exit 1
+    }
+    log_info "Open http://localhost:5000 in your browser"
+    firebase serve --only hosting
+}
+
+# ── Main ────────────────────────────────────────────
 usage() {
-    echo "Usage: $0 [build|deploy|firebase|all]"
+    echo "Usage: $0 [build|deploy|firebase|www|serve|all]"
     echo "  build    — build and push Docker image only"
     echo "  deploy   — deploy to Cloud Run (requires prior build)"
-    echo "  firebase — deploy Firestore rules and indexes"
+    echo "  firebase — deploy Firestore rules, indexes, and Hosting (www/)"
+    echo "  www      — deploy www/ to Firebase Hosting only"
+    echo "  serve    — start Firebase local hosting server for debug (http://localhost:5000)"
     echo "  all      — run all steps (default)"
 }
  
@@ -159,6 +196,8 @@ main() {
         build)    build_and_push ;;
         deploy)   deploy_cloud_run ;;
         firebase) setup_firebase ;;
+        www)      deploy_www ;;
+        serve)    serve_www ;;
         all)
             build_and_push
             deploy_cloud_run
