@@ -1,7 +1,8 @@
+'use strict';
 // db/user.js
 // Persistent User Database Layer (AgentOS Core)
 
-import Database from "better-sqlite3";
+const Database = require("better-sqlite3");
 
 const db = new Database("agentos.db");
 

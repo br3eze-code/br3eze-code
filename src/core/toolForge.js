@@ -430,10 +430,12 @@ class ToolForge extends EventEmitter {
   }
 }
 
-let _instance = null;
+// Use a global symbol so the singleton survives multiple require() calls
+// and multiple Gateway instances in the same process (test + production)
+const _FORGE_KEY = Symbol.for('agentos.toolForge.singleton');
 function getToolForge(opts) {
-  if (!_instance || opts) _instance = new ToolForge(opts || {});
-  return _instance;
+  if (!global[_FORGE_KEY] || opts) global[_FORGE_KEY] = new ToolForge(opts || {});
+  return global[_FORGE_KEY];
 }
 
 module.exports = { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };

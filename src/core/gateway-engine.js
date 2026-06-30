@@ -550,6 +550,11 @@ class Gateway extends EventEmitter {
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
+    // ── Versioned API route modules (v1: stats/health, v2: ask, v3: bulk) ─────
+    try { this.app.use('/api/v1', require('../api/routes/v1')); } catch(e) { logger.warn('v1 routes:', e.message); }
+    try { this.app.use('/api/v2', require('../api/routes/v2')); } catch(e) { logger.warn('v2 routes:', e.message); }
+    try { this.app.use('/api/v3', require('../api/routes/v3')); } catch(e) { logger.warn('v3 routes:', e.message); }
+
     // ── Mobile bridge ────────────────────────────────────────────────────────
     try {
       const mobileBridge = new MobileBridge();

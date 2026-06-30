@@ -72,15 +72,24 @@
     "@kubernetes/client-node": "^1.4.0",
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.56.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
+    "@opentelemetry/sdk-node": "^0.219.0",
+    "@slack/bolt": "^4.7.3",
+    "@slack/socket-mode": "^2.0.2",
+    "@slack/web-api": "^7.8.0",
     "axios": "^1.17.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
     "boxen": "^8.0.1",
     "chalk": "^4.1.2",
+    "cheerio": "^1.2.0",
     "commander": "^12.1.0",
     "compression": "^1.7.4",
+    "compromise": "^14.15.1",
     "cordova-plugin-bluetooth-serial": "^0.4.7",
     "cors": "^2.8.6",
+    "cron-parser": "^4.9.0",
     "debug": "^4.4.3",
     "digest-fetch": "^3.1.1",
     "discord.js": "^14.26.4",
@@ -91,7 +100,9 @@
     "firebase": "^12.11.0",
     "firebase-admin": "^13.7.0",
     "form-data": "^4.0.6",
+    "franc": "^5.0.0",
     "google-auth-library": "^10.6.2",
+    "googleapis": "^144.0.0",
     "helmet": "^8.1.0",
     "hpp": "^0.2.3",
     "ink": "^5.2.1",
@@ -101,6 +112,7 @@
     "joi": "^18.2.1",
     "js-yaml": "^4.2.0",
     "jsonwebtoken": "^9.0.2",
+    "midi-writer-js": "^3.2.1",
     "morgan": "^1.10.0",
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^0.67.0",
@@ -108,6 +120,7 @@
     "nodemailer": "^9.0.1",
     "openai": "^4.52.0",
     "ora": "^5.4.1",
+    "osc": "^2.4.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
@@ -127,30 +140,17 @@
     "simple-plist": "^1.3.1",
     "speakeasy": "^2.0.0",
     "ssh2": "^1.17.0",
+    "tonal": "^6.4.0",
     "twilio": "^5.0.0",
     "undici": "^6.27.0",
-    "uuid": "^14.0.0",
+    "uuid": "^10.0.0",
     "winston": "^3.19.0",
     "ws": "^8.21.0",
     "xml-js": "^1.6.11",
     "xml2js": "^0.6.2",
     "xss-clean": "^0.1.4",
     "xterm": "^5.3.0",
-    "zod": "^3.23.8",
-    "cron-parser": "^4.9.0",
-    "@slack/web-api": "^7.8.0",
-    "@slack/socket-mode": "^2.0.2",
-    "cheerio": "^1.2.0",
-    "googleapis": "^144.0.0",
-    "tonal": "^6.4.0",
-    "@slack/bolt": "^4.7.3",
-    "osc": "^2.4.5",
-    "franc": "^5.0.0",
-    "@opentelemetry/sdk-node": "^0.219.0",
-    "midi-writer-js": "^3.2.1",
-    "compromise": "^14.15.1",
-    "@opentelemetry/auto-instrumentations-node": "^0.56.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
@@ -220,9 +220,6 @@
     "testPathIgnorePatterns": [
       "/node_modules/"
     ],
-    "modulePaths": [
-      "/tmp/jest-deps/node_modules"
-    ],
     "collectCoverageFrom": [
       "src/core/*.js",
       "src/utils/*.js",
@@ -234,7 +231,15 @@
       "text",
       "lcov"
     ],
-    "testTimeout": 15000
+    "testTimeout": 15000,
+    "transform": {},
+    "extensionsToTreatAsEsm": [],
+    "moduleDirectories": [
+      "node_modules"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!.*[.]mjs$)"
+    ]
   },
   "overrides": {
     "node-forge": "^1.4.0",

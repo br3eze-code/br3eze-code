@@ -1,5 +1,6 @@
-import Database from "better-sqlite3";
-import { v4 as uuidv4 } from "uuid";
+'use strict';
+const Database = require("better-sqlite3");
+const { v4: uuidv4 } = require("uuid");
 
 const db = new Database("agentos.db");
 
@@ -18,7 +19,7 @@ CREATE TABLE IF NOT EXISTS receipts (
   metadata TEXT
 );
 `);
-export function createReceipt({
+function createReceipt({
     username,
     method,
     amount,
@@ -60,61 +61,61 @@ function generateReference() {
 
     return `${prefix}-${time}-${rand}`;
 }
-export function getReceipt(reference) {
+function getReceipt(reference) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE reference = ?");
     return stmt.get(reference) || null;
 }
-export function getReceiptsByUser(username) {
+function getReceiptsByUser(username) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE username = ? ORDER BY createdAt DESC");
     return stmt.all(username);
 }
-export function updateReceiptStatus(reference, status) {
+function updateReceiptStatus(reference, status) {
     const stmt = db.prepare("UPDATE receipts SET status = ? WHERE reference = ?");
     stmt.run(status, reference);
     return getReceipt(reference);
 }
-export function getPendingReceipts() {
+function getPendingReceipts() {
     const stmt = db.prepare("SELECT * FROM receipts WHERE status = 'pending'");
     return stmt.all();
 }
-export function listReceipts() {
+function listReceipts() {
     const stmt = db.prepare(`SELECT * FROM receipts ORDER BY createdAt DESC`);
     return stmt.all();
 }
-export function deleteReceipt(reference) {
+function deleteReceipt(reference) {
     const stmt = db.prepare("DELETE FROM receipts WHERE reference = ?");
     stmt.run(reference);
     return { success: true };
 }
-export function getReceiptsByVoucher(voucherCode) {
+function getReceiptsByVoucher(voucherCode) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE voucherCode = ? ORDER BY createdAt DESC");
     return stmt.all(voucherCode);
 }
-export function getReceiptsByDateRange(startDate, endDate) {
+function getReceiptsByDateRange(startDate, endDate) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE createdAt BETWEEN ? AND ? ORDER BY createdAt DESC");
     return stmt.all(startDate, endDate);
 }
-export function getReceiptsByMethod(method) {
+function getReceiptsByMethod(method) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE method = ? ORDER BY createdAt DESC");
     return stmt.all(method);
 }
-export function getReceiptsByPlan(plan) {
+function getReceiptsByPlan(plan) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE plan = ? ORDER BY createdAt DESC");
     return stmt.all(plan);
 }
-export function getReceiptsByStatus(status) {
+function getReceiptsByStatus(status) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE status = ? ORDER BY createdAt DESC");
     return stmt.all(status);
 }
-export function getReceiptsByAmountRange(minAmount, maxAmount) {
+function getReceiptsByAmountRange(minAmount, maxAmount) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE amount BETWEEN ? AND ? ORDER BY createdAt DESC");
     return stmt.all(minAmount, maxAmount);
 }
-export function getReceiptsByCurrency(currency) {
+function getReceiptsByCurrency(currency) {
     const stmt = db.prepare("SELECT * FROM receipts WHERE currency = ? ORDER BY createdAt DESC");
     return stmt.all(currency);
 }
-export function formatReceipt(reference) {
+function formatReceipt(reference) {
     const r = getReceipt(reference);
 
     if (!r) return "Receipt not found";
@@ -133,3 +134,4 @@ Date: ${r.createdAt}
 Thank you for using AgentOS`
     );
 }
+module.exports = { createReceipt, getReceipt, getReceiptsByUser, updateReceiptStatus, getPendingReceipts, listReceipts, deleteReceipt, getReceiptsByVoucher, getReceiptsByDateRange, getReceiptsByMethod, getReceiptsByPlan, getReceiptsByStatus, getReceiptsByAmountRange, getReceiptsByCurrency, formatReceipt };

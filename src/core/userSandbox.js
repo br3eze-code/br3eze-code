@@ -320,10 +320,10 @@ class UserSandbox extends EventEmitter {
 }
 
 // ── Singleton ──────────────────────────────────────────────────────────────
-let _instance = null;
+const _SANDBOX_KEY = Symbol.for('agentos.userSandbox.singleton');
 function getUserSandbox(opts) {
-  if (!_instance || opts) _instance = new UserSandbox(opts || {});
-  return _instance;
+  if (!global[_SANDBOX_KEY] || opts) global[_SANDBOX_KEY] = new UserSandbox(opts || {});
+  return global[_SANDBOX_KEY];
 }
 
 module.exports = { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
