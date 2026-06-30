@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API Routes v1 — AgentOS Enhanced
  * MikroTik · Vouchers · Users · Tools · Hotspot
  * @module api/routes/v1
@@ -197,7 +197,7 @@ router.post('/vouchers', async (req, res) => {
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;
-    const loginUrl = `http://${mt?.config?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+    const loginUrl = `http://${mt?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
     const vData = {
       ...req.body, plan,
@@ -272,7 +272,7 @@ router.post('/vouchers/pay', async (req, res) => {
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;
     const code     = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    const loginUrl = `http://${global.mikrotik?.config?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+    const loginUrl = `http://${global.mikrotik?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
     if (global.database) {
       await global.database.createVoucher(code, {

@@ -35,14 +35,31 @@ class AgentOS extends EventEmitter {
     this.telemetry = new TelemetryCollector();
     this.health = new HealthMonitor(this);
 
-    // Legacy manager aliases for compatibility with ss35b patterns
-    this.mikrotik = config?.mikrotik || require('./mikrotik').getManager();
+    // Domain plugin registry — industry-agnostic, plugins register themselves
+    this._domainPlugins = new Map();
+
+    // Shared infrastructure (domain-agnostic)
     this.database = require('./database').getDatabase();
     this.mastercard = new MastercardA2AService();
     this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
     this.billing = new (require('./universal-billing'))({ database: this.database });
-    this.discovery = new (require('./discovery'))({ mikrotik: this.mikrotik });
-    this.orchestrator = new AgentOSOrchestrator(this.mikrotik, this.database, this.channels, this);
+
+    // Load MikroTik as an optional domain plugin (graceful if not configured)
+    this._loadDomainPlugin('mikrotik');
+
+    // Convenience accessor kept for backward-compat: resolves from plugin map
+    Object.defineProperty(this, 'mikrotik', {
+      get: () => this._domainPlugins.get('mikrotik') ?? null,
+      configurable: true
+    });
+
+    // Discovery and orchestrator are domain-agnostic; they operate on the plugin map
+    try {
+      this.discovery = new (require('./discovery'))({ pluginMap: this._domainPlugins });
+    } catch (_) {
+      this.discovery = null;
+    }
+    this.orchestrator = new AgentOSOrchestrator(null, this.database, this.channels, this);
 
     // Circuit breakers for external services
     this.breakers = {
@@ -54,6 +71,22 @@ class AgentOS extends EventEmitter {
     this.shutdownHandlers = [];
     this._alertState = new Map();
     this._signalHandlers = {}; // track for removal on destroy
+  }
+
+  /**
+   * Load an optional domain plugin by id.
+   * Plugin must export a getManager() factory or a class with a destroy() method.
+   * Failures are non-fatal — the kernel stays domain-agnostic.
+   */
+  _loadDomainPlugin(id) {
+    try {
+      const mod = require(`./${id}`);
+      const manager = typeof mod.getManager === 'function' ? mod.getManager() : (typeof mod === 'function' ? new mod() : mod);
+      this._domainPlugins.set(id, manager);
+      logger.info(`AgentOS: Domain plugin loaded — ${id}`);
+    } catch (err) {
+      logger.debug(`AgentOS: Optional domain plugin '${id}' not loaded — ${err.message}`);
+    }
   }
 
   // Logging aliases for legacy compatibility
@@ -464,10 +497,15 @@ getStatus() {
       await this.channels.closeAll();
       await this.memory.close();
 
-      // Cleanup MikroTik connection
-      if (this.mikrotik && typeof this.mikrotik.destroy === 'function') {
-        this.mikrotik.destroy();
+      // Cleanup domain plugins
+      for (const [id, plugin] of this._domainPlugins) {
+        try {
+          if (typeof plugin.destroy === 'function') plugin.destroy();
+        } catch (err) {
+          logger.warn(`Domain plugin '${id}' destroy error: ${err.message}`);
+        }
       }
+      this._domainPlugins.clear();
 
       // Close database last
       if (this.database && typeof this.database.close === 'function') {

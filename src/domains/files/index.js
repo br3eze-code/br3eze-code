@@ -21,7 +21,7 @@ class FilesDomain extends BaseDomain {
       description: 'Upload a new file',
       execute: async (fileUrl, destinationPath) => {
         logger.info(`[FilesDomain] Uploading file to ${destinationPath}`);
-        return { success: true, path: destinationPath, url: 'https://cdn.agentos.local/' + destinationPath };
+        return { success: true, path: destinationPath, url: 'https://cdn.br3eze.africa/' + destinationPath };
       }
     });
 

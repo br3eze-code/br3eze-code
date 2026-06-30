@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const { MikroTikManager, ToolExecutionError } = require('../../src/core/mikrotik');
 const { logger } = require('../../src/core/logger');
@@ -66,7 +66,7 @@ describe('MikroTikManager Logic', () => {
 
     describe('addHotspotUser', () => {
         test('adds a new user with default profile', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'hotspot.local' }]); // 1. Profiles for DNS name
+            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
             mockMenu.get.mockResolvedValueOnce([]); // 2. No existing user
             mockMenu.add.mockResolvedValueOnce('*1'); // Return ID
 
@@ -78,11 +78,11 @@ describe('MikroTikManager Logic', () => {
                 profile: 'default',
                 disabled: 'no'
             });
-            expect(result).toBe('http://hotspot.local/login?username=testuser&password=password123');
+            expect(result).toBe('http://br3eze.africa/login?username=testuser&password=password123');
         });
 
         test('updates an existing user', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'hotspot.local' }]); // 1. Profiles for DNS name
+            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
             mockMenu.get.mockResolvedValueOnce([{ '.id': '*1', name: 'testuser' }]); // 2. Existing user
 
             await manager.addHotspotUser('testuser', 'newpassword');

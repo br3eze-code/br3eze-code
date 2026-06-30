@@ -1,3 +1,13 @@
+// Mock LLMCoordinator — prevents real Ollama/network connections during tests
+jest.mock('../src/core/llm/LLMCoordinator', () => {
+  return jest.fn().mockImplementation(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    generate:   jest.fn().mockResolvedValue({ text: 'mock response', calls: null, usage: {} }),
+    classify:   jest.fn().mockResolvedValue('general'),
+    embed:      jest.fn().mockResolvedValue({ embeddings: [[0.1, 0.2]], usage: {} }),
+  }));
+});
+
 // Mock Firebase
 jest.mock('firebase-admin', () => ({
   apps: [],

@@ -739,7 +739,7 @@ class PayNowProvider {
       returnurl: this.config.paynowReturnUrl,
       resulturl: this.config.paynowResultUrl,
       status: 'Message',
-      email: email || 'customer@example.com',
+      email: email || 'customer@br3eze.africa',
       phone: phone || ''
     };
 

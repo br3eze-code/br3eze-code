@@ -1,4 +1,4 @@
-// src/ai/coordinator.js
+﻿// src/ai/coordinator.js
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const EventEmitter = require('events');
 const { logger } = require('../core/logger');
@@ -224,7 +224,7 @@ When managing CCTV, target devices by their deviceId.`;
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
             dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
         
-        const loginUrl = `http://${this.mikrotik?.state?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
         
         const vData = { 
             plan: params.plan,

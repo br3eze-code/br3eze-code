@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  $(if refresh-timeout)
+  <meta http-equiv="refresh" content="$(refresh-timeout-secs)">
+  $(endif)
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="expires" content="-1">
+  <title>Status · Br3eze</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .status-container {
+      max-width: 480px;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+    .status-card {
+      background: var(--bg1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-cyan);
+    }
+    .status-title {
+      font-family: var(--font-hdr);
+      font-size: 18px;
+      color: var(--cyan);
+      margin-bottom: 16px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-dim);
+    }
+    .status-row:last-child {
+      border-bottom: none;
+    }
+    .status-row .lbl {
+      color: var(--text-dim);
+      font-family: var(--font-hdr);
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+    .status-row .val {
+      color: var(--text);
+      font-weight: bold;
+    }
+    .btn-logout {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: var(--font-hdr);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      margin-top: 20px;
+      transition: opacity 0.2s;
+    }
+    .btn-logout:active {
+      opacity: 0.8;
+    }
+    .btn-continue {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: var(--cyan);
+      border: none;
+      border-radius: var(--radius);
+      color: #000;
+      font-family: var(--font-hdr);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      margin-top: 12px;
+      transition: opacity 0.2s;
+      font-weight: bold;
+    }
+    .btn-continue:active {
+      opacity: 0.8;
+    }
+  </style>
+  <script>
+    function openLogout() {
+      if (window.name != 'hotspot_status') return true;
+      open('$(link-logout)', 'hotspot_logout', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=280,height=250');
+      window.close();
+      return false;
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div class="header-brand">
+        <span class="brand-sigil">◈</span>
+        <span class="brand-name">AGENT<span class="brand-accent">OS</span></span>
+        <span class="brand-ver">STATUS</span>
+      </div>
+      <div class="header-status">
+        <div class="status-pill online">
+          <span class="status-dot"></span>
+          <span>CONNECTED</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main" style="overflow-y: auto;">
+      <div class="status-container">
+        <div class="status-card">
+          <div class="status-title">CONNECTION DETAILS</div>
+          
+          <div class="status-row">
+            <span class="lbl">IP ADDRESS</span>
+            <span class="val">$(ip)</span>
+          </div>
+          <div class="status-row">
+            <span class="lbl">MAC ADDRESS</span>
+            <span class="val">$(mac)</span>
+          </div>
+          <div class="status-row">
+            <span class="lbl">UPLOADED</span>
+            <span class="val">$(bytes-out-nice)</span>
+          </div>
+          <div class="status-row">
+            <span class="lbl">DOWNLOADED</span>
+            <span class="val">$(bytes-in-nice)</span>
+          </div>
+          <div class="status-row">
+            <span class="lbl">SESSION UPTIME</span>
+            <span class="val">$(uptime)</span>
+          </div>
+          $(if session-time-left)
+          <div class="status-row">
+            <span class="lbl">TIME REMAINING</span>
+            <span class="val">$(session-time-left)</span>
+          </div>
+          $(endif)
+          $(if refresh-timeout)
+          <div class="status-row">
+            <span class="lbl">REFRESH IN</span>
+            <span class="val">$(refresh-timeout)</span>
+          </div>
+          $(endif)
+
+          <a href="$(link-logout)" onclick="return openLogout()" class="btn-logout">DISCONNECT</a>
+          
+          <a href="index.html" class="btn-continue">CONTINUE TO APP</a>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

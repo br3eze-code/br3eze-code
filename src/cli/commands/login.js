@@ -107,64 +107,150 @@ async function deviceFlowLogin({ clientId, scope, log, note }) {
     throw new Error('Login timed out');
 }
 
+function decodeFirebaseToken(token) {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = parts[1];
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const decodedJson = Buffer.from(base64, 'base64').toString('utf8');
+        return JSON.parse(decodedJson);
+    } catch (e) {
+        return null;
+    }
+}
+
+async function firebaseLogin({ log, note }) {
+    const { text } = await import('@clack/prompts');
+    const loginUrl = 'https://br3eze.africa/login';
+    note(
+        `1. Open ${loginUrl} in a browser.\n` +
+        `2. Log in with your operator/administrator credentials.\n` +
+        `3. Under your Profile/CLI settings, copy your CLI Access Token.\n`,
+        'Firebase OAuth via br3eze.africa'
+    );
+
+    const token = await text({
+        message: 'Paste your CLI Access Token:',
+        placeholder: 'eyJhbGciOiJSUzI1NiIs...',
+        validate: v => v.trim().length > 0 ? undefined : 'Token cannot be empty'
+    });
+
+    const rawToken = typeof token === 'string' ? token.trim() : '';
+    if (!rawToken) {
+        throw new Error('Login cancelled or empty token.');
+    }
+
+    const decoded = decodeFirebaseToken(rawToken);
+    if (!decoded) {
+        throw new Error('Invalid token format (expected JWT)');
+    }
+
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        throw new Error('Token has already expired');
+    }
+
+    return {
+        provider: 'firebase',
+        login: decoded.email || decoded.user_id || decoded.sub || 'firebase-user',
+        name: decoded.name || decoded.email || 'Firebase User',
+        avatar: decoded.picture || '',
+        accessToken: rawToken,
+        scope: 'firebase:user'
+    };
+}
+
 module.exports = (program) => {
     program
         .command('login')
-        .description('Log in to AgentOS via GitHub (OAuth device flow)')
+        .description('Log in to AgentOS via GitHub or Firebase OAuth')
+        .option('--provider <provider>', 'Login provider: github or firebase')
         .option('--client-id <id>', 'GitHub OAuth App client ID (overrides GITHUB_CLIENT_ID)')
         .action(async (options) => {
-            const { intro, outro, note, log } = await import('@clack/prompts');
+            const { intro, outro, note, log, select } = await import('@clack/prompts');
             intro('🔐 AgentOS Login');
-
-            const clientId = options.clientId || process.env.GITHUB_CLIENT_ID;
-            if (!clientId) {
-                log.error('No GitHub OAuth client ID configured.');
-                note(
-                    'Set GITHUB_CLIENT_ID in your environment (or .env), or pass --client-id.\n' +
-                    'Create a GitHub OAuth App at https://github.com/settings/developers\n' +
-                    'and enable "Device Flow" in its settings.',
-                    'Setup required'
-                );
-                outro('Login cancelled');
-                process.exitCode = 1;
-                return;
-            }
 
             const existing = readCredentials();
             if (existing) {
-                log.warn(`Already logged in as ${existing.login}. Run 'agentos logout' first to switch accounts.`);
+                log.warn(`Already logged in as ${existing.login} (${existing.provider}). Run 'agentos logout' first to switch accounts.`);
                 outro('No changes made');
                 return;
             }
 
-            try {
-                const { accessToken, scope } = await deviceFlowLogin({
-                    clientId,
-                    scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_SCOPE,
-                    log,
-                    note
+            let provider = options.provider;
+            if (!provider) {
+                const choice = await select({
+                    message: 'Select login provider:',
+                    options: [
+                        { value: 'github', label: 'GitHub (OAuth device flow)' },
+                        { value: 'firebase', label: 'Firebase (OAuth via br3eze.africa/login)' }
+                    ]
                 });
+                if (typeof choice !== 'string') {
+                    outro('Login cancelled');
+                    return;
+                }
+                provider = choice;
+            }
 
-                const userRes = await fetch(USER_API_URL, {
-                    headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'AgentOS-CLI' }
-                });
-                const user = await userRes.json();
-                if (!userRes.ok) throw new Error(user.message || 'Failed to fetch GitHub profile');
+            if (provider === 'github') {
+                const clientId = options.clientId || process.env.GITHUB_CLIENT_ID;
+                if (!clientId) {
+                    log.error('No GitHub OAuth client ID configured.');
+                    note(
+                        'Set GITHUB_CLIENT_ID in your environment (or .env), or pass --client-id.\n' +
+                        'Create a GitHub OAuth App at https://github.com/settings/developers\n' +
+                        'and enable "Device Flow" in its settings.',
+                        'Setup required'
+                    );
+                    outro('Login cancelled');
+                    process.exitCode = 1;
+                    return;
+                }
+                try {
+                    const { accessToken, scope } = await deviceFlowLogin({
+                        clientId,
+                        scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_SCOPE,
+                        log,
+                        note
+                    });
 
-                writeCredentials({
-                    provider: 'github',
-                    login: user.login,
-                    name: user.name || user.login,
-                    avatar: user.avatar_url,
-                    accessToken,
-                    scope
-                });
+                    const userRes = await fetch(USER_API_URL, {
+                        headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'AgentOS-CLI' }
+                    });
+                    const user = await userRes.json();
+                    if (!userRes.ok) throw new Error(user.message || 'Failed to fetch GitHub profile');
 
-                log.success(`Logged in as ${user.login}${user.name ? ` (${user.name})` : ''}`);
-                outro('✓ Login complete');
-            } catch (err) {
-                log.error(`Login failed: ${err.message}`);
-                outro('Login failed');
+                    writeCredentials({
+                        provider: 'github',
+                        login: user.login,
+                        name: user.name || user.login,
+                        avatar: user.avatar_url,
+                        accessToken,
+                        scope
+                    });
+
+                    log.success(`Logged in as ${user.login}${user.name ? ` (${user.name})` : ''}`);
+                    outro('✓ Login complete');
+                } catch (err) {
+                    log.error(`Login failed: ${err.message}`);
+                    outro('Login failed');
+                    process.exitCode = 1;
+                }
+            } else if (provider === 'firebase') {
+                try {
+                    const creds = await firebaseLogin({ log, note });
+                    writeCredentials(creds);
+                    log.success(`Logged in as ${creds.login}`);
+                    outro('✓ Login complete');
+                } catch (err) {
+                    log.error(`Login failed: ${err.message}`);
+                    outro('Login failed');
+                    process.exitCode = 1;
+                }
+            } else {
+                log.error(`Unknown provider: ${provider}`);
+                outro('Login cancelled');
                 process.exitCode = 1;
             }
         });
@@ -225,4 +311,4 @@ module.exports = (program) => {
         });
 };
 
-module.exports._internal = { readCredentials, writeCredentials, credentialsPath, deviceFlowLogin };
+module.exports._internal = { readCredentials, writeCredentials, credentialsPath, deviceFlowLogin, decodeFirebaseToken, firebaseLogin };

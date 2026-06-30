@@ -1,10 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.br3eze.agentos" version="1.0.0"
+<widget id="africa.br3eze" version="1.0.0"
     xmlns="http://www.w3.org/ns/widgets"
     xmlns:cdv="http://cordova.apache.org/ns/1.0"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <name>AgentOS</name>
+    <name>Power Connect</name>
     <description>WiFi Billing &amp; Network Intelligence by Br3eze Africa</description>
     <author email="support@br3eze.africa" href="https://br3eze.africa">
         Br3eze Africa Team
@@ -89,7 +89,8 @@
             <uses-feature android:name="android.hardware.wifi" android:required="false" />
             <uses-feature android:name="android.hardware.fingerprint" android:required="false" />
             <uses-feature android:name="android.hardware.biometrics" android:required="false" />
-            <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+            <uses-feature android:name="android.hardware.sensor.accelerometer"
+                android:required="false" />
         </config-file>
 
         <!-- App Icons -->
@@ -100,7 +101,8 @@
         <icon src="www/images/logo/logo.png" density="xxxhdpi" />
 
         <!-- Custom Resource File -->
-        <resource-file src="www/res/android/my-color.xml" target="app/src/main/res/values/my-colors.xml" />
+        <resource-file src="www/res/android/my-color.xml"
+            target="app/src/main/res/values/my-colors.xml" />
 
         <!-- Splash Screen (Android 12+) -->
         <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/res/android/logo.png" />
@@ -117,5 +119,5 @@
         </queries>
     </platform>
 
-    <plugin name="cordova-plugin-wifiwizard2" />
+    <plugin name="community-cordova-plugin-wifi-wizard" />
 </widget>

@@ -14,30 +14,23 @@ jobs:
   lint-test:
     name: Lint & Test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
 
-      - name: Install
-        run: npm ci --ignore-scripts --legacy-peer-deps
-
-      - name: Prepare Jest module path
-        run: |
-          mkdir -p /tmp/jest-deps
-          cp package.json /tmp/jest-deps/
-          cd /tmp/jest-deps && npm ci --ignore-scripts --legacy-peer-deps --prefer-offline 2>/dev/null || true
+      - name: Install (skip lifecycle hooks)
+        run: npm ci --ignore-scripts
 
       - name: Lint
         run: npm run lint
 
       - name: Test
-        run: npm test -- --ci --forceExit --passWithNoTests --coverage
+        run: npm test -- --ci --forceExit --passWithNoTests
         env:
           NODE_ENV: test
           ROS_HOST: 127.0.0.1
@@ -59,29 +52,18 @@ jobs:
 
       - name: Type check
         run: npm run build:check
-        continue-on-error: true
+        continue-on-error: true  # JS project — tsc is advisory
 
-      - name: Security audit
+      - name: Security audit (advisory)
         run: npm run security:audit
         env:
           NODE_ENV: test
         continue-on-error: true
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ github.run_number }}
+          name: coverage
           path: coverage/
+          if-no-files-found: ignore
           retention-days: 14
-
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD

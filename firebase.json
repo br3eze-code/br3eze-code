@@ -10,7 +10,7 @@
         "source": "server"
     },
     "hosting": {
-        "public": "mikrotik/hotspot",
+        "public": "www",
         "ignore": [
             "firebase.json",
             "**/.*",

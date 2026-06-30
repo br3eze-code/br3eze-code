@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>404 Not Found · AgentOS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .error-container {
+      max-width: 480px;
+      margin: 80px auto;
+      padding: 0 16px;
+      text-align: center;
+    }
+    .error-sigil {
+      font-size: 72px;
+      color: var(--red);
+      text-shadow: 0 0 20px rgba(255,51,85,0.4);
+      margin-bottom: 24px;
+      font-family: var(--font-hdr);
+    }
+    .error-title {
+      font-family: var(--font-hdr);
+      font-size: 24px;
+      color: var(--text);
+      margin-bottom: 12px;
+      letter-spacing: 3px;
+    }
+    .error-msg {
+      color: var(--text-dim);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    .btn-home {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background: var(--cyan);
+      border: none;
+      border-radius: var(--radius);
+      color: #000;
+      font-family: var(--font-hdr);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      font-weight: bold;
+      transition: opacity 0.2s;
+    }
+    .btn-home:active {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div class="header-brand">
+        <span class="brand-sigil" style="color: var(--red); text-shadow: 0 0 12px var(--red);">◈</span>
+        <span class="brand-name">AGENT<span class="brand-accent">OS</span></span>
+        <span class="brand-ver" style="color: var(--red);">ERROR</span>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <div class="error-container">
+        <div class="error-sigil">404</div>
+        <div class="error-title">SYSTEM ERROR</div>
+        <div class="error-msg">The requested resource or page was not found on this node. Please return to the AgentOS dashboard.</div>
+        <a href="index.html" class="btn-home">GO TO DASHBOARD</a>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

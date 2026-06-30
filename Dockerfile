@@ -1,60 +1,45 @@
-# syntax=docker/dockerfile:1
-# Multi-stage build for AgentOS production
-
-# ============================================
-# BUILDER STAGE - Install dependencies
-# ============================================
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files from repo root (not server/)
 COPY package*.json ./
 
-# Install production dependencies
-# --ignore-scripts prevents postinstall/preuninstall from running in Docker
-# --legacy-peer-deps handles zod/openai peer dep resolution
-RUN npm ci --omit=dev --ignore-scripts --legacy-peer-deps && \
-    npm cache clean --force
+# Install production deps only — npm 7+ syntax, skip lifecycle scripts
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-# ============================================
-# PRODUCTION STAGE - Runtime image
-# ============================================
+# ── Stage 2: production ───────────────────────────────────────────────────────
 FROM node:22-alpine AS production
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init ca-certificates
+# dumb-init for proper PID 1 / signal handling
+RUN apk add --no-cache dumb-init
 
-# Create app directory
 WORKDIR /app
 
-# Create non-root user (uid 1001 matches hosting.yaml runAsUser)
+# Non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser  -S nodejs -u 1001
 
-# Create required directories with proper ownership
-RUN mkdir -p logs skills certs data tmp/sessions tmp/models && \
-    chown -R nodejs:nodejs /app
-
-# Copy dependencies from builder stage
+# Copy production node_modules from builder
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy application code
-COPY --chown=nodejs:nodejs . .
+# Copy application code — server.js lives in server/, source in src/
+COPY --chown=nodejs:nodejs server/server.js ./server.js
+COPY --chown=nodejs:nodejs src/ ./src/
+COPY --chown=nodejs:nodejs bin/ ./bin/
+COPY --chown=nodejs:nodejs scripts/ ./scripts/
+COPY --chown=nodejs:nodejs package.json ./
 
-# Ensure correct ownership after all copies
-RUN chown -R nodejs:nodejs /app
+# Create runtime directories as root before switching user
+RUN mkdir -p logs skills && chown -R nodejs:nodejs logs skills
 
-# Switch to non-root user
 USER nodejs
 
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health',(r)=>r.statusCode===200?process.exit(0):process.exit(1))"
 
-# Start application with dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "bin/agentos.js", "gateway"]
+CMD ["node", "server.js"]
