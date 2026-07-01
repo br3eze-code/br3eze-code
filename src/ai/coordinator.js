@@ -1,4 +1,4 @@
-﻿// src/ai/coordinator.js
+// src/ai/coordinator.js
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const EventEmitter = require('events');
 const { logger } = require('../core/logger');
@@ -275,51 +275,6 @@ When managing CCTV, target devices by their deviceId.`;
     });           // close {description, execute} object + toolRegistry.set call
   }               // close _registerStaticTools
 
-
-  async processQuery(text, context = {}) {
-    try {
-      // Neural intent classification
-      const intent = await this.qnap.classifyIntent(text);
-
-      // If high confidence direct command, execute immediately
-      if (intent.confidence > 0.9 && intent.action !== 'unknown') {
-        return await this.executeDirectCommand(intent, context);
-      }
-
-      // Otherwise use Gemini for complex reasoning
-      const chat = this.model.startChat({
-        history: this.getConversationHistory(context.userId),
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.8,
-          topK: 40
-        }
-      });
-
-      const result = await chat.sendMessage(text);
-      const response = result.response.text();
-
-      // Parse tool calls from response if present
-      const toolCall = this.parseToolCall(response);
-      if (toolCall) {
-        const toolResult = await this.executeTool(toolCall.name, toolCall.params);
-        return {
-          response: this.formatToolResponse(toolCall.name, toolResult),
-          data: toolResult,
-          suggestions: this.getSuggestions(toolCall.name)
-        };
-      }
-
-      return { response, suggestions: ['Show users', 'Create voucher', 'System stats'] };
-
-    } catch (error) {
-      logger.error('AI Coordinator error:', error);
-      return {
-        error: true,
-        message: 'AI processing failed. Please use manual commands like /users or /voucher 1day'
-      };
-    }
-  }
 
   async processCommand(command, params) {
     const tool = this.toolRegistry.get(command);
