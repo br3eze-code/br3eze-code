@@ -1,0 +1,113 @@
+﻿
+> br3eze-code@2026.4.11 test
+> jest --coverage
+
+--------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------
+File                      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                                       
+--------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------
+All files                 |    9.38 |     7.41 |   10.14 |    9.68 |                                                                                                                         
+ adapters                 |   16.27 |    13.51 |   28.57 |   16.27 |                                                                                                                         
+  base.adapter.js         |   58.33 |       50 |   54.54 |   58.33 | 11,13-15,17                                                                                                             
+  claude.adapter.js       |       0 |        0 |       0 |       0 | 3-30                                                                                                                    
+  gemini.adapter.js       |       0 |        0 |       0 |       0 | 3-25                                                                                                                    
+  localLLM.js             |       0 |        0 |       0 |       0 | 3-22                                                                                                                    
+  openai.adapter.js       |       0 |        0 |       0 |       0 | 3-30                                                                                                                    
+ agents                   |     100 |      100 |     100 |     100 |                                                                                                                         
+  network.agent.js        |     100 |      100 |     100 |     100 |                                                                                                                         
+ src/core                 |    8.46 |     6.67 |    8.91 |    8.81 |                                                                                                                         
+  ACPClient.js            |       0 |      100 |       0 |       0 | 4-23                                                                                                                    
+  AgentOS.js              |      22 |    19.23 |    2.85 |    23.4 | 52-375                                                                                                                  
+  ChaosMonkey.v2.js       |       0 |        0 |       0 |       0 | 10-1049                                                                                                                 
+  HealthMonitor.js        |    25.8 |        0 |    9.09 |   28.57 | 21-93                                                                                                                   
+  PluginManager.js        |       0 |        0 |       0 |       0 | 4-76                                                                                                                    
+  SkillEngine.js          |       0 |      100 |       0 |       0 | 4-30                                                                                                                    
+  SkillRegistry.js        |    7.62 |        0 |    4.54 |    7.89 | 20-268                                                                                                                  
+  TelemetryCollector.js   |   13.88 |    29.41 |   11.11 |   15.15 | 16-89                                                                                                                   
+  ToolRegistry.js         |       0 |        0 |       0 |       0 | 4-45                                                                                                                    
+  WorkflowEngine.js       |    6.25 |        0 |   16.66 |    6.38 | 9-100                                                                                                                   
+  agent-memory.js         |       0 |        0 |       0 |       0 | 7-110                                                                                                                   
+  agent-runtime.js        |       0 |        0 |       0 |       0 | 7-242                                                                                                                   
+  agent.js                |       0 |      100 |       0 |       0 | 3-44                                                                                                                    
+  agentEngine.js          |       0 |        0 |       0 |       0 | 6-231                                                                                                                   
+  agentKernel.js          |       0 |      100 |       0 |       0 | 4-21                                                                                                                    
+  agentPolicy.js          |       0 |        0 |       0 |       0 | 8-204                                                                                                                   
+  agentRuntime.js         |   47.56 |    45.45 |      72 |   45.33 | 68,114-196                                                                                                              
+  ai-orchestrator.js      |    7.37 |        0 |       0 |    8.41 | 30-294                                                                                                                  
+  approval.js             |       0 |        0 |       0 |       0 | 2-70                                                                                                                    
+  ask-engine.js           |       0 |        0 |       0 |       0 | 12-471                                                                                                                  
+  auth.js                 |       0 |        0 |       0 |       0 | 8-41                                                                                                                    
+  chaosMonkey.js          |       0 |        0 |       0 |       0 | 38-636                                                                                                                  
+  chat-registry.js        |       0 |        0 |       0 |       0 | 6-63                                                                                                                    
+  cli.js                  |       0 |        0 |       0 |       0 | 3-399                                                                                                                   
+  config.js               |   87.83 |    63.09 |   85.71 |   90.14 | 20,26,37,131,155,160,169                                                                                                
+  conversation-session.js |       0 |        0 |       0 |       0 | 6-127                                                                                                                   
+  cost-tracker.js         |       0 |        0 |       0 |       0 | 9-73                                                                                                                    
+  database-enhanced.js    |       0 |        0 |       0 |       0 | 2-164                                                                                                                   
+  database.js             |    8.51 |     1.91 |    4.76 |    10.4 | 105-111,130-182,191-918                                                                                                 
+  device-controller.js    |       0 |        0 |       0 |       0 | 7-108                                                                                                                   
+  diagnostics.js          |       0 |        0 |       0 |       0 | 6-233                                                                                                                   
+  discovery.js            |    9.37 |        0 |   16.66 |      10 | 17-82                                                                                                                   
+  docs.js                 |       0 |        0 |       0 |       0 | 2-65                                                                                                                    
+  emotion.js              |       0 |        0 |       0 |       0 | 7-88                                                                                                                    
+  error.js                |    5.26 |        0 |       0 |    5.26 | 7-67                                                                                                                    
+  errors.js               |     100 |      100 |     100 |     100 |                                                                                                                         
+  eventBus.js             |     100 |      100 |     100 |     100 |                                                                                                                         
+  financial.js            |   10.81 |      9.3 |    5.55 |    12.9 | 28-134                                                                                                                  
+  firebase.js             |       0 |        0 |       0 |       0 | 6-72                                                                                                                    
+  gateway-daemon.js       |       0 |        0 |       0 |       0 | 8-54                                                                                                                    
+  gateway-engine.js       |       0 |        0 |       0 |       0 | 2-562                                                                                                                   
+  gateway.js              |       0 |        0 |       0 |       0 | 13-330                                                                                                                  
+  github.js               |       0 |        0 |       0 |       0 | 7-127                                                                                                                   
+  heartbeat.js            |       0 |        0 |       0 |       0 | 4-28                                                                                                                    
+  loadDomain.js           |       0 |      100 |       0 |       0 | 1-15                                                                                                                    
+  logger.js               |   70.96 |       50 |      40 |   70.96 | 15-22,29,53,109                                                                                                         
+  memory-store.js         |       0 |        0 |       0 |       0 | 6-167                                                                                                                   
+  metrics.js              |       0 |        0 |       0 |       0 | 3-75                                                                                                                    
+  mikrotik.js             |   12.51 |     10.6 |   16.98 |   13.41 | 74-101,143-158,227-287,301-303,313-383,388-389,392-393,408-442,464-870,878-1357,1363-1372,1389-1414,1427,1437-1441,1467 
+  missionDispatch.js      |       0 |        0 |       0 |       0 | 9-275                                                                                                                   
+  monitor.js              |       0 |        0 |       0 |       0 | 1-36                                                                                                                    
+  node-registry.js        |       0 |        0 |       0 |       0 | 6-116                                                                                                                   
+  operationProgress.js    |       0 |        0 |       0 |       0 | 6-185                                                                                                                   
+  orchestrator.js         |   10.52 |        0 |    6.66 |   11.26 | 19-141                                                                                                                  
+  os-adapters.js          |       0 |        0 |       0 |       0 | 7-154                                                                                                                   
+  permissions.js          |     100 |    92.85 |     100 |     100 | 47,58                                                                                                                   
+  policy.js               |       0 |        0 |       0 |       0 | 4-65                                                                                                                    
+  printer.js              |       0 |        0 |       0 |       0 | 1-60                                                                                                                    
+  provider-manager.js     |       0 |        0 |       0 |       0 | 6-160                                                                                                                   
+  resource-model.js       |       0 |        0 |       0 |       0 | 8-97                                                                                                                    
+  routes.js               |       0 |        0 |       0 |       0 | 3-224                                                                                                                   
+  runtime.js              |       0 |        0 |       0 |       0 | 4-93                                                                                                                    
+  safety-envelope.js      |     100 |      100 |     100 |     100 |                                                                                                                         
+  security.js             |       0 |        0 |       0 |       0 | 2-116                                                                                                                   
+  server.js               |       0 |        0 |       0 |       0 | 1-188                                                                                                                   
+  session-manager.js      |   95.06 |       75 |     100 |   97.22 | 67,182                                                                                                                  
+  session.js              |       0 |        0 |       0 |       0 | 1-28                                                                                                                    
+  sessionManager.js       |       0 |        0 |       0 |       0 | 4-32                                                                                                                    
+  sessionStore.js         |       0 |        0 |       0 |       0 | 6-71                                                                                                                    
+  sessions.js             |       0 |        0 |       0 |       0 | 4-50                                                                                                                    
+  taskRegistry.js         |     100 |      100 |     100 |     100 |                                                                                                                         
+  telegram.js             |       0 |        0 |       0 |       0 | 8-766                                                                                                                   
+  terminal-animator.js    |       0 |        0 |       0 |       0 | 8-101                                                                                                                   
+  tool-registry.js        |       0 |        0 |       0 |       0 | 7-281                                                                                                                   
+  toolEngine.js           |       0 |        0 |       0 |       0 | 9-92                                                                                                                    
+  tracing.js              |       0 |        0 |     100 |       0 | 1-13                                                                                                                    
+  transcript.js           |       0 |        0 |       0 |       0 | 8-40                                                                                                                    
+  universal-billing.js    |    3.77 |     2.85 |    3.33 |    4.41 | 31-454                                                                                                                  
+  utils.js                |       0 |        0 |       0 |       0 | 3-32                                                                                                                    
+  vault.js                |       0 |        0 |       0 |       0 | 7-150                                                                                                                   
+  voucher.js              |   85.71 |       50 |   88.88 |   91.17 | 33-35                                                                                                                   
+  websocket.js            |       0 |        0 |       0 |       0 | 3-185                                                                                                                   
+  whatsapp.js             |       0 |        0 |       0 |       0 | 6-124                                                                                                                   
+  workflows.js            |       0 |        0 |       0 |       0 | 4-109                                                                                                                   
+  workspace.js            |       0 |        0 |       0 |       0 | 8-120                                                                                                                   
+ src/utils                |   27.47 |    22.97 |    12.5 |   23.45 |                                                                                                                         
+  CircuitBreaker.js       |       0 |        0 |       0 |       0 | 4-38                                                                                                                    
+  formatters.js           |   96.15 |    89.47 |     100 |     100 | 16,23                                                                                                                   
+  helpers.js              |       0 |        0 |       0 |       0 | 3                                                                                                                       
+  logger.js               |       0 |      100 |     100 |       0 | 10-13                                                                                                                   
+  validator.js            |       0 |        0 |       0 |       0 | 5-98                                                                                                                    
+ tools/system             |   29.72 |    32.07 |   25.86 |      30 |                                                                                                                         
+  fileIO.js               |   71.42 |    80.95 |   93.75 |   69.86 | 44-45,58-59,69-70,81-94,105-108,120-121,129-130                                                                         
+  logger.js               |       0 |        0 |       0 |       0 | 7-114                                                                                                                   
+  scheduler.js            |       0 |        0 |       0 |       0 | 10-167                                                                                                                  
+--------------------------|---------|----------|---------|---------|-------------------------------------------------------------------------------------------------------------------------

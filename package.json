@@ -1,11 +1,11 @@
 {
-  "name": "@br3eze-code/agentos",
-  "version": "2026.7.1",
+  "name": "br3eze-code",
+  "version": "2026.6.28-beta",
   "description": "AgentOS — Network Intelligence Operating System for MikroTik via AI",
   "main": "src/core/gateway.js",
   "bin": {
-    "agentos": "./bin/agentos.js",
-    "agentos-esm": "./agentos.mjs"
+    "agentos": "bin/agentos.js",
+    "agentos-esm": "agentos.mjs"
   },
   "scripts": {
     "start": "node bin/agentos.js gateway",
@@ -35,11 +35,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/br3eze-code/br3eze-code.git"
+    "url": "git+https://github.com/br3eze-code/br3eze-code.git"
   },
   "files": [
     "bin/",
     "src/",
+    "agentos.mjs",
     "README.md",
     "LICENSE"
   ],
@@ -143,7 +144,7 @@
     "tonal": "^6.4.0",
     "twilio": "^5.0.0",
     "undici": "^6.27.0",
-    "uuid": "^10.0.0",
+    "uuid": "^14.0.0",
     "winston": "^3.19.0",
     "ws": "^8.21.0",
     "xml-js": "^1.6.11",
@@ -220,6 +221,9 @@
     "testPathIgnorePatterns": [
       "/node_modules/"
     ],
+    "modulePaths": [
+      "/tmp/jest-deps/node_modules"
+    ],
     "collectCoverageFrom": [
       "src/core/*.js",
       "src/utils/*.js",
@@ -231,15 +235,7 @@
       "text",
       "lcov"
     ],
-    "testTimeout": 15000,
-    "transform": {},
-    "extensionsToTreatAsEsm": [],
-    "moduleDirectories": [
-      "node_modules"
-    ],
-    "transformIgnorePatterns": [
-      "node_modules/(?!.*[.]mjs$)"
-    ]
+    "testTimeout": 15000
   },
   "overrides": {
     "node-forge": "^1.4.0",
