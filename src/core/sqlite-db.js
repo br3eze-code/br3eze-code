@@ -138,6 +138,23 @@ class SQLiteDB {
         `;
 
         this._db.exec(schema);
+
+        // ── Incremental migrations (safe: ignored if column already exists) ──────
+        const _addColumn = (table, column, definition) => {
+            try {
+                this._db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+                logger.debug(`[SQLite] Added column ${table}.${column}`);
+            } catch (e) {
+                if (!e.message.includes('duplicate column')) {
+                    logger.warn(`[SQLite] Migration ${table}.${column}: ${e.message}`);
+                }
+            }
+        };
+
+        _addColumn('users', 'password_hash', 'TEXT');
+        _addColumn('users', 'lastLoginSource', 'TEXT');
+        _addColumn('vouchers', 'amount', 'REAL');
+        _addColumn('vouchers', 'method', 'TEXT');
     }
 
     /**

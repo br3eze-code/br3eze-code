@@ -136,6 +136,132 @@ class Gateway extends EventEmitter {
       next();
     });
 
+    // ── Domain-agnostic hotspot login ─────────────────────────────────────────
+    // Called by login.html when MikroTik captive-portal is unavailable.
+    // Validates credentials (Firebase → SQLite fallback), persists the session,
+    // then provisions the hotspot user on MikroTik if it IS reachable.
+    //
+    // POST /api/v1/login  { username, password, plan? }
+    // ← 200 { ok, role, plan, uid, source:'firebase'|'sqlite'|'mikrotik' }
+    // ← 401 { error }
+    this.app.post('/api/v1/login', async (req, res) => {
+      const { username, password, plan: requestedPlan } = req.body || {};
+      if (!username || !password) {
+        return res.status(400).json({ error: 'username and password required' });
+      }
+
+      const db = global.database;
+      let uid = null, role = 'user', authSource = null, userRecord = null;
+
+      // ── 1. Try Firebase Auth ─────────────────────────────────────────────────
+      try {
+        const admin = require('firebase-admin');
+        if (admin.apps.length && db?.db) {
+          // Firebase REST sign-in
+          const apiKey = process.env.FIREBASE_API_KEY;
+          if (apiKey) {
+            const https = require('https');
+            const signInPayload = JSON.stringify({ email: username, password, returnSecureToken: true });
+            const fbResult = await new Promise((resolve, reject) => {
+              const req2 = https.request({
+                hostname: 'identitytoolkit.googleapis.com',
+                path: `/v1/accounts:signInWithPassword?key=${apiKey}`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(signInPayload) }
+              }, (r) => {
+                let data = '';
+                r.on('data', d => { data += d; });
+                r.on('end', () => resolve({ status: r.statusCode, body: JSON.parse(data) }));
+              });
+              req2.on('error', reject);
+              req2.write(signInPayload);
+              req2.end();
+            }).catch(() => null);
+
+            if (fbResult && fbResult.status === 200 && fbResult.body.localId) {
+              uid = fbResult.body.localId;
+              // Read role from Firestore users/{uid}
+              try {
+                const snap = await db.db.collection('users').doc(uid).get();
+                if (snap.exists) {
+                  userRecord = snap.data();
+                  role = userRecord.role || 'user';
+                }
+              } catch (_) {}
+              authSource = 'firebase';
+              logger.info(`[Login] Firebase auth OK for ${username} (uid=${uid}, role=${role})`);
+            }
+          }
+        }
+      } catch (fbErr) {
+        logger.warn(`[Login] Firebase auth unavailable: ${fbErr.message} — trying SQLite`);
+      }
+
+      // ── 2. SQLite fallback ───────────────────────────────────────────────────
+      if (!authSource && db) {
+        try {
+          const bcrypt = require('bcryptjs');
+          let row = null;
+          if (db.sqlite) {
+            row = db.sqlite.prepare(
+              'SELECT uid, role, password_hash FROM users WHERE (username = ? OR email = ?) LIMIT 1'
+            ).get(username, username);
+          }
+          if (row && row.password_hash && await bcrypt.compare(password, row.password_hash)) {
+            uid = row.uid;
+            role = row.role || 'user';
+            authSource = 'sqlite';
+            logger.info(`[Login] SQLite auth OK for ${username} (uid=${uid}, role=${role})`);
+          }
+        } catch (sqlErr) {
+          logger.warn(`[Login] SQLite auth failed: ${sqlErr.message}`);
+        }
+      }
+
+      if (!authSource) {
+        return res.status(401).json({ error: 'Invalid username or password' });
+      }
+
+      // ── 3. Provision on MikroTik if reachable ───────────────────────────────
+      const mt = global.mikrotik;
+      let mikrotikProvisioned = false;
+      const plan = requestedPlan || userRecord?.plan || 'default';
+
+      if (mt && mt.state?.isConnected) {
+        try {
+          await mt.addHotspotUser({ username, password, profile: plan, sharedUsers: 1 });
+          mikrotikProvisioned = true;
+          authSource = 'mikrotik';
+          logger.info(`[Login] MikroTik hotspot user provisioned for ${username} (${plan})`);
+        } catch (mtErr) {
+          // User may already exist — that is fine
+          if (!mtErr.message?.includes('already')) {
+            logger.warn(`[Login] MikroTik provision warning: ${mtErr.message}`);
+          }
+          mikrotikProvisioned = true; // user exists on router already
+          authSource = 'mikrotik';
+        }
+      } else {
+        logger.info(`[Login] MikroTik unavailable — login served from ${authSource}`);
+      }
+
+      // ── 4. Update lastSeen in local store ────────────────────────────────────
+      if (db && uid) {
+        try {
+          await db.updateUser(uid, { lastSeen: new Date().toISOString(), lastLoginSource: authSource });
+        } catch (_) {}
+      }
+
+      return res.json({
+        ok: true,
+        uid,
+        role,
+        plan,
+        source: authSource,
+        mikrotikProvisioned
+      });
+    });
+
     // ── SSE streaming /ask ────────────────────────────────────────────────────
     this.app.post('/api/v1/ask', async (req, res) => {
       const { prompt, stream: wantStream } = req.body || {};
@@ -302,7 +428,7 @@ class Gateway extends EventEmitter {
         const mt = global.mikrotik;
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
           dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-        const loginUrl = `http://${mt?.config?.host || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${mt?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         const vData = {
           ...req.body,
@@ -508,7 +634,7 @@ class Gateway extends EventEmitter {
         const crypto = require('crypto');
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'hotspot.local'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         if (global.database) {
           await global.database.createVoucher(code, {
@@ -549,11 +675,6 @@ class Gateway extends EventEmitter {
         res.json({ ok: true, code, status: 'paid' });
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
-
-    // ── Versioned API route modules (v1: stats/health, v2: ask, v3: bulk) ─────
-    try { this.app.use('/api/v1', require('../api/routes/v1')); } catch(e) { logger.warn('v1 routes:', e.message); }
-    try { this.app.use('/api/v2', require('../api/routes/v2')); } catch(e) { logger.warn('v2 routes:', e.message); }
-    try { this.app.use('/api/v3', require('../api/routes/v3')); } catch(e) { logger.warn('v3 routes:', e.message); }
 
     // ── Mobile bridge ────────────────────────────────────────────────────────
     try {
