@@ -1,15 +1,20 @@
 const fs = require('fs/promises');
 
 const ui_record = {
-  name: "ui_record",
-  description: "Generates a recorder bookmarklet/JS snippet. Paste into browser console on target site, click through your workflow, then copy the actions JSON to use with ui-agent.",
+  name: 'ui_record',
+  description:
+    'Generates a recorder bookmarklet/JS snippet. Paste into browser console on target site, click through your workflow, then copy the actions JSON to use with ui-agent.',
   parameters: {
-    type: "object",
+    type: 'object',
     properties: {
-      url: { type: "string", description: "URL you'll be recording on, for reference" },
-      include_screenshots: { type: "boolean", default: true, description: "Auto-add screenshot step after each click" }
+      url: { type: 'string', description: "URL you'll be recording on, for reference" },
+      include_screenshots: {
+        type: 'boolean',
+        default: true,
+        description: 'Auto-add screenshot step after each click',
+      },
     },
-    required: ["url"]
+    required: ['url'],
   },
 
   run: async ({ url, include_screenshots = true }, { logger }) => {
@@ -74,7 +79,7 @@ const ui_record = {
     e.stopPropagation();
     const sel = cssSelector(e.target);
     window.__agentos_actions.push({ type: 'click', selector: sel });
-    ${include_screenshots ? "window.__agentos_actions.push({ type: 'screenshot', name: 'step_' + window.__agentos_actions.length });" : ""}
+    ${include_screenshots ? "window.__agentos_actions.push({ type: 'screenshot', name: 'step_' + window.__agentos_actions.length });" : ''}
     document.getElementById('agentos-count').textContent = window.__agentos_actions.length + ' actions';
     e.target.style.outline = '2px solid #3b82f6';
     setTimeout(() => e.target.style.outline = '', 500);
@@ -102,8 +107,10 @@ const ui_record = {
 
     const bookmarklet = `javascript:${encodeURIComponent(recorderJS)}`;
 
-    await fs.appendFile('./knowledge/soul.md',
-      `\n## UI Record ${new Date().toISOString()}\nURL: ${url}\nSession: ${sessionId}\n`);
+    await fs.appendFile(
+      './knowledge/soul.md',
+      `\n## UI Record ${new Date().toISOString()}\nURL: ${url}\nSession: ${sessionId}\n`
+    );
 
     const msg = `🔴 *UI Recorder Ready*
 
@@ -128,8 +135,14 @@ ${recorderJS}
 
 Saved to: \`${recorderPath}\``;
 
-    return { success: true, message: msg, recorder_code: recorderJS, bookmarklet, session_id: sessionId };
-  }
+    return {
+      success: true,
+      message: msg,
+      recorder_code: recorderJS,
+      bookmarklet,
+      session_id: sessionId,
+    };
+  },
 };
 
 module.exports = { ui_record };

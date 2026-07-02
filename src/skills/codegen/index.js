@@ -18,14 +18,14 @@ class CodegenSkill extends BaseDriver {
         parameters: {
           type: 'object',
           properties: {
-            prompt: { 
-              type: 'string', 
-              description: "What to configure. E.g. 'block youtube', 'limit guest bandwidth to 1M'" 
-            }
+            prompt: {
+              type: 'string',
+              description: "What to configure. E.g. 'block youtube', 'limit guest bandwidth to 1M'",
+            },
           },
-          required: ['prompt']
-        }
-      }
+          required: ['prompt'],
+        },
+      },
     };
   }
 
@@ -43,13 +43,13 @@ class CodegenSkill extends BaseDriver {
     let version = '7.x';
     let board = 'MikroTik';
     if (mikrotik?.state?.isConnected) {
-        try {
-            const stats = await mikrotik.executeTool('system.stats');
-            version = stats.version || version;
-            board = stats.board || board;
-        } catch (e) {
-            logger.warn('[CodegenSkill] Failed to fetch router context, using defaults');
-        }
+      try {
+        const stats = await mikrotik.executeTool('system.stats');
+        version = stats.version || version;
+        board = stats.board || board;
+      } catch (e) {
+        logger.warn('[CodegenSkill] Failed to fetch router context, using defaults');
+      }
     }
 
     const systemPrompt = `You are a MikroTik RouterOS ${version} expert. 
@@ -58,27 +58,27 @@ Use RouterOS v7 syntax. Be precise with paths.
 Target Hardware: ${board}`;
 
     try {
-        const response = await gemini.generate({
-            model: "gemini-2.5-flash",
-            system: systemPrompt,
-            prompt: `Generate RouterOS code for: ${prompt}`
-        });
+      const response = await gemini.generate({
+        model: 'gemini-2.5-flash',
+        system: systemPrompt,
+        prompt: `Generate RouterOS code for: ${prompt}`,
+      });
 
-        const code = response.text.trim();
-        
-        if (!code.startsWith('/')) {
-            throw new Error('Generated code is not a valid RouterOS command sequence');
-        }
+      const code = response.text.trim();
 
-        return {
-            success: true,
-            prompt,
-            code,
-            warning: "Review the code before applying to production routers."
-        };
+      if (!code.startsWith('/')) {
+        throw new Error('Generated code is not a valid RouterOS command sequence');
+      }
+
+      return {
+        success: true,
+        prompt,
+        code,
+        warning: 'Review the code before applying to production routers.',
+      };
     } catch (err) {
-        logger.error(`[CodegenSkill] AI generation failed: ${err.message}`);
-        throw err;
+      logger.error(`[CodegenSkill] AI generation failed: ${err.message}`);
+      throw err;
     }
   }
 }

@@ -15,42 +15,42 @@ class PaymentGateway {
       stripeSecretKey: config.stripeSecretKey || process.env.STRIPE_SECRET_KEY,
       stripeWebhookSecret: config.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET,
       stripePublishableKey: config.stripePublishableKey || process.env.STRIPE_PUBLISHABLE_KEY,
-      
+
       // EcoCash (Zimbabwe)
       ecocashMerchantCode: config.ecocashMerchantCode || process.env.ECOCASH_MERCHANT_CODE,
       ecocashApiKey: config.ecocashApiKey || process.env.ECOCASH_API_KEY,
       ecocashEnvironment: config.ecocashEnvironment || process.env.ECOCASH_ENV || 'sandbox',
-      
+
       // NetOne (Zimbabwe)
       netoneApiKey: config.netoneApiKey || process.env.NETONE_API_KEY,
       netoneMerchantId: config.netoneMerchantId || process.env.NETONE_MERCHANT_ID,
-      
+
       // PayNow (Zimbabwe)
       paynowIntegrationId: config.paynowIntegrationId || process.env.PAYNOW_INTEGRATION_ID,
       paynowIntegrationKey: config.paynowIntegrationKey || process.env.PAYNOW_INTEGRATION_KEY,
       paynowResultUrl: config.paynowResultUrl || process.env.PAYNOW_RESULT_URL,
       paynowReturnUrl: config.paynowReturnUrl || process.env.PAYNOW_RETURN_URL,
-      
+
       // Apple Pay
       applePayMerchantId: config.applePayMerchantId || process.env.APPLE_PAY_MERCHANT_ID,
       applePayCertificatePath: config.applePayCertificatePath || process.env.APPLE_PAY_CERT_PATH,
       applePayKeyPath: config.applePayKeyPath || process.env.APPLE_PAY_KEY_PATH,
       applePayMerchantDomain: config.applePayMerchantDomain || process.env.APPLE_PAY_DOMAIN,
-      
+
       // Google Pay
       googlePayMerchantId: config.googlePayMerchantId || process.env.GOOGLE_PAY_MERCHANT_ID,
       googlePayMerchantName: config.googlePayMerchantName || process.env.GOOGLE_PAY_MERCHANT_NAME,
       googlePayEnvironment: config.googlePayEnvironment || process.env.GOOGLE_PAY_ENV || 'TEST',
-      
+
       // Webhook URL for callbacks
       webhookBaseUrl: config.webhookBaseUrl || process.env.WEBHOOK_BASE_URL,
-      
+
       // Default currency
       defaultCurrency: config.defaultCurrency || 'USD',
-      
-      ...config
+
+      ...config,
     };
-    
+
     this.providers = new Map();
     this.initializeProviders();
   }
@@ -61,21 +61,9 @@ class PaymentGateway {
       this.providers.set('stripe', new StripeProvider(this.config));
     }
     // PesaPay (Zimbabwe All-in-One)
-  if (this.config.pesapayConsumerKey) {
-    this.providers.set('pesapay', new PesaPayProvider(this.config));
-  }
-}
-
-// In getAvailableMethods(), add PesaPay options:
-getAvailableMethods(options = {}) {
-  const methods = [];
-  const { country = 'ZW' } = options;
-
-  // PesaPay - Zimbabwe all-in-one solution
-  if (this.providers.has('pesapay') && country === 'ZW') {
-    const pesapay = this.providers.get('pesapay');
-    methods.push(...pesapay.getSupportedMethods());
-  }
+    if (this.config.pesapayConsumerKey) {
+      this.providers.set('pesapay', new PesaPayProvider(this.config));
+    }
     if (this.config.ecocashMerchantCode) {
       this.providers.set('ecocash', new EcoCashProvider(this.config));
     }
@@ -102,6 +90,12 @@ getAvailableMethods(options = {}) {
     const methods = [];
     const { country = 'ZW', device = 'mobile' } = options;
 
+    // PesaPay - Zimbabwe all-in-one solution
+    if (this.providers.has('pesapay') && country === 'ZW') {
+      const pesapay = this.providers.get('pesapay');
+      methods.push(...pesapay.getSupportedMethods());
+    }
+
     // Zimbabwe-specific methods
     if (country === 'ZW') {
       if (this.providers.has('ecocash')) {
@@ -112,7 +106,7 @@ getAvailableMethods(options = {}) {
           icon: '💳',
           description: 'Pay with EcoCash mobile money',
           currencies: ['ZWL', 'USD', 'ZIG'],
-          countries: ['ZW']
+          countries: ['ZW'],
         });
       }
       if (this.providers.has('netone')) {
@@ -123,7 +117,7 @@ getAvailableMethods(options = {}) {
           icon: '📱',
           description: 'Pay with NetOne OneMoney',
           currencies: ['ZWL', 'USD', 'ZIG'],
-          countries: ['ZW']
+          countries: ['ZW'],
         });
       }
       if (this.providers.has('paynow')) {
@@ -134,7 +128,7 @@ getAvailableMethods(options = {}) {
           icon: '🔒',
           description: 'Pay via PayNow (supports multiple methods)',
           currencies: ['ZWL', 'USD', 'ZIG'],
-          countries: ['ZW']
+          countries: ['ZW'],
         });
       }
     }
@@ -148,7 +142,7 @@ getAvailableMethods(options = {}) {
         icon: '💳',
         description: 'Pay with Visa, Mastercard, etc.',
         currencies: ['USD', 'EUR', 'GBP', 'ZWL'],
-        countries: ['*']
+        countries: ['*'],
       });
     }
 
@@ -161,7 +155,7 @@ getAvailableMethods(options = {}) {
         icon: '🍎',
         description: 'Quick and secure Apple Pay',
         currencies: ['USD', 'EUR', 'GBP'],
-        countries: ['*']
+        countries: ['*'],
       });
     }
 
@@ -173,7 +167,7 @@ getAvailableMethods(options = {}) {
         icon: '🔷',
         description: 'Fast checkout with Google Pay',
         currencies: ['USD', 'EUR', 'GBP'],
-        countries: ['*']
+        countries: ['*'],
       });
     }
 
@@ -194,13 +188,13 @@ getAvailableMethods(options = {}) {
 
     try {
       const result = await providerInstance.createPayment(paymentData);
-      
+
       // Log transaction
       await this.logTransaction({
         provider,
         ...paymentData,
         status: result.status,
-        transactionId: result.transactionId
+        transactionId: result.transactionId,
       });
 
       return result;
@@ -209,7 +203,7 @@ getAvailableMethods(options = {}) {
         provider,
         ...paymentData,
         status: 'failed',
-        error: error.message
+        error: error.message,
       });
       throw error;
     }
@@ -278,7 +272,7 @@ getAvailableMethods(options = {}) {
     // For now, just console log
     console.log('[Payment Transaction]', {
       timestamp: new Date().toISOString(),
-      ...transaction
+      ...transaction,
     });
   }
 }
@@ -302,7 +296,7 @@ class StripeProvider {
       ...Object.entries(metadata).reduce((acc, [key, val]) => {
         acc[`metadata[${key}]`] = val;
         return acc;
-      }, {})
+      }, {}),
     });
 
     if (customerEmail) {
@@ -310,7 +304,7 @@ class StripeProvider {
     }
 
     const response = await this.makeRequest('/payment_intents', 'POST', params.toString());
-    
+
     return {
       success: true,
       transactionId: response.id,
@@ -318,19 +312,19 @@ class StripeProvider {
       status: response.status,
       amount: response.amount / 100,
       currency: response.currency,
-      provider: 'stripe'
+      provider: 'stripe',
     };
   }
 
   async verifyPayment(paymentIntentId) {
     const response = await this.makeRequest(`/payment_intents/${paymentIntentId}`, 'GET');
-    
+
     return {
       success: response.status === 'succeeded',
       status: response.status,
       amount: response.amount / 100,
       currency: response.currency,
-      metadata: response.metadata
+      metadata: response.metadata,
     };
   }
 
@@ -338,7 +332,7 @@ class StripeProvider {
     const params = new URLSearchParams({
       payment_intent: paymentIntentId,
       amount: Math.round(amount * 100),
-      reason: 'requested_by_customer'
+      reason: 'requested_by_customer',
     });
 
     if (reason) {
@@ -351,7 +345,7 @@ class StripeProvider {
       success: true,
       refundId: response.id,
       amount: response.amount / 100,
-      status: response.status
+      status: response.status,
     };
   }
 
@@ -365,15 +359,12 @@ class StripeProvider {
       .update(JSON.stringify(payload), 'utf8')
       .digest('hex');
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
   }
 
   async processWebhook(payload) {
     const event = payload;
-    
+
     switch (event.type) {
       case 'payment_intent.succeeded':
         return {
@@ -381,23 +372,23 @@ class StripeProvider {
           transactionId: event.data.object.id,
           amount: event.data.object.amount / 100,
           currency: event.data.object.currency,
-          metadata: event.data.object.metadata
+          metadata: event.data.object.metadata,
         };
-      
+
       case 'payment_intent.payment_failed':
         return {
           type: 'payment_failed',
           transactionId: event.data.object.id,
-          error: event.data.object.last_payment_error?.message
+          error: event.data.object.last_payment_error?.message,
         };
-      
+
       case 'charge.refunded':
         return {
           type: 'refund',
           transactionId: event.data.object.payment_intent,
-          amount: event.data.object.amount_refunded / 100
+          amount: event.data.object.amount_refunded / 100,
         };
-      
+
       default:
         return { type: 'unknown', event: event.type };
     }
@@ -406,20 +397,20 @@ class StripeProvider {
   makeRequest(endpoint, method, body = null) {
     return new Promise((resolve, reject) => {
       const url = new URL(this.baseUrl + endpoint);
-      
+
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
         method,
         headers: {
-          'Authorization': `Bearer ${this.config.stripeSecretKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
+          Authorization: `Bearer ${this.config.stripeSecretKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       };
 
-      const req = https.request(options, (res) => {
+      const req = https.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
@@ -446,9 +437,10 @@ class StripeProvider {
 class EcoCashProvider {
   constructor(config) {
     this.config = config;
-    this.baseUrl = config.ecocashEnvironment === 'production' 
-      ? 'https://api.ecocash.co.zw/v2'
-      : 'https://sandbox.api.ecocash.co.zw/v2';
+    this.baseUrl =
+      config.ecocashEnvironment === 'production'
+        ? 'https://api.ecocash.co.zw/v2'
+        : 'https://sandbox.api.ecocash.co.zw/v2';
   }
 
   async createPayment(data) {
@@ -456,7 +448,7 @@ class EcoCashProvider {
 
     // Validate phone number (Zimbabwe format)
     const sanitizedPhone = this.sanitizePhoneNumber(phoneNumber);
-    
+
     const payload = {
       merchantCode: this.config.ecocashMerchantCode,
       apiKey: this.config.ecocashApiKey,
@@ -465,7 +457,7 @@ class EcoCashProvider {
       customerPhone: sanitizedPhone,
       description: description || 'AgentOS Payment',
       reference: reference || `AGENTOS-${Date.now()}`,
-      callbackUrl: `${this.config.webhookBaseUrl}/webhooks/ecocash`
+      callbackUrl: `${this.config.webhookBaseUrl}/webhooks/ecocash`,
     };
 
     const response = await this.makeRequest('/payments/initiate', 'POST', payload);
@@ -477,20 +469,20 @@ class EcoCashProvider {
       amount,
       currency,
       provider: 'ecocash',
-      instructions: 'Please check your EcoCash phone and enter PIN to authorize payment'
+      instructions: 'Please check your EcoCash phone and enter PIN to authorize payment',
     };
   }
 
   async verifyPayment(transactionRef) {
     const response = await this.makeRequest(`/payments/status/${transactionRef}`, 'GET');
-    
+
     return {
       success: response.status === 'SUCCESS',
       status: response.status.toLowerCase(),
       amount: parseFloat(response.amount),
       currency: response.currency,
       phoneNumber: response.customerPhone,
-      paidAt: response.completedAt
+      paidAt: response.completedAt,
     };
   }
 
@@ -498,7 +490,7 @@ class EcoCashProvider {
     const payload = {
       originalTransactionRef: transactionRef,
       amount: amount.toFixed(2),
-      reason: reason || 'Customer request'
+      reason: reason || 'Customer request',
     };
 
     const response = await this.makeRequest('/payments/refund', 'POST', payload);
@@ -507,7 +499,7 @@ class EcoCashProvider {
       success: response.status === 'SUCCESS',
       refundId: response.refundRef,
       amount: parseFloat(response.amount),
-      status: response.status.toLowerCase()
+      status: response.status.toLowerCase(),
     };
   }
 
@@ -532,7 +524,7 @@ class EcoCashProvider {
       transactionId: transactionRef,
       amount: parseFloat(amount),
       currency,
-      status: status.toLowerCase()
+      status: status.toLowerCase(),
     };
   }
 
@@ -540,10 +532,10 @@ class EcoCashProvider {
     // Convert to international format
     let cleaned = phone.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
-      cleaned = '263' + cleaned.substring(1);
+      cleaned = `263${cleaned.substring(1)}`;
     }
     if (!cleaned.startsWith('263')) {
-      cleaned = '263' + cleaned;
+      cleaned = `263${cleaned}`;
     }
     return cleaned;
   }
@@ -551,7 +543,7 @@ class EcoCashProvider {
   makeRequest(endpoint, method, body = null) {
     return new Promise((resolve, reject) => {
       const url = new URL(this.baseUrl + endpoint);
-      
+
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
@@ -559,13 +551,13 @@ class EcoCashProvider {
         headers: {
           'Content-Type': 'application/json',
           'X-Merchant-Code': this.config.ecocashMerchantCode,
-          'X-API-Key': this.config.ecocashApiKey
-        }
+          'X-API-Key': this.config.ecocashApiKey,
+        },
       };
 
-      const req = https.request(options, (res) => {
+      const req = https.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
@@ -606,7 +598,7 @@ class NetOneProvider {
       customerMsisdn: this.sanitizePhoneNumber(phoneNumber),
       narration: description || 'AgentOS Payment',
       reference: reference || `AGENTOS-${Date.now()}`,
-      callbackUrl: `${this.config.webhookBaseUrl}/webhooks/netone`
+      callbackUrl: `${this.config.webhookBaseUrl}/webhooks/netone`,
     };
 
     const response = await this.makeRequest('/transactions/initiate', 'POST', payload);
@@ -618,19 +610,19 @@ class NetOneProvider {
       amount,
       currency,
       provider: 'netone',
-      instructions: 'Please approve the payment prompt on your NetOne phone'
+      instructions: 'Please approve the payment prompt on your NetOne phone',
     };
   }
 
   async verifyPayment(transactionId) {
     const response = await this.makeRequest(`/transactions/${transactionId}/status`, 'GET');
-    
+
     return {
       success: response.status === 'COMPLETED',
       status: response.status.toLowerCase(),
       amount: parseFloat(response.amount),
       currency: response.currency,
-      phoneNumber: response.msisdn
+      phoneNumber: response.msisdn,
     };
   }
 
@@ -638,7 +630,7 @@ class NetOneProvider {
     const payload = {
       originalTransactionId: transactionId,
       refundAmount: amount.toFixed(2),
-      reason
+      reason,
     };
 
     const response = await this.makeRequest('/transactions/refund', 'POST', payload);
@@ -647,7 +639,7 @@ class NetOneProvider {
       success: response.status === 'SUCCESS',
       refundId: response.refundId,
       amount: parseFloat(response.refundAmount),
-      status: response.status.toLowerCase()
+      status: response.status.toLowerCase(),
     };
   }
 
@@ -669,14 +661,14 @@ class NetOneProvider {
       transactionId: payload.transactionId,
       amount: parseFloat(payload.amount),
       currency: payload.currency,
-      status: payload.status.toLowerCase()
+      status: payload.status.toLowerCase(),
     };
   }
 
   sanitizePhoneNumber(phone) {
     let cleaned = phone.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
-      cleaned = '263' + cleaned.substring(1);
+      cleaned = `263${cleaned.substring(1)}`;
     }
     return cleaned;
   }
@@ -684,21 +676,21 @@ class NetOneProvider {
   makeRequest(endpoint, method, body = null) {
     return new Promise((resolve, reject) => {
       const url = new URL(this.baseUrl + endpoint);
-      
+
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.netoneApiKey}`,
-          'X-Merchant-ID': this.config.netoneMerchantId
-        }
+          Authorization: `Bearer ${this.config.netoneApiKey}`,
+          'X-Merchant-ID': this.config.netoneMerchantId,
+        },
       };
 
-      const req = https.request(options, (res) => {
+      const req = https.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
@@ -740,14 +732,14 @@ class PayNowProvider {
       resulturl: this.config.paynowResultUrl,
       status: 'Message',
       email: email || 'customer@br3eze.africa',
-      phone: phone || ''
+      phone: phone || '',
     };
 
     // Generate hash
     payload.hash = this.generateHash(payload);
 
     const response = await this.makeRequest('/initiatetransaction', 'POST', payload);
-    
+
     // Parse PayNow response (format: "OK|RedirectURL|PollURL")
     const parts = response.split('|');
     if (parts[0] !== 'OK') {
@@ -763,23 +755,23 @@ class PayNowProvider {
       provider: 'paynow',
       redirectUrl: parts[1],
       pollUrl: parts[2],
-      instructions: 'Complete payment using the provided link'
+      instructions: 'Complete payment using the provided link',
     };
   }
 
   async verifyPayment(pollUrl) {
     // Poll for payment status
     const response = await this.makeRequest(pollUrl.replace(this.baseUrl, ''), 'GET');
-    
+
     const parts = response.split('|');
     const status = parts[1];
-    
+
     return {
       success: status === 'Paid' || status === 'Awaiting Delivery',
       status: status.toLowerCase().replace(' ', '_'),
       amount: parseFloat(parts[5]),
       reference: parts[2],
-      paynowReference: parts[3]
+      paynowReference: parts[3],
     };
   }
 
@@ -793,7 +785,7 @@ class PayNowProvider {
     // PayNow uses hash verification
     const receivedHash = payload.hash;
     delete payload.hash;
-    
+
     const expectedHash = this.generateHash(payload);
     return receivedHash === expectedHash;
   }
@@ -806,7 +798,7 @@ class PayNowProvider {
       transactionId: reference,
       paynowReference: paynowreference,
       amount: parseFloat(amount),
-      status: status.toLowerCase().replace(' ', '_')
+      status: status.toLowerCase().replace(' ', '_'),
     };
   }
 
@@ -824,26 +816,26 @@ class PayNowProvider {
       const url = new URL(this.baseUrl + endpoint);
       const isHttps = url.protocol === 'https:';
       const client = isHttps ? https : http;
-      
+
       const postData = body ? new URLSearchParams(body).toString() : null;
-      
+
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
         method,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'AgentOS/1.0'
-        }
+          'User-Agent': 'AgentOS/1.0',
+        },
       };
 
       if (postData) {
         options.headers['Content-Length'] = Buffer.byteLength(postData);
       }
 
-      const req = client.request(options, (res) => {
+      const req = client.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => resolve(data));
       });
 
@@ -880,7 +872,7 @@ class ApplePayProvider {
       merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
       requiredBillingContactFields: ['postalAddress', 'name'],
       requiredShippingContactFields: [],
-      provider: 'apple_pay'
+      provider: 'apple_pay',
     };
   }
 
@@ -889,7 +881,7 @@ class ApplePayProvider {
     // This would integrate with your payment processor (Stripe, etc.)
     const response = await this.makeRequest('/payment', 'POST', {
       merchantIdentifier: this.config.applePayMerchantId,
-      paymentToken: paymentToken
+      paymentToken,
     });
 
     return {
@@ -897,7 +889,7 @@ class ApplePayProvider {
       transactionId: response.transactionIdentifier,
       status: 'succeeded',
       amount: response.amount,
-      currency: response.currency
+      currency: response.currency,
     };
   }
 
@@ -906,7 +898,7 @@ class ApplePayProvider {
     return {
       success: true,
       status: 'succeeded',
-      transactionId
+      transactionId,
     };
   }
 
@@ -923,7 +915,7 @@ class ApplePayProvider {
   async processWebhook(payload) {
     return {
       type: payload.notificationType,
-      ...payload
+      ...payload,
     };
   }
 
@@ -953,44 +945,46 @@ class GooglePayProvider {
       apiVersionMinor: 0,
       merchantInfo: {
         merchantId: this.config.googlePayMerchantId,
-        merchantName: this.config.googlePayMerchantName || 'AgentOS'
+        merchantName: this.config.googlePayMerchantName || 'AgentOS',
       },
-      allowedPaymentMethods: [{
-        type: 'CARD',
-        parameters: {
-          allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
-          allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX']
-        },
-        tokenizationSpecification: {
-          type: 'PAYMENT_GATEWAY',
+      allowedPaymentMethods: [
+        {
+          type: 'CARD',
           parameters: {
-            gateway: 'stripe',
-            'stripe:version': '2018-10-31',
-            'stripe:publishableKey': this.config.stripePublishableKey
-          }
-        }
-      }],
+            allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+            allowedCardNetworks: ['VISA', 'MASTERCARD', 'AMEX'],
+          },
+          tokenizationSpecification: {
+            type: 'PAYMENT_GATEWAY',
+            parameters: {
+              gateway: 'stripe',
+              'stripe:version': '2018-10-31',
+              'stripe:publishableKey': this.config.stripePublishableKey,
+            },
+          },
+        },
+      ],
       transactionInfo: {
         totalPriceStatus: 'FINAL',
         totalPrice: amount.toFixed(2),
         currencyCode: currency.toUpperCase(),
         countryCode: 'US',
-        transactionId: `AGENTOS-${Date.now()}`
+        transactionId: `AGENTOS-${Date.now()}`,
       },
-      provider: 'google_pay'
+      provider: 'google_pay',
     };
   }
 
   async processPayment(paymentData) {
     // Process Google Pay token through Stripe or other gateway
     const { paymentMethodData } = paymentData;
-    
+
     return {
       success: true,
       transactionId: paymentMethodData.tokenizationData.token,
       status: 'succeeded',
       paymentMethod: paymentMethodData.type,
-      cardDetails: paymentMethodData.info
+      cardDetails: paymentMethodData.info,
     };
   }
 
@@ -998,7 +992,7 @@ class GooglePayProvider {
     return {
       success: true,
       status: 'succeeded',
-      transactionId
+      transactionId,
     };
   }
 
@@ -1013,7 +1007,7 @@ class GooglePayProvider {
   async processWebhook(payload) {
     return {
       type: payload.type,
-      ...payload
+      ...payload,
     };
   }
 }
@@ -1025,5 +1019,5 @@ module.exports = {
   NetOneProvider,
   PayNowProvider,
   ApplePayProvider,
-  GooglePayProvider
+  GooglePayProvider,
 };

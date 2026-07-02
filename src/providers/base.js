@@ -1,4 +1,3 @@
-
 /**
  * Base Provider
  */
@@ -8,7 +7,7 @@ class BaseProvider {
     this.name = 'base';
     this.config = options;
   }
-  
+
   /**
    * Execute conversation with tools
    * Must be implemented by subclasses
@@ -16,7 +15,7 @@ class BaseProvider {
   async execute(conversation, tools) {
     throw new Error('execute() must be implemented by subclass');
   }
-  
+
   /**
    * Format tools for provider-specific API
    */
@@ -24,7 +23,7 @@ class BaseProvider {
     // Default: return as-is
     return tools;
   }
-  
+
   /**
    * Format conversation for provider-specific API
    */
@@ -32,7 +31,7 @@ class BaseProvider {
     // Default: return as-is
     return conversation;
   }
-  
+
   /**
    * Parse provider-specific response
    */
@@ -40,7 +39,7 @@ class BaseProvider {
     // Default: return as-is
     return raw;
   }
-  
+
   /**
    * Get provider info
    */
@@ -48,10 +47,10 @@ class BaseProvider {
     return {
       name: this.name,
       available: true,
-      config: this.getSafeConfig()
+      config: this.getSafeConfig(),
     };
   }
-  
+
   /**
    * Get config without sensitive data
    */
@@ -61,7 +60,7 @@ class BaseProvider {
     delete safe.apiSecret;
     return safe;
   }
-  
+
   /**
    * Generate unique ID
    */
@@ -71,6 +70,3 @@ class BaseProvider {
 }
 
 module.exports = { BaseProvider };
-
-
-

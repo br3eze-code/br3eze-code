@@ -1,17 +1,22 @@
 // src/core/providers/index.js
+const { randomUUID: generateId } = require('crypto');
+const GeminiProvider = require('../../providers/gemini');
+const { ClaudeProvider } = require('../../providers/claude');
+const { OpenAIProvider } = require('../../providers/openai');
+const { OllamaProvider } = require('../../providers/ollama');
 class ProviderManager {
   constructor(config) {
     this.providers = new Map();
     this.primary = config.primary;
     this.fallbacks = config.fallbacks || [];
-    
+
     // Register multiple backends
     this.register('gemini', new GeminiProvider(config.gemini));
     this.register('claude', new ClaudeProvider(config.anthropic));
     this.register('openai', new OpenAIProvider(config.openai));
     this.register('ollama', new OllamaProvider(config.ollama));
   }
-  
+
   async execute(prompt, tools) {
     // Try primary first
     try {
@@ -36,7 +41,7 @@ class BaseProvider {
     return {
       name: raw.function?.name || raw.tool,
       arguments: raw.function?.arguments || raw.parameters,
-      id: raw.id || generateId()
+      id: raw.id || generateId(),
     };
   }
 }

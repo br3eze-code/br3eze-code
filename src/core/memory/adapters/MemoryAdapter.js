@@ -16,7 +16,7 @@ class MemoryAdapter {
 
   async set(key, value, ttlSeconds = null) {
     this.store.set(key, value);
-    
+
     if (ttlSeconds) {
       if (this.timers.has(key)) {
         clearTimeout(this.timers.get(key));
@@ -58,7 +58,7 @@ class MemoryAdapter {
     return {
       type: 'memory',
       keys: this.store.size,
-      memoryUsage: process.memoryUsage().heapUsed
+      memoryUsage: process.memoryUsage().heapUsed,
     };
   }
 }

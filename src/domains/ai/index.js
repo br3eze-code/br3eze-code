@@ -6,7 +6,7 @@ class AIDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'ai';
-    
+
     this.registerTool({
       name: 'status',
       description: 'Check status and validity of configured AI providers',
@@ -36,7 +36,7 @@ class AIDomain extends BaseDomain {
         providers.push(await checkProvider('Ollama', OllamaProvider, 'OLLAMA_MODEL'));
 
         return providers;
-      }
+      },
     });
 
     this.registerTool({
@@ -45,23 +45,26 @@ class AIDomain extends BaseDomain {
       execute: async (provider = 'anthropic') => {
         const p = provider.toLowerCase();
         if (p === 'anthropic') {
-           const claude = new ClaudeProvider();
-           return await claude.validateKey();
+          const claude = new ClaudeProvider();
+          return await claude.validateKey();
         } else if (p === 'openai') {
-           const { OpenAIProvider } = require('../../providers/openai');
-           const openai = new OpenAIProvider();
-           return await openai.validateKey();
+          const { OpenAIProvider } = require('../../providers/openai');
+          const openai = new OpenAIProvider();
+          return await openai.validateKey();
         } else if (p === 'gemini') {
-           const GeminiProvider = require('../../providers/gemini');
-           const gemini = new GeminiProvider();
-           return await gemini.validateKey();
+          const GeminiProvider = require('../../providers/gemini');
+          const gemini = new GeminiProvider();
+          return await gemini.validateKey();
         } else if (p === 'ollama') {
-           const { OllamaProvider } = require('../../providers/ollama');
-           const ollama = new OllamaProvider();
-           return await ollama.validateKey();
+          const { OllamaProvider } = require('../../providers/ollama');
+          const ollama = new OllamaProvider();
+          return await ollama.validateKey();
         }
-        return { success: false, error: `Provider ${provider} not supported for verification yet.` };
-      }
+        return {
+          success: false,
+          error: `Provider ${provider} not supported for verification yet.`,
+        };
+      },
     });
   }
 }

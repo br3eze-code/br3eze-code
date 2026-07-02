@@ -17,49 +17,52 @@ const { sanitizeMacAddress } = require('../utils/helpers');
 // Google OAuth Strategy Setup
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.SERVER_URL}/auth/google/callback`
-},
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: `${process.env.SERVER_URL}/auth/google/callback`,
+    },
     async (accessToken, refreshToken, profile, done) => {
-        try {
-            const email = profile.emails[0].value;
-            const userData = {
-                displayName: profile.displayName,
-                photoURL: profile.photos[0]?.value,
-                emailVerified: profile.emails[0].verified,
-                provider: 'google'
-            };
+      try {
+        const email = profile.emails[0].value;
+        const userData = {
+          displayName: profile.displayName,
+          photoURL: profile.photos[0]?.value,
+          emailVerified: profile.emails[0].verified,
+          provider: 'google',
+        };
 
-            const user = await firebaseAuthService.getOrCreateUser(email, userData);
-            done(null, user);
-        } catch (error) {
-            done(error, null);
-        }
+        const user = await firebaseAuthService.getOrCreateUser(email, userData);
+        done(null, user);
+      } catch (error) {
+        done(error, null);
+      }
     }
-));
+  )
+);
 
 passport.serializeUser((user, done) => done(null, user.uid));
 passport.deserializeUser(async (uid, done) => {
-    try {
-        const user = await firebaseAuthService.getUser(uid);
-        done(null, user);
-    } catch (error) {
-        done(error, null);
-    }
+  try {
+    const user = await firebaseAuthService.getUser(uid);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
 });
 
 // Validation middleware
 const validate = (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({
-            success: false,
-            errors: errors.array()
-        });
-    }
-    next();
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      errors: errors.array(),
+    });
+  }
+  next();
 };
 
 /**
@@ -67,22 +70,23 @@ const validate = (req, res, next) => {
  * @desc    Initiate Google OAuth
  * @access  Public
  */
-router.get('/google',
-    (req, res, next) => {
-        // Store session parameters
-        req.session.authParams = {
-            mac: req.query.mac,
-            ip: req.query.ip,
-            dst: req.query.dst,
-            link: req.query.link,
-            apMac: req.query.ap_mac
-        };
-        next();
-    },
-    passport.authenticate('google', {
-        scope: ['profile', 'email'],
-        prompt: 'select_account'
-    })
+router.get(
+  '/google',
+  (req, res, next) => {
+    // Store session parameters
+    req.session.authParams = {
+      mac: req.query.mac,
+      ip: req.query.ip,
+      dst: req.query.dst,
+      link: req.query.link,
+      apMac: req.query.ap_mac,
+    };
+    next();
+  },
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account',
+  })
 );
 
 /**
@@ -90,77 +94,77 @@ router.get('/google',
  * @desc    Google OAuth callback
  * @access  Public
  */
-router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/auth/error' }),
-    async (req, res) => {
-        try {
-            const params = req.session.authParams || {};
-            const firebaseUser = req.user;
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { failureRedirect: '/auth/error' }),
+  async (req, res) => {
+    try {
+      const params = req.session.authParams || {};
+      const firebaseUser = req.user;
 
-            // Generate MikroTik credentials
-            const mikrotikUsername = generateMikrotikUsername(firebaseUser.uid);
-            const mikrotikPassword = generateSecurePassword();
+      // Generate MikroTik credentials
+      const mikrotikUsername = generateMikrotikUsername(firebaseUser.uid);
+      const mikrotikPassword = generateSecurePassword();
 
-            // Check subscription/plan
-            const subscription = await firebaseAuthService.checkSubscription(firebaseUser.uid);
+      // Check subscription/plan
+      const subscription = await firebaseAuthService.checkSubscription(firebaseUser.uid);
 
-            // Determine user profile based on subscription
-            let profile = 'default';
-            let limits = {};
+      // Determine user profile based on subscription
+      let profile = 'default';
+      const limits = {};
 
-            if (subscription.hasActiveSubscription) {
-                profile = subscription.plan;
-                // Apply plan-specific limits
-                if (subscription.features.includes('premium')) {
-                    limits.rateLimit = '50M/50M';
-                } else if (subscription.features.includes('basic')) {
-                    limits.rateLimit = '10M/10M';
-                }
-            }
-
-            // Create/update MikroTik user
-            await mikrotikService.createOrUpdateUser(mikrotikUsername, mikrotikPassword, {
-                profile,
-                comment: `Firebase:${firebaseUser.email}:${firebaseUser.uid}`,
-                ...limits
-            });
-
-            // Create session
-            const session = await sessionManager.createSession({
-                userId: firebaseUser.uid,
-                username: mikrotikUsername,
-                email: firebaseUser.email,
-                macAddress: sanitizeMacAddress(params.mac),
-                ipAddress: params.ip,
-                mikrotikUsername,
-                plan: subscription.plan || 'default',
-                metadata: {
-                    authMethod: 'google',
-                    dst: params.dst,
-                    link: params.link,
-                    apMac: params.apMac
-                }
-            });
-
-            // Log authentication
-            await firebaseAuthService.logAuthAttempt({
-                userId: firebaseUser.uid,
-                email: firebaseUser.email,
-                method: 'google',
-                macAddress: params.mac,
-                ipAddress: params.ip,
-                sessionId: session.id,
-                success: true
-            });
-
-            // Return auto-submit form to MikroTik
-            res.send(generateSuccessPage(mikrotikUsername, mikrotikPassword, params.link, params.dst));
-
-        } catch (error) {
-            logger.error('Google auth callback error:', error);
-            res.redirect('/auth/error?message=authentication_failed');
+      if (subscription.hasActiveSubscription) {
+        profile = subscription.plan;
+        // Apply plan-specific limits
+        if (subscription.features.includes('premium')) {
+          limits.rateLimit = '50M/50M';
+        } else if (subscription.features.includes('basic')) {
+          limits.rateLimit = '10M/10M';
         }
+      }
+
+      // Create/update MikroTik user
+      await mikrotikService.createOrUpdateUser(mikrotikUsername, mikrotikPassword, {
+        profile,
+        comment: `Firebase:${firebaseUser.email}:${firebaseUser.uid}`,
+        ...limits,
+      });
+
+      // Create session
+      const session = await sessionManager.createSession({
+        userId: firebaseUser.uid,
+        username: mikrotikUsername,
+        email: firebaseUser.email,
+        macAddress: sanitizeMacAddress(params.mac),
+        ipAddress: params.ip,
+        mikrotikUsername,
+        plan: subscription.plan || 'default',
+        metadata: {
+          authMethod: 'google',
+          dst: params.dst,
+          link: params.link,
+          apMac: params.apMac,
+        },
+      });
+
+      // Log authentication
+      await firebaseAuthService.logAuthAttempt({
+        userId: firebaseUser.uid,
+        email: firebaseUser.email,
+        method: 'google',
+        macAddress: params.mac,
+        ipAddress: params.ip,
+        sessionId: session.id,
+        success: true,
+      });
+
+      // Return auto-submit form to MikroTik
+      res.send(generateSuccessPage(mikrotikUsername, mikrotikPassword, params.link, params.dst));
+    } catch (error) {
+      logger.error('Google auth callback error:', error);
+      res.redirect('/auth/error?message=authentication_failed');
     }
+  }
 );
 
 /**
@@ -168,71 +172,74 @@ router.get('/google/callback',
  * @desc    Email/Password authentication with Firebase
  * @access  Public
  */
-router.post('/email', [
+router.post(
+  '/email',
+  [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
     body('mac').optional().isMACAddress(),
-    validate
-], async (req, res) => {
+    validate,
+  ],
+  async (req, res) => {
     try {
-        const { email, password, mac, ip, dst, link } = req.body;
+      const { email, password, mac, ip, dst, link } = req.body;
 
-        // Note: In production, use Firebase Client SDK to verify password
-        // and send ID token to this endpoint for verification
-        // This is a simplified version for demonstration
+      // Note: In production, use Firebase Client SDK to verify password
+      // and send ID token to this endpoint for verification
+      // This is a simplified version for demonstration
 
-        const user = await firebaseAuthService.getOrCreateUser(email, {
-            emailVerified: false,
-            provider: 'email'
-        });
+      const user = await firebaseAuthService.getOrCreateUser(email, {
+        emailVerified: false,
+        provider: 'email',
+      });
 
-        // Generate credentials
-        const mikrotikUsername = generateMikrotikUsername(user.uid);
-        const mikrotikPassword = generateSecurePassword();
+      // Generate credentials
+      const mikrotikUsername = generateMikrotikUsername(user.uid);
+      const mikrotikPassword = generateSecurePassword();
 
-        // Create MikroTik user
-        await mikrotikService.createOrUpdateUser(mikrotikUsername, mikrotikPassword, {
-            profile: 'default',
-            comment: `Firebase:${email}:${user.uid}`
-        });
+      // Create MikroTik user
+      await mikrotikService.createOrUpdateUser(mikrotikUsername, mikrotikPassword, {
+        profile: 'default',
+        comment: `Firebase:${email}:${user.uid}`,
+      });
 
-        // Create session
-        const session = await sessionManager.createSession({
-            userId: user.uid,
-            username: mikrotikUsername,
-            email: user.email,
-            macAddress: sanitizeMacAddress(mac),
-            ipAddress: ip,
-            mikrotikUsername,
-            plan: 'default'
-        });
+      // Create session
+      const session = await sessionManager.createSession({
+        userId: user.uid,
+        username: mikrotikUsername,
+        email: user.email,
+        macAddress: sanitizeMacAddress(mac),
+        ipAddress: ip,
+        mikrotikUsername,
+        plan: 'default',
+      });
 
-        // Log attempt
-        await firebaseAuthService.logAuthAttempt({
-            userId: user.uid,
-            email: user.email,
-            method: 'email',
-            macAddress: mac,
-            ipAddress: ip,
-            sessionId: session.id,
-            success: true
-        });
+      // Log attempt
+      await firebaseAuthService.logAuthAttempt({
+        userId: user.uid,
+        email: user.email,
+        method: 'email',
+        macAddress: mac,
+        ipAddress: ip,
+        sessionId: session.id,
+        success: true,
+      });
 
-        res.json({
-            success: true,
-            username: mikrotikUsername,
-            password: mikrotikPassword,
-            sessionId: session.id
-        });
-
+      res.json({
+        success: true,
+        username: mikrotikUsername,
+        password: mikrotikPassword,
+        sessionId: session.id,
+      });
     } catch (error) {
-        logger.error('Email auth error:', error);
-        res.status(401).json({
-            success: false,
-            error: 'Authentication failed'
-        });
+      logger.error('Email auth error:', error);
+      res.status(401).json({
+        success: false,
+        error: 'Authentication failed',
+      });
     }
-});
+  }
+);
 
 /**
  * @route   POST /auth/verify-token
@@ -240,76 +247,74 @@ router.post('/email', [
  * @access  Public
  */
 router.post('/verify-token', async (req, res) => {
-    try {
-        const { idToken, mac, ip } = req.body;
+  try {
+    const { idToken, mac, ip } = req.body;
 
-        if (!idToken) {
-            return res.status(400).json({
-                success: false,
-                error: 'ID token required'
-            });
-        }
-
-        // Verify token
-        const decodedUser = await firebaseAuthService.verifyIdToken(idToken);
-
-        // Generate credentials
-        const mikrotikPassword = generateSecurePassword();
-
-        // Create/update MikroTik user
-        await mikrotikService.createOrUpdateUser(decodedUser.mikrotikUsername, mikrotikPassword, {
-            profile: 'default',
-            comment: `Firebase:${decodedUser.email}:${decodedUser.uid}`
-        });
-
-
-        // Create session
-        const session = await sessionManager.createSession({
-            userId: decodedUser.uid,
-            username: decodedUser.mikrotikUsername,
-            email: decodedUser.email,
-            macAddress: sanitizeMacAddress(mac),
-            ipAddress: ip,
-            mikrotikUsername: decodedUser.mikrotikUsername,
-            plan: 'default',
-            metadata: {
-                authMethod: 'token',
-                photoURL: decodedUser.photoURL
-            }
-        });
-
-        // Log authentication
-        await firebaseAuthService.logAuthAttempt({
-            userId: decodedUser.uid,
-            email: decodedUser.email,
-            method: 'token',
-            macAddress: mac,
-            ipAddress: ip,
-            sessionId: session.id,
-            success: true
-        });
-
-        res.json({
-            success: true,
-            username: decodedUser.mikrotikUsername,
-            password: mikrotikPassword,
-            sessionId: session.id,
-            user: {
-                uid: decodedUser.uid,
-                email: decodedUser.email,
-                displayName: decodedUser.displayName,
-                photoURL: decodedUser.photoURL
-            }
-        });
-
-    } catch (error) {
-        logger.error('Token verification error:', error);
-        res.status(401).json({
-            success: false,
-            error: 'Invalid token',
-            message: error.message
-        });
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID token required',
+      });
     }
+
+    // Verify token
+    const decodedUser = await firebaseAuthService.verifyIdToken(idToken);
+
+    // Generate credentials
+    const mikrotikPassword = generateSecurePassword();
+
+    // Create/update MikroTik user
+    await mikrotikService.createOrUpdateUser(decodedUser.mikrotikUsername, mikrotikPassword, {
+      profile: 'default',
+      comment: `Firebase:${decodedUser.email}:${decodedUser.uid}`,
+    });
+
+    // Create session
+    const session = await sessionManager.createSession({
+      userId: decodedUser.uid,
+      username: decodedUser.mikrotikUsername,
+      email: decodedUser.email,
+      macAddress: sanitizeMacAddress(mac),
+      ipAddress: ip,
+      mikrotikUsername: decodedUser.mikrotikUsername,
+      plan: 'default',
+      metadata: {
+        authMethod: 'token',
+        photoURL: decodedUser.photoURL,
+      },
+    });
+
+    // Log authentication
+    await firebaseAuthService.logAuthAttempt({
+      userId: decodedUser.uid,
+      email: decodedUser.email,
+      method: 'token',
+      macAddress: mac,
+      ipAddress: ip,
+      sessionId: session.id,
+      success: true,
+    });
+
+    res.json({
+      success: true,
+      username: decodedUser.mikrotikUsername,
+      password: mikrotikPassword,
+      sessionId: session.id,
+      user: {
+        uid: decodedUser.uid,
+        email: decodedUser.email,
+        displayName: decodedUser.displayName,
+        photoURL: decodedUser.photoURL,
+      },
+    });
+  } catch (error) {
+    logger.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      error: 'Invalid token',
+      message: error.message,
+    });
+  }
 });
 
 /**
@@ -317,89 +322,88 @@ router.post('/verify-token', async (req, res) => {
  * @desc    Create guest access session
  * @access  Public
  */
-router.post('/guest', [
-    body('mac').isMACAddress(),
-    body('ip').optional().isIP(),
-    validate
-], async (req, res) => {
+router.post(
+  '/guest',
+  [body('mac').isMACAddress(), body('ip').optional().isIP(), validate],
+  async (req, res) => {
     try {
-        const { mac, ip, apMac } = req.body;
-        const sanitizedMac = sanitizeMacAddress(mac);
+      const { mac, ip, apMac } = req.body;
+      const sanitizedMac = sanitizeMacAddress(mac);
 
-        // Check for existing guest session
-        const existingSession = await sessionManager.getSessionByMac(sanitizedMac);
-        if (existingSession && existingSession.plan === 'guest') {
-            // Reuse existing guest credentials
-            const user = await mikrotikService.getUser(existingSession.username);
-            if (user) {
-                return res.json({
-                    success: true,
-                    username: existingSession.username,
-                    password: existingSession.metadata.guestPassword,
-                    sessionId: existingSession.id,
-                    message: 'Existing guest session resumed'
-                });
-            }
+      // Check for existing guest session
+      const existingSession = await sessionManager.getSessionByMac(sanitizedMac);
+      if (existingSession && existingSession.plan === 'guest') {
+        // Reuse existing guest credentials
+        const user = await mikrotikService.getUser(existingSession.username);
+        if (user) {
+          return res.json({
+            success: true,
+            username: existingSession.username,
+            password: existingSession.metadata.guestPassword,
+            sessionId: existingSession.id,
+            message: 'Existing guest session resumed',
+          });
         }
+      }
 
-        // Create new guest user in MikroTik
-        const guestResult = await mikrotikService.createGuestUser(sanitizedMac, {
+      // Create new guest user in MikroTik
+      const guestResult = await mikrotikService.createGuestUser(sanitizedMac, {
+        uptime: '2h',
+        bytes: '1G',
+        rateLimit: '5M/5M',
+      });
+
+      // Create session
+      const session = await sessionManager.createSession({
+        userId: `guest_${sanitizedMac.replace(/:/g, '')}`,
+        username: guestResult.username,
+        email: null,
+        macAddress: sanitizedMac,
+        ipAddress: ip,
+        mikrotikUsername: guestResult.username,
+        plan: 'guest',
+        metadata: {
+          authMethod: 'guest',
+          guestPassword: guestResult.password,
+          apMac,
+          limits: {
             uptime: '2h',
             bytes: '1G',
-            rateLimit: '5M/5M'
-        });
+            rateLimit: '5M/5M',
+          },
+        },
+      });
 
-        // Create session
-        const session = await sessionManager.createSession({
-            userId: `guest_${sanitizedMac.replace(/:/g, '')}`,
-            username: guestResult.username,
-            email: null,
-            macAddress: sanitizedMac,
-            ipAddress: ip,
-            mikrotikUsername: guestResult.username,
-            plan: 'guest',
-            metadata: {
-                authMethod: 'guest',
-                guestPassword: guestResult.password,
-                apMac: apMac,
-                limits: {
-                    uptime: '2h',
-                    bytes: '1G',
-                    rateLimit: '5M/5M'
-                }
-            }
-        });
+      // Log guest access
+      await firebaseAuthService.logAuthAttempt({
+        userId: session.userId,
+        method: 'guest',
+        macAddress: sanitizedMac,
+        ipAddress: ip,
+        sessionId: session.id,
+        success: true,
+      });
 
-        // Log guest access
-        await firebaseAuthService.logAuthAttempt({
-            userId: session.userId,
-            method: 'guest',
-            macAddress: sanitizedMac,
-            ipAddress: ip,
-            sessionId: session.id,
-            success: true
-        });
-
-        res.json({
-            success: true,
-            username: guestResult.username,
-            password: guestResult.password,
-            sessionId: session.id,
-            limits: {
-                duration: '2 hours',
-                data: '1 GB',
-                speed: '5 Mbps'
-            }
-        });
-
+      res.json({
+        success: true,
+        username: guestResult.username,
+        password: guestResult.password,
+        sessionId: session.id,
+        limits: {
+          duration: '2 hours',
+          data: '1 GB',
+          speed: '5 Mbps',
+        },
+      });
     } catch (error) {
-        logger.error('Guest access error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to create guest access'
-        });
+      logger.error('Guest access error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create guest access',
+      });
     }
-});
+  }
+);
 
 /**
  * @route   POST /auth/refresh
@@ -407,33 +411,32 @@ router.post('/guest', [
  * @access  Private
  */
 router.post('/refresh', async (req, res) => {
-    try {
-        const { sessionId } = req.body;
+  try {
+    const { sessionId } = req.body;
 
-        const session = await sessionManager.getSession(sessionId);
-        if (!session || session.status !== 'active') {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid or expired session'
-            });
-        }
-
-        // Extend session
-        await sessionManager.extendSession(sessionId, 86400);
-
-        res.json({
-            success: true,
-            message: 'Session refreshed',
-            expiresIn: 86400
-        });
-
-    } catch (error) {
-        logger.error('Session refresh error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to refresh session'
-        });
+    const session = await sessionManager.getSession(sessionId);
+    if (!session || session.status !== 'active') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired session',
+      });
     }
+
+    // Extend session
+    await sessionManager.extendSession(sessionId, 86400);
+
+    res.json({
+      success: true,
+      message: 'Session refreshed',
+      expiresIn: 86400,
+    });
+  } catch (error) {
+    logger.error('Session refresh error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh session',
+    });
+  }
 });
 
 /**
@@ -442,29 +445,28 @@ router.post('/refresh', async (req, res) => {
  * @access  Public
  */
 router.post('/logout', async (req, res) => {
-    try {
-        const { sessionId, username } = req.body;
+  try {
+    const { sessionId, username } = req.body;
 
-        if (sessionId) {
-            await sessionManager.terminateSession(sessionId, 'logout');
-        }
-
-        if (username) {
-            await mikrotikService.disconnectUser(username);
-        }
-
-        res.json({
-            success: true,
-            message: 'Logged out successfully'
-        });
-
-    } catch (error) {
-        logger.error('Logout error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Logout failed'
-        });
+    if (sessionId) {
+      await sessionManager.terminateSession(sessionId, 'logout');
     }
+
+    if (username) {
+      await mikrotikService.disconnectUser(username);
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    logger.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed',
+    });
+  }
 });
 
 /**
@@ -473,35 +475,34 @@ router.post('/logout', async (req, res) => {
  * @access  Public
  */
 router.get('/session/:sessionId', async (req, res) => {
-    try {
-        const { sessionId } = req.params;
-        const session = await sessionManager.getSession(sessionId);
+  try {
+    const { sessionId } = req.params;
+    const session = await sessionManager.getSession(sessionId);
 
-        if (!session) {
-            return res.status(404).json({
-                success: false,
-                error: 'Session not found'
-            });
-        }
-
-        // Get real-time stats from MikroTik
-        const stats = await mikrotikService.getUserStats(session.mikrotikUsername);
-
-        res.json({
-            success: true,
-            session: {
-                ...session,
-                stats
-            }
-        });
-
-    } catch (error) {
-        logger.error('Get session error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve session'
-        });
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found',
+      });
     }
+
+    // Get real-time stats from MikroTik
+    const stats = await mikrotikService.getUserStats(session.mikrotikUsername);
+
+    res.json({
+      success: true,
+      session: {
+        ...session,
+        stats,
+      },
+    });
+  } catch (error) {
+    logger.error('Get session error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve session',
+    });
+  }
 });
 
 /**
@@ -510,13 +511,13 @@ router.get('/session/:sessionId', async (req, res) => {
  * @access  Public
  */
 router.get('/error', (req, res) => {
-    const message = req.query.message || 'Authentication failed';
-    res.send(generateErrorPage(message));
+  const message = req.query.message || 'Authentication failed';
+  res.send(generateErrorPage(message));
 });
 
 // Helper: Generate success HTML page
 function generateSuccessPage(username, password, link, dst) {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -628,7 +629,7 @@ function generateSuccessPage(username, password, link, dst) {
 
 // Helper: Generate error HTML page
 function generateErrorPage(message) {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>

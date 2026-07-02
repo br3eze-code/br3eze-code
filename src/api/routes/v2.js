@@ -8,12 +8,12 @@
 'use strict';
 
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { logger } = require('../../core/logger');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const ok       = (res, data, meta = {}) => res.json({ ok: true, ...meta, data });
-const err      = (res, e, status = 500) => {
+const ok = (res, data, meta = {}) => res.json({ ok: true, ...meta, data });
+const err = (res, e, status = 500) => {
   logger.error(`v2 error: ${e.message}`);
   res.status(status).json({ ok: false, error: e.message });
 };
@@ -31,14 +31,16 @@ router.use((req, res, next) => {
 // ── Health ────────────────────────────────────────────────────────────────────
 router.get('/health', (req, res) => {
   res.json({
-    ok: true, version: 'v2', ts: new Date().toISOString(),
+    ok: true,
+    version: 'v2',
+    ts: new Date().toISOString(),
     features: ['ai', 'streaming', 'financial', 'billing', 'analytics', 'channels'],
     services: {
-      ai:        !!(global.ai || global.coordinator),
-      askEngine: !!(global.askEngine),
-      financial: !!(global.financial),
-      billing:   !!(global.billing),
-      channels:  !!(global.channelManager),
+      ai: !!(global.ai || global.coordinator),
+      askEngine: !!global.askEngine,
+      financial: !!global.financial,
+      billing: !!global.billing,
+      channels: !!global.channelManager,
     },
   });
 });
@@ -59,9 +61,9 @@ router.post('/ask', async (req, res) => {
 
   if (wantStream) {
     res.writeHead(200, {
-      'Content-Type':  'text/event-stream',
+      'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection':    'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     });
     try {
@@ -77,7 +79,9 @@ router.post('/ask', async (req, res) => {
   try {
     const result = await engine.run(prompt, { sessionId, model });
     ok(res, result);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -96,7 +100,9 @@ router.post('/chat', async (req, res) => {
 
     const result = await coordinator.chat(messages, { sessionId, systemPrompt });
     ok(res, result);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -106,9 +112,11 @@ router.post('/chat', async (req, res) => {
 router.get('/providers', (req, res) => {
   try {
     const coordinator = global.ai || global.coordinator;
-    const providers   = coordinator?.getProviders?.() || coordinator?.providers || {};
+    const providers = coordinator?.getProviders?.() || coordinator?.providers || {};
     ok(res, providers);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -121,7 +129,9 @@ router.post('/providers/:name/test', async (req, res) => {
     if (!coordinator) return notReady(res, 'AI Coordinator');
     const result = await coordinator.testProvider(req.params.name);
     ok(res, result);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 // ── Financial ─────────────────────────────────────────────────────────────────
@@ -135,7 +145,9 @@ router.get('/financial/report', async (req, res) => {
     if (!global.financial) return notReady(res, 'Financial');
     const report = await global.financial.getRevenueReport();
     ok(res, report);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -147,7 +159,9 @@ router.get('/financial/trends', async (req, res) => {
     if (!global.financial) return notReady(res, 'Financial');
     const trends = await global.financial.getTrends?.();
     ok(res, trends);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -159,9 +173,13 @@ router.get('/financial/transactions', async (req, res) => {
   try {
     if (!global.financial) return notReady(res, 'Financial');
     const { limit = 50, offset = 0, from, to } = req.query;
-    const txns = await global.financial.getTransactions?.({ limit: +limit, offset: +offset, from, to }) || [];
+    const txns =
+      (await global.financial.getTransactions?.({ limit: +limit, offset: +offset, from, to })) ||
+      [];
     ok(res, txns, { count: txns.length });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -172,18 +190,18 @@ router.get('/financial/summary', async (req, res) => {
   try {
     if (!global.financial) return notReady(res, 'Financial');
     const report = await global.financial.getRevenueReport();
-    const stats  = global.database ? await global.database.getStats() : {};
+    const stats = global.database ? await global.database.getStats() : {};
 
     ok(res, {
       ...report,
-      totalVouchers:  stats.total    || 0,
-      usedVouchers:   stats.used     || 0,
-      activeVouchers: stats.active   || 0,
-      utilizationRate: stats.total
-        ? ((stats.used / stats.total) * 100).toFixed(1) + '%'
-        : 'N/A',
+      totalVouchers: stats.total || 0,
+      usedVouchers: stats.used || 0,
+      activeVouchers: stats.active || 0,
+      utilizationRate: stats.total ? `${((stats.used / stats.total) * 100).toFixed(1)}%` : 'N/A',
     });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 // ── Billing ───────────────────────────────────────────────────────────────────
@@ -197,7 +215,9 @@ router.post('/billing/payment-link', async (req, res) => {
     if (!global.billing) return notReady(res, 'Billing');
     const link = await global.billing.createPaymentLink(req.body);
     ok(res, { link });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -211,7 +231,9 @@ router.post('/billing/verify', async (req, res) => {
     if (!global.billing) return notReady(res, 'Billing');
     const result = await global.billing.verifyPayment(reference);
     ok(res, result);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -221,11 +243,14 @@ router.post('/billing/verify', async (req, res) => {
 router.post('/billing/webhook', express.raw({ type: '*/*' }), async (req, res) => {
   try {
     if (!global.billing) return notReady(res, 'Billing');
-    const signature = req.headers['x-webhook-signature'] || req.headers['x-pesapal-signature'] || '';
-    const payload   = req.body?.toString?.() || JSON.stringify(req.body);
-    const result    = await global.billing.handleWebhook?.(payload, signature);
+    const signature =
+      req.headers['x-webhook-signature'] || req.headers['x-pesapal-signature'] || '';
+    const payload = req.body?.toString?.() || JSON.stringify(req.body);
+    const result = await global.billing.handleWebhook?.(payload, signature);
     ok(res, result || { received: true });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -257,12 +282,18 @@ router.post('/channels/:type/send', async (req, res) => {
   try {
     if (!global.channelManager) return notReady(res, 'ChannelManager');
     const ch = global.channelManager.channels?.get?.(req.params.type);
-    if (!ch) return res.status(404).json({ ok: false, error: `Channel '${req.params.type}' not registered` });
+    if (!ch)
+      return res
+        .status(404)
+        .json({ ok: false, error: `Channel '${req.params.type}' not registered` });
     const { to, message, media } = req.body;
-    if (!to || !message) return res.status(400).json({ ok: false, error: 'to and message required' });
+    if (!to || !message)
+      return res.status(400).json({ ok: false, error: 'to and message required' });
     await ch.send?.(to, { text: message, media });
     ok(res, { sent: true, channel: req.params.type, to });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -276,10 +307,12 @@ router.post('/channels/broadcast', async (req, res) => {
     if (!message) return res.status(400).json({ ok: false, error: 'message required' });
     await global.channelManager.broadcast(
       { type: 'broadcast', text: message },
-      targets ? (type) => targets.includes(type) : undefined
+      targets ? type => targets.includes(type) : undefined
     );
     ok(res, { broadcast: true });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
@@ -291,11 +324,13 @@ router.post('/channels/broadcast', async (req, res) => {
 router.get('/analytics/vouchers', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const stats   = await global.database.getStats();
-    const byPlan  = await _vouchersByPlan();
-    const byDay   = await _vouchersByDay(7);
+    const stats = await global.database.getStats();
+    const byPlan = await _vouchersByPlan();
+    const byDay = await _vouchersByDay(7);
     ok(res, { stats, byPlan, byDay });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -310,10 +345,12 @@ router.get('/analytics/network', async (req, res) => {
       global.mikrotik.executeCommand('/interface/print'),
     ]);
     ok(res, {
-      activeUsers:  active.status === 'fulfilled' ? active.value : [],
-      interfaces:   interfaces.status === 'fulfilled' ? interfaces.value : [],
+      activeUsers: active.status === 'fulfilled' ? active.value : [],
+      interfaces: interfaces.status === 'fulfilled' ? interfaces.value : [],
     });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -324,18 +361,18 @@ router.get('/analytics/system', (req, res) => {
   const mem = process.memoryUsage();
   const cpu = process.cpuUsage();
   ok(res, {
-    uptime:   process.uptime(),
-    pid:      process.pid,
-    version:  process.version,
-    memory:   {
-      rss:       _mb(mem.rss),
-      heap:      _mb(mem.heapUsed),
+    uptime: process.uptime(),
+    pid: process.pid,
+    version: process.version,
+    memory: {
+      rss: _mb(mem.rss),
+      heap: _mb(mem.heapUsed),
       heapTotal: _mb(mem.heapTotal),
-      external:  _mb(mem.external),
+      external: _mb(mem.external),
     },
     cpu: {
-      user:   (cpu.user   / 1e6).toFixed(2) + 's',
-      system: (cpu.system / 1e6).toFixed(2) + 's',
+      user: `${(cpu.user / 1e6).toFixed(2)}s`,
+      system: `${(cpu.system / 1e6).toFixed(2)}s`,
     },
     env: process.env.NODE_ENV || 'production',
   });
@@ -350,9 +387,11 @@ router.get('/analytics/system', (req, res) => {
 router.get('/sessions', async (req, res) => {
   try {
     if (!global.memoryManager) return ok(res, []);
-    const sessions = await global.memoryManager.listSessions?.() || [];
+    const sessions = (await global.memoryManager.listSessions?.()) || [];
     ok(res, sessions, { count: sessions.length });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -364,7 +403,9 @@ router.delete('/sessions/:id', async (req, res) => {
     if (!global.memoryManager) return notReady(res, 'MemoryManager');
     await global.memoryManager.clearSession?.(req.params.id);
     ok(res, { cleared: req.params.id });
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 // ── Mesh Nodes ────────────────────────────────────────────────────────────────
@@ -385,12 +426,15 @@ router.post('/nodes/:name/command', async (req, res) => {
   try {
     if (!global.nodeRegistry) return notReady(res, 'NodeRegistry');
     const node = global.nodeRegistry.get(req.params.name);
-    if (!node) return res.status(404).json({ ok: false, error: `Node '${req.params.name}' not found` });
+    if (!node)
+      return res.status(404).json({ ok: false, error: `Node '${req.params.name}' not found` });
     const { command, args = {} } = req.body;
     if (!command) return res.status(400).json({ ok: false, error: 'command required' });
     const result = await node.executeCommand(command, args);
     ok(res, result);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 /**
@@ -403,33 +447,39 @@ router.post('/nodes/fanout', async (req, res) => {
     if (!global.nodeRegistry) return notReady(res, 'NodeRegistry');
     const { tool, params = {} } = req.body;
     if (!tool) return res.status(400).json({ ok: false, error: 'tool required' });
-    const results = await global.nodeRegistry.fanOut?.(tool, params) || {};
+    const results = (await global.nodeRegistry.fanOut?.(tool, params)) || {};
     ok(res, results);
-  } catch (e) { err(res, e); }
+  } catch (e) {
+    err(res, e);
+  }
 });
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
-function _mb(bytes) { return `${Math.round(bytes / 1024 / 1024)}MB`; }
+function _mb(bytes) {
+  return `${Math.round(bytes / 1024 / 1024)}MB`;
+}
 
 async function _vouchersByPlan() {
   if (!global.database) return {};
   try {
-    const all  = await global.database.getVouchers({ limit: 10000 });
+    const all = await global.database.getVouchers({ limit: 10000 });
     const byPlan = {};
     for (const v of all) {
       const p = v.plan || 'unknown';
       byPlan[p] = (byPlan[p] || 0) + 1;
     }
     return byPlan;
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 
 async function _vouchersByDay(days = 7) {
   if (!global.database) return [];
   try {
-    const all  = await global.database.getVouchers({ limit: 10000 });
-    const now  = Date.now();
-    const map  = {};
+    const all = await global.database.getVouchers({ limit: 10000 });
+    const now = Date.now();
+    const map = {};
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now - i * 86400000).toISOString().slice(0, 10);
       map[d] = 0;
@@ -439,7 +489,9 @@ async function _vouchersByDay(days = 7) {
       if (map[d] !== undefined) map[d]++;
     }
     return Object.entries(map).map(([date, count]) => ({ date, count }));
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 module.exports = router;

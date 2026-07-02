@@ -36,35 +36,37 @@
 'use strict';
 
 const { RouterOSClient } = require('routeros-client');
-const { EventEmitter }   = require('events');
-const { v4: uuidv4 }     = require('uuid');
-const fs                  = require('fs');
-const path                = require('path');
+const { EventEmitter } = require('events');
+const { randomUUID: uuidv4 } = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
 // ─── paths ────────────────────────────────────────────────────
-const BACKUP_PATH  = path.resolve(__dirname, '../../config/backup.json');
-const AUDIT_PATH   = path.resolve(__dirname, '../../logs/chaos_audit.jsonl');
+const BACKUP_PATH = path.resolve(__dirname, '../../config/backup.json');
+const AUDIT_PATH = path.resolve(__dirname, '../../logs/chaos_audit.jsonl');
 
 // ─── internal constants ───────────────────────────────────────
-const CHAOS_QUEUE_NAME   = '[chaos]-bandwidth-throttle';
-const CHAOS_SCRIPT_PFX   = 'chaos_fw_';         // prefix for temp ROS scripts
-const CHAOS_IDB_PREFIX   = '__chaos__';
-const DEFAULT_WINDOW_MS  = 60_000;               // 60 s recovery window
-const POLL_INTERVAL_MS   = 5_000;
+const CHAOS_QUEUE_NAME = '[chaos]-bandwidth-throttle';
+const CHAOS_SCRIPT_PFX = 'chaos_fw_'; // prefix for temp ROS scripts
+const CHAOS_IDB_PREFIX = '__chaos__';
+const DEFAULT_WINDOW_MS = 60_000; // 60 s recovery window
+const POLL_INTERVAL_MS = 5_000;
 
 // ─── singleton state ──────────────────────────────────────────
-let _ghostSockets    = [];
-let _latencyShimmed  = false;
-let _lastGoodState   = null;
-let _activeDisrupts  = new Map();        // chaos_id → { name, domain, ts }
+let _ghostSockets = [];
+let _latencyShimmed = false;
+let _lastGoodState = null;
+const _activeDisrupts = new Map(); // chaos_id → { name, domain, ts }
 
 // ══════════════════════════════════════════════════════════════
 //  Audit Logger
 // ══════════════════════════════════════════════════════════════
 function _audit(entry) {
   const line = JSON.stringify({ ...entry, ts: new Date().toISOString() });
-  fs.appendFileSync(AUDIT_PATH, line + '\n');
-  console.log(`[ChaosMonkey][${entry.chaos_id || 'SYSTEM'}] ${entry.event} — ${entry.detail || ''}`);
+  fs.appendFileSync(AUDIT_PATH, `${line}\n`);
+  console.log(
+    `[ChaosMonkey][${entry.chaos_id || 'SYSTEM'}] ${entry.event} — ${entry.detail || ''}`
+  );
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -79,11 +81,11 @@ function _mintId(domain, name) {
 // ══════════════════════════════════════════════════════════════
 function _rosClient(cfg) {
   return new RouterOSClient({
-    host:     cfg.host     || process.env.ROS_HOST,
-    user:     cfg.user     || process.env.ROS_USER,
+    host: cfg.host || process.env.ROS_HOST,
+    user: cfg.user || process.env.ROS_USER,
     password: cfg.password || process.env.ROS_PASS,
-    port:     cfg.port     || 8728,
-    timeout:  cfg.timeout  || 10_000,
+    port: cfg.port || 8728,
+    timeout: cfg.timeout || 10_000,
   });
 }
 
@@ -115,9 +117,9 @@ function _snapshot() {
 async function _exec(domain, name, fn, opts = {}) {
   _snapshot();
 
-  const chaos_id       = _mintId(domain, name);
+  const chaos_id = _mintId(domain, name);
   const recovery_window = opts.recovery_window ?? DEFAULT_WINDOW_MS;
-  const sentinelCheck   = opts.sentinelCheck   ?? (() => false);
+  const sentinelCheck = opts.sentinelCheck ?? (() => false);
 
   _activeDisrupts.set(chaos_id, { name, domain, ts: Date.now() });
 
@@ -136,7 +138,7 @@ async function _exec(domain, name, fn, opts = {}) {
 
   // ── recovery poll ──────────────────────────────────────────
   const deadline = Date.now() + recovery_window;
-  let recovered  = false;
+  let recovered = false;
 
   while (Date.now() < deadline) {
     await _sleep(POLL_INTERVAL_MS);
@@ -145,7 +147,9 @@ async function _exec(domain, name, fn, opts = {}) {
         recovered = true;
         break;
       }
-    } catch (_) { /* sentinel unreachable — keep waiting */ }
+    } catch (_) {
+      /* sentinel unreachable — keep waiting */
+    }
   }
 
   const elapsed_ms = Date.now() - (_activeDisrupts.get(chaos_id)?.ts ?? Date.now());
@@ -153,9 +157,11 @@ async function _exec(domain, name, fn, opts = {}) {
 
   _audit({
     chaos_id,
-    event:      recovered ? 'SENTINEL_RECOVERED' : 'RECOVERY_TIMEOUT',
+    event: recovered ? 'SENTINEL_RECOVERED' : 'RECOVERY_TIMEOUT',
     elapsed_ms,
-    detail:     recovered ? 'Sentinel self-healed the disruption.' : 'Window expired — no recovery detected.',
+    detail: recovered
+      ? 'Sentinel self-healed the disruption.'
+      : 'Window expired — no recovery detected.',
   });
 
   ChaosMonkey.emit(recovered ? 'recovered' : 'timeout', { chaos_id, domain, name, elapsed_ms });
@@ -166,7 +172,9 @@ async function _exec(domain, name, fn, opts = {}) {
 // ══════════════════════════════════════════════════════════════
 //  Utility
 // ══════════════════════════════════════════════════════════════
-function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function _sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
 
 // ══════════════════════════════════════════════════════════════
 //
@@ -180,7 +188,6 @@ function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // ══════════════════════════════════════════════════════════════
 
 const NetworkingChaos = {
-
   /**
    * dropFirewallRules()
    * ──────────────────────────────────────────────────────────
@@ -189,41 +196,48 @@ const NetworkingChaos = {
    * /ip/firewall/filter/set.  The original .id list is stored
    * in the chaos audit so panicButton() can re-enable them.
    */
-  dropFirewallRules: async function(rosCfg, opts = {}) {
-    return _exec('Networking', 'dropFirewallRules', async (chaos_id) => {
-      const api    = _rosClient(rosCfg);
-      const client = await api.connect();
+  async dropFirewallRules(rosCfg, opts = {}) {
+    return _exec(
+      'Networking',
+      'dropFirewallRules',
+      async chaos_id => {
+        const api = _rosClient(rosCfg);
+        const client = await api.connect();
 
-      let disabled = [];
-      try {
-        const rules = await client
-          .menu('/ip/firewall/filter')
-          .where('disabled', 'false')
-          .where('chain', 'forward')
-          .get();
+        const disabled = [];
+        try {
+          const rules = await client
+            .menu('/ip/firewall/filter')
+            .where('disabled', 'false')
+            .where('chain', 'forward')
+            .get();
 
-        if (!rules.length) throw new Error('No enabled forward-chain rules found.');
+          if (!rules.length) throw new Error('No enabled forward-chain rules found.');
 
-        // shuffle and take 3
-        const targets = rules.sort(() => 0.5 - Math.random()).slice(0, 3);
+          // shuffle and take 3
+          const targets = rules.sort(() => 0.5 - Math.random()).slice(0, 3);
 
-        for (const rule of targets) {
-          await client.menu('/ip/firewall/filter').where('id', rule['.id']).set({ disabled: 'yes' });
-          disabled.push(rule['.id']);
+          for (const rule of targets) {
+            await client
+              .menu('/ip/firewall/filter')
+              .where('id', rule['.id'])
+              .set({ disabled: 'yes' });
+            disabled.push(rule['.id']);
+          }
+
+          // persist disabled IDs into backup so panicButton can undo
+          const backup = _lastGoodState ?? {};
+          backup._chaos = backup._chaos ?? {};
+          backup._chaos[chaos_id] = { type: 'dropFirewallRules', disabled };
+          fs.writeFileSync(BACKUP_PATH, JSON.stringify(backup, null, 2));
+        } finally {
+          await api.disconnect();
         }
 
-        // persist disabled IDs into backup so panicButton can undo
-        const backup = _lastGoodState ?? {};
-        backup._chaos = backup._chaos ?? {};
-        backup._chaos[chaos_id] = { type: 'dropFirewallRules', disabled };
-        fs.writeFileSync(BACKUP_PATH, JSON.stringify(backup, null, 2));
-
-      } finally {
-        await api.disconnect();
-      }
-
-      return `Disabled ${disabled.length} firewall rules: [${disabled.join(', ')}]`;
-    }, opts);
+        return `Disabled ${disabled.length} firewall rules: [${disabled.join(', ')}]`;
+      },
+      opts
+    );
   },
 
   /**
@@ -233,36 +247,38 @@ const NetworkingChaos = {
    * targeting all traffic (dst=0.0.0.0/0) at 64k/64k.
    * If a queue with that name already exists it is reset.
    */
-  throttleBandwidth: async function(rosCfg, opts = {}) {
-    return _exec('Networking', 'throttleBandwidth', async (chaos_id) => {
-      const api    = _rosClient(rosCfg);
-      const client = await api.connect();
+  async throttleBandwidth(rosCfg, opts = {}) {
+    return _exec(
+      'Networking',
+      'throttleBandwidth',
+      async chaos_id => {
+        const api = _rosClient(rosCfg);
+        const client = await api.connect();
 
-      try {
-        const existing = await client
-          .menu('/queue/simple')
-          .where('name', CHAOS_QUEUE_NAME)
-          .get();
+        try {
+          const existing = await client.menu('/queue/simple').where('name', CHAOS_QUEUE_NAME).get();
 
-        if (existing.length) {
-          await client
-            .menu('/queue/simple')
-            .where('name', CHAOS_QUEUE_NAME)
-            .set({ 'max-limit': '64k/64k', disabled: 'no' });
-        } else {
-          await client.menu('/queue/simple').add({
-            name:        CHAOS_QUEUE_NAME,
-            target:      '0.0.0.0/0',
-            'max-limit': '64k/64k',
-            comment:     `chaos_id=${chaos_id}`,
-          });
+          if (existing.length) {
+            await client
+              .menu('/queue/simple')
+              .where('name', CHAOS_QUEUE_NAME)
+              .set({ 'max-limit': '64k/64k', disabled: 'no' });
+          } else {
+            await client.menu('/queue/simple').add({
+              name: CHAOS_QUEUE_NAME,
+              target: '0.0.0.0/0',
+              'max-limit': '64k/64k',
+              comment: `chaos_id=${chaos_id}`,
+            });
+          }
+        } finally {
+          await api.disconnect();
         }
-      } finally {
-        await api.disconnect();
-      }
 
-      return `Simple queue '${CHAOS_QUEUE_NAME}' applied at 64k/64k global throttle.`;
-    }, opts);
+        return `Simple queue '${CHAOS_QUEUE_NAME}' applied at 64k/64k global throttle.`;
+      },
+      opts
+    );
   },
 
   /**
@@ -279,28 +295,33 @@ const NetworkingChaos = {
    *
    * @param {number} [count=3] number of ghost sockets
    */
-  ghostAPI: async function(rosCfg, opts = {}) {
+  async ghostAPI(rosCfg, opts = {}) {
     const count = opts.count ?? 3;
-    return _exec('Networking', 'ghostAPI', async (chaos_id) => {
-      const net = require('net');
-      const host = rosCfg.host || process.env.ROS_HOST;
-      const port = rosCfg.port || 8728;
+    return _exec(
+      'Networking',
+      'ghostAPI',
+      async chaos_id => {
+        const net = require('net');
+        const host = rosCfg.host || process.env.ROS_HOST;
+        const port = rosCfg.port || 8728;
 
-      const spawned = [];
-      for (let i = 0; i < count; i++) {
-        await new Promise((resolve, reject) => {
-          const sock = net.createConnection({ host, port }, () => {
-            _ghostSockets.push(sock);
-            spawned.push(sock);
-            resolve();
+        const spawned = [];
+        for (let i = 0; i < count; i++) {
+          await new Promise((resolve, reject) => {
+            const sock = net.createConnection({ host, port }, () => {
+              _ghostSockets.push(sock);
+              spawned.push(sock);
+              resolve();
+            });
+            sock.on('error', reject);
+            sock.setTimeout(0);
           });
-          sock.on('error', reject);
-          sock.setTimeout(0); 
-        });
-      }
+        }
 
-      return `Opened ${spawned.length} ghost sockets on ${host}:${port} — API pool partially occupied.`;
-    }, opts);
+        return `Opened ${spawned.length} ghost sockets on ${host}:${port} — API pool partially occupied.`;
+      },
+      opts
+    );
   },
 };
 
@@ -316,7 +337,6 @@ const NetworkingChaos = {
 // ══════════════════════════════════════════════════════════════
 
 const CommerceChaos = {
-
   /**
    * corruptIndexedDB()
    * ──────────────────────────────────────────────────────────
@@ -330,24 +350,29 @@ const CommerceChaos = {
    * webdriver), the real IDB write is performed via the
    * inline browser script below.
    */
-  corruptIndexedDB: async function(opts = {}) {
-    return _exec('Commerce', 'corruptIndexedDB', async (chaos_id) => {
-      const IDB_MIRROR = path.resolve(__dirname, '../../data/idb_catalog_mirror.json');
-      const poison_key = `${CHAOS_IDB_PREFIX}${chaos_id}`;
+  async corruptIndexedDB(opts = {}) {
+    return _exec(
+      'Commerce',
+      'corruptIndexedDB',
+      async chaos_id => {
+        const IDB_MIRROR = path.resolve(__dirname, '../../data/idb_catalog_mirror.json');
+        const poison_key = `${CHAOS_IDB_PREFIX}${chaos_id}`;
 
-      const malformedPayload = `{"id":"${poison_key}","sku":null,"price":{"amount":},"meta":{{{{`;
+        const malformedPayload = `{"id":"${poison_key}","sku":null,"price":{"amount":},"meta":{{{{`;
 
-      let catalog = {};
-      try {
-        if (fs.existsSync(IDB_MIRROR)) {
-          catalog = JSON.parse(fs.readFileSync(IDB_MIRROR, 'utf8'));
+        let catalog = {};
+        try {
+          if (fs.existsSync(IDB_MIRROR)) {
+            catalog = JSON.parse(fs.readFileSync(IDB_MIRROR, 'utf8'));
+          }
+        } catch (_) {
+          /* mirror missing — start fresh */
         }
-      } catch (_) { /* mirror missing — start fresh */ }
 
-      catalog[poison_key] = malformedPayload;
-      fs.writeFileSync(IDB_MIRROR, JSON.stringify(catalog, null, 2));
+        catalog[poison_key] = malformedPayload;
+        fs.writeFileSync(IDB_MIRROR, JSON.stringify(catalog, null, 2));
 
-      const idbScript = `
+        const idbScript = `
 (function() {
   const req = indexedDB.open('br3ezeCommerce', 1);
   req.onsuccess = e => {
@@ -357,11 +382,13 @@ const CommerceChaos = {
     st.put({ id: '${poison_key}', raw: '${malformedPayload.replace(/'/g, "\\'")}' });
   };
 })();`;
-      const scriptOut = path.resolve(__dirname, '../../logs/chaos_idb_inject.js');
-      fs.writeFileSync(scriptOut, idbScript);
+        const scriptOut = path.resolve(__dirname, '../../logs/chaos_idb_inject.js');
+        fs.writeFileSync(scriptOut, idbScript);
 
-      return `Injected malformed catalog record '${poison_key}' into IDB mirror + generated browser injection script.`;
-    }, opts);
+        return `Injected malformed catalog record '${poison_key}' into IDB mirror + generated browser injection script.`;
+      },
+      opts
+    );
   },
 
   /**
@@ -375,39 +402,44 @@ const CommerceChaos = {
    * The original reference is preserved so panicButton() can
    * unwrap it atomically.
    */
-  latencies: async function(opts = {}) {
+  async latencies(opts = {}) {
     const delayMs = opts.delayMs ?? 5000;
-    return _exec('Commerce', 'latencies', async (chaos_id) => {
-      if (_latencyShimmed) {
-        return 'Latency shim already active — skipping duplicate apply.';
-      }
-
-      // Attempt to locate the FirebaseAdapter in require cache
-      const adapterKey = Object.keys(require.cache).find(k =>
-        k.includes('FirebaseAdapter') || k.includes('firestoreSync')
-      );
-
-      if (adapterKey) {
-        const mod = require.cache[adapterKey];
-        if (mod?.exports?.firestoreSync) {
-          const _original = mod.exports.firestoreSync;
-          mod.exports.__originalFirestoreSync = _original;
-          mod.exports.firestoreSync = async (...args) => {
-            _audit({ chaos_id, event: 'LATENCY_SHIM_HIT', detail: `+${delayMs}ms injected` });
-            await _sleep(delayMs);
-            return _original(...args);
-          };
-          _latencyShimmed = true;
-          return `Firestore firestoreSync shimmed with ${delayMs}ms delay via module cache patch.`;
+    return _exec(
+      'Commerce',
+      'latencies',
+      async chaos_id => {
+        if (_latencyShimmed) {
+          return 'Latency shim already active — skipping duplicate apply.';
         }
-      }
 
-      // Fallback: write a flag file that FirebaseAdapter checks on startup
-      const FLAG = path.resolve(__dirname, '../../config/chaos_latency.json');
-      fs.writeFileSync(FLAG, JSON.stringify({ chaos_id, delayMs, active: true }));
-      _latencyShimmed = true;
-      return `Module cache patch unavailable — wrote latency flag to ${FLAG}. FirebaseAdapter will honour on next init.`;
-    }, opts);
+        // Attempt to locate the FirebaseAdapter in require cache
+        const adapterKey = Object.keys(require.cache).find(
+          k => k.includes('FirebaseAdapter') || k.includes('firestoreSync')
+        );
+
+        if (adapterKey) {
+          const mod = require.cache[adapterKey];
+          if (mod?.exports?.firestoreSync) {
+            const _original = mod.exports.firestoreSync;
+            mod.exports.__originalFirestoreSync = _original;
+            mod.exports.firestoreSync = async (...args) => {
+              _audit({ chaos_id, event: 'LATENCY_SHIM_HIT', detail: `+${delayMs}ms injected` });
+              await _sleep(delayMs);
+              return _original(...args);
+            };
+            _latencyShimmed = true;
+            return `Firestore firestoreSync shimmed with ${delayMs}ms delay via module cache patch.`;
+          }
+        }
+
+        // Fallback: write a flag file that FirebaseAdapter checks on startup
+        const FLAG = path.resolve(__dirname, '../../config/chaos_latency.json');
+        fs.writeFileSync(FLAG, JSON.stringify({ chaos_id, delayMs, active: true }));
+        _latencyShimmed = true;
+        return `Module cache patch unavailable — wrote latency flag to ${FLAG}. FirebaseAdapter will honour on next init.`;
+      },
+      opts
+    );
   },
 };
 
@@ -457,12 +489,12 @@ async function panicButton(rosCfg = {}) {
   try {
     const backup = _lastGoodState ?? {};
     const chaosEntries = backup._chaos ?? {};
-    const allDisabled  = Object.values(chaosEntries)
+    const allDisabled = Object.values(chaosEntries)
       .filter(e => e.type === 'dropFirewallRules')
       .flatMap(e => e.disabled);
 
     if (allDisabled.length) {
-      const api    = _rosClient(rosCfg);
+      const api = _rosClient(rosCfg);
       const client = await api.connect();
       for (const id of allDisabled) {
         await client.menu('/ip/firewall/filter').where('id', id).set({ disabled: 'no' });
@@ -472,12 +504,17 @@ async function panicButton(rosCfg = {}) {
     }
 
     // clear chaos entries from backup
-    if (backup._chaos) { delete backup._chaos; fs.writeFileSync(BACKUP_PATH, JSON.stringify(backup, null, 2)); }
-  } catch (e) { results.push(`FW restore error: ${e.message}`); }
+    if (backup._chaos) {
+      delete backup._chaos;
+      fs.writeFileSync(BACKUP_PATH, JSON.stringify(backup, null, 2));
+    }
+  } catch (e) {
+    results.push(`FW restore error: ${e.message}`);
+  }
 
   // ── 2. remove throttle queue ──────────────────────────────
   try {
-    const api    = _rosClient(rosCfg);
+    const api = _rosClient(rosCfg);
     const client = await api.connect();
     const queues = await client.menu('/queue/simple').where('name', CHAOS_QUEUE_NAME).get();
     for (const q of queues) {
@@ -485,12 +522,16 @@ async function panicButton(rosCfg = {}) {
     }
     await api.disconnect();
     results.push(`Removed ${queues.length} chaos queue(s).`);
-  } catch (e) { results.push(`Queue remove error: ${e.message}`); }
+  } catch (e) {
+    results.push(`Queue remove error: ${e.message}`);
+  }
 
   // ── 3. destroy ghost sockets ──────────────────────────────
   const ghostCount = _ghostSockets.length;
   for (const sock of _ghostSockets) {
-    try { sock.destroy(); } catch (_) {}
+    try {
+      sock.destroy();
+    } catch (_) {}
   }
   _ghostSockets = [];
   results.push(`Destroyed ${ghostCount} ghost socket(s).`);
@@ -507,13 +548,15 @@ async function panicButton(rosCfg = {}) {
       fs.writeFileSync(IDB_MIRROR, JSON.stringify(catalog, null, 2));
       results.push(`Purged ${before - Object.keys(catalog).length} IDB poison record(s).`);
     }
-  } catch (e) { results.push(`IDB purge error: ${e.message}`); }
+  } catch (e) {
+    results.push(`IDB purge error: ${e.message}`);
+  }
 
   // ── 5. unwrap Firestore latency shim ─────────────────────
   if (_latencyShimmed) {
     try {
-      const adapterKey = Object.keys(require.cache).find(k =>
-        k.includes('FirebaseAdapter') || k.includes('firestoreSync')
+      const adapterKey = Object.keys(require.cache).find(
+        k => k.includes('FirebaseAdapter') || k.includes('firestoreSync')
       );
       if (adapterKey) {
         const mod = require.cache[adapterKey];
@@ -530,7 +573,10 @@ async function panicButton(rosCfg = {}) {
   // ── 6. clear latency flag ─────────────────────────────────
   try {
     const FLAG = path.resolve(__dirname, '../../config/chaos_latency.json');
-    if (fs.existsSync(FLAG)) { fs.unlinkSync(FLAG); results.push('Latency flag file removed.'); }
+    if (fs.existsSync(FLAG)) {
+      fs.unlinkSync(FLAG);
+      results.push('Latency flag file removed.');
+    }
   } catch (_) {}
 
   // ── 7. clear active disruption map ───────────────────────
@@ -555,7 +601,7 @@ async function panicButton(rosCfg = {}) {
 
 const _domainRegistry = new Map([
   ['Networking', NetworkingChaos],
-  ['Commerce',   CommerceChaos],
+  ['Commerce', CommerceChaos],
 ]);
 
 /**
@@ -572,7 +618,10 @@ function registerDomain(domainName, chaosPack) {
     Object.assign(_domainRegistry.get(domainName), chaosPack);
   } else {
     _domainRegistry.set(domainName, chaosPack);
-    _audit({ event: 'DOMAIN_REGISTERED', detail: `${domainName} → [${Object.keys(chaosPack).join(', ')}]` });
+    _audit({
+      event: 'DOMAIN_REGISTERED',
+      detail: `${domainName} → [${Object.keys(chaosPack).join(', ')}]`,
+    });
   }
 }
 
@@ -613,7 +662,7 @@ function status() {
 //  Safety hooks — auto-panic on process signals
 // ══════════════════════════════════════════════════════════════
 process.on('SIGTERM', () => panicButton().then(() => process.exit(0)));
-process.on('uncaughtException', (e) => {
+process.on('uncaughtException', e => {
   _audit({ event: 'UNCAUGHT_EXCEPTION', detail: e.message });
   panicButton().then(() => process.exit(1));
 });
@@ -623,7 +672,7 @@ process.on('uncaughtException', (e) => {
 // ══════════════════════════════════════════════════════════════
 const ChaosMonkey = Object.assign(new EventEmitter(), {
   Networking: NetworkingChaos,
-  Commerce:   CommerceChaos,
+  Commerce: CommerceChaos,
   run,
   list,
   status,

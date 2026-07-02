@@ -1,4 +1,5 @@
 // src/core/workspace.js
+const { randomUUID: generateUUID } = require('crypto');
 /**
  * Multi-Tenant Workspace System
  */
@@ -27,14 +28,14 @@ class Workspace {
     // Initialize domain-specific billing
     this.billing = new (require('./universal-billing'))({
       database: this.config.database,
-      resourceType: this.domain
+      resourceType: this.domain,
     });
 
     // Initialize AI with workspace context
     this.aiCoordinator = new (require('../ai/universal-coordinator'))({
       domain: this.domain,
       registry: this,
-      workspace: this.config
+      workspace: this.config,
     });
 
     return this;
@@ -50,21 +51,21 @@ class Workspace {
     return await this.aiCoordinator.processQuery(command, {
       userId,
       workspace: this.id,
-      ...params
+      ...params,
     });
   }
 
   canExecute(userId, command) {
     const role = this.members.get(userId);
     if (!role) return false;
-    
+
     const permissions = {
-      'owner': ['*'],
-      'admin': ['resource.*', 'billing.*', 'user.*'],
-      'operator': ['resource.read', 'resource.execute'],
-      'viewer': ['resource.read']
+      owner: ['*'],
+      admin: ['resource.*', 'billing.*', 'user.*'],
+      operator: ['resource.read', 'resource.execute'],
+      viewer: ['resource.read'],
     };
-    
+
     const allowed = permissions[role] || [];
     return allowed.includes('*') || allowed.some(p => command.startsWith(p.replace('*', '')));
   }
@@ -77,7 +78,7 @@ class Workspace {
       resources: this.resources.size,
       members: this.members.size,
       adapters: Array.from(this.adapters.keys()),
-      status: 'active'
+      status: 'active',
     };
   }
 

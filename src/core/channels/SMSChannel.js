@@ -4,20 +4,20 @@ const https = require('https');
 const http = require('http');
 
 class SMSChannel extends BaseChannel {
-    static getMetadata() {
-        return {
-            name: 'SMS',
-            description: 'Direct SMS delivery via local gateway or Twilio',
-            configFields: [
+  static getMetadata() {
+    return {
+      name: 'SMS',
+      description: 'Direct SMS delivery via local gateway or Twilio',
+      configFields: [
         {
-                "name": "gatewayUrl",
-                "type": "input",
-                "message": "Gateway URL:",
-                "default": "http://localhost:8080"
-        }
-]
-        };
-    }
+          name: 'gatewayUrl',
+          type: 'input',
+          message: 'Gateway URL:',
+          default: 'http://localhost:8080',
+        },
+      ],
+    };
+  }
 
   constructor(config, agent) {
     super(config, agent);
@@ -53,10 +53,12 @@ class SMSChannel extends BaseChannel {
         clientSecret: process.env.ECONET_CLIENT_SECRET,
         fromName: process.env.ECONET_FROM_NAME || 'AgentOS',
         token: null,
-        tokenExpiry: 0
+        tokenExpiry: 0,
       };
       if (!this._econet.clientId || !this._econet.clientSecret) {
-        console.warn('SMSChannel: Econet A2A credentials not found (ECONET_CLIENT_ID / ECONET_CLIENT_SECRET).');
+        console.warn(
+          'SMSChannel: Econet A2A credentials not found (ECONET_CLIENT_ID / ECONET_CLIENT_SECRET).'
+        );
       } else {
         console.log('SMSChannel: Econet A2A provider configured.');
       }
@@ -73,18 +75,22 @@ class SMSChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
-        await db.upsertUser(phoneNumber, {
-          username: phoneNumber,
-          platform: 'sms',
-          channels: { sms: phoneNumber }
-        }).catch(e => console.warn(`SMS user sync failed: ${e.message}`));
+        await db
+          .upsertUser(phoneNumber, {
+            username: phoneNumber,
+            platform: 'sms',
+            channels: { sms: phoneNumber },
+          })
+          .catch(e => console.warn(`SMS user sync failed: ${e.message}`));
 
         // Resolve (or auto-provision) the Firebase Auth user for this phone number,
         // then build a scoped UserDoc so handlers can only touch their own doc.
-        const authUser = await db.resolveFirebaseUser(phoneNumber, {
-          channel: 'sms',
-          channelId: phoneNumber
-        }).catch(() => null);
+        const authUser = await db
+          .resolveFirebaseUser(phoneNumber, {
+            channel: 'sms',
+            channelId: phoneNumber,
+          })
+          .catch(() => null);
 
         const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
 
@@ -94,7 +100,7 @@ class SMSChannel extends BaseChannel {
         await fn.call(this, phoneNumber, msg, match, ctx);
       } catch (err) {
         console.error(`SMSChannel handler error: ${err.message}`, { phoneNumber });
-        await this.send(phoneNumber, `Error: ${err.message}`).catch(() => { });
+        await this.send(phoneNumber, `Error: ${err.message}`).catch(() => {});
       }
     };
   }
@@ -102,18 +108,21 @@ class SMSChannel extends BaseChannel {
   _registerHandlers() {
     this.handlers = new Map();
     const H = require('./HandlerLibrary');
-    
+
     this.handlers.set('start', this._handleStart.bind(this));
     this.handlers.set('menu', this._handleMenu.bind(this));
-    this.handlers.set('dashboard', (j) => H.handleDashboard(this, j));
-    this.handlers.set('stats', (j) => H.handleStats(this, j));
-    this.handlers.set('network', (j) => H.handleNetwork(this, j));
-    this.handlers.set('users', (j) => H.handleUsers(this, j));
-    this.handlers.set('ping', (j) => H.handlePing(this, j));
+    this.handlers.set('dashboard', j => H.handleDashboard(this, j));
+    this.handlers.set('stats', j => H.handleStats(this, j));
+    this.handlers.set('network', j => H.handleNetwork(this, j));
+    this.handlers.set('users', j => H.handleUsers(this, j));
+    this.handlers.set('ping', j => H.handlePing(this, j));
   }
 
   async _handleStart(phoneNumber) {
-    await this.send(phoneNumber, 'Welcome to AgentOS via SMS! Send "menu" to see available commands.');
+    await this.send(
+      phoneNumber,
+      'Welcome to AgentOS via SMS! Send "menu" to see available commands.'
+    );
   }
 
   async _handleMenu(phoneNumber) {
@@ -140,8 +149,8 @@ class SMSChannel extends BaseChannel {
         userId: phoneNum,
         channel: 'sms',
         channelId: phoneNum,
-        text: text,
-        raw: rawMsg
+        text,
+        raw: rawMsg,
       });
     });
     await wrappedNL(phoneNumber, rawData);
@@ -160,7 +169,7 @@ class SMSChannel extends BaseChannel {
     const body = JSON.stringify({
       clientId: ec.clientId,
       clientSecret: ec.clientSecret,
-      grantType: 'client_credentials'
+      grantType: 'client_credentials',
     });
 
     const data = await this._econetRequest('POST', '/oauth/token', body, null);
@@ -185,23 +194,30 @@ class SMSChannel extends BaseChannel {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (body) headers['Content-Length'] = Buffer.byteLength(body);
 
-      const req = transport.request({
-        hostname: url.hostname,
-        port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname + url.search,
-        method,
-        headers
-      }, (res) => {
-        let raw = '';
-        res.on('data', d => { raw += d; });
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(raw);
-            if (res.statusCode >= 400) return reject(new Error(parsed.message || raw));
-            resolve(parsed);
-          } catch (e) { reject(new Error(`Econet parse error: ${raw}`)); }
-        });
-      });
+      const req = transport.request(
+        {
+          hostname: url.hostname,
+          port: url.port || (url.protocol === 'https:' ? 443 : 80),
+          path: url.pathname + url.search,
+          method,
+          headers,
+        },
+        res => {
+          let raw = '';
+          res.on('data', d => {
+            raw += d;
+          });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(raw);
+              if (res.statusCode >= 400) return reject(new Error(parsed.message || raw));
+              resolve(parsed);
+            } catch (e) {
+              reject(new Error(`Econet parse error: ${raw}`));
+            }
+          });
+        }
+      );
       req.on('error', reject);
       if (body) req.write(body);
       req.end();
@@ -213,11 +229,16 @@ class SMSChannel extends BaseChannel {
    */
   async _sendEconet(userId, text) {
     const token = await this._econetToken();
-    await this._econetRequest('POST', '/messaging/v1/sms/send', JSON.stringify({
-      from: this._econet.fromName,
-      to: userId,
-      message: text
-    }), token);
+    await this._econetRequest(
+      'POST',
+      '/messaging/v1/sms/send',
+      JSON.stringify({
+        from: this._econet.fromName,
+        to: userId,
+        message: text,
+      }),
+      token
+    );
   }
 
   // ── Core send ──────────────────────────────────────────────────────────────
@@ -231,7 +252,7 @@ class SMSChannel extends BaseChannel {
         await this.client.messages.create({
           body: message.text,
           from: this.fromNumber,
-          to: userId
+          to: userId,
         });
       } catch (err) {
         console.error(`SMSChannel[twilio] failed to send to ${userId}: ${err.message}`);
@@ -254,13 +275,13 @@ class SMSChannel extends BaseChannel {
     const { getChatRegistry } = require('../chat-registry');
     const phones = getChatRegistry().getChats('sms');
     if (!phones || phones.length === 0) return { success: true, sentCount: 0 };
-    
+
     console.log(`[SMS Broadcast] sending to ${phones.length} users.`);
     const promises = phones.map(phone => this.send(phone, message));
     const results = await Promise.allSettled(promises);
-    return { 
-      success: true, 
-      sentCount: results.filter(r => r.status === 'fulfilled' && r.value?.success).length 
+    return {
+      success: true,
+      sentCount: results.filter(r => r.status === 'fulfilled' && r.value?.success).length,
     };
   }
 
@@ -268,7 +289,7 @@ class SMSChannel extends BaseChannel {
     return {
       ...super.getStatus(),
       provider: this.provider,
-      econetConfigured: !!(this._econet?.clientId)
+      econetConfigured: !!this._econet?.clientId,
     };
   }
 }

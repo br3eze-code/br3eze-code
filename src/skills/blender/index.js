@@ -1,18 +1,18 @@
-const { PythonShell } = require('python-shell')
-const path = require('path')
-const fs = require('fs/promises')
-const { BaseSkill } = require('../base.js')
+const { PythonShell } = require('python-shell');
+const path = require('path');
+const fs = require('fs/promises');
+const { BaseSkill } = require('../base.js');
 
 class BlenderSkill extends BaseSkill {
-  static id = 'blender'
-  static name = 'Blender 3D'
-  static description = 'Render, model, export 3D assets with Blender'
+  static id = 'blender';
+  static name = 'Blender 3D';
+  static description = 'Render, model, export 3D assets with Blender';
 
   constructor(config, logger, workspace) {
-    super(config, logger, workspace)
-    this.blenderPath = config.blenderPath || 'blender'
-    this.scriptsDir = path.join(__dirname, 'scripts')
-    this.outputDir = config.outputDir || '/tmp/blender_output'
+    super(config, logger, workspace);
+    this.blenderPath = config.blenderPath || 'blender';
+    this.scriptsDir = path.join(__dirname, 'scripts');
+    this.outputDir = config.outputDir || '/tmp/blender_output';
   }
 
   static getTools() {
@@ -25,16 +25,20 @@ class BlenderSkill extends BaseSkill {
           properties: {
             file: { type: 'string' },
             mode: { type: 'string', enum: ['flatten', 'payload', 'reference'], default: 'payload' },
-            variants: { type: 'array', items: { type: 'string' }, description: 'collection names for variant sets' },
+            variants: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'collection names for variant sets',
+            },
             root_prim: { type: 'string', default: '/World' },
             include_materials: { type: 'boolean', default: true },
             include_animation: { type: 'boolean', default: false },
             s3_bucket: { type: 'string' },
             s3_key: { type: 'string' },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'reason']
-        }
+          required: ['file', 'reason'],
+        },
       },
       'blender.review.post': {
         risk: 'low',
@@ -44,32 +48,43 @@ class BlenderSkill extends BaseSkill {
           properties: {
             file: { type: 'string', description: 'rendered mp4/png or .blend to render first' },
             platform: { type: 'string', enum: ['frameio', 'shotgrid'], default: 'frameio' },
-            project: { type: 'string', description: 'Frame.io project ID or ShotGrid project name' },
+            project: {
+              type: 'string',
+              description: 'Frame.io project ID or ShotGrid project name',
+            },
             version_name: { type: 'string' },
             note: { type: 'string' },
             frame_start: { type: 'number', description: 'render first if .blend' },
             frame_end: { type: 'number' },
-            auto_render: { type: 'boolean', default: false }
+            auto_render: { type: 'boolean', default: false },
           },
-          required: ['file', 'project', 'version_name']
-        }
+          required: ['file', 'project', 'version_name'],
+        },
       },
       'blender.sim.run': {
         risk: 'high',
-        description: 'Run physics sim: cloth, fluid, smoke, rigid body. Export cache. Requires approval.',
+        description:
+          'Run physics sim: cloth, fluid, smoke, rigid body. Export cache. Requires approval.',
         parameters: {
           type: 'object',
           properties: {
             file: { type: 'string' },
-            sim_type: { type: 'string', enum: ['cloth', 'fluid', 'smoke', 'rigid_body', 'soft_body'] },
+            sim_type: {
+              type: 'string',
+              enum: ['cloth', 'fluid', 'smoke', 'rigid_body', 'soft_body'],
+            },
             frame_start: { type: 'number', default: 1 },
             frame_end: { type: 'number', default: 250 },
-            objects: { type: 'array', items: { type: 'string' }, description: 'objects with sim modifiers' },
+            objects: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'objects with sim modifiers',
+            },
             cache_format: { type: 'string', enum: ['abc', 'vdb', 'blendcache'], default: 'abc' },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'sim_type', 'objects', 'reason']
-        }
+          required: ['file', 'sim_type', 'objects', 'reason'],
+        },
       },
       'blender.cloud.render': {
         risk: 'high',
@@ -86,14 +101,15 @@ class BlenderSkill extends BaseSkill {
             s3_output: { type: 'string', description: 's3://bucket/prefix/' },
             resolution: { type: 'string', enum: ['1080p', '4k'], default: '1080p' },
             samples: { type: 'number', default: 256 },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'frame_start', 'frame_end', 's3_output', 'reason']
-        }
+          required: ['file', 'frame_start', 'frame_end', 's3_output', 'reason'],
+        },
       },
       'blender.ai.texture': {
         risk: 'medium',
-        description: 'Generate texture with Stable Diffusion + apply to material. Requires approval.',
+        description:
+          'Generate texture with Stable Diffusion + apply to material. Requires approval.',
         parameters: {
           type: 'object',
           properties: {
@@ -103,10 +119,10 @@ class BlenderSkill extends BaseSkill {
             negative: { type: 'string', default: 'blurry, lowres, text' },
             size: { type: 'number', enum: [512, 1024, 2048], default: 1024 },
             model: { type: 'string', default: 'sdxl' },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'material', 'prompt', 'reason']
-        }
+          required: ['file', 'material', 'prompt', 'reason'],
+        },
       },
       'blender.pipeline.bake': {
         risk: 'high',
@@ -115,15 +131,23 @@ class BlenderSkill extends BaseSkill {
           type: 'object',
           properties: {
             file: { type: 'string' },
-            objects: { type: 'array', items: { type: 'string' }, description: 'object names to bake' },
-            bake_type: { type: 'string', enum: ['COMBINED', 'DIFFUSE', 'NORMAL'], default: 'COMBINED' },
+            objects: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'object names to bake',
+            },
+            bake_type: {
+              type: 'string',
+              enum: ['COMBINED', 'DIFFUSE', 'NORMAL'],
+              default: 'COMBINED',
+            },
             resolution: { type: 'number', default: 2048 },
             s3_bucket: { type: 'string' },
             s3_key: { type: 'string', description: 'e.g. assets/model.glb' },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'objects', 's3_bucket', 's3_key', 'reason']
-        }
+          required: ['file', 'objects', 's3_bucket', 's3_key', 'reason'],
+        },
       },
       'blender.render': {
         risk: 'medium',
@@ -138,10 +162,10 @@ class BlenderSkill extends BaseSkill {
             format: { type: 'string', enum: ['PNG', 'JPEG', 'MP4'], default: 'PNG' },
             resolution: { type: 'string', enum: ['1080p', '4k', '720p'], default: '1080p' },
             samples: { type: 'number', default: 128, maximum: 4096 },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'reason']
-        }
+          required: ['file', 'reason'],
+        },
       },
       'blender.info': {
         risk: 'low',
@@ -149,8 +173,8 @@ class BlenderSkill extends BaseSkill {
         parameters: {
           type: 'object',
           properties: { file: { type: 'string' } },
-          required: ['file']
-        }
+          required: ['file'],
+        },
       },
       'blender.script': {
         risk: 'high',
@@ -161,10 +185,10 @@ class BlenderSkill extends BaseSkill {
             file: { type: 'string', description: '.blend to load first, optional' },
             script: { type: 'string', description: 'Python code' },
             timeout: { type: 'number', default: 60, maximum: 300 },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['script', 'reason']
-        }
+          required: ['script', 'reason'],
+        },
       },
       'blender.export': {
         risk: 'medium',
@@ -173,54 +197,58 @@ class BlenderSkill extends BaseSkill {
           type: 'object',
           properties: {
             file: { type: 'string' },
-            format: { type: 'string', enum: ['glb', 'gltf', 'usd', 'usda', 'obj', 'fbx'], default: 'glb' },
+            format: {
+              type: 'string',
+              enum: ['glb', 'gltf', 'usd', 'usda', 'obj', 'fbx'],
+              default: 'glb',
+            },
             selection_only: { type: 'boolean', default: false },
-            reason: { type: 'string' }
+            reason: { type: 'string' },
           },
-          required: ['file', 'reason']
-        }
-      }
+          required: ['file', 'reason'],
+        },
+      },
     };
   }
 
   _safeBlendPath(p) {
-    const base = path.resolve(this.workspace.blender_root || 'workspace/blender')
-    const full = path.resolve(base, p)
-    if (!full.startsWith(base)) throw new Error(`Path ${p} escapes blender_root`)
-    return full
+    const base = path.resolve(this.workspace.blender_root || 'workspace/blender');
+    const full = path.resolve(base, p);
+    if (!full.startsWith(base)) throw new Error(`Path ${p} escapes blender_root`);
+    return full;
   }
 
   async _runBlender(args, timeout = 60000) {
-    await fs.mkdir(this.outputDir, { recursive: true })
+    await fs.mkdir(this.outputDir, { recursive: true });
     return new Promise((resolve, reject) => {
       const opts = {
         mode: 'text',
         pythonOptions: ['-u'],
-        args: args,
-        timeout: timeout * 1000
-      }
-      const pyshell = new PythonShell(this._pythonBridge(), opts)
-      let output = ''
-      let error = ''
+        args,
+        timeout: timeout * 1000,
+      };
+      const pyshell = new PythonShell(this._pythonBridge(), opts);
+      let output = '';
+      let error = '';
 
-      pyshell.on('message', msg => output += msg + '\n')
-      pyshell.on('stderr', err => error += err + '\n')
-      pyshell.on('error', reject)
+      pyshell.on('message', msg => (output += `${msg}\n`));
+      pyshell.on('stderr', err => (error += `${err}\n`));
+      pyshell.on('error', reject);
       pyshell.on('close', () => {
-        if (error && !output) reject(new Error(error))
-        else resolve({ output, error })
-      })
-    })
+        if (error && !output) reject(new Error(error));
+        else resolve({ output, error });
+      });
+    });
   }
 
   _pythonBridge() {
     // Write bridge script once
-    const bridge = path.join(this.scriptsDir, 'bridge.py')
-    return bridge
+    const bridge = path.join(this.scriptsDir, 'bridge.py');
+    return bridge;
   }
 
   async init() {
-    await fs.mkdir(this.scriptsDir, { recursive: true })
+    await fs.mkdir(this.scriptsDir, { recursive: true });
     const bridgeCode = `
 import bpy
 import sys
@@ -289,24 +317,27 @@ def main():
 
 if __name__ == '__main__':
     main()
-`
-    await fs.writeFile(path.join(this.scriptsDir, 'bridge.py'), bridgeCode)
+`;
+    await fs.writeFile(path.join(this.scriptsDir, 'bridge.py'), bridgeCode);
   }
 
   async healthCheck() {
-    const { error } = await this._runBlender([this.blenderPath, '--version'])
-    if (error) throw new Error(`Blender not found: ${error}`)
-    return { status: 'ok', blender: this.blenderPath }
+    const { error } = await this._runBlender([this.blenderPath, '--version']);
+    if (error) throw new Error(`Blender not found: ${error}`);
+    return { status: 'ok', blender: this.blenderPath };
   }
 
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
-          case 'blender.usd.export':
-  this.logger.warn(`BLENDER USD EXPORT ${args.file} mode:${args.mode}`, { user: ctx.userId, reason: args.reason })
-  const blend9 = this._safeBlendPath(args.file)
-  
-  const usdScript = `
+        case 'blender.usd.export':
+          this.logger.warn(`BLENDER USD EXPORT ${args.file} mode:${args.mode}`, {
+            user: ctx.userId,
+            reason: args.reason,
+          });
+          const blend9 = this._safeBlendPath(args.file);
+
+          const usdScript = `
 import bpy
 import os
 out_path = os.path.join('${this.outputDir}', f"usd_${Date.now()}.usd")
@@ -355,118 +386,166 @@ def Xform "World" (
     print(json.dumps({'usd': out_path, 'payload': payload_path}))
 else:
     print(json.dumps({'usd': out_path}))
-`
-  const req9 = { action: 'script', blend_file: blend9, out_dir: this.outputDir, script: usdScript }
-  const { output: out9 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req9)], 300)
-  const res9 = JSON.parse(out9.trim().split('\n').pop())
-  
-  // Upload to S3 if requested
-  if (args.s3_bucket && args.s3_key) {
-    const buf = await fs.readFile(res9.usd)
-    await this.agent.registry.execute('aws.s3.put', {
-      bucket: args.s3_bucket,
-      key: args.s3_key,
-      body_base64: buf.toString('base64'),
-      content_type: 'model/vnd.usd+zip'
-    }, ctx.userId)
-    
-    if (res9.payload) {
-      const pbuf = await fs.readFile(res9.payload)
-      await this.agent.registry.execute('aws.s3.put', {
-        bucket: args.s3_bucket,
-        key: args.s3_key.replace('.usd', '_payload.usda'),
-        body_base64: pbuf.toString('base64'),
-        content_type: 'text/plain'
-      }, ctx.userId)
-    }
-  }
-  
-  return { file: args.file, usd: res9.usd, payload: res9.payload, mode: args.mode, s3: args.s3_bucket ? `s3://${args.s3_bucket}/${args.s3_key}` : null }
+`;
+          const req9 = {
+            action: 'script',
+            blend_file: blend9,
+            out_dir: this.outputDir,
+            script: usdScript,
+          };
+          const { output: out9 } = await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req9)],
+            300
+          );
+          const res9 = JSON.parse(out9.trim().split('\n').pop());
 
-case 'blender.review.post':
-  this.logger.info(`BLENDER REVIEW POST ${args.platform} ${args.version_name}`, { user: ctx.userId })
-  let mediaPath = this._safeBlendPath(args.file)
-  
-  // Auto-render if .blend + frames given
-  if (args.auto_render && args.file.endsWith('.blend')) {
-    const render = await this.execute('blender.render', {
-      file: args.file,
-      start: args.frame_start,
-      end: args.frame_end,
-      format: 'MP4',
-      reason: `Auto-render for review: ${args.version_name}`
-    }, ctx)
-    // Assume render returns path or base64
-    mediaPath = path.join(this.outputDir, `render_${Date.now()}.mp4`)
-    if (render.base64) await fs.writeFile(mediaPath, Buffer.from(render.base64, 'base64'))
-  }
-  
-  const mediaBuf = await fs.readFile(mediaPath)
-  
-  if (args.platform === 'frameio') {
-    // Requires FRAMEIO_TOKEN in env + frameio skill or direct API
-    const FormData = require('form-data')
-    const form = new FormData()
-    form.append('file', mediaBuf, path.basename(mediaPath))
-    form.append('name', args.version_name)
-    
-    const res = await fetch(`https://api.frame.io/v2/projects/${args.project}/assets`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${process.env.FRAMEIO_TOKEN}`, ...form.getHeaders() },
-      body: form
-    })
-    const asset = await res.json()
-    
-    // Add comment
-    if (args.note) {
-      await fetch(`https://api.frame.io/v2/assets/${asset.id}/comments`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${process.env.FRAMEIO_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: args.note })
-      })
-    }
-    
-    return { platform: 'frameio', asset_id: asset.id, view_url: asset.view_url, version: args.version_name }
-  
-  } else if (args.platform === 'shotgrid') {
-    // Requires shotgrid skill with auth
-    if (!this.agent.registry.skills.shotgrid) throw new Error('ShotGrid skill not enabled')
-    const version = await this.agent.registry.execute('sg.version.create', {
-      project: args.project,
-      code: args.version_name,
-      description: args.note,
-      media_path: mediaPath
-    }, ctx.userId)
-    return { platform: 'shotgrid', version_id: version.id, url: version.url }
-  }
-  
-  throw new Error(`Unsupported platform ${args.platform}`)
-          case 'blender.ai.texture':
-  this.logger.warn(`BLENDER AI TEXTURE ${args.file}:${args.material}`, { user: ctx.userId, prompt: args.prompt, reason: args.reason })
-  const blend5 = this._safeBlendPath(args.file)
-  const outTex = path.join(this.outputDir, `tex_${Date.now()}.png`)
+          // Upload to S3 if requested
+          if (args.s3_bucket && args.s3_key) {
+            const buf = await fs.readFile(res9.usd);
+            await this.agent.registry.execute(
+              'aws.s3.put',
+              {
+                bucket: args.s3_bucket,
+                key: args.s3_key,
+                body_base64: buf.toString('base64'),
+                content_type: 'model/vnd.usd+zip',
+              },
+              ctx.userId
+            );
 
-  const sdPayload = {
-    prompt: args.prompt,
-    negative_prompt: args.negative,
-    width: args.size,
-    height: args.size,
-    steps: 30,
-    cfg_scale: 7,
-    sampler_name: 'DPM++ 2M Karras'
-  }
+            if (res9.payload) {
+              const pbuf = await fs.readFile(res9.payload);
+              await this.agent.registry.execute(
+                'aws.s3.put',
+                {
+                  bucket: args.s3_bucket,
+                  key: args.s3_key.replace('.usd', '_payload.usda'),
+                  body_base64: pbuf.toString('base64'),
+                  content_type: 'text/plain',
+                },
+                ctx.userId
+              );
+            }
+          }
 
-  const sdRes = await fetch(this.workspace.sd_api || 'http://localhost:7860/sdapi/v1/txt2img', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sdPayload)
-  })
-  const sdJson = await sdRes.json()
-  const imgBase64 = sdJson.images[0]
-  await fs.writeFile(outTex, Buffer.from(imgBase64, 'base64'))
+          return {
+            file: args.file,
+            usd: res9.usd,
+            payload: res9.payload,
+            mode: args.mode,
+            s3: args.s3_bucket ? `s3://${args.s3_bucket}/${args.s3_key}` : null,
+          };
 
+        case 'blender.review.post':
+          this.logger.info(`BLENDER REVIEW POST ${args.platform} ${args.version_name}`, {
+            user: ctx.userId,
+          });
+          let mediaPath = this._safeBlendPath(args.file);
 
-  const script = `
+          // Auto-render if .blend + frames given
+          if (args.auto_render && args.file.endsWith('.blend')) {
+            const render = await this.execute(
+              'blender.render',
+              {
+                file: args.file,
+                start: args.frame_start,
+                end: args.frame_end,
+                format: 'MP4',
+                reason: `Auto-render for review: ${args.version_name}`,
+              },
+              ctx
+            );
+            // Assume render returns path or base64
+            mediaPath = path.join(this.outputDir, `render_${Date.now()}.mp4`);
+            if (render.base64) await fs.writeFile(mediaPath, Buffer.from(render.base64, 'base64'));
+          }
+
+          const mediaBuf = await fs.readFile(mediaPath);
+
+          if (args.platform === 'frameio') {
+            // Requires FRAMEIO_TOKEN in env + frameio skill or direct API
+            const FormData = require('form-data');
+            const form = new FormData();
+            form.append('file', mediaBuf, path.basename(mediaPath));
+            form.append('name', args.version_name);
+
+            const res = await fetch(`https://api.frame.io/v2/projects/${args.project}/assets`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.FRAMEIO_TOKEN}`,
+                ...form.getHeaders(),
+              },
+              body: form,
+            });
+            const asset = await res.json();
+
+            // Add comment
+            if (args.note) {
+              await fetch(`https://api.frame.io/v2/assets/${asset.id}/comments`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${process.env.FRAMEIO_TOKEN}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: args.note }),
+              });
+            }
+
+            return {
+              platform: 'frameio',
+              asset_id: asset.id,
+              view_url: asset.view_url,
+              version: args.version_name,
+            };
+          } else if (args.platform === 'shotgrid') {
+            // Requires shotgrid skill with auth
+            if (!this.agent.registry.skills.shotgrid) throw new Error('ShotGrid skill not enabled');
+            const version = await this.agent.registry.execute(
+              'sg.version.create',
+              {
+                project: args.project,
+                code: args.version_name,
+                description: args.note,
+                media_path: mediaPath,
+              },
+              ctx.userId
+            );
+            return { platform: 'shotgrid', version_id: version.id, url: version.url };
+          }
+
+          throw new Error(`Unsupported platform ${args.platform}`);
+        case 'blender.ai.texture':
+          this.logger.warn(`BLENDER AI TEXTURE ${args.file}:${args.material}`, {
+            user: ctx.userId,
+            prompt: args.prompt,
+            reason: args.reason,
+          });
+          const blend5 = this._safeBlendPath(args.file);
+          const outTex = path.join(this.outputDir, `tex_${Date.now()}.png`);
+
+          const sdPayload = {
+            prompt: args.prompt,
+            negative_prompt: args.negative,
+            width: args.size,
+            height: args.size,
+            steps: 30,
+            cfg_scale: 7,
+            sampler_name: 'DPM++ 2M Karras',
+          };
+
+          const sdRes = await fetch(
+            this.workspace.sd_api || 'http://localhost:7860/sdapi/v1/txt2img',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(sdPayload),
+            }
+          );
+          const sdJson = await sdRes.json();
+          const imgBase64 = sdJson.images[0];
+          await fs.writeFile(outTex, Buffer.from(imgBase64, 'base64'));
+
+          const script = `
 import bpy
 mat = bpy.data.materials.get('${args.material}')
 if not mat: mat = bpy.data.materials.new('${args.material}')
@@ -480,17 +559,23 @@ tex = nodes.new('ShaderNodeTexImage')
 tex.image = bpy.data.images.load('${outTex}')
 links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
 links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
-`
-  const req5 = { action: 'script', blend_file: blend5, out_dir: this.outputDir, script }
-  await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req5)], 120)
+`;
+          const req5 = { action: 'script', blend_file: blend5, out_dir: this.outputDir, script };
+          await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req5)],
+            120
+          );
 
-  return { file: args.file, material: args.material, texture: outTex, prompt: args.prompt }
+          return { file: args.file, material: args.material, texture: outTex, prompt: args.prompt };
 
-case 'blender.pipeline.bake':
-  this.logger.warn(`BLENDER PIPELINE ${args.file} -> s3://${args.s3_bucket}/${args.s3_key}`, { user: ctx.userId, reason: args.reason })
-  const blend6 = this._safeBlendPath(args.file)
+        case 'blender.pipeline.bake':
+          this.logger.warn(
+            `BLENDER PIPELINE ${args.file} -> s3://${args.s3_bucket}/${args.s3_key}`,
+            { user: ctx.userId, reason: args.reason }
+          );
+          const blend6 = this._safeBlendPath(args.file);
 
-  const bakeScript = `
+          const bakeScript = `
 import bpy
 import os
 bpy.context.scene.render.engine = 'CYCLES'
@@ -522,35 +607,62 @@ for obj_name in ${JSON.stringify(args.objects)}:
 out_glb = os.path.join('${this.outputDir}', 'pipeline_${Date.now()}.glb')
 bpy.ops.export_scene.gltf(filepath=out_glb, export_format='GLB', export_apply=True)
 print(json.dumps({'glb': out_glb}))
-`
-  const req6 = { action: 'script', blend_file: blend6, out_dir: this.outputDir, script: bakeScript }
-  const { output: out6 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req6)], 600)
-  const { glb } = JSON.parse(out6.trim().split('\n').pop())
+`;
+          const req6 = {
+            action: 'script',
+            blend_file: blend6,
+            out_dir: this.outputDir,
+            script: bakeScript,
+          };
+          const { output: out6 } = await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req6)],
+            600
+          );
+          const { glb } = JSON.parse(out6.trim().split('\n').pop());
 
-  
-  if (this.agent.registry.skills.aws) {
-    const glbBuf = await fs.readFile(glb)
-    await this.agent.registry.execute('aws.s3.put', {
-      bucket: args.s3_bucket,
-      key: args.s3_key,
-      body_base64: glbBuf.toString('base64'),
-      content_type: 'model/gltf-binary'
-    }, ctx.userId)
-  } else {
-    throw new Error('AWS skill not enabled for S3 upload')
-  }
+          if (this.agent.registry.skills.aws) {
+            const glbBuf = await fs.readFile(glb);
+            await this.agent.registry.execute(
+              'aws.s3.put',
+              {
+                bucket: args.s3_bucket,
+                key: args.s3_key,
+                body_base64: glbBuf.toString('base64'),
+                content_type: 'model/gltf-binary',
+              },
+              ctx.userId
+            );
+          } else {
+            throw new Error('AWS skill not enabled for S3 upload');
+          }
 
-  return { file: args.file, baked_objects: args.objects, s3_url: `s3://${args.s3_bucket}/${args.s3_key}`, size: (await fs.stat(glb)).size } 
-          
+          return {
+            file: args.file,
+            baked_objects: args.objects,
+            s3_url: `s3://${args.s3_bucket}/${args.s3_key}`,
+            size: (await fs.stat(glb)).size,
+          };
+
         case 'blender.info':
-          const blend1 = this._safeBlendPath(args.file)
-          const req1 = { action: 'info', blend_file: blend1, out_dir: this.outputDir }
-          const { output: out1 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req1)])
-          return JSON.parse(out1.trim().split('\n').pop())
+          const blend1 = this._safeBlendPath(args.file);
+          const req1 = { action: 'info', blend_file: blend1, out_dir: this.outputDir };
+          const { output: out1 } = await this._runBlender([
+            this.blenderPath,
+            '-b',
+            '-P',
+            this._pythonBridge(),
+            '--',
+            JSON.stringify(req1),
+          ]);
+          return JSON.parse(out1.trim().split('\n').pop());
 
         case 'blender.render':
-          this.logger.warn(`BLENDER RENDER ${args.file}`, { user: ctx.userId, frames: args.frame || `${args.start}-${args.end}`, reason: args.reason })
-          const blend2 = this._safeBlendPath(args.file)
+          this.logger.warn(`BLENDER RENDER ${args.file}`, {
+            user: ctx.userId,
+            frames: args.frame || `${args.start}-${args.end}`,
+            reason: args.reason,
+          });
+          const blend2 = this._safeBlendPath(args.file);
           const req2 = {
             action: 'render',
             blend_file: blend2,
@@ -560,47 +672,67 @@ print(json.dumps({'glb': out_glb}))
             end: args.end,
             format: args.format,
             resolution: args.resolution,
-            samples: args.samples
-          }
-          const { output: out2 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req2)], 600)
-          const result = JSON.parse(out2.trim().split('\n').pop())
+            samples: args.samples,
+          };
+          const { output: out2 } = await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req2)],
+            600
+          );
+          const result = JSON.parse(out2.trim().split('\n').pop());
           if (result.file) {
-            const buf = await fs.readFile(result.file)
-            return { ...result, base64: buf.toString('base64'), size: buf.length }
+            const buf = await fs.readFile(result.file);
+            return { ...result, base64: buf.toString('base64'), size: buf.length };
           }
-          return result
+          return result;
 
         case 'blender.script':
-          this.logger.warn(`BLENDER SCRIPT on ${args.file || 'empty'}`, { user: ctx.userId, reason: args.reason })
-          const blend3 = args.file ? this._safeBlendPath(args.file) : null
-          const req3 = { action: 'script', blend_file: blend3, out_dir: this.outputDir, script: args.script }
-          const { output: out3, error } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req3)], args.timeout)
-          if (error) throw new Error(error)
-          return JSON.parse(out3.trim().split('\n').pop())
+          this.logger.warn(`BLENDER SCRIPT on ${args.file || 'empty'}`, {
+            user: ctx.userId,
+            reason: args.reason,
+          });
+          const blend3 = args.file ? this._safeBlendPath(args.file) : null;
+          const req3 = {
+            action: 'script',
+            blend_file: blend3,
+            out_dir: this.outputDir,
+            script: args.script,
+          };
+          const { output: out3, error } = await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req3)],
+            args.timeout
+          );
+          if (error) throw new Error(error);
+          return JSON.parse(out3.trim().split('\n').pop());
 
         case 'blender.export':
-          this.logger.warn(`BLENDER EXPORT ${args.file} -> ${args.format}`, { user: ctx.userId, reason: args.reason })
-          const blend4 = this._safeBlendPath(args.file)
+          this.logger.warn(`BLENDER EXPORT ${args.file} -> ${args.format}`, {
+            user: ctx.userId,
+            reason: args.reason,
+          });
+          const blend4 = this._safeBlendPath(args.file);
           const req4 = {
             action: 'export',
             blend_file: blend4,
             out_dir: this.outputDir,
             format: args.format,
-            selection_only: args.selection_only
-          }
-          const { output: out4 } = await this._runBlender([this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req4)], 300)
-          const res = JSON.parse(out4.trim().split('\n').pop())
-          const buf = await fs.readFile(res.file)
-          return { ...res, base64: buf.toString('base64'), size: buf.length }
+            selection_only: args.selection_only,
+          };
+          const { output: out4 } = await this._runBlender(
+            [this.blenderPath, '-b', '-P', this._pythonBridge(), '--', JSON.stringify(req4)],
+            300
+          );
+          const res = JSON.parse(out4.trim().split('\n').pop());
+          const buf = await fs.readFile(res.file);
+          return { ...res, base64: buf.toString('base64'), size: buf.length };
 
         default:
-          throw new Error(`Unknown tool ${toolName}`)
+          throw new Error(`Unknown tool ${toolName}`);
       }
     } catch (e) {
-      this.logger.error(`Blender ${toolName} failed: ${e.message}`)
-      throw e
+      this.logger.error(`Blender ${toolName} failed: ${e.message}`);
+      throw e;
     }
   }
 }
 
-module.exports = BlenderSkill
+module.exports = BlenderSkill;

@@ -3,7 +3,7 @@ const { initializeFirebase } = require('../src/core/firebase');
 
 async function debugUsers() {
   console.log('--- Debugging Users and Firebase Auth ---');
-  
+
   const { app, db } = initializeFirebase();
   if (!app) {
     console.error('Firebase not initialized. Check your .env file.');
@@ -39,10 +39,12 @@ async function debugUsers() {
       console.log(`⚠️ ${missingUidField.length} Firestore docs missing 'uid' field:`);
       missingUidField.forEach(u => {
         const inAuth = authUids.has(u.id);
-        console.log(` - DocID: ${u.id}, Username: ${u.username || 'N/A'}, In Auth? ${inAuth ? 'YES (DocID matches UID)' : 'NO'}`);
+        console.log(
+          ` - DocID: ${u.id}, Username: ${u.username || 'N/A'}, In Auth? ${inAuth ? 'YES (DocID matches UID)' : 'NO'}`
+        );
       });
     } else {
-      console.log('✅ All Firestore users have a \'uid\' field.');
+      console.log("✅ All Firestore users have a 'uid' field.");
     }
 
     // 2. Firestore users not in Auth
@@ -52,20 +54,25 @@ async function debugUsers() {
     });
     if (notInAuth.length > 0) {
       console.log(`\n❌ ${notInAuth.length} Firestore users NOT found in Firebase Auth:`);
-      notInAuth.forEach(u => console.log(` - DocID: ${u.id}, UID Field: ${u.uid || 'NONE'}, Username: ${u.username || 'N/A'}`));
+      notInAuth.forEach(u =>
+        console.log(
+          ` - DocID: ${u.id}, UID Field: ${u.uid || 'NONE'}, Username: ${u.username || 'N/A'}`
+        )
+      );
     } else {
       console.log('\n✅ All Firestore users exist in Firebase Auth.');
     }
 
     // 3. Auth users not in Firestore
-    const notInFirestore = authUsers.filter(u => !firestoreDocIds.has(u.uid) && !firestoreUids.has(u.uid));
+    const notInFirestore = authUsers.filter(
+      u => !firestoreDocIds.has(u.uid) && !firestoreUids.has(u.uid)
+    );
     if (notInFirestore.length > 0) {
       console.log(`\n⚠️ ${notInFirestore.length} Firebase Auth users NOT found in Firestore:`);
       notInFirestore.forEach(u => console.log(` - UID: ${u.uid}, Email: ${u.email || 'N/A'}`));
     } else {
       console.log('\n✅ All Firebase Auth users have a Firestore document.');
     }
-
   } catch (error) {
     console.error('Debug script failed:', error);
   } finally {

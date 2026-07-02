@@ -12,24 +12,24 @@ class PesaPalProvider {
       // Br3eze Africa Credentials (from your email)
       consumerKey: config.pesapalConsumerKey || process.env.PESAPAL_CONSUMER_KEY,
       consumerSecret: config.pesapalConsumerSecret || process.env.PESAPAL_CONSUMER_SECRET,
-      
+
       // Environment
       environment: config.pesapalEnvironment || process.env.PESAPAL_ENV || 'sandbox',
-      
+
       // IPN Configuration
       ipnUrl: config.pesapalIpnUrl || process.env.PESAPAL_IPN_URL,
       callbackUrl: config.pesapalCallbackUrl || process.env.PESAPAL_CALLBACK_URL,
-      
+
       // IPN ID (obtained after registration)
       ipnId: config.pesapalIpnId || process.env.PESAPAL_IPN_ID,
-      
-      ...config
+
+      ...config,
     };
 
     // PesaPal API endpoints
     this.baseUrls = {
       sandbox: 'https://cybqa.pesapal.com/pesapalv3',
-      production: 'https://pay.pesapal.com/v3'
+      production: 'https://pay.pesapal.com/v3',
     };
 
     this.baseUrl = this.baseUrls[this.config.environment];
@@ -46,12 +46,14 @@ class PesaPalProvider {
       return this.accessToken;
     }
 
-    const authString = Buffer.from(`${this.config.consumerKey}:${this.config.consumerSecret}`).toString('base64');
+    const authString = Buffer.from(
+      `${this.config.consumerKey}:${this.config.consumerSecret}`
+    ).toString('base64');
 
     try {
       const response = await this.makeRequest('/api/Auth/RequestToken', 'POST', null, {
-        'Authorization': `Basic ${authString}`,
-        'Content-Type': 'application/json'
+        Authorization: `Basic ${authString}`,
+        'Content-Type': 'application/json',
       });
 
       if (!response.token) {
@@ -60,7 +62,7 @@ class PesaPalProvider {
 
       this.accessToken = response.token;
       // Token expires in 5 minutes, refresh after 4 minutes
-      this.tokenExpiry = Date.now() + (4 * 60 * 1000);
+      this.tokenExpiry = Date.now() + 4 * 60 * 1000;
 
       console.log('[PesaPal] Authenticated successfully');
       return this.accessToken;
@@ -78,18 +80,18 @@ class PesaPalProvider {
     const token = await this.authenticate();
 
     const payload = {
-      url: url,
-      ipn_notification_type: method
+      url,
+      ipn_notification_type: method,
     };
 
     try {
       const response = await this.makeRequest('/api/URLSetup/RegisterIPN', 'POST', payload, {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       });
 
       console.log('[PesaPal] IPN Registered:', response);
-      
+
       // Store the IPN ID
       if (response.ipn_id) {
         this.config.ipnId = response.ipn_id;
@@ -109,7 +111,7 @@ class PesaPalProvider {
     const token = await this.authenticate();
 
     return await this.makeRequest('/api/URLSetup/GetIpnList', 'GET', null, {
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     });
   }
 
@@ -127,7 +129,7 @@ class PesaPalProvider {
       customerPhone,
       customerName = 'Br3eze Customer',
       callbackUrl,
-      notificationId
+      notificationId,
     } = data;
 
     // Validate required fields
@@ -145,7 +147,7 @@ class PesaPalProvider {
 
     const payload = {
       id: reference || `BR3EZE-${Date.now()}`,
-      currency: currency,
+      currency,
       amount: parseFloat(amount),
       description: description || 'Br3eze Africa WiFi Voucher',
       callback_url: callbackUrl || this.config.callbackUrl,
@@ -161,15 +163,20 @@ class PesaPalProvider {
         city: 'Harare',
         state: 'Harare',
         postal_code: '00263',
-        zip_code: '00263'
-      }
+        zip_code: '00263',
+      },
     };
 
     try {
-      const response = await this.makeRequest('/api/Transactions/SubmitOrderRequest', 'POST', payload, {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      });
+      const response = await this.makeRequest(
+        '/api/Transactions/SubmitOrderRequest',
+        'POST',
+        payload,
+        {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      );
 
       console.log('[PesaPal] Order submitted:', response);
 
@@ -179,10 +186,10 @@ class PesaPalProvider {
         merchantReference: response.merchant_reference,
         redirectUrl: response.redirect_url,
         status: 'pending',
-        amount: amount,
-        currency: currency,
+        amount,
+        currency,
         provider: 'pesapal',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
     } catch (error) {
       console.error('[PesaPal] Order submission failed:', error.message);
@@ -207,16 +214,16 @@ class PesaPalProvider {
         'GET',
         null,
         {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         }
       );
 
       const statusMap = {
-        'INVALID': 'failed',
-        'FAILED': 'failed',
-        'COMPLETED': 'completed',
-        'REVERSED': 'refunded',
-        'PENDING': 'pending'
+        INVALID: 'failed',
+        FAILED: 'failed',
+        COMPLETED: 'completed',
+        REVERSED: 'refunded',
+        PENDING: 'pending',
       };
 
       return {
@@ -231,7 +238,7 @@ class PesaPalProvider {
         paymentAccount: response.payment_account,
         createdAt: response.created_date,
         paidAt: response.status === 'COMPLETED' ? new Date().toISOString() : null,
-        raw: response
+        raw: response,
       };
     } catch (error) {
       console.error('[PesaPal] Status check failed:', error.message);
@@ -248,13 +255,13 @@ class PesaPalProvider {
     const payload = {
       order_tracking_id: orderTrackingId,
       amount: amount.toFixed(2),
-      reason: reason
+      reason,
     };
 
     try {
       const response = await this.makeRequest('/api/Transactions/RefundRequest', 'POST', payload, {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       });
 
       return {
@@ -262,7 +269,7 @@ class PesaPalProvider {
         refundId: response.refund_id,
         status: response.status.toLowerCase(),
         amount: parseFloat(response.amount),
-        message: response.message
+        message: response.message,
       };
     } catch (error) {
       console.error('[PesaPal] Refund failed:', error.message);
@@ -277,9 +284,7 @@ class PesaPalProvider {
   async verifyWebhook(payload, headers) {
     // PesaPal sends IPN as POST with order details
     // Verify by checking the order status directly
-    const orderTrackingId = payload.OrderTrackingId || 
-                           payload.order_tracking_id || 
-                           payload.id;
+    const orderTrackingId = payload.OrderTrackingId || payload.order_tracking_id || payload.id;
 
     if (!orderTrackingId) {
       console.error('[PesaPal IPN] No order tracking ID found in payload');
@@ -316,12 +321,12 @@ class PesaPalProvider {
     // }
 
     const status = payload.status || 'PENDING';
-    
+
     const statusMap = {
-      'COMPLETED': 'payment_success',
-      'FAILED': 'payment_failed',
-      'REVERSED': 'payment_reversed',
-      'PENDING': 'payment_pending'
+      COMPLETED: 'payment_success',
+      FAILED: 'payment_failed',
+      REVERSED: 'payment_reversed',
+      PENDING: 'payment_pending',
     };
 
     return {
@@ -336,7 +341,7 @@ class PesaPalProvider {
       customerName: `${payload.first_name || ''} ${payload.last_name || ''}`.trim(),
       transactionDate: payload.transaction_date || payload.TransactionDate,
       status: status.toLowerCase(),
-      raw: payload
+      raw: payload,
     };
   }
 
@@ -345,19 +350,19 @@ class PesaPalProvider {
    */
   formatPhoneNumber(phone) {
     if (!phone) return '';
-    
+
     let cleaned = phone.replace(/\D/g, '');
-    
+
     // Convert local format to international
     if (cleaned.startsWith('0')) {
-      cleaned = '263' + cleaned.substring(1);
+      cleaned = `263${cleaned.substring(1)}`;
     }
-    
+
     if (!cleaned.startsWith('263')) {
-      cleaned = '263' + cleaned;
+      cleaned = `263${cleaned}`;
     }
-    
-    return '+' + cleaned;
+
+    return `+${cleaned}`;
   }
 
   /**
@@ -366,28 +371,27 @@ class PesaPalProvider {
   makeRequest(endpoint, method, body = null, customHeaders = {}) {
     return new Promise((resolve, reject) => {
       const url = new URL(this.baseUrl + endpoint);
-      
+
       const options = {
         hostname: url.hostname,
         path: url.pathname + url.search,
-        method: method,
+        method,
         headers: {
-          'Accept': 'application/json',
-          ...customHeaders
-        }
+          Accept: 'application/json',
+          ...customHeaders,
+        },
       };
 
-      const req = https.request(options, (res) => {
+      const req = https.request(options, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', chunk => (data += chunk));
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
-            
+
             if (res.statusCode >= 400) {
-              const errorMsg = parsed.error?.message || 
-                              parsed.message || 
-                              `HTTP ${res.statusCode}: ${data}`;
+              const errorMsg =
+                parsed.error?.message || parsed.message || `HTTP ${res.statusCode}: ${data}`;
               reject(new Error(errorMsg));
             } else {
               resolve(parsed);
@@ -398,7 +402,7 @@ class PesaPalProvider {
         });
       });
 
-      req.on('error', (err) => {
+      req.on('error', err => {
         reject(new Error(`Request failed: ${err.message}`));
       });
 
@@ -413,7 +417,7 @@ class PesaPalProvider {
       if (body && method !== 'GET') {
         req.write(JSON.stringify(body));
       }
-      
+
       req.end();
     });
   }

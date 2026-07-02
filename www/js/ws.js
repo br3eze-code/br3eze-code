@@ -5,13 +5,13 @@
 'use strict';
 
 const WS = (() => {
-  let _ws       = null;
-  let _url      = '';
-  let _token    = '';
-  let _retry    = 0;
+  let _ws = null;
+  let _url = '';
+  let _token = '';
+  let _retry = 0;
   let _retryTid = null;
-  let _hbTid    = null;
-  let _dead     = false;
+  let _hbTid = null;
+  let _dead = false;
 
   const _handlers = {};
 
@@ -27,12 +27,16 @@ const WS = (() => {
   }
 
   function emit(event, data) {
-    (_handlers[event] || []).forEach(fn => { try { fn(data); } catch(_){} });
+    (_handlers[event] || []).forEach(fn => {
+      try {
+        fn(data);
+      } catch (_) {}
+    });
   }
 
   function connect(baseUrl, token) {
-    _dead  = false;
-    _url   = baseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + CFG.WS_PATH;
+    _dead = false;
+    _url = baseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + CFG.WS_PATH;
     _token = token || '';
     _open();
   }
@@ -41,7 +45,12 @@ const WS = (() => {
     _dead = true;
     clearTimeout(_retryTid);
     clearInterval(_hbTid);
-    if (_ws) { try { _ws.close(1000); } catch(_){} _ws = null; }
+    if (_ws) {
+      try {
+        _ws.close(1000);
+      } catch (_) {}
+      _ws = null;
+    }
   }
 
   function send(obj) {
@@ -62,7 +71,7 @@ const WS = (() => {
     try {
       const wsUrl = _token ? `${_url}?token=${encodeURIComponent(_token)}` : _url;
       _ws = new WebSocket(wsUrl);
-    } catch(e) {
+    } catch (e) {
       _scheduleRetry();
       return;
     }
@@ -73,18 +82,18 @@ const WS = (() => {
       _startHeartbeat();
     };
 
-    _ws.onmessage = (ev) => {
+    _ws.onmessage = ev => {
       try {
         const msg = JSON.parse(ev.data);
         // route to specific event + generic 'message'
         if (msg.type) emit(msg.type, msg);
         emit('message', msg);
-      } catch(_) {}
+      } catch (_) {}
     };
 
-    _ws.onerror = () => {};  // onclose handles reconnect
+    _ws.onerror = () => {}; // onclose handles reconnect
 
-    _ws.onclose = (ev) => {
+    _ws.onclose = ev => {
       clearInterval(_hbTid);
       _ws = null;
       emit('close', { code: ev.code });

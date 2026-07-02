@@ -1,10 +1,10 @@
-
 // skills/nanopdf/index.js
 // skills/nanopdf/index.js
 // const puppeteer = require('puppeteer-core'); // Lazy loaded
 // const { PDFDocument, PDFPage, StandardFonts, rgb } = require('pdf-lib'); // Lazy loaded
 const fs = require('fs').promises;
 const path = require('path');
+const { logger } = require('../../src/utils/logger');
 
 class NanoPDFSkill {
   constructor() {
@@ -16,7 +16,7 @@ class NanoPDFSkill {
 
   async initialize() {
     await fs.mkdir(this.cacheDir, { recursive: true });
-    
+
     // Lazy load dependencies
     try {
       this.puppeteer = require('puppeteer-core');
@@ -25,7 +25,9 @@ class NanoPDFSkill {
       this.StandardFonts = pdflib.StandardFonts;
       this.rgb = pdflib.rgb;
     } catch (err) {
-      logger.error(`NanoPDFSkill: Missing dependencies (puppeteer-core or pdf-lib). Skill will be limited. Error: ${err.message}`);
+      logger.error(
+        `NanoPDFSkill: Missing dependencies (puppeteer-core or pdf-lib). Skill will be limited. Error: ${err.message}`
+      );
       return;
     }
 
@@ -36,7 +38,7 @@ class NanoPDFSkill {
         if (process.platform === 'win32') {
           const paths = [
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+            'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
           ];
           executablePath = paths.find(p => require('fs').existsSync(p));
         } else {
@@ -48,7 +50,7 @@ class NanoPDFSkill {
         this.browser = await this.puppeteer.launch({
           headless: 'new',
           executablePath,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
+          args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
       }
     } catch (err) {
@@ -122,7 +124,7 @@ class NanoPDFSkill {
       displayHeaderFooter: !!(options.header || options.footer),
       headerTemplate: options.header || '',
       footerTemplate: options.footer || '',
-      printBackground: true
+      printBackground: true,
     });
 
     await page.close();
@@ -168,16 +170,16 @@ class NanoPDFSkill {
   async splitPDF({ file, pages }, context) {
     const pdfBytes = await fs.readFile(file);
     const pdf = await this.PDFDocument.load(pdfBytes);
-    
+
     const results = [];
-    
+
     for (const [index, pageRange] of pages.entries()) {
       const newPdf = await this.PDFDocument.create();
       const pageIndices = this.parsePageRange(pageRange, pdf.getPageCount());
-      
+
       const copiedPages = await newPdf.copyPages(pdf, pageIndices);
       copiedPages.forEach(page => newPdf.addPage(page));
-      
+
       const bytes = await newPdf.save();
       const result = await this.saveAndReturn(Buffer.from(bytes), `split-${index + 1}`);
       results.push(result);
@@ -188,10 +190,10 @@ class NanoPDFSkill {
 
   parsePageRange(range, totalPages) {
     if (range === 'all') return Array.from({ length: totalPages }, (_, i) => i);
-    
+
     const indices = [];
     const parts = range.split(',');
-    
+
     for (const part of parts) {
       if (part.includes('-')) {
         const [start, end] = part.split('-').map(Number);
@@ -203,7 +205,7 @@ class NanoPDFSkill {
         if (idx < totalPages) indices.push(idx);
       }
     }
-    
+
     return indices;
   }
 
@@ -216,17 +218,17 @@ class NanoPDFSkill {
         const texts = [];
         for (let i = 0; i < pdf.getPageCount(); i++) {
           const page = pdf.getPage(i);
-          const text = await page.getTextContent?.() || { items: [] };
+          const text = (await page.getTextContent?.()) || { items: [] };
           texts.push(text.items.map(item => item.str).join(' '));
         }
         return { success: true, pages: texts };
-        
+
       case 'images':
         // Extract embedded images
         const images = [];
         // Implementation depends on pdf-lib capabilities
         return { success: true, images };
-        
+
       case 'metadata':
         return {
           success: true,
@@ -239,10 +241,10 @@ class NanoPDFSkill {
             producer: pdf.getProducer(),
             creationDate: pdf.getCreationDate(),
             modificationDate: pdf.getModificationDate(),
-            pageCount: pdf.getPageCount()
-          }
+            pageCount: pdf.getPageCount(),
+          },
         };
-        
+
       default:
         throw new Error(`Unknown extract type: ${type}`);
     }
@@ -250,7 +252,7 @@ class NanoPDFSkill {
 
   async convertPDF({ file, format = 'png', dpi = 150 }, context) {
     const page = await this.browser.newPage();
-    
+
     // Load PDF
     const pdfPath = path.resolve(file);
     await page.goto(`file://${pdfPath}`, { waitUntil: 'networkidle0' });
@@ -258,20 +260,20 @@ class NanoPDFSkill {
     // Convert to image
     const screenshot = await page.screenshot({
       type: format === 'jpg' ? 'jpeg' : format,
-      fullPage: true
+      fullPage: true,
     });
 
     await page.close();
-    
+
     return this.saveAndReturn(screenshot, `converted-${format}`, format);
   }
 
   async fillForm({ file, fields }, context) {
     const pdfBytes = await fs.readFile(file);
     const pdf = await this.PDFDocument.load(pdfBytes);
-    
+
     const form = pdf.getForm();
-    
+
     for (const [name, value] of Object.entries(fields)) {
       try {
         const field = form.getTextField(name);
@@ -295,7 +297,7 @@ class NanoPDFSkill {
     }
 
     form.flatten();
-    
+
     const bytes = await pdf.save();
     return this.saveAndReturn(Buffer.from(bytes), 'filled');
   }
@@ -303,7 +305,7 @@ class NanoPDFSkill {
   async signPDF({ file, signature, position }, context) {
     const pdfBytes = await fs.readFile(file);
     const pdf = await this.PDFDocument.load(pdfBytes);
-    
+
     // Load signature image
     let sigImage;
     if (signature.startsWith('data:image')) {
@@ -311,21 +313,21 @@ class NanoPDFSkill {
       sigImage = await pdf.embedPng(Buffer.from(base64, 'base64'));
     } else {
       const sigBytes = await fs.readFile(signature);
-      sigImage = signature.endsWith('.png') 
+      sigImage = signature.endsWith('.png')
         ? await pdf.embedPng(sigBytes)
         : await pdf.embedJpg(sigBytes);
     }
 
     const pages = pdf.getPages();
     const firstPage = pages[0];
-    
+
     const { x = 100, y = 100, width = 150, height = 50 } = position || {};
-    
+
     firstPage.drawImage(sigImage, {
       x,
       y: firstPage.getHeight() - y - height,
       width,
-      height
+      height,
     });
 
     const bytes = await pdf.save();
@@ -335,28 +337,28 @@ class NanoPDFSkill {
   async compressPDF({ file, quality = 'medium' }, context) {
     const pdfBytes = await fs.readFile(file);
     const pdf = await this.PDFDocument.load(pdfBytes);
-    
+
     // Compression settings based on quality
     const settings = {
       low: { useObjectStreams: true, addDefaultPage: false },
       medium: { useObjectStreams: true, preserveExistingEncryption: false },
-      high: { useObjectStreams: true, objectsPerTick: 10 }
+      high: { useObjectStreams: true, objectsPerTick: 10 },
     };
 
     const bytes = await pdf.save(settings[quality] || settings.medium);
-    
+
     const originalSize = pdfBytes.length;
     const compressedSize = bytes.length;
-    
+
     const result = await this.saveAndReturn(Buffer.from(bytes), 'compressed');
-    
+
     return {
       ...result,
       compression: {
         original: originalSize,
         compressed: compressedSize,
-        ratio: ((1 - compressedSize / originalSize) * 100).toFixed(2) + '%'
-      }
+        ratio: `${((1 - compressedSize / originalSize) * 100).toFixed(2)}%`,
+      },
     };
   }
 
@@ -364,11 +366,11 @@ class NanoPDFSkill {
     const pdf = await this.PDFDocument.load(pdfBuffer);
     const pages = pdf.getPages();
     const { width, height } = pages[0].getSize();
-    
+
     const font = await pdf.embedFont(this.StandardFonts.Helvetica);
     const fontSize = 50;
     const textWidth = font.widthOfTextAtSize(text, fontSize);
-    
+
     for (const page of pages) {
       page.drawText(text, {
         x: (width - textWidth) / 2,
@@ -377,7 +379,7 @@ class NanoPDFSkill {
         font,
         color: this.rgb(0.5, 0.5, 0.5),
         opacity: 0.3,
-        rotate: { angle: 45 * (Math.PI / 180), type: 'degrees' }
+        rotate: { angle: 45 * (Math.PI / 180), type: 'degrees' },
       });
     }
 
@@ -389,9 +391,9 @@ class NanoPDFSkill {
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const filename = `${suffix}-${id}.${ext}`;
     const filepath = path.join(this.cacheDir, filename);
-    
+
     await fs.writeFile(filepath, buffer);
-    
+
     // Auto-cleanup after 24 hours
     const timeout = setTimeout(() => {
       fs.unlink(filepath).catch(() => {});
@@ -404,7 +406,7 @@ class NanoPDFSkill {
       url: `/cache/pdf/${filename}`,
       filename,
       size: buffer.length,
-      pages: ext === 'pdf' ? await this.getPageCount(buffer) : undefined
+      pages: ext === 'pdf' ? await this.getPageCount(buffer) : undefined,
     };
   }
 
@@ -421,7 +423,9 @@ class NanoPDFSkill {
     if (params.action === 'create') {
       return !!params.template;
     }
-    if (['merge', 'split', 'extract', 'convert', 'fill', 'sign', 'compress'].includes(params.action)) {
+    if (
+      ['merge', 'split', 'extract', 'convert', 'fill', 'sign', 'compress'].includes(params.action)
+    ) {
       return !!params.file || (params.files && params.files.length > 0);
     }
     return true;

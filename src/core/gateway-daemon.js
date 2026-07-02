@@ -48,7 +48,7 @@ startGateway({ port, gateway: { port } })
   .then(() => {
     console.log(`Gateway daemon started on port ${port}`);
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('Failed to start gateway:', error);
     cleanup();
     process.exit(1);

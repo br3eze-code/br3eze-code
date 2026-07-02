@@ -11,19 +11,18 @@
  */
 
 const tools = {
-
   // ── Network tools ──────────────────────────────────────────────────────────
   'network.ping': async (ctx, host) => {
     const client = ctx.client || ctx;
     return client.menu('/ping').call({ address: host, count: '4' });
   },
 
-  'network.resource': async (ctx) => {
+  'network.resource': async ctx => {
     const client = ctx.client || ctx;
     return client.menu('/system/resource').get();
   },
 
-  'network.interfaces': async (ctx) => {
+  'network.interfaces': async ctx => {
     const client = ctx.client || ctx;
     return client.menu('/interface').get();
   },
@@ -34,12 +33,12 @@ const tools = {
     return client.menu('/ip/hotspot/user').add({ name, password: name, profile });
   },
 
-  'hotspot.active': async (ctx) => {
+  'hotspot.active': async ctx => {
     const client = ctx.client || ctx;
     return client.menu('/ip/hotspot/active').get();
   },
 
-  'hotspot.profiles': async (ctx) => {
+  'hotspot.profiles': async ctx => {
     const client = ctx.client || ctx;
     return client.menu('/ip/hotspot/profile').get();
   },
@@ -48,11 +47,14 @@ const tools = {
   'voucher.generate': async (ctx, { count = 1, profile = 'default', validity = '1d' } = {}) => {
     const vouchers = [];
     for (let i = 0; i < count; i++) {
-      vouchers.push({ code: Math.random().toString(36).substring(2, 10).toUpperCase(), profile, validity });
+      vouchers.push({
+        code: Math.random().toString(36).substring(2, 10).toUpperCase(),
+        profile,
+        validity,
+      });
     }
     return { vouchers, count };
   },
-
 };
 
 module.exports = tools;

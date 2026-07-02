@@ -1,7 +1,6 @@
 // src/tools/developer/codeGenTool.js
 // ==========================================
 
-
 'use strict';
 
 const path = require('path');
@@ -14,7 +13,7 @@ function getSkill() {
 }
 
 const codeGenTool = {
-  name:        'codegen',
+  name: 'codegen',
   description: 'Generate code from natural language using the configured AI provider',
   autonomyLevel: 'supervised',
 
@@ -25,7 +24,7 @@ const codeGenTool = {
   async execute(params, context = {}) {
     const skill = getSkill();
     return skill.execute(params, context);
-  }
+  },
 };
 
 module.exports = codeGenTool;

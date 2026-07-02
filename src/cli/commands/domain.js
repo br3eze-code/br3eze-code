@@ -4,9 +4,9 @@
  */
 
 const _chalk = require('chalk');
-const chalk  = _chalk.default || _chalk;
+const chalk = _chalk.default || _chalk;
 
-module.exports = (program) => {
+module.exports = program => {
   program
     .command('domain <action>')
     .description('Manage infrastructure domains (network, cloud, container, iot)')
@@ -15,11 +15,19 @@ module.exports = (program) => {
     .action(async (action, options) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       const domains = {
-        network: { name: 'Network Infrastructure', icon: '📡', adapters: ['mikrotik', 'unifi', 'cisco'] },
+        network: {
+          name: 'Network Infrastructure',
+          icon: '📡',
+          adapters: ['mikrotik', 'unifi', 'cisco'],
+        },
         cloud: { name: 'Cloud Compute', icon: '☁️', adapters: ['aws', 'azure', 'gcp'] },
-        container: { name: 'Container Orchestration', icon: '📦', adapters: ['docker', 'kubernetes'] },
+        container: {
+          name: 'Container Orchestration',
+          icon: '📦',
+          adapters: ['docker', 'kubernetes'],
+        },
         iot: { name: 'IoT Device Management', icon: '📟', adapters: ['mqtt', 'aws-iot'] },
-        hybrid: { name: 'Hybrid Infrastructure', icon: '🔀', adapters: ['all'] }
+        hybrid: { name: 'Hybrid Infrastructure', icon: '🔀', adapters: ['all'] },
       };
 
       intro('🏗️ Domain Manager');
@@ -38,7 +46,7 @@ module.exports = (program) => {
             log.error('Invalid domain type. Use: network, cloud, container, iot, hybrid');
             process.exit(1);
           }
-          
+
           // Update workspace domain
           const workspace = global.workspaceManager.getWorkspace(options.workspace);
           if (workspace) {
@@ -55,11 +63,10 @@ module.exports = (program) => {
           // Implementation would scan for available APIs
           outro(chalk.green('✓ Detection complete.'));
           break;
-          
+
         default:
           log.error(`Unknown action: ${action}`);
           process.exit(1);
       }
     });
 };
-

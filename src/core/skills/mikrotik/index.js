@@ -1,4 +1,3 @@
-
 // skills/mikrotik/index.js
 const RouterOSClient = require('routeros-client').RouterOSClient;
 
@@ -7,7 +6,7 @@ class MikroTikSkill {
     this.connections = new Map();
     this.poolConfig = {
       maxConnections: 5,
-      idleTimeout: 600000
+      idleTimeout: 600000,
     };
   }
 
@@ -58,19 +57,22 @@ class MikroTikSkill {
               name: u.name,
               address: u.address,
 
-
               uptime: u.uptime,
               bytesIn: u['bytes-in'],
-              bytesOut: u['bytes-out']
-            }))
+              bytesOut: u['bytes-out'],
+            })),
           };
 
         case 'kick':
           if (!params.username) throw new Error('Username required');
-          const activeSessions = await client.menu('/ip/hotspot/active').where('user', params.username).get();
+          const activeSessions = await client
+            .menu('/ip/hotspot/active')
+            .where('user', params.username)
+            .get();
           if (activeSessions.length === 0) throw new Error(`User ${params.username} not active`);
           const sessionId = activeSessions[0]['.id'];
-          if (!sessionId) throw new Error(`Could not resolve session ID for user ${params.username}`);
+          if (!sessionId)
+            throw new Error(`Could not resolve session ID for user ${params.username}`);
           await client.menu('/ip/hotspot/active').remove(sessionId);
           return { success: true, message: `User ${params.username} kicked` };
 
@@ -81,7 +83,7 @@ class MikroTikSkill {
           await client.menu('/ip hotspot user').add({
             name: params.username,
             password: params.password,
-            profile: params.profile || 'default'
+            profile: params.profile || 'default',
           });
           return { success: true, message: `User ${params.username} created` };
 
@@ -104,17 +106,17 @@ class MikroTikSkill {
             cpu: resources['cpu-load'],
             memory: {
               total: resources['total-memory'],
-              free: resources['free-memory']
+              free: resources['free-memory'],
             },
             uptime: resources.uptime,
-            version: resources.version
+            version: resources.version,
           };
 
         case 'reboot':
           if (!params.confirm) {
             return {
               requiresConfirmation: true,
-              message: 'Type YES to confirm reboot'
+              message: 'Type YES to confirm reboot',
             };
           }
           await client.menu('/system').reboot();
@@ -151,7 +153,7 @@ class MikroTikSkill {
       port: routerConfig.port,
       user: routerConfig.user,
       password: routerConfig.password,
-      timeout: 30000
+      timeout: 30000,
     });
 
     await client.connect();
@@ -185,7 +187,7 @@ class MikroTikSkill {
 
   async getRouterConfig(routerId, context) {
     // Get from agent memory/config
-    const routers = await context.memory.get('config:routers') || {};
+    const routers = (await context.memory.get('config:routers')) || {};
     return routers[routerId];
   }
 

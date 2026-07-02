@@ -9,10 +9,10 @@
  */
 
 const admin = require('firebase-admin');
-const path  = require('path');
-const fs    = require('fs');
+const path = require('path');
+const fs = require('fs');
 
-let _db   = null;
+let _db = null;
 let _auth = null;
 let _initialized = false;
 
@@ -50,7 +50,7 @@ function init() {
   try {
     admin.initializeApp({
       credential: getCredential(),
-      projectId:  process.env.FIREBASE_PROJECT_ID || 'br3eze-africa-312df',
+      projectId: process.env.FIREBASE_PROJECT_ID || 'br3eze-africa-312df',
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
     _initialized = true;
@@ -58,7 +58,7 @@ function init() {
     const db = admin.firestore();
     db.settings({ ignoreUndefinedProperties: true });
 
-    _db   = db;
+    _db = db;
     _auth = admin.auth();
     console.log('[firebase] ✅ Initialized');
   } catch (err) {
@@ -69,9 +69,17 @@ function init() {
 
 // Lazy init on first access
 const firebaseProxy = {
-  get db()   { if (!_db)   init(); return _db;   },
-  get auth() { if (!_auth) init(); return _auth; },
-  get admin(){ return admin; },
+  get db() {
+    if (!_db) init();
+    return _db;
+  },
+  get auth() {
+    if (!_auth) init();
+    return _auth;
+  },
+  get admin() {
+    return admin;
+  },
   init,
 };
 

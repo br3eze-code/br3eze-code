@@ -8,7 +8,11 @@
 const { getManager } = require('../core/mikrotik');
 
 function getMikrotik() {
-  try { return getManager(); } catch (_) { return null; }
+  try {
+    return getManager();
+  } catch (_) {
+    return null;
+  }
 }
 
 const mikrotik = {

@@ -8,14 +8,14 @@ class PluginManager {
       postInitialize: [],
       preSkillExecute: [],
       postSkillExecute: [],
-      preShutdown: []
+      preShutdown: [],
     };
   }
 
   async load(pluginPath) {
     const Plugin = require(pluginPath);
     const instance = new Plugin(this.agent);
-    
+
     // Register hooks
     if (instance.hooks) {
       for (const [event, handler] of Object.entries(instance.hooks)) {
@@ -24,14 +24,14 @@ class PluginManager {
         }
       }
     }
-    
+
     // Initialize plugin
     if (instance.initialize) {
       await instance.initialize();
     }
-    
+
     this.plugins.set(instance.name || pluginPath, instance);
-    
+
     return instance;
   }
 
@@ -44,11 +44,11 @@ class PluginManager {
   async unload(name) {
     const plugin = this.plugins.get(name);
     if (!plugin) return;
-    
+
     if (plugin.destroy) {
       await plugin.destroy();
     }
-    
+
     this.plugins.delete(name);
   }
 }
@@ -59,7 +59,7 @@ class AnalyticsPlugin {
     this.name = 'analytics';
     this.agent = agent;
     this.hooks = {
-      postSkillExecute: this.trackSkillUsage.bind(this)
+      postSkillExecute: this.trackSkillUsage.bind(this),
     };
   }
 
@@ -68,7 +68,7 @@ class AnalyticsPlugin {
       skill: result.skill,
       userId: context.userId,
       duration: result.duration,
-      success: !result.error
+      success: !result.error,
     });
   }
 }

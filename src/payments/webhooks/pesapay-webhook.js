@@ -10,15 +10,14 @@ const router = express.Router();
  * @param {Object} callbacks - Callback functions
  */
 function setupPesaPayWebhooks(gateway, callbacks) {
-  
   // IPN Endpoint - PesaPay sends notifications here
   router.post('/ipn', express.urlencoded({ extended: true }), async (req, res) => {
     try {
       console.log('[PesaPay IPN Received]', req.body);
-      
+
       // Verify the webhook
       const isValid = await gateway.handleWebhook('pesapay', req.body, req.headers);
-      
+
       if (!isValid) {
         console.error('[PesaPay IPN] Invalid signature');
         return res.status(400).send('Invalid');
@@ -26,7 +25,7 @@ function setupPesaPayWebhooks(gateway, callbacks) {
 
       // Process the webhook
       const result = await gateway.providers.get('pesapay').processWebhook(req.body);
-      
+
       // Handle based on status
       switch (result.type) {
         case 'payment_success':
@@ -35,30 +34,29 @@ function setupPesaPayWebhooks(gateway, callbacks) {
             merchantReference: result.merchantReference,
             amount: result.amount,
             currency: result.currency,
-            provider: 'pesapay'
+            provider: 'pesapay',
           });
           break;
-          
+
         case 'payment_failed':
           await callbacks.onPaymentFailed({
             transactionId: result.transactionId,
             reason: 'Payment failed or cancelled',
-            provider: 'pesapay'
+            provider: 'pesapay',
           });
           break;
-          
+
         case 'payment_reversed':
           await callbacks.onRefundProcessed({
             transactionId: result.transactionId,
             amount: result.amount,
-            provider: 'pesapay'
+            provider: 'pesapay',
           });
           break;
       }
 
       // IMPORTANT: Must respond with "OK" for PesaPay to stop retrying
       res.status(200).send('OK');
-      
     } catch (error) {
       console.error('[PesaPay IPN Error]', error);
       // Still return 200 to prevent PesaPay from retrying
@@ -82,13 +80,13 @@ function setupPesaPayWebhooks(gateway, callbacks) {
     try {
       const pesapay = gateway.providers.get('pesapay');
       const { url, method = 'POST' } = req.body;
-      
+
       const result = await pesapay.registerIPN(url, method);
       res.json({
         success: true,
         ipnId: result.ipn_id,
         url: result.url,
-        method: result.method
+        method: result.method,
       });
     } catch (error) {
       res.status(500).json({ error: error.message });

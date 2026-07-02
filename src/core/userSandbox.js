@@ -44,7 +44,7 @@ function toolMatches(pattern, toolName) {
   if (pattern === toolName) return true;
   if (pattern.endsWith('.*')) {
     const ns = pattern.slice(0, -2);
-    return toolName === ns || toolName.startsWith(ns + '.');
+    return toolName === ns || toolName.startsWith(`${ns}.`);
   }
   return false;
 }
@@ -82,7 +82,8 @@ class SandboxInterceptor {
     this.routerId = routerId;
     this.db = db;
     this.isSandbox = role.sandbox === true;
-    this.isReadOnly = !anyMatch(role.tools, 'voucher.create') &&
+    this.isReadOnly =
+      !anyMatch(role.tools, 'voucher.create') &&
       !anyMatch(role.tools, 'user.kick') &&
       !anyMatch(role.tools, 'system.reboot');
     this.log = [];
@@ -98,8 +99,11 @@ class SandboxInterceptor {
         'TOOL_NOT_ALLOWED'
       );
     }
-    if (requireApproval.length > 0 && requireApproval[0] !== '' &&
-        anyMatch(requireApproval, toolName)) {
+    if (
+      requireApproval.length > 0 &&
+      requireApproval[0] !== '' &&
+      anyMatch(requireApproval, toolName)
+    ) {
       throw new AuthError(
         `'${toolName}' requires approval for role '${this.role.label}'`,
         'APPROVAL_REQUIRED'
@@ -140,11 +144,16 @@ class SandboxInterceptor {
         userId: this.userId,
         tool: toolName,
         args,
-        sandbox: this.isSandbox
+        sandbox: this.isSandbox,
       };
 
       if (this.isSandbox) {
-        const result = { sandbox: true, would_call: toolName, with: args, note: 'Sandbox — no changes applied' };
+        const result = {
+          sandbox: true,
+          would_call: toolName,
+          with: args,
+          note: 'Sandbox — no changes applied',
+        };
         this.log.push({ ...entry, result });
         logger.info(`[SANDBOX] ${this.userId} → ${toolName}`, args);
         return result;
@@ -161,7 +170,9 @@ class SandboxInterceptor {
     };
   }
 
-  getSandboxLog() { return this.log; }
+  getSandboxLog() {
+    return this.log;
+  }
 }
 
 // ── UserSandbox (main class) ───────────────────────────────────────────────
@@ -220,7 +231,7 @@ class UserSandbox extends EventEmitter {
 
   async listUsers({ role, limit = 50 } = {}) {
     if (this.db) {
-      const rows = await this.db.listUsers?.({ role, limit }) || [];
+      const rows = (await this.db.listUsers?.({ role, limit })) || [];
       return rows;
     }
     const { users } = getRoles();
@@ -259,7 +270,12 @@ class UserSandbox extends EventEmitter {
    */
   async execute(userId, toolName, args, executor, ctx = {}) {
     const role = await this.getRole(userId, { fallbackRole: ctx.fallbackRole || 'user' });
-    const interceptor = new SandboxInterceptor({ userId, role, routerId: ctx.routerId, db: this.db });
+    const interceptor = new SandboxInterceptor({
+      userId,
+      role,
+      routerId: ctx.routerId,
+      db: this.db,
+    });
     const wrapped = interceptor.wrap(toolName, executor);
     return wrapped(args, ctx);
   }
@@ -275,7 +291,7 @@ class UserSandbox extends EventEmitter {
       args,
       routerId,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
     this.approvalStore.set(id, req);
     this.emit('approvalRequested', req);
@@ -326,4 +342,13 @@ function getUserSandbox(opts) {
   return _instance;
 }
 
-module.exports = { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
+module.exports = {
+  UserSandbox,
+  getUserSandbox,
+  AuthError,
+  SandboxInterceptor,
+  getRole,
+  getRoleForUser,
+  anyMatch,
+  toolMatches,
+};

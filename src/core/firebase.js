@@ -19,30 +19,30 @@ function initializeFirebase() {
     const path = require('path');
     const fs = require('fs');
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
+
     if (serviceAccountPath) {
       // Resolve path relative to CWD if it's relative
       if (!path.isAbsolute(serviceAccountPath)) {
         serviceAccountPath = path.resolve(process.cwd(), serviceAccountPath);
       }
     }
-    
+
     if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
       const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-      
+
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
+        databaseURL: process.env.FIREBASE_DATABASE_URL,
       });
-      
+
       logger.info('Firebase initialized with service account');
     } else if (process.env.FIREBASE_API_KEY) {
       // Use application default credentials or API key
       firebaseApp = admin.initializeApp({
         credential: admin.credential.applicationDefault(),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
+        databaseURL: process.env.FIREBASE_DATABASE_URL,
       });
-      
+
       logger.info('Firebase initialized with application credentials');
     } else {
       logger.warn('Firebase credentials not found. Database features disabled.');
@@ -50,10 +50,10 @@ function initializeFirebase() {
     }
 
     db = admin.firestore();
-    
+
     // Enable offline persistence for Firestore
     db.settings({
-      cacheSizeBytes: admin.firestore.CACHE_SIZE_UNLIMITED
+      cacheSizeBytes: admin.firestore.CACHE_SIZE_UNLIMITED,
     });
 
     return { app: firebaseApp, db };
@@ -117,11 +117,16 @@ async function createAuthUser(identifier, opts = {}) {
     if (opts.displayName) payload.displayName = opts.displayName;
 
     const record = await auth.createUser(payload);
-    logger.info(`[Firebase] createAuthUser: provisioned uid:${record.uid} for ${id} via ${opts.channel || 'unknown'}`);
+    logger.info(
+      `[Firebase] createAuthUser: provisioned uid:${record.uid} for ${id} via ${opts.channel || 'unknown'}`
+    );
     return record;
   } catch (err) {
     // auth/email-already-exists / auth/phone-number-already-exists — safe to ignore, caller should retry getUserBy*
-    if (err.code === 'auth/email-already-exists' || err.code === 'auth/phone-number-already-exists') {
+    if (
+      err.code === 'auth/email-already-exists' ||
+      err.code === 'auth/phone-number-already-exists'
+    ) {
       logger.debug(`[Firebase] createAuthUser: identifier already exists (${err.code}) — skipping`);
       return null;
     }
@@ -136,5 +141,5 @@ module.exports = {
   getFirebaseApp,
   getAuth,
   createAuthUser,
-  admin
+  admin,
 };

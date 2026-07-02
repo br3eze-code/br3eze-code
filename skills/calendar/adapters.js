@@ -1,4 +1,3 @@
-
 // skills/calendar/adapters.js
 const fs = require('fs');
 const path = require('path');
@@ -7,10 +6,18 @@ class BaseCalendarAdapter {
   constructor(context) {
     this.context = context;
   }
-  async createEvent(event) { throw new Error('Not implemented'); }
-  async listEvents(start, end) { throw new Error('Not implemented'); }
-  async updateEvent(id, event) { throw new Error('Not implemented'); }
-  async deleteEvent(id) { throw new Error('Not implemented'); }
+  async createEvent(event) {
+    throw new Error('Not implemented');
+  }
+  async listEvents(start, end) {
+    throw new Error('Not implemented');
+  }
+  async updateEvent(id, event) {
+    throw new Error('Not implemented');
+  }
+  async deleteEvent(id) {
+    throw new Error('Not implemented');
+  }
 }
 
 class LocalCalendarAdapter extends BaseCalendarAdapter {
@@ -39,7 +46,7 @@ class LocalCalendarAdapter extends BaseCalendarAdapter {
     const newEvent = {
       id: Date.now().toString(),
       ...event,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
     events.push(newEvent);
     await this._write(events);
@@ -85,5 +92,5 @@ class OutlookCalendarAdapter extends BaseCalendarAdapter {
 module.exports = {
   LocalCalendarAdapter,
   GoogleCalendarAdapter,
-  OutlookCalendarAdapter
+  OutlookCalendarAdapter,
 };

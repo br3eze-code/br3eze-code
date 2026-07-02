@@ -2,22 +2,27 @@ const fs = require('fs/promises');
 const path = require('path');
 
 const skill_create = {
-  name: "skill_create",
-  description: "Create new AgentOS skills. Now supports templates for RouterOS file upload, fleet sharding, and multi-asset bundles.",
+  name: 'skill_create',
+  description:
+    'Create new AgentOS skills. Now supports templates for RouterOS file upload, fleet sharding, and multi-asset bundles.',
   parameters: {
-    type: "object",
+    type: 'object',
     properties: {
-      name: { type: "string", description: "Skill name, e.g. 'hotspot_banner'" },
-      purpose: { type: "string", description: "What it does" },
-      trigger: { type: "string", description: "Example user phrase that should trigger it" },
-      template: { 
-        type: "string", 
-        enum: ["basic", "routeros_file", "fleet_shard", "hotspot_bundle"],
-        description: "basic=simple skill, routeros_file=uploads files to RouterOS, fleet_shard=runs on inventory.json, hotspot_bundle=full portal deploy"
+      name: { type: 'string', description: "Skill name, e.g. 'hotspot_banner'" },
+      purpose: { type: 'string', description: 'What it does' },
+      trigger: { type: 'string', description: 'Example user phrase that should trigger it' },
+      template: {
+        type: 'string',
+        enum: ['basic', 'routeros_file', 'fleet_shard', 'hotspot_bundle'],
+        description:
+          'basic=simple skill, routeros_file=uploads files to RouterOS, fleet_shard=runs on inventory.json, hotspot_bundle=full portal deploy',
       },
-      code: { type: "string", description: "Custom code if template=basic. Ignored for other templates." }
+      code: {
+        type: 'string',
+        description: 'Custom code if template=basic. Ignored for other templates.',
+      },
     },
-    required: ["name", "purpose", "trigger", "template"]
+    required: ['name', 'purpose', 'trigger', 'template'],
   },
 
   run: async ({ name, purpose, trigger, template, code }, { gemini }) => {
@@ -197,18 +202,29 @@ module.exports = { ${name} };
 
     // Validate generated code
     const validation = await gemini.generate({
-      prompt: `Validate AgentOS skill. Must export { ${name} } with name,description,parameters,run. Check RouterOS safety, no system paths, no eval. Reply: VALID or INVALID: <reason>\n\nCode:\n${finalCode.slice(0, 3000)}`
+      prompt: `Validate AgentOS skill. Must export { ${name} } with name,description,parameters,run. Check RouterOS safety, no system paths, no eval. Reply: VALID or INVALID: <reason>\n\nCode:\n${finalCode.slice(0, 3000)}`,
     });
-    if (!validation.text.includes('VALID')) throw new Error(`Generated skill invalid: ${validation.text}`);
+    if (!validation.text.includes('VALID'))
+      throw new Error(`Generated skill invalid: ${validation.text}`);
 
     await fs.writeFile(filePath, finalCode);
-    await fs.appendFile('./knowledge/soul.md',
-      `\n## Skill Genesis ${new Date().toISOString()}\nCreated: ${name}.js\nTemplate: ${template}\nPurpose: ${purpose}\nTrigger: "${trigger}"\n`);
-    await fs.appendFile('./knowledge/mikrotik-patterns.md',
-      `\n## Auto-generated skill: ${name}\nTemplate: ${template}\nTriggered by: "${trigger}"\nPurpose: ${purpose}\nFile: ${filePath}\n`);
+    await fs.appendFile(
+      './knowledge/soul.md',
+      `\n## Skill Genesis ${new Date().toISOString()}\nCreated: ${name}.js\nTemplate: ${template}\nPurpose: ${purpose}\nTrigger: "${trigger}"\n`
+    );
+    await fs.appendFile(
+      './knowledge/mikrotik-patterns.md',
+      `\n## Auto-generated skill: ${name}\nTemplate: ${template}\nTriggered by: "${trigger}"\nPurpose: ${purpose}\nFile: ${filePath}\n`
+    );
 
-    return { success: true, skill: name, file: filePath, template, warning: 'Restart AgentOS to load new skill' };
-  }
+    return {
+      success: true,
+      skill: name,
+      file: filePath,
+      template,
+      warning: 'Restart AgentOS to load new skill',
+    };
+  },
 };
 
 module.exports = { skill_create };

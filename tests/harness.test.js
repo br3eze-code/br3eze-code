@@ -13,7 +13,9 @@ const mockDomain = {
   description: 'Test domain for unit tests',
   capabilities: ['ping', 'echo'],
 
-  getCapabilities() { return this.capabilities; },
+  getCapabilities() {
+    return this.capabilities;
+  },
 
   getSkills() {
     return [
@@ -22,7 +24,7 @@ const mockDomain = {
         description: 'Echo params back',
         parameters: { message: { type: 'string' } },
         risk: 'low',
-        execute: async (params) => ({ echo: params.message || 'hello' }),
+        execute: async params => ({ echo: params.message || 'hello' }),
       },
       {
         name: 'add',
@@ -37,19 +39,19 @@ const mockDomain = {
   getTools() {
     const skills = this.getSkills();
     const out = {};
-    skills.forEach((s) => {
+    skills.forEach(s => {
       out[`mock.${s.name}`] = {
         description: s.description,
-        parameters:  s.parameters,
-        risk:        s.risk,
-        execute:     (ctx, params) => s.execute(params || ctx),
+        parameters: s.parameters,
+        risk: s.risk,
+        execute: (ctx, params) => s.execute(params || ctx),
       };
     });
     return out;
   },
 
   async execute(ctx) {
-    const skill = this.getSkills().find((s) => s.name === ctx.tool);
+    const skill = this.getSkills().find(s => s.name === ctx.tool);
     if (!skill) throw new Error(`mock: unknown tool "${ctx.tool}"`);
     return skill.execute(ctx.params || {});
   },
@@ -102,24 +104,27 @@ describe('AgentHarness', () => {
   });
 
   test('rejects invalid adapter (no name)', () => {
-    expect(() => harness.useDomain({ execute: async () => {}, getCapabilities: () => [] }))
-      .toThrow(/name/i);
+    expect(() => harness.useDomain({ execute: async () => {}, getCapabilities: () => [] })).toThrow(
+      /name/i
+    );
   });
 
   test('rejects adapter without execute or getSkills', () => {
-    expect(() => harness.useDomain({ name: 'bad', getCapabilities: () => [] }))
-      .toThrow(/execute|getSkills/i);
+    expect(() => harness.useDomain({ name: 'bad', getCapabilities: () => [] })).toThrow(
+      /execute|getSkills/i
+    );
   });
 
   test('rejects adapter without getCapabilities', () => {
-    expect(() => harness.useDomain({ name: 'bad2', execute: async () => {} }))
-      .toThrow(/getCapabilities/i);
+    expect(() => harness.useDomain({ name: 'bad2', execute: async () => {} })).toThrow(
+      /getCapabilities/i
+    );
   });
 
   test('emits domain:registered event', () => {
     const h = AgentHarness.create({ id: 'event-test' });
     const events = [];
-    h.on('domain:registered', (e) => events.push(e));
+    h.on('domain:registered', e => events.push(e));
     h.useDomain(mockDomain);
     expect(events).toHaveLength(1);
     expect(events[0].id).toBe('mock');
@@ -160,7 +165,7 @@ describe('BaseDomain', () => {
   test('getTools() returns namespaced map', () => {
     const d = new BaseDomain();
     d.name = 'myDomain';
-    d.registerTool({ name: 'doit', execute: async (p) => p });
+    d.registerTool({ name: 'doit', execute: async p => p });
     const tools = d.getTools();
     expect(tools['myDomain.doit']).toBeDefined();
   });

@@ -3,7 +3,6 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const EventEmitter = require('events');
 const { logger } = require('../core/logger');
 
-
 const { QNAPProcessor } = require('./qnap-integration');
 
 class AICoordinator extends EventEmitter {
@@ -22,8 +21,8 @@ class AICoordinator extends EventEmitter {
     this.mikrotik = getManager();
 
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
-      systemInstruction: this.getSystemPrompt()
+      model: 'gemini-2.0-flash-exp',
+      systemInstruction: this.getSystemPrompt(),
     });
 
     this._registerStaticTools();
@@ -34,7 +33,7 @@ class AICoordinator extends EventEmitter {
     const path = require('path');
     const skillsPath = path.join(__dirname, '../skills');
     await this.skillRegistry.loadFromDirectory(skillsPath, this.config);
-    
+
     // Build tool-to-skill map — check both manifest.tools AND static getTools() on the class
     for (const manifest of this.skillRegistry.list()) {
       const skillName = manifest.name;
@@ -57,13 +56,15 @@ class AICoordinator extends EventEmitter {
       }
     }
 
-    logger.info(`AICoordinator: Loaded ${this.skillRegistry.skills.size} skills and ${this.toolToSkillMap.size} tools`);
+    logger.info(
+      `AICoordinator: Loaded ${this.skillRegistry.skills.size} skills and ${this.toolToSkillMap.size} tools`
+    );
 
     // Refresh model with full function declarations after skills are loaded
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: 'gemini-2.0-flash-exp',
       systemInstruction: this.getSystemPrompt(),
-      tools: [{ functionDeclarations: this._buildFunctionDeclarations() }]
+      tools: [{ functionDeclarations: this._buildFunctionDeclarations() }],
     });
   }
 
@@ -74,13 +75,13 @@ class AICoordinator extends EventEmitter {
       decls.push({
         name: name.replace(/\./g, '__'),
         description: tool.description || name,
-        parameters: this._normalizeParams(tool.parameters)
+        parameters: this._normalizeParams(tool.parameters),
       });
     });
     if (this.skillRegistry) {
       for (const manifest of this.skillRegistry.list()) {
         const impl = this.skillRegistry.implementations?.get(manifest.name);
-        const classTools = (impl && typeof impl.getTools === 'function') ? impl.getTools() : {};
+        const classTools = impl && typeof impl.getTools === 'function' ? impl.getTools() : {};
         const manifestTools = manifest.tools || {};
         const allTools = Array.isArray(manifestTools)
           ? Object.fromEntries(manifestTools.map(t => [t.name, t]))
@@ -89,7 +90,7 @@ class AICoordinator extends EventEmitter {
           decls.push({
             name: toolName.replace(/\./g, '__'),
             description: tool.description || toolName,
-            parameters: this._normalizeParams(tool.parameters)
+            parameters: this._normalizeParams(tool.parameters),
           });
         }
       }
@@ -119,7 +120,9 @@ When managing CCTV, target devices by their deviceId.`;
 
   _getToolsDescription() {
     let desc = '';
-    this.toolRegistry.forEach((tool, name) => { desc += `- ${name}: ${tool.description || ''}\n`; });
+    this.toolRegistry.forEach((tool, name) => {
+      desc += `- ${name}: ${tool.description || ''}\n`;
+    });
     if (this.skillRegistry) {
       for (const manifest of this.skillRegistry.list()) {
         const impl = this.skillRegistry.implementations?.get(manifest.name);
@@ -142,7 +145,7 @@ When managing CCTV, target devices by their deviceId.`;
 
       const chat = this.model.startChat({
         history: this.getConversationHistory(context.userId),
-        generationConfig: { temperature: 0.2, topP: 0.8, topK: 40 }
+        generationConfig: { temperature: 0.2, topP: 0.8, topK: 40 },
       });
 
       let result = await chat.sendMessage(text);
@@ -152,26 +155,30 @@ When managing CCTV, target devices by their deviceId.`;
       const MAX_TOOL_TURNS = 8;
       let toolTurns = 0;
       while (toolTurns < MAX_TOOL_TURNS) {
-        const calls = (typeof response.functionCalls === 'function' ? response.functionCalls() : null) || [];
+        const calls =
+          (typeof response.functionCalls === 'function' ? response.functionCalls() : null) || [];
         if (!calls.length) break;
         toolTurns++;
 
-        const toolResults = await Promise.all(calls.map(async (call) => {
-          const toolName = call.name.replace(/__/g, '.');
-          let toolResult;
-          try {
-            toolResult = await this.executeTool(toolName, call.args || {}, context);
-          } catch (err) {
-            toolResult = { error: err.message };
-          }
-          return { functionResponse: { name: call.name, response: { result: toolResult } } };
-        }));
+        const toolResults = await Promise.all(
+          calls.map(async call => {
+            const toolName = call.name.replace(/__/g, '.');
+            let toolResult;
+            try {
+              toolResult = await this.executeTool(toolName, call.args || {}, context);
+            } catch (err) {
+              toolResult = { error: err.message };
+            }
+            return { functionResponse: { name: call.name, response: { result: toolResult } } };
+          })
+        );
 
         result = await chat.sendMessage(toolResults);
         response = result.response;
       }
 
-      const responseText = typeof response.text === 'function' ? response.text() : (response.text || '');
+      const responseText =
+        typeof response.text === 'function' ? response.text() : response.text || '';
       if (!responseText) return { error: true, message: 'No response from AI' };
 
       // Legacy JSON tool-call fallback for models that don't use native fn-calling
@@ -181,13 +188,15 @@ When managing CCTV, target devices by their deviceId.`;
         return {
           response: this.formatToolResponse(toolCall.name, toolResult),
           data: toolResult,
-          suggestions: this.getSuggestions(toolCall.name)
+          suggestions: this.getSuggestions(toolCall.name),
         };
       }
 
       this.updateConversationHistory(context.userId, text, responseText);
-      return { response: responseText, suggestions: ['Show users', 'Create voucher', 'System stats'] };
-
+      return {
+        response: responseText,
+        suggestions: ['Show users', 'Create voucher', 'System stats'],
+      };
     } catch (error) {
       logger.error('AICoordinator processQuery error:', error);
       return { error: true, message: 'AI processing failed. Try /users or /voucher 1day' };
@@ -198,13 +207,13 @@ When managing CCTV, target devices by their deviceId.`;
     // Voucher tool remains static for now as it involves complex logic/QR generation
     this.toolRegistry.set('voucher.create', {
       description: 'Generate WiFi voucher (plans: 1hour, 1day, 1week)',
-      execute: async (params) => {
+      execute: async params => {
         // Q-NAP Fraud Detection
         const fraudCheck = await this.qnap.analyzeTransaction({
           userId: params.chatId,
           amount: this._getPlanPrice(params.plan),
           timestamp: Date.now(),
-          deviceFingerprint: params.fingerprint
+          deviceFingerprint: params.fingerprint,
         });
 
         if (fraudCheck.riskScore > 0.8) {
@@ -219,44 +228,55 @@ When managing CCTV, target devices by their deviceId.`;
 
         const { DEFAULT_PLANS } = require('../core/database');
         const dateUtils = require('../utils/date');
-        
+
         const planObj = DEFAULT_PLANS[params.plan] || { name: 'Custom', deviceLimit: 1 };
-        const expiresAt = planObj.durationValue && planObj.durationUnit ?
-            dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-        
+        const expiresAt =
+          planObj.durationValue && planObj.durationUnit
+            ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
+            : null;
+
         const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
-        
-        const vData = { 
-            plan: params.plan,
-            planName: planObj.name || params.plan,
-            durationUnit: planObj.durationUnit || null,
-            durationValue: planObj.durationValue || null,
-            deviceLimit: planObj.deviceLimit || 1,
-            expiresAt,
-            loginUrl,
-            createdBy: 'telegram_bot',
-            fraudScore: fraudCheck.riskScore
+
+        const vData = {
+          plan: params.plan,
+          planName: planObj.name || params.plan,
+          durationUnit: planObj.durationUnit || null,
+          durationValue: planObj.durationValue || null,
+          deviceLimit: planObj.deviceLimit || 1,
+          expiresAt,
+          loginUrl,
+          createdBy: 'telegram_bot',
+          fraudScore: fraudCheck.riskScore,
         };
-        
+
         await db.createVoucher(code, vData);
-        
+
         if (this.mikrotik && this.mikrotik.state?.isConnected) {
-            const _durationToMikrotik = (p) => {
-                if (!p || !p.durationValue || !p.durationUnit) return null;
-                const v = p.durationValue;
-                switch (p.durationUnit) {
-                    case 'weeks': return `${v}w`;
-                    case 'days': return `${v}d`;
-                    case 'hours': return `${String(v).padStart(2, '0')}:00:00`;
-                    case 'minutes': return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
-                    default: return null;
-                }
-            };
-            await this.mikrotik.addHotspotUser({
-                username: code, password: code, profile: params.plan,
-                sharedUsers: vData.deviceLimit,
-                ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) })
-            }).catch(() => { });
+          const _durationToMikrotik = p => {
+            if (!p || !p.durationValue || !p.durationUnit) return null;
+            const v = p.durationValue;
+            switch (p.durationUnit) {
+              case 'weeks':
+                return `${v}w`;
+              case 'days':
+                return `${v}d`;
+              case 'hours':
+                return `${String(v).padStart(2, '0')}:00:00`;
+              case 'minutes':
+                return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
+              default:
+                return null;
+            }
+          };
+          await this.mikrotik
+            .addHotspotUser({
+              username: code,
+              password: code,
+              profile: params.plan,
+              sharedUsers: vData.deviceLimit,
+              ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) }),
+            })
+            .catch(() => {});
         }
 
         // Generate QR code
@@ -269,12 +289,11 @@ When managing CCTV, target devices by their deviceId.`;
           plan: params.plan,
           expiresAt: this._getExpiryDate(params.plan),
           qrCode: qrData.split(',')[1], // Remove data:image prefix
-          fraudCheck: fraudCheck.riskScore < 0.3 ? 'passed' : 'review'
+          fraudCheck: fraudCheck.riskScore < 0.3 ? 'passed' : 'review',
         };
-      }         // close execute fn
-    });           // close {description, execute} object + toolRegistry.set call
-  }               // close _registerStaticTools
-
+      }, // close execute fn
+    }); // close {description, execute} object + toolRegistry.set call
+  } // close _registerStaticTools
 
   async processCommand(command, params) {
     const tool = this.toolRegistry.get(command);
@@ -314,14 +333,18 @@ When managing CCTV, target devices by their deviceId.`;
       const skillName = this.toolToSkillMap.get(name);
       if (skillName) {
         return await this.skillRegistry.execute(skillName, name, args, {
-          ...ctx, logger, mikrotik: this.mikrotik
+          ...ctx,
+          logger,
+          mikrotik: this.mikrotik,
         });
       }
 
       // 3. Direct skill name
       if (this.skillRegistry.skills.has(name)) {
         return await this.skillRegistry.execute(name, args, {
-          ...ctx, logger, mikrotik: this.mikrotik
+          ...ctx,
+          logger,
+          mikrotik: this.mikrotik,
         });
       }
 
@@ -368,9 +391,9 @@ When managing CCTV, target devices by their deviceId.`;
 
   formatToolResponse(toolName, result) {
     const formatters = {
-      'users.active': (r) => `Found ${r.length} active users`,
-      'voucher.create': (r) => `Created voucher ${r.code} (${r.plan})`,
-      'system.stats': (r) => `CPU: ${r['cpu-load']}%, Uptime: ${r.uptime}`
+      'users.active': r => `Found ${r.length} active users`,
+      'voucher.create': r => `Created voucher ${r.code} (${r.plan})`,
+      'system.stats': r => `CPU: ${r['cpu-load']}%, Uptime: ${r.uptime}`,
     };
 
     return formatters[toolName] ? formatters[toolName](result) : JSON.stringify(result);
@@ -380,7 +403,7 @@ When managing CCTV, target devices by their deviceId.`;
     const suggestions = {
       'users.active': ['Kick user', 'View stats', 'Create voucher'],
       'voucher.create': ['Create another', 'View active users', 'Check stats'],
-      'default': ['Show users', 'Create voucher', 'System stats']
+      default: ['Show users', 'Create voucher', 'System stats'],
     };
     return suggestions[lastAction] || suggestions.default;
   }
@@ -388,18 +411,19 @@ When managing CCTV, target devices by their deviceId.`;
   async executeDirectCommand(intent, context) {
     // Direct execution for known intents without Gemini
     const mappings = {
-      'list_users': { tool: 'users.active', response: 'Here are the active users:' },
-      'get_stats': { tool: 'system.stats', response: 'System status:' },
-      'kick_user': { tool: 'user.kick', params: { username: intent.target } }
+      list_users: { tool: 'users.active', response: 'Here are the active users:' },
+      get_stats: { tool: 'system.stats', response: 'System status:' },
+      kick_user: { tool: 'user.kick', params: { username: intent.target } },
     };
 
     const mapping = mappings[intent.action];
-    if (!mapping) return { response: "I didn't understand. Try: list users, kick [name], create voucher" };
+    if (!mapping)
+      return { response: "I didn't understand. Try: list users, kick [name], create voucher" };
 
     const result = await this.executeTool(mapping.tool, mapping.params || {});
     return {
       response: `${mapping.response}\n${this.formatToolResponse(mapping.tool, result)}`,
-      data: result
+      data: result,
     };
   }
   async processInteraction(msg, context = {}) {
@@ -408,7 +432,7 @@ When managing CCTV, target devices by their deviceId.`;
     const result = await this.processQuery(msg.text, {
       userId: msg.userId,
       channel: context.channel,
-      ...context
+      ...context,
     });
 
     return {
@@ -416,9 +440,9 @@ When managing CCTV, target devices by their deviceId.`;
       result: {
         text: result.response,
         data: result.data,
-        suggestions: result.suggestions
+        suggestions: result.suggestions,
       },
-      error: result.message
+      error: result.message,
     };
   }
 }

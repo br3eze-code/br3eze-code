@@ -16,20 +16,20 @@ class ACPClient extends EventEmitter {
   async connect() {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(`${this.endpoint}/agents/${this.agentId}`);
-      
+
       this.ws.on('open', () => {
         this.reconnectAttempts = 0;
         this.emit('connected');
         resolve();
       });
-      
-      this.ws.on('message', (data) => {
+
+      this.ws.on('message', data => {
         const message = JSON.parse(data);
         this.handleMessage(message);
       });
-      
+
       this.ws.on('close', () => this.handleDisconnect());
-      this.ws.on('error', (err) => reject(err));
+      this.ws.on('error', err => reject(err));
     });
   }
 
@@ -57,9 +57,9 @@ class ACPClient extends EventEmitter {
       payload,
       timestamp: Date.now(),
       session: this.sessionState,
-      agentId: this.agentId
+      agentId: this.agentId,
     };
-    
+
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
@@ -69,7 +69,7 @@ class ACPClient extends EventEmitter {
 
   handleDisconnect() {
     this.emit('disconnected');
-    
+
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       setTimeout(() => this.connect(), 1000 * this.reconnectAttempts);

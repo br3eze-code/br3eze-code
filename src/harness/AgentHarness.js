@@ -39,7 +39,7 @@
  */
 
 const EventEmitter = require('events');
-const path         = require('path');
+const path = require('path');
 
 let _logger;
 function log(level, ...args) {
@@ -84,16 +84,22 @@ class AgentHarness extends EventEmitter {
   constructor(opts = {}) {
     super();
 
-    this.id      = opts.id   || process.env.AGENTOS_AGENT_ID   || 'agentos';
-    this.name    = opts.name || process.env.AGENTOS_AGENT_NAME  || 'AgentOS';
-    this.version = (() => { try { return require('../../package.json').version; } catch { return '1.0.0'; } })();
-    this._opts   = opts;
+    this.id = opts.id || process.env.AGENTOS_AGENT_ID || 'agentos';
+    this.name = opts.name || process.env.AGENTOS_AGENT_NAME || 'AgentOS';
+    this.version = (() => {
+      try {
+        return require('../../package.json').version;
+      } catch {
+        return '1.0.0';
+      }
+    })();
+    this._opts = opts;
 
-    this._domains  = new Map();   // domainId → adapter
-    this._hooks    = { before: [], after: [], error: [] };
-    this._started  = false;
-    this._kernel   = null;        // lazy AgentKernel
-    this._registry = null;        // lazy ToolRegistry
+    this._domains = new Map(); // domainId → adapter
+    this._hooks = { before: [], after: [], error: [] };
+    this._started = false;
+    this._kernel = null; // lazy AgentKernel
+    this._registry = null; // lazy ToolRegistry
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -129,10 +135,10 @@ class AgentHarness extends EventEmitter {
     if (this._started) return this;
 
     // Lazy-load AgentKernel & ToolRegistry to avoid circular deps at require time
-    const AgentKernel   = require('../core/agentKernel');
+    const AgentKernel = require('../core/agentKernel');
     const { ToolRegistry } = require('../core/ToolRegistry');
 
-    this._kernel   = new AgentKernel({ dbPath: this._opts.dbPath });
+    this._kernel = new AgentKernel({ dbPath: this._opts.dbPath });
     this._registry = new ToolRegistry();
 
     // Register all domains on the kernel
@@ -142,11 +148,13 @@ class AgentHarness extends EventEmitter {
       // Also register individual tool functions on the flat ToolRegistry
       const tools = typeof adapter.getTools === 'function' ? adapter.getTools() : {};
       const toolDefs = Object.entries(tools).map(([tName, spec]) => ({
-        name:        tName,
+        name: tName,
         description: spec.description || '',
-        parameters:  spec.parameters  || {},
-        risk:        spec.risk        || 'low',
-        execute:     spec.execute     || (async (ctx, ...p) => adapter.execute({ tool: tName, params: p, ...ctx })),
+        parameters: spec.parameters || {},
+        risk: spec.risk || 'low',
+        execute:
+          spec.execute ||
+          (async (ctx, ...p) => adapter.execute({ tool: tName, params: p, ...ctx })),
       }));
       if (toolDefs.length) {
         this._registry.registerDomain(id, toolDefs);
@@ -156,9 +164,12 @@ class AgentHarness extends EventEmitter {
     this._kernel.init(this._opts.dbPath);
     this._started = true;
 
-    log('info', `[AgentHarness] started — id: ${this.id}, domains: ${[...this._domains.keys()].join(', ')}`);
+    log(
+      'info',
+      `[AgentHarness] started — id: ${this.id}, domains: ${[...this._domains.keys()].join(', ')}`
+    );
     this.emit('harness:started', {
-      id:      this.id,
+      id: this.id,
       domains: [...this._domains.keys()],
     });
     return this;
@@ -200,11 +211,14 @@ class AgentHarness extends EventEmitter {
         result = await tool.execute(ctx, params);
       } else {
         // Fallback: dispatch via AgentKernel
-        result = await this._kernel.dispatch({ name: toolName }, {
-          intent: { domain: toolName.split('.')[0], action: toolName, text: toolName },
-          params,
-          ...ctx,
-        });
+        result = await this._kernel.dispatch(
+          { name: toolName },
+          {
+            intent: { domain: toolName.split('.')[0], action: toolName, text: toolName },
+            params,
+            ...ctx,
+          }
+        );
       }
     } catch (err) {
       for (const hook of this._hooks.error) await hook(toolName, err, ctx);
@@ -227,10 +241,13 @@ class AgentHarness extends EventEmitter {
   async processMessage(text, context = {}) {
     if (!this._started) await this.start();
 
-    return this._kernel.dispatch({}, {
-      intent: { text },
-      ...context,
-    });
+    return this._kernel.dispatch(
+      {},
+      {
+        intent: { text },
+        ...context,
+      }
+    );
   }
 
   // ── Introspection ──────────────────────────────────────────────────────────
@@ -240,11 +257,11 @@ class AgentHarness extends EventEmitter {
   getManifest() {
     const tools = this._registry ? this._registry.getManifest() : { tools: [] };
     return {
-      id:          this.id,
-      name:        this.name,
-      version:     this.version,
+      id: this.id,
+      name: this.name,
+      version: this.version,
       description: `Domain-agnostic AgentOS instance (${[...this._domains.keys()].join(', ')})`,
-      domains:     [...this._domains.keys()],
+      domains: [...this._domains.keys()],
       ...tools,
     };
   }
@@ -254,10 +271,10 @@ class AgentHarness extends EventEmitter {
    */
   status() {
     return {
-      id:      this.id,
+      id: this.id,
       started: this._started,
       domains: [...this._domains.keys()],
-      kernel:  this._kernel?.status() || null,
+      kernel: this._kernel?.status() || null,
     };
   }
 
@@ -278,7 +295,7 @@ class AgentHarness extends EventEmitter {
     const fs = require('fs');
     const harness = new AgentHarness(opts);
 
-    const files = fs.readdirSync(domainsDir).filter((f) => f.endsWith('.js'));
+    const files = fs.readdirSync(domainsDir).filter(f => f.endsWith('.js'));
     for (const file of files) {
       try {
         const adapter = require(path.join(domainsDir, file));

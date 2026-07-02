@@ -4,7 +4,7 @@
  * Structured Logger with Winston
  * @module core/logger
  */
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
@@ -44,7 +44,7 @@ const customLevels = {
     info: 4,
     cyber: 5,
     debug: 6,
-    trace: 7
+    trace: 7,
   },
   colors: {
     fatal: 'red',
@@ -54,47 +54,56 @@ const customLevels = {
     info: 'blue',
     cyber: 'cyan',
     debug: 'magenta',
-    trace: 'gray'
-  }
+    trace: 'gray',
+  },
 };
 
 // Console format for development
-const consoleFormat = printf(({ level, message, timestamp, service, stack, correlationId, ...metadata }) => {
-  let meta = '';
-  const metaKeys = Object.keys(metadata).filter(k => k !== 'service' && k !== 'timestamp');
-  if (metaKeys.length > 0) {
-    if (metadata.isBoom) {
-      meta = `\n  ↳ ${A.WARN}[Boom] ${metadata.output?.payload?.error || 'Error'}: ${metadata.output?.payload?.message || message}${A.RESET}`;
-    } else {
-      // Cleaner meta display
-      meta = '\n' + util.inspect(metadata, { colors: true, depth: 2, compact: true, breakLength: 80 })
-        .split('\n').map(line => `    ${A.DIM}${line}${A.RESET}`).join('\n');
+const consoleFormat = printf(
+  ({ level, message, timestamp, service, stack, correlationId, ...metadata }) => {
+    let meta = '';
+    const metaKeys = Object.keys(metadata).filter(k => k !== 'service' && k !== 'timestamp');
+    if (metaKeys.length > 0) {
+      if (metadata.isBoom) {
+        meta = `\n  ↳ ${A.WARN}[Boom] ${metadata.output?.payload?.error || 'Error'}: ${metadata.output?.payload?.message || message}${A.RESET}`;
+      } else {
+        // Cleaner meta display
+        meta = `\n${util
+          .inspect(metadata, { colors: true, depth: 2, compact: true, breakLength: 80 })
+          .split('\n')
+          .map(line => `    ${A.DIM}${line}${A.RESET}`)
+          .join('\n')}`;
+      }
     }
-  }
-  
-  let stackTrace = '';
-  if (stack) {
-    stackTrace = '\n' + stack.split('\n').slice(1).map(l => `    ${A.ERROR}${l.trim()}${A.RESET}`).join('\n');
-  }
 
-  const timeStr = `${A.DIM}${timestamp}${A.RESET}`;
-  const svcStr = `${A.PRIMARY}${service || 'agentos'}${A.RESET}`;
-  
-  // High-fidelity level markers
-  let levelStr = level;
-  const cleanLevel = level.replace(/\u001b\[[0-9;]*m/g, ''); // Remove color codes for matching
-  
-  if (cleanLevel === 'info') levelStr = `${A.INFO}ℹ${A.RESET}`;
-  else if (cleanLevel === 'success') levelStr = `${A.SUCCESS}✔${A.RESET}`;
-  else if (cleanLevel === 'error') levelStr = `${A.ERROR}✘${A.RESET}`;
-  else if (cleanLevel === 'fatal') levelStr = `${A.BOLD}${A.ERROR}✖${A.RESET}`;
-  else if (cleanLevel === 'warn') levelStr = `${A.WARN}⚠${A.RESET}`;
-  else if (cleanLevel === 'cyber') levelStr = `${A.NEON_CYAN}◆${A.RESET}`;
-  else if (cleanLevel === 'debug') levelStr = `${A.CYBER_PURPLE}◇${A.RESET}`;
-  else if (cleanLevel === 'trace') levelStr = `${A.DIM}◌${A.RESET}`;
+    let stackTrace = '';
+    if (stack) {
+      stackTrace = `\n${stack
+        .split('\n')
+        .slice(1)
+        .map(l => `    ${A.ERROR}${l.trim()}${A.RESET}`)
+        .join('\n')}`;
+    }
 
-  return `${timeStr} [${svcStr}] ${levelStr} ${message}${meta}${stackTrace}`;
-});
+    const timeStr = `${A.DIM}${timestamp}${A.RESET}`;
+    const svcStr = `${A.PRIMARY}${service || 'agentos'}${A.RESET}`;
+
+    // High-fidelity level markers
+    let levelStr = level;
+    const cleanLevel = level.replace(/\u001b\[[0-9;]*m/g, ''); // eslint-disable-line no-control-regex -- Remove color codes for matching
+
+    if (cleanLevel === 'info') levelStr = `${A.INFO}ℹ${A.RESET}`;
+    else if (cleanLevel === 'success') levelStr = `${A.SUCCESS}✔${A.RESET}`;
+    else if (cleanLevel === 'error') levelStr = `${A.ERROR}✘${A.RESET}`;
+    else if (cleanLevel === 'fatal') levelStr = `${A.BOLD}${A.ERROR}✖${A.RESET}`;
+    else if (cleanLevel === 'warn') levelStr = `${A.WARN}⚠${A.RESET}`;
+    else if (cleanLevel === 'cyber') levelStr = `${A.NEON_CYAN}◆${A.RESET}`;
+    else if (cleanLevel === 'debug') levelStr = `${A.CYBER_PURPLE}◇${A.RESET}`;
+    else if (cleanLevel === 'trace') levelStr = `${A.DIM}◌${A.RESET}`;
+
+    return `${timeStr} [${svcStr}] ${levelStr} ${message}${meta}${stackTrace}`;
+  }
+);
 
 // Create logger instance
 const logger = winston.createLogger({
@@ -104,7 +113,7 @@ const logger = winston.createLogger({
 
   format: combine(
     timestamp({ format: 'HH:mm:ss' }),
-    winston.format((info) => {
+    winston.format(info => {
       const store = asyncLocalStorage.getStore();
       if (store) {
         info.correlationId = store.get('correlationId');
@@ -118,17 +127,14 @@ const logger = winston.createLogger({
     new winston.transports.File({
       filename: path.join(logDir, 'error.log'),
       level: 'error',
-      format: json()
+      format: json(),
     }),
     new winston.transports.File({
       filename: path.join(logDir, 'combined.log'),
-      format: json()
+      format: json(),
     }),
     new winston.transports.Console({
-      format: combine(
-        colorize({ levels: customLevels.levels }),
-        consoleFormat
-      )
+      format: combine(colorize({ levels: customLevels.levels }), consoleFormat),
     }),
     // New UDP transport for logging daemon
     new (class extends winston.Transport {
@@ -142,7 +148,7 @@ const logger = winston.createLogger({
       log(info, callback) {
         setImmediate(() => this.emit('logged', info));
         const message = Buffer.from(JSON.stringify(info));
-        this.client.send(message, 0, message.length, this.port, this.host, (err) => {
+        this.client.send(message, 0, message.length, this.port, this.host, err => {
           // Only report UDP errors in non-production; do not crash the process
           if (err && process.env.NODE_ENV !== 'production') {
             process.stderr.write(`UDP Log Error: ${err.message}\n`);
@@ -150,17 +156,17 @@ const logger = winston.createLogger({
           if (callback) callback(); // call after send attempt completes
         });
       }
-    })({ level: 'debug' })
+    })({ level: 'debug' }),
   ],
 
-// exceptionHandlers and rejectionHandlers removed for debugging
+  // exceptionHandlers and rejectionHandlers removed for debugging
 });
 
 // Audit logger
 const auditLogger = winston.createLogger({
   level: 'info',
   format: combine(timestamp(), json()),
-  transports: [new winston.transports.File({ filename: path.join(logDir, 'audit.log') })]
+  transports: [new winston.transports.File({ filename: path.join(logDir, 'audit.log') })],
 });
 
 logger.audit = (event, details) => {
@@ -176,6 +182,5 @@ logger.trace = logger.trace.bind(logger);
 module.exports = {
   logger,
   correlationIdMiddleware,
-  asyncLocalStorage
+  asyncLocalStorage,
 };
-

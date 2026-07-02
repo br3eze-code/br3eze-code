@@ -1,4 +1,3 @@
-/* global chrome */
 /* eslint-env browser, webextensions */
 'use strict';
 

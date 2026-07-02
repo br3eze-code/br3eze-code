@@ -9,8 +9,8 @@ const App = (() => {
 
   // ── Boot ───────────────────────────────────────────────────────
   function init() {
-    document.getElementById('hdr-ver').textContent = 'v' + CFG.VER.replace(/\..+$/, '');
-    document.getElementById('abt-ver').textContent  = CFG.APP + ' v' + CFG.VER;
+    document.getElementById('hdr-ver').textContent = `v${CFG.VER.replace(/\..+$/, '')}`;
+    document.getElementById('abt-ver').textContent = `${CFG.APP} v${CFG.VER}`;
 
     _loadSettingsIntoForm();
     _restoreActivity();
@@ -33,20 +33,32 @@ const App = (() => {
       });
     });
 
-    const url   = Store.get(KEYS.URL, '');
+    const url = Store.get(KEYS.URL, '');
     const token = Store.get(KEYS.TOKEN, '');
     if (url) {
       Client.configure(url, token);
       _connect(url, token);
     }
 
-    WS.on('open',  () => _setConnStatus(true));
+    WS.on('open', () => _setConnStatus(true));
     WS.on('close', () => _setConnStatus(false));
     WS.on('retry', () => _setConnStatus(false));
-    WS.on('voucher.created', (m) => { addActivity(`Voucher ${m.code || ''} created`, 'ok'); refreshKpis(); });
-    WS.on('user.connected',  (m) => { addActivity(`${m.user || 'User'} connected`, 'ok'); refreshKpis(); });
-    WS.on('user.disconnected',(m) => { addActivity(`${m.user || 'User'} disconnected`, 'inf'); refreshKpis(); });
-    WS.on('payment.received',(m) => { addActivity(`Payment received: $${m.amount || '?'}`, 'ok'); refreshKpis(); });
+    WS.on('voucher.created', m => {
+      addActivity(`Voucher ${m.code || ''} created`, 'ok');
+      refreshKpis();
+    });
+    WS.on('user.connected', m => {
+      addActivity(`${m.user || 'User'} connected`, 'ok');
+      refreshKpis();
+    });
+    WS.on('user.disconnected', m => {
+      addActivity(`${m.user || 'User'} disconnected`, 'inf');
+      refreshKpis();
+    });
+    WS.on('payment.received', m => {
+      addActivity(`Payment received: $${m.amount || '?'}`, 'ok');
+      refreshKpis();
+    });
 
     Agent.init();
     refreshKpis();
@@ -64,13 +76,13 @@ const App = (() => {
   // ── Tabs ───────────────────────────────────────────────────────
   function switchTab(name, btn) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + name)?.classList.add('active');
+    document.getElementById(`tab-${name}`)?.classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     (btn || document.querySelector(`.nav-btn[data-tab="${name}"]`))?.classList.add('active');
 
     if (name === 'vouchers') Vouchers.load();
-    if (name === 'users')    Users.refresh();
-    if (name === 'agent')    setTimeout(() => document.getElementById('agent-input')?.focus(), 100);
+    if (name === 'users') Users.refresh();
+    if (name === 'agent') setTimeout(() => document.getElementById('agent-input')?.focus(), 100);
   }
 
   // ── KPIs ───────────────────────────────────────────────────────
@@ -94,22 +106,26 @@ const App = (() => {
       if (fin.status === 'fulfilled') {
         const d = fin.value.data || {};
         const today = d.today ?? d.todayRevenue ?? 0;
-        document.getElementById('kpi-revenue').textContent = '$' + Number(today).toFixed(0);
+        document.getElementById('kpi-revenue').textContent = `$${Number(today).toFixed(0)}`;
       }
 
       try {
         const health = await Client.v1.health();
         const mt = health.data?.services?.mikrotik;
         document.getElementById('kpi-health').textContent = mt ? 'ONLINE' : 'OFFLINE';
-      } catch(_) {
+      } catch (_) {
         document.getElementById('kpi-health').textContent = '—';
       }
-    } catch(_) {}
+    } catch (_) {}
   }
 
   // ── Quick actions ──────────────────────────────────────────────
   function createVoucher() {
-    if (!Client.hasConfig()) { UI.toast('Configure gateway first', 'wrn'); switchTab('settings'); return; }
+    if (!Client.hasConfig()) {
+      UI.toast('Configure gateway first', 'wrn');
+      switchTab('settings');
+      return;
+    }
     Vouchers.openCreate();
   }
 
@@ -126,7 +142,7 @@ const App = (() => {
 
   async function _runTool(toolId) {
     const out = document.getElementById('tool-out');
-    if (out) out.textContent = 'Running ' + toolId + '…';
+    if (out) out.textContent = `Running ${toolId}…`;
     if (!Client.hasConfig()) {
       UI.toast('Configure gateway first', 'wrn');
       switchTab('settings');
@@ -145,7 +161,9 @@ const App = (() => {
   }
 
   function pingPrompt() {
-    UI.openModal('Ping Host', `
+    UI.openModal(
+      'Ping Host',
+      `
       <div class="ping-form">
         <input type="text" id="ping-host" class="ping-input" placeholder="8.8.8.8 or domain.com" value="8.8.8.8">
         <div class="modal-actions">
@@ -153,7 +171,8 @@ const App = (() => {
           <button class="modal-btn-ok" onclick="App.runPing()">PING</button>
         </div>
       </div>
-    `);
+    `
+    );
   }
 
   async function runPing() {
@@ -172,19 +191,22 @@ const App = (() => {
 
   // ── Settings ───────────────────────────────────────────────────
   function _loadSettingsIntoForm() {
-    document.getElementById('cfg-url').value   = Store.get(KEYS.URL, '');
+    document.getElementById('cfg-url').value = Store.get(KEYS.URL, '');
     document.getElementById('cfg-token').value = Store.get(KEYS.TOKEN, '');
     document.getElementById('cfg-model').value = Store.get(KEYS.MODEL, 'gemini');
     document.getElementById('cfg-turns').value = Store.get(KEYS.TURNS, CFG.REACT_MAX_TURNS);
   }
 
   function saveSettings() {
-    const url   = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
     const token = document.getElementById('cfg-token').value.trim();
     const model = document.getElementById('cfg-model').value;
     const turns = document.getElementById('cfg-turns').value;
 
-    if (!url) { UI.toast('Gateway URL required', 'err'); return; }
+    if (!url) {
+      UI.toast('Gateway URL required', 'err');
+      return;
+    }
 
     Store.set(KEYS.URL, url);
     Store.set(KEYS.TOKEN, token);
@@ -200,25 +222,28 @@ const App = (() => {
   }
 
   async function testConnection() {
-    const url   = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+    const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
     const token = document.getElementById('cfg-token').value.trim();
-    if (!url) { UI.toast('Enter a URL first', 'err'); return; }
+    if (!url) {
+      UI.toast('Enter a URL first', 'err');
+      return;
+    }
 
     UI.toast('Testing…', 'inf');
     const tmpBase = Client.getBase();
     Client.configure(url, token);
     try {
       const res = await Client.v1.health();
-      UI.toast('Connected ✓ ' + (res.version || ''), 'ok');
+      UI.toast(`Connected ✓ ${res.version || ''}`, 'ok');
     } catch (e) {
-      UI.toast('Failed: ' + e.message, 'err');
+      UI.toast(`Failed: ${e.message}`, 'err');
       if (tmpBase) Client.configure(tmpBase, token);
     }
   }
 
   // ── Connection status pill ───────────────────────────────────
   function _setConnStatus(online) {
-    const pill  = document.getElementById('conn-pill');
+    const pill = document.getElementById('conn-pill');
     const label = document.getElementById('conn-label');
     pill.classList.toggle('online', online);
     label.textContent = online ? 'ONLINE' : 'OFFLINE';
@@ -241,16 +266,23 @@ const App = (() => {
   }
 
   function clearActivity() {
-    document.getElementById('activity-list').innerHTML = '<li class="activity-empty">Waiting for events…</li>';
+    document.getElementById('activity-list').innerHTML =
+      '<li class="activity-empty">Waiting for events…</li>';
     Store.del(KEYS.ACTIVITY);
   }
 
   function _saveActivity() {
-    const items = Array.from(document.querySelectorAll('#activity-list .activity-item')).slice(0, 40).map(li => ({
-      ts: li.querySelector('.act-ts').textContent,
-      msg: li.querySelector('.act-msg').textContent,
-      kind: li.className.includes('act-ok') ? 'ok' : li.className.includes('act-err') ? 'err' : 'inf',
-    }));
+    const items = Array.from(document.querySelectorAll('#activity-list .activity-item'))
+      .slice(0, 40)
+      .map(li => ({
+        ts: li.querySelector('.act-ts').textContent,
+        msg: li.querySelector('.act-msg').textContent,
+        kind: li.className.includes('act-ok')
+          ? 'ok'
+          : li.className.includes('act-err')
+            ? 'err'
+            : 'inf',
+      }));
     Store.set(KEYS.ACTIVITY, items);
   }
 
@@ -258,18 +290,33 @@ const App = (() => {
     const items = Store.get(KEYS.ACTIVITY, []);
     if (!items.length) return;
     const list = document.getElementById('activity-list');
-    list.innerHTML = items.map(i =>
-      `<li class="activity-item act-${i.kind}"><span class="act-ts">${i.ts}</span><span class="act-msg">${_esc(i.msg)}</span></li>`
-    ).join('');
+    list.innerHTML = items
+      .map(
+        i =>
+          `<li class="activity-item act-${i.kind}"><span class="act-ts">${i.ts}</span><span class="act-msg">${_esc(i.msg)}</span></li>`
+      )
+      .join('');
   }
 
   function _esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
   }
 
   return {
-    init, switchTab, refreshKpis, createVoucher, executeTool, pingPrompt, runPing,
-    saveSettings, testConnection, addActivity, clearActivity,
+    init,
+    switchTab,
+    refreshKpis,
+    createVoucher,
+    executeTool,
+    pingPrompt,
+    runPing,
+    saveSettings,
+    testConnection,
+    addActivity,
+    clearActivity,
   };
 })();
 

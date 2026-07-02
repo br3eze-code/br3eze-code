@@ -10,23 +10,23 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path   = require('path');
+const path = require('path');
 const crypto = require('crypto');
 const { EventEmitter } = require('events');
 
 const STATE_MACHINE = {
   initializing: ['running', 'failed'],
-  running:      ['paused', 'completed', 'failed'],
-  paused:       ['running', 'failed'],
-  completed:    [],
-  failed:       ['initializing'],
+  running: ['paused', 'completed', 'failed'],
+  paused: ['running', 'failed'],
+  completed: [],
+  failed: ['initializing'],
 };
 
 class SessionManager extends EventEmitter {
   constructor(opts = {}) {
     super();
-    this._mem   = new Map();
-    this._db    = null;
+    this._mem = new Map();
+    this._db = null;
     const dbDir = opts.dbPath || process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data');
     this._dbPath = path.join(dbDir, 'agentos.sqlite');
     this._initDB();
@@ -59,12 +59,14 @@ class SessionManager extends EventEmitter {
 
   // ── createWorktree: lightweight context dir (not git worktree) ───────────
   async createWorktree(config) {
-    const id   = crypto.randomUUID().slice(0, 8);
+    const id = crypto.randomUUID().slice(0, 8);
     const base = process.env.MEMORY_BASE_PATH || '/tmp/sessions';
-    const dir  = path.join(base, id);
+    const dir = path.join(base, id);
     try {
       require('fs').mkdirSync(dir, { recursive: true });
-    } catch (_) { /* /tmp may not be writable in all envs */ }
+    } catch (_) {
+      /* /tmp may not be writable in all envs */
+    }
     return { id, path: dir, domain: config.domain };
   }
 
@@ -73,21 +75,25 @@ class SessionManager extends EventEmitter {
     this._mem.set(session.id, session);
     if (!this._db) return session;
     const now = Date.now();
-    this._db.prepare(`
+    this._db
+      .prepare(
+        `
       INSERT OR REPLACE INTO sessions
         (id, domain, state, checkpoint, retryCount, recoverable, createdAt, updatedAt, meta)
       VALUES (?,?,?,?,?,?,?,?,?)
-    `).run(
-      session.id,
-      session.domain || null,
-      session.state,
-      session.checkpoint || now,
-      session.retryCount || 0,
-      session.recoverable ? 1 : 0,
-      session.createdAt || now,
-      now,
-      JSON.stringify(session.worktree || {})
-    );
+    `
+      )
+      .run(
+        session.id,
+        session.domain || null,
+        session.state,
+        session.checkpoint || now,
+        session.retryCount || 0,
+        session.recoverable ? 1 : 0,
+        session.createdAt || now,
+        now,
+        JSON.stringify(session.worktree || {})
+      );
     return session;
   }
 
@@ -97,7 +103,11 @@ class SessionManager extends EventEmitter {
     if (this._db) {
       const row = this._db.prepare('SELECT * FROM sessions WHERE id=?').get(id);
       if (row) {
-        const s = { ...row, recoverable: !!row.recoverable, worktree: JSON.parse(row.meta || '{}') };
+        const s = {
+          ...row,
+          recoverable: !!row.recoverable,
+          worktree: JSON.parse(row.meta || '{}'),
+        };
         this._mem.set(id, s);
         return s;
       }
@@ -118,14 +128,14 @@ class SessionManager extends EventEmitter {
   // ── createSession (original stub API) ────────────────────────────────────
   async createSession(config) {
     const session = {
-      id:          crypto.randomUUID(),
-      domain:      config.domain || 'default',
-      worktree:    await this.createWorktree(config),
-      state:       'initializing',
-      checkpoint:  Date.now(),
+      id: crypto.randomUUID(),
+      domain: config.domain || 'default',
+      worktree: await this.createWorktree(config),
+      state: 'initializing',
+      checkpoint: Date.now(),
       recoverable: true,
-      retryCount:  0,
-      createdAt:   Date.now(),
+      retryCount: 0,
+      createdAt: Date.now(),
     };
     await this.atomicWrite(session);
     return session;
@@ -139,7 +149,7 @@ class SessionManager extends EventEmitter {
     if (!valid.includes(toState)) {
       throw new Error(`Invalid transition: ${session.state} → ${toState}`);
     }
-    session.state      = toState;
+    session.state = toState;
     session.checkpoint = Date.now();
     await this.atomicWrite(session);
     this.emitEvent('session.transition', { sessionId, toState });
@@ -153,11 +163,12 @@ class SessionManager extends EventEmitter {
       return rows
         .map(r => ({ ...r, recoverable: !!r.recoverable }))
         .filter(s => !filter.domain || s.domain === filter.domain)
-        .filter(s => !filter.state  || s.state  === filter.state);
+        .filter(s => !filter.state || s.state === filter.state);
     }
-    return [...this._mem.values()].filter(s =>
-      (!filter.domain || s.domain === filter.domain) &&
-      (!filter.state  || s.state  === filter.state)
+    return [...this._mem.values()].filter(
+      s =>
+        (!filter.domain || s.domain === filter.domain) &&
+        (!filter.state || s.state === filter.state)
     );
   }
 }

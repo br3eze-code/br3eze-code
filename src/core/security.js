@@ -33,7 +33,7 @@ class SecurityManager {
   // Input validation for network commands
   sanitizeHost(host) {
     // Prevent command injection
-    if (!/^[\w\.-]+$/.test(host)) {
+    if (!/^[\w.-]+$/.test(host)) {
       throw new Error('Invalid hostname format');
     }
     // Prevent internal IP scanning
@@ -69,11 +69,11 @@ class SecurityManager {
         hsts: {
           maxAge: 31536000,
           includeSubDomains: true,
-          preload: true
-        }
+          preload: true,
+        },
       }),
       hpp(), // Prevent HTTP Parameter Pollution
-      this.auditMiddleware.bind(this)
+      this.auditMiddleware.bind(this),
     ];
   }
 
@@ -93,7 +93,7 @@ class SecurityManager {
         userAgent: req.get('user-agent'),
         correlationId: req.correlationId,
         // Sanitize body to avoid logging passwords
-        body: this.sanitizeBody(req.body)
+        body: this.sanitizeBody(req.body),
       });
     });
 

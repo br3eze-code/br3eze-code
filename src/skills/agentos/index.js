@@ -14,15 +14,20 @@ class AgentOSCoreDriver extends BaseDriver {
     return {
       'agentos.broadcast': {
         risk: 'medium',
-        description: 'Send a message to all enabled communication channels (Telegram, Slack, Discord, WhatsApp)',
+        description:
+          'Send a message to all enabled communication channels (Telegram, Slack, Discord, WhatsApp)',
         parameters: {
           type: 'object',
           properties: {
             message: { type: 'string', description: 'The message to broadcast' },
-            urgent: { type: 'boolean', description: 'If true, prefixes with alert emoji', default: false }
+            urgent: {
+              type: 'boolean',
+              description: 'If true, prefixes with alert emoji',
+              default: false,
+            },
           },
-          required: ['message']
-        }
+          required: ['message'],
+        },
       },
       'agentos.printer.test': {
         risk: 'low',
@@ -30,14 +35,14 @@ class AgentOSCoreDriver extends BaseDriver {
         parameters: {
           type: 'object',
           properties: {
-            text: { type: 'string', description: 'Optional text to include in the test print' }
-          }
-        }
+            text: { type: 'string', description: 'Optional text to include in the test print' },
+          },
+        },
       },
       'agentos.channels.status': {
         risk: 'low',
         description: 'Get connection status and metadata for all messaging channels',
-        parameters: { type: 'object', properties: {} }
+        parameters: { type: 'object', properties: {} },
       },
       'agentos.voucher.create': {
         risk: 'medium',
@@ -46,11 +51,15 @@ class AgentOSCoreDriver extends BaseDriver {
           type: 'object',
           properties: {
             profile: { type: 'string', description: 'The profile to use (e.g. 1Hour, 1Day)' },
-            print: { type: 'boolean', description: 'If true, sends to thermal printer', default: true }
+            print: {
+              type: 'boolean',
+              description: 'If true, sends to thermal printer',
+              default: true,
+            },
           },
-          required: ['profile']
-        }
-      }
+          required: ['profile'],
+        },
+      },
     };
   }
 
@@ -66,13 +75,14 @@ class AgentOSCoreDriver extends BaseDriver {
 
       case 'agentos.printer.test':
         const printer = require('../../core/printer');
-        const testData = args.text || 'AgentOS Thermal Printer Test Page\n' + new Date().toLocaleString();
+        const testData =
+          args.text || `AgentOS Thermal Printer Test Page\n${new Date().toLocaleString()}`;
         try {
           await printer.printVoucher({
             username: 'TEST-USER',
             password: 'TEST-PASSWORD',
             profile: 'DIAGNOSTIC',
-            loginUrl: 'http://br3eze.africa/login'
+            loginUrl: 'http://br3eze.africa/login',
           });
           return { success: true, message: 'Test page sent to printer' };
         } catch (err) {
@@ -93,7 +103,7 @@ class AgentOSCoreDriver extends BaseDriver {
               username: voucher.username,
               password: voucher.password,
               profile: voucher.profile,
-              loginUrl: voucher.loginUrl
+              loginUrl: voucher.loginUrl,
             });
             printStatus = printResult.success ? 'printed' : `failed: ${printResult.error}`;
           }
@@ -104,8 +114,8 @@ class AgentOSCoreDriver extends BaseDriver {
             voucher: {
               username: voucher.username,
               password: voucher.password,
-              expires: voucher.expires
-            }
+              expires: voucher.expires,
+            },
           };
         } catch (err) {
           return { success: false, error: err.message };

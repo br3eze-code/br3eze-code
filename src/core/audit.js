@@ -17,18 +17,28 @@ class AuditLogger {
       ts: new Date().toISOString(),
       ...entry,
     };
-    logger.info(`[AUDIT] ${record.status} userId=${record.userId} tool=${record.tool?.name || record.tool || '—'} reason=${record.reason || '—'}`);
+    logger.info(
+      `[AUDIT] ${record.status} userId=${record.userId} tool=${record.tool?.name || record.tool || '—'} reason=${record.reason || '—'}`
+    );
     if (this._db && typeof this._db.addAuditLog === 'function') {
-      try { await this._db.addAuditLog(record); } catch (_) { /* db not ready, drop gracefully */ }
+      try {
+        await this._db.addAuditLog(record);
+      } catch (_) {
+        /* db not ready, drop gracefully */
+      }
     } else {
       this._queue.push(record); // in-memory fallback
     }
     return record;
   }
 
-  recent(n = 50) { return this._queue.slice(-n); }
+  recent(n = 50) {
+    return this._queue.slice(-n);
+  }
 
-  attachDB(db) { this._db = db; }
+  attachDB(db) {
+    this._db = db;
+  }
 }
 
 let _instance = null;

@@ -7,12 +7,12 @@
 
 const { getManager: getMikroTikManager } = require('../../core/mikrotik');
 
-module.exports = (program) => {
+module.exports = program => {
   program
     .command('dashboard')
     .description('Show comprehensive system dashboard')
     .option('--refresh <seconds>', 'Auto-refresh interval (seconds)')
-    .action(async (options) => {
+    .action(async options => {
       const render = async () => {
         // @clack/prompts is ESM-only — must be dynamically imported
         const { intro, outro, spinner, note, log } = await import('@clack/prompts');
@@ -33,20 +33,20 @@ module.exports = (program) => {
               const { getDatabase } = require('../../core/database');
               const db = await getDatabase();
               return db.getStats();
-            })()
+            })(),
           ]);
 
           s.stop('Telemetry loaded');
 
           // ── System Health ──────────────────────────────────────────────
-          const cpu    = stats['cpu-load']             || 0;
-          const mem    = stats['memory-usage-percent'] || 0;
+          const cpu = stats['cpu-load'] || 0;
+          const mem = stats['memory-usage-percent'] || 0;
           note(
             [
               `CPU Load :  ${progressBar(cpu)}  ${cpu}%`,
               `Memory   :  ${progressBar(mem)}  ${mem}%`,
-              `Uptime   :  ${stats.uptime    || 'N/A'}`,
-              `RouterOS :  v${stats.version  || 'N/A'} (${stats['architecture-name'] || 'N/A'})`,
+              `Uptime   :  ${stats.uptime || 'N/A'}`,
+              `RouterOS :  v${stats.version || 'N/A'} (${stats['architecture-name'] || 'N/A'})`,
               `Board    :  ${stats['board-name'] || 'N/A'}`,
             ].join('\n'),
             '🖥️  System Health'
@@ -66,7 +66,7 @@ module.exports = (program) => {
           // ── Active Connections (top 5) ─────────────────────────────────
           if (activeUsers.length > 0) {
             const lines = activeUsers.slice(0, 5).map((u, i) => {
-              const dataIn  = formatBytes(u['bytes-in']  || 0);
+              const dataIn = formatBytes(u['bytes-in'] || 0);
               const dataOut = formatBytes(u['bytes-out'] || 0);
               return [
                 `${String(i + 1).padStart(2)}. ${u.user}`,
@@ -99,8 +99,9 @@ module.exports = (program) => {
             );
           }
 
-          outro(`Last updated: ${new Date().toLocaleTimeString()}${options.refresh ? '  (auto-refresh active)' : ''}`);
-
+          outro(
+            `Last updated: ${new Date().toLocaleTimeString()}${options.refresh ? '  (auto-refresh active)' : ''}`
+          );
         } catch (error) {
           s.stop(`Error: ${error.message}`);
           log.error(error.message);
@@ -112,6 +113,7 @@ module.exports = (program) => {
 
       // Auto-refresh
       if (options.refresh) {
+        const { log } = await import('@clack/prompts');
         const interval = parseInt(options.refresh) * 1000;
         log.info(`Auto-refreshing every ${options.refresh}s — press Ctrl+C to exit`);
         setInterval(render, interval);
@@ -122,13 +124,14 @@ module.exports = (program) => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function progressBar(pct, width = 20) {
-  const filled = Math.round(Math.min(pct, 100) / 100 * width);
+  const filled = Math.round((Math.min(pct, 100) / 100) * width);
   return '█'.repeat(filled) + '░'.repeat(width - filled);
 }
 
 function formatBytes(bytes) {
   if (!bytes || bytes === 0) return '0 B';
-  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+  const k = 1024,
+    sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }

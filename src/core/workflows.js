@@ -4,31 +4,32 @@ class WorkflowEngine {
     this.runtime = runtime;
     this.workflows = new Map();
   }
-  
+
   registerWorkflow(definition) {
     this.workflows.set(definition.name, definition);
   }
-  
+
   async executeWorkflow(name, params) {
     const workflow = this.workflows.get(name);
     if (!workflow) throw new Error(`Unknown workflow: ${name}`);
-    
-    const context = new WorkflowContext(params);
+
+    // TODO: WorkflowContext is not yet implemented anywhere in the codebase
+    const context = new WorkflowContext(params); // eslint-disable-line no-undef
     const results = [];
-    
+
     for (const step of workflow.steps) {
       // Check condition
-      if (step.condition && !await this.evaluateCondition(step.condition, context)) {
+      if (step.condition && !(await this.evaluateCondition(step.condition, context))) {
         continue;
       }
-      
+
       // Execute step
       const result = await this.executeStep(step, context);
       results.push(result);
-      
+
       // Update context
       context.set(step.id, result);
-      
+
       // Check for failure
       if (!result.success && !step.continueOnError) {
         if (step.rollback) {
@@ -37,15 +38,13 @@ class WorkflowEngine {
         throw new Error(`Workflow failed at step ${step.id}: ${result.error}`);
       }
     }
-    
+
     return results;
   }
-  
+
   async executeStep(step, context) {
-    const action = typeof step.action === 'function' 
-      ? step.action(context) 
-      : step.action;
-      
+    const action = typeof step.action === 'function' ? step.action(context) : step.action;
+
     return this.runtime.execute(action);
   }
 }
@@ -58,55 +57,64 @@ const secureDeploymentWorkflow = {
     {
       id: 'build',
       domain: 'developer',
-      action: { tool: 'build', action: 'dockerize', params: '{{inputs}}' }
+      action: { tool: 'build', action: 'dockerize', params: '{{inputs}}' },
     },
     {
       id: 'scan',
       domain: 'security',
       action: { tool: 'scan', action: 'containerScan', params: { image: '{{build.image}}' } },
-      condition: (ctx) => ctx.get('build').success
+      condition: ctx => ctx.get('build').success,
     },
     {
       id: 'provision',
       domain: 'compute',
-      action: { tool: 'vm', action: 'create', params: { specs: '{{inputs.specs}}' } }
+      action: { tool: 'vm', action: 'create', params: { specs: '{{inputs.specs}}' } },
     },
     {
       id: 'network-prep',
       domain: 'network',
-      action: { 
-        tool: 'firewall', 
-        action: 'configure', 
-        params: { 
+      action: {
+        tool: 'firewall',
+        action: 'configure',
+        params: {
           rules: [
             { port: 443, action: 'allow' },
             { port: 22, source: '{{inputs.adminIp}}', action: 'allow' },
-            { default: 'deny' }
-          ]
-        } 
-      }
+            { default: 'deny' },
+          ],
+        },
+      },
     },
     {
       id: 'deploy',
       domain: 'compute',
-      action: { tool: 'docker', action: 'deploy', params: { image: '{{build.image}}', host: '{{provision.ip}}' } },
-      dependsOn: ['network-prep']
+      action: {
+        tool: 'docker',
+        action: 'deploy',
+        params: { image: '{{build.image}}', host: '{{provision.ip}}' },
+      },
+      dependsOn: ['network-prep'],
     },
     {
       id: 'cert',
       domain: 'security',
-      action: { tool: 'cert', action: 'issue', params: { domain: '{{inputs.domain}}' } }
+      action: { tool: 'cert', action: 'issue', params: { domain: '{{inputs.domain}}' } },
     },
     {
       id: 'dns',
       domain: 'network',
-      action: { tool: 'dns', action: 'configure', params: { domain: '{{inputs.domain}}', ip: '{{provision.ip}}' } }
+      action: {
+        tool: 'dns',
+        action: 'configure',
+        params: { domain: '{{inputs.domain}}', ip: '{{provision.ip}}' },
+      },
     },
     {
       id: 'test',
       domain: 'developer',
       action: { tool: 'test', action: 'smoke', params: { url: 'https://{{inputs.domain}}' } },
-      rollback: (ctx) => this.runtime.execute({ domain: 'compute', tool: 'docker', action: 'rollback' })
-    }
-  ]
+      rollback: ctx =>
+        this.runtime.execute({ domain: 'compute', tool: 'docker', action: 'rollback' }),
+    },
+  ],
 };

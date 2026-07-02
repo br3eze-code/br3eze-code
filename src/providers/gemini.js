@@ -1,6 +1,4 @@
-
-
- /* Google Gemini Provider
+/* Google Gemini Provider
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -12,11 +10,11 @@ class GeminiProvider extends BaseProvider {
     this.name = 'gemini';
     this.apiKey = config.apiKey || process.env.GEMINI_API_KEY;
     this.modelName = config.model || process.env.GEMINI_MODEL;
-    
+
     if (!this.apiKey) {
       throw new Error('Gemini API key not configured');
     }
-    
+
     this.genAI = new GoogleGenerativeAI(this.apiKey);
     this.model = this.genAI.getGenerativeModel({
       model: this.modelName,
@@ -31,13 +29,14 @@ class GeminiProvider extends BaseProvider {
         // Minimal call to check if key is valid
         await this.model.generateContent({
           contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-          generationConfig: { maxOutputTokens: 1 }
+          generationConfig: { maxOutputTokens: 1 },
         });
         return { valid: true };
       } catch (error) {
-        const isRateLimit = error.message?.includes('429') || 
-                            error.message?.toLowerCase().includes('quota') ||
-                            error.message?.toLowerCase().includes('too many requests');
+        const isRateLimit =
+          error.message?.includes('429') ||
+          error.message?.toLowerCase().includes('quota') ||
+          error.message?.toLowerCase().includes('too many requests');
         if (isRateLimit && attempt < maxRetries) {
           attempt++;
           await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
@@ -47,7 +46,7 @@ class GeminiProvider extends BaseProvider {
       }
     }
   }
-  
+
   async execute(conversation, tools) {
     const maxRetries = 3;
     let attempt = 0;
@@ -77,14 +76,17 @@ class GeminiProvider extends BaseProvider {
 
         return this.parseResponse(response);
       } catch (error) {
-        const isRateLimit = error.message?.includes('429') || 
-                            error.message?.toLowerCase().includes('quota') ||
-                            error.message?.toLowerCase().includes('too many requests');
+        const isRateLimit =
+          error.message?.includes('429') ||
+          error.message?.toLowerCase().includes('quota') ||
+          error.message?.toLowerCase().includes('too many requests');
 
         if (isRateLimit && attempt < maxRetries) {
           attempt++;
           const delay = Math.pow(2, attempt) * 2000; // 4s, 8s, 16s
-          console.warn(`Gemini rate limited (429). Retrying in ${delay}ms... (Attempt ${attempt}/${maxRetries})`);
+          console.warn(
+            `Gemini rate limited (429). Retrying in ${delay}ms... (Attempt ${attempt}/${maxRetries})`
+          );
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
@@ -92,64 +94,66 @@ class GeminiProvider extends BaseProvider {
       }
     }
   }
-  
+
   formatConversation(conversation) {
     return conversation.map(msg => {
       if (msg.role === 'system') {
         return {
           role: 'user',
-          parts: [{ text: `[System: ${msg.content}]` }]
+          parts: [{ text: `[System: ${msg.content}]` }],
         };
       }
       if (msg.role === 'assistant') {
         return {
           role: 'model',
-          parts: [{ text: msg.content }]
+          parts: [{ text: msg.content }],
         };
       }
       return {
         role: 'user',
-        parts: [{ text: msg.content }]
+        parts: [{ text: msg.content }],
       };
     });
   }
-  
+
   formatTools(tools) {
-    return [{
-      functionDeclarations: tools.map(tool => ({
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: this.formatParameters(tool.parameters),
-          required: tool.parameters.filter(p => p.required).map(p => p.name)
-        }
-      }))
-    }];
+    return [
+      {
+        functionDeclarations: tools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          parameters: {
+            type: 'object',
+            properties: this.formatParameters(tool.parameters),
+            required: tool.parameters.filter(p => p.required).map(p => p.name),
+          },
+        })),
+      },
+    ];
   }
-  
+
   formatParameters(params) {
     const properties = {};
     for (const param of params) {
       properties[param.name] = {
         type: this.mapType(param.type),
-        description: param.description || `${param.name} parameter`
+        description: param.description || `${param.name} parameter`,
       };
     }
     return properties;
   }
-  
+
   mapType(type) {
     const mapping = {
-      'string': 'string',
-      'number': 'number',
-      'boolean': 'boolean',
-      'array': 'array',
-      'object': 'object'
+      string: 'string',
+      number: 'number',
+      boolean: 'boolean',
+      array: 'array',
+      object: 'object',
     };
     return mapping[type] || 'string';
   }
-  
+
   parseResponse(raw) {
     const parts = raw.candidates?.[0]?.content?.parts || [];
 
@@ -163,7 +167,7 @@ class GeminiProvider extends BaseProvider {
       .map(p => ({
         id: `gemini-${Date.now()}`,
         name: p.functionCall.name,
-        arguments: p.functionCall.args || {}
+        arguments: p.functionCall.args || {},
       }));
 
     return {
@@ -172,15 +176,12 @@ class GeminiProvider extends BaseProvider {
       usage: raw.usageMetadata
         ? {
             input_tokens: raw.usageMetadata.promptTokenCount,
-            output_tokens: raw.usageMetadata.candidatesTokenCount
+            output_tokens: raw.usageMetadata.candidatesTokenCount,
           }
         : undefined,
-      provider: 'gemini'
+      provider: 'gemini',
     };
   }
 }
 
 module.exports = GeminiProvider;
-
-
-

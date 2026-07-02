@@ -9,24 +9,24 @@ class PesaPalPolling {
   async createPaymentAndPoll(data, onSuccess, onFailure) {
     const payment = await this.provider.createPayment({
       ...data,
-      notificationId: null // No IPN
+      notificationId: null, // No IPN
     });
 
     // Start polling
     this.startPolling(payment.orderTrackingId, onSuccess, onFailure);
-    
+
     return payment;
   }
 
   startPolling(orderTrackingId, onSuccess, onFailure, maxAttempts = 60) {
     let attempts = 0;
-    
+
     const interval = setInterval(async () => {
       attempts++;
-      
+
       try {
         const status = await this.provider.verifyPayment(orderTrackingId);
-        
+
         if (status.success) {
           clearInterval(interval);
           this.pollingIntervals.delete(orderTrackingId);
@@ -37,7 +37,6 @@ class PesaPalPolling {
           await onFailure(status);
         }
         // Continue polling if pending
-        
       } catch (error) {
         console.error('Polling error:', error);
       }

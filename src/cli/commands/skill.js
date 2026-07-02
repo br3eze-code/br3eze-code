@@ -5,13 +5,11 @@
 // ==========================================
 
 const _chalk = require('chalk');
-const chalk  = _chalk.default || _chalk;
-const path   = require('path');
+const chalk = _chalk.default || _chalk;
+const path = require('path');
 
-module.exports = (program) => {
-  const skill = program
-    .command('skill')
-    .description('Manage and execute agent skills');
+module.exports = program => {
+  const skill = program.command('skill').description('Manage and execute agent skills');
 
   // ── skill list ────────────────────────────────────────────────────────────
   skill
@@ -49,10 +47,15 @@ module.exports = (program) => {
   skill
     .command('run <skillName>')
     .description('Execute a skill by name')
-    .option('-p, --param <key=value>', 'Pass parameter(s)', (v, prev) => {
-      const [k, val] = v.split('=');
-      return { ...prev, [k]: val };
-    }, {})
+    .option(
+      '-p, --param <key=value>',
+      'Pass parameter(s)',
+      (v, prev) => {
+        const [k, val] = v.split('=');
+        return { ...prev, [k]: val };
+      },
+      {}
+    )
     .action(async (skillName, options) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
@@ -81,7 +84,7 @@ module.exports = (program) => {
   skill
     .command('info <skillName>')
     .description('Show skill manifest and parameters')
-    .action(async (skillName) => {
+    .action(async skillName => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
         const SkillRegistry = require('../../core/SkillRegistry');
@@ -96,10 +99,7 @@ module.exports = (program) => {
           return;
         }
 
-        const details = [
-          chalk.gray(s.manifest.description),
-          ''
-        ];
+        const details = [chalk.gray(s.manifest.description), ''];
 
         if (s.manifest.parameters) {
           details.push(chalk.cyan('Parameters:'));

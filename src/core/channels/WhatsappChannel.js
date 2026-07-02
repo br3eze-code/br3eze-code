@@ -14,12 +14,12 @@ class WhatsAppChannel extends BaseChannel {
       description: 'Native WhatsApp integration via Baileys',
       configFields: [
         {
-          "name": "authStateFolder",
-          "type": "input",
-          "message": "Auth State Folder:",
-          "default": "./data/whatsapp_auth"
-        }
-      ]
+          name: 'authStateFolder',
+          type: 'input',
+          message: 'Auth State Folder:',
+          default: './data/whatsapp_auth',
+        },
+      ],
     };
   }
 
@@ -35,7 +35,8 @@ class WhatsAppChannel extends BaseChannel {
     super(config, agent);
     this.sock = null;
     this.qrCode = null;
-    this.authStateFolder = config.authStateFolder || path.join(process.cwd(), 'data', 'whatsapp_auth');
+    this.authStateFolder =
+      config.authStateFolder || path.join(process.cwd(), 'data', 'whatsapp_auth');
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.allowedJids = new Set();
@@ -85,8 +86,10 @@ class WhatsAppChannel extends BaseChannel {
     if (whatsappAllowed.length > 0) {
       const number = normalized.split('@')[0];
       // Check for full JID or just the number part (if the allowed list had numbers with @ but without domain)
-      return whatsappAllowed.includes(normalized) ||
-        whatsappAllowed.some(id => id.startsWith(number + '@'));
+      return (
+        whatsappAllowed.includes(normalized) ||
+        whatsappAllowed.some(id => id.startsWith(`${number}@`))
+      );
     }
 
     // Fallback to legacy allowedJids Set if no @ IDs found in allowed_ids
@@ -140,20 +143,34 @@ class WhatsAppChannel extends BaseChannel {
         version = [2, 3000, 101594821];
       }
 
-      logger.info(`Initializing WhatsApp with Baileys v${version.join('.')} (isLatest: ${isLatest})`);
+      logger.info(
+        `Initializing WhatsApp with Baileys v${version.join('.')} (isLatest: ${isLatest})`
+      );
 
       // Adapter for Baileys (pino) logger to AgentOS (winston) logger
-      const createBaileysLogger = (parent) => {
-        const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.DEBUG?.includes('whatsapp') || process.env.WHATSAPP_DEBUG === 'true';
+      const createBaileysLogger = parent => {
+        const isDebug =
+          process.env.LOG_LEVEL === 'debug' ||
+          process.env.DEBUG?.includes('whatsapp') ||
+          process.env.WHATSAPP_DEBUG === 'true';
         return {
           level: isDebug ? 'debug' : 'warn',
-          child: (bindings) => createBaileysLogger(parent.child(bindings)),
-          trace: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj); },
-          debug: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj); },
-          info: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.info(obj) : parent.info(msg || '', obj); },
-          warn: (obj, msg) => typeof obj === 'string' ? parent.warn(obj) : parent.warn(msg || '', obj),
-          error: (obj, msg) => typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
-          fatal: (obj, msg) => typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
+          child: bindings => createBaileysLogger(parent.child(bindings)),
+          trace: (obj, msg) => {
+            if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj);
+          },
+          debug: (obj, msg) => {
+            if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj);
+          },
+          info: (obj, msg) => {
+            if (isDebug) typeof obj === 'string' ? parent.info(obj) : parent.info(msg || '', obj);
+          },
+          warn: (obj, msg) =>
+            typeof obj === 'string' ? parent.warn(obj) : parent.warn(msg || '', obj),
+          error: (obj, msg) =>
+            typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
+          fatal: (obj, msg) =>
+            typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
         };
       };
 
@@ -164,13 +181,13 @@ class WhatsAppChannel extends BaseChannel {
         logger: createBaileysLogger(logger.child({ service: 'whatsapp-channel' })),
         shouldSyncHistoryMessage: () => false,
         markOnlineOnConnect: true,
-        printQRInTerminal: false
+        printQRInTerminal: false,
       });
 
       // Store disconnect reason reference for the event handler
       this._DisconnectReason = DisconnectReason;
 
-      this.sock.ev.on('connection.update', (update) => {
+      this.sock.ev.on('connection.update', update => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -182,7 +199,7 @@ class WhatsAppChannel extends BaseChannel {
           if (global.startupSpinner && global.startupSpinner.isSpinning) {
             // Temporarily stop spinner to show QR cleanly
             global.startupSpinner.stop();
-            console.log('\n📱 ' + chalk.cyan('WhatsApp Login Required'));
+            console.log(`\n📱 ${chalk.cyan('WhatsApp Login Required')}`);
             console.log(chalk.gray('Scan the code below to connect your account:\n'));
             qrcode.generate(qr, { small: true });
             console.log(''); // spacer
@@ -197,7 +214,9 @@ class WhatsAppChannel extends BaseChannel {
           const code = lastDisconnect?.error?.output?.statusCode;
           const shouldReconnect = code !== this._DisconnectReason?.loggedOut;
 
-          logger.info(`WhatsApp connection closed (code: ${code}). Reconnecting: ${shouldReconnect}`);
+          logger.info(
+            `WhatsApp connection closed (code: ${code}). Reconnecting: ${shouldReconnect}`
+          );
           this.connected = false;
           this.qrCode = null;
           this.emit('status', 'disconnected');
@@ -205,7 +224,9 @@ class WhatsAppChannel extends BaseChannel {
           if (shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = Math.min(this.reconnectAttempts * 5000, 30000);
-            logger.info(`Scheduling WhatsApp reconnect (attempt ${this.reconnectAttempts}) in ${delay / 1000}s...`);
+            logger.info(
+              `Scheduling WhatsApp reconnect (attempt ${this.reconnectAttempts}) in ${delay / 1000}s...`
+            );
             setTimeout(() => this.initialize(), delay);
           } else if (!shouldReconnect) {
             logger.info('WhatsApp logged out. Please pair again.');
@@ -225,7 +246,7 @@ class WhatsAppChannel extends BaseChannel {
 
       this.sock.ev.on('creds.update', saveCreds);
 
-      this.sock.ev.on('messages.upsert', async (m) => {
+      this.sock.ev.on('messages.upsert', async m => {
         if (m.type !== 'notify') return;
 
         for (const msg of m.messages) {
@@ -260,7 +281,7 @@ class WhatsAppChannel extends BaseChannel {
       // Request retry keys when Baileys fails to decrypt a group sender-key message.
       // This is the correct Baileys v6 pattern: send a receipt so the sender
       // will re-transmit the sender-key bundle to us.
-      this.sock.ev.on('messages.update', (updates) => {
+      this.sock.ev.on('messages.update', updates => {
         for (const update of updates) {
           if (update.update?.messageStubType === 2 /* RETRY_RECEIPT */) {
             logger.debug(`WhatsApp: retry receipt for ${update.key?.id}`);
@@ -270,7 +291,7 @@ class WhatsAppChannel extends BaseChannel {
 
       // Suppress Baileys internal decrypt failures at library logger level
       // by intercepting the error event on the socket.
-      this.sock.ev.on('CB:failure', (node) => {
+      this.sock.ev.on('CB:failure', node => {
         logger.debug('WhatsApp: Baileys CB:failure (suppressed):', node?.attrs?.reason);
       });
 
@@ -281,7 +302,6 @@ class WhatsAppChannel extends BaseChannel {
           if (now - time > 300000) this.messageCache.delete(id);
         }
       }, 60000);
-
     } catch (error) {
       this.errorCount++;
       logger.error('WhatsApp initialization error:', error);
@@ -329,7 +349,10 @@ class WhatsAppChannel extends BaseChannel {
       const rlStatus = this._checkRateLimit(jid);
       if (!rlStatus.allowed) {
         const seconds = Math.ceil((rlStatus.resetTime - Date.now()) / 1000);
-        return this.send(jid, `⏳ *Rate limit* — please slow down. 0 mistakes available. Reset in ${seconds}s.`);
+        return this.send(
+          jid,
+          `⏳ *Rate limit* — please slow down. 0 mistakes available. Reset in ${seconds}s.`
+        );
       }
 
       // Inject rate limit info into the message object for the handler to use if needed
@@ -343,23 +366,25 @@ class WhatsAppChannel extends BaseChannel {
         const pushName = msg.pushName || '';
         const number = jid.split('@')[0];
 
-        await db.upsertUser(jid, {
-          username: pushName || number,
-          firstName: pushName,
-          platform: 'whatsapp',
-          channels: { whatsapp: jid },
-        }).catch(e => logger.warn(`WhatsApp user sync failed: ${e.message}`));
+        await db
+          .upsertUser(jid, {
+            username: pushName || number,
+            firstName: pushName,
+            platform: 'whatsapp',
+            channels: { whatsapp: jid },
+          })
+          .catch(e => logger.warn(`WhatsApp user sync failed: ${e.message}`));
 
         // Bridge to Firebase Auth if possible
         db.resolveFirebaseUser(jid, {
           channel: 'whatsapp',
           channelId: jid,
-        }).catch(() => { });
+        }).catch(() => {});
 
         await fn.call(this, jid, msg, match);
       } catch (err) {
         logger.error(`WhatsAppChannel handler error: ${err.message}`, { jid });
-        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => { });
+        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => {});
       }
     };
   }
@@ -399,12 +424,14 @@ class WhatsAppChannel extends BaseChannel {
     const from = message.key.remoteJid;
 
     // Extract text from various message types
-    const text = message.message?.conversation ||
+    const text =
+      message.message?.conversation ||
       message.message?.extendedTextMessage?.text ||
       message.message?.imageMessage?.caption ||
       message.message?.videoMessage?.caption ||
       message.message?.buttonsResponseMessage?.selectedButtonId ||
-      message.message?.listResponseMessage?.singleSelectReply?.selectedRowId || '';
+      message.message?.listResponseMessage?.singleSelectReply?.selectedRowId ||
+      '';
 
     // Register active chat for broadcasts
     const { getChatRegistry } = require('../chat-registry');
@@ -428,7 +455,11 @@ class WhatsAppChannel extends BaseChannel {
     if (pending && text.trim()) {
       this.pendingInputs.delete(from);
       const wrapped = this._rl(this._executePending);
-      await wrapped(from, message, { text: text.trim(), action: pending.action, data: pending.data });
+      await wrapped(from, message, {
+        text: text.trim(),
+        action: pending.action,
+        data: pending.data,
+      });
       return;
     }
 
@@ -442,11 +473,13 @@ class WhatsAppChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
-        await db.upsertUser(from, {
-          email,
-          platform: 'whatsapp',
-          lastSeen: new Date().toISOString()
-        }).catch(e => logger.warn(`[WhatsApp] Email capture sync failed: ${e.message}`));
+        await db
+          .upsertUser(from, {
+            email,
+            platform: 'whatsapp',
+            lastSeen: new Date().toISOString(),
+          })
+          .catch(e => logger.warn(`[WhatsApp] Email capture sync failed: ${e.message}`));
 
         logger.info(`[WhatsApp] Captured email ${email} from ${from}`);
       }
@@ -454,10 +487,10 @@ class WhatsAppChannel extends BaseChannel {
       const wrappedNL = this._rl(async (userId, rawMsg) => {
         this.emit('message', {
           text: text.trim(),
-          userId: userId,
+          userId,
           sender: rawMsg.pushName || userId.split('@')[0],
           channel: 'whatsapp',
-          raw: rawMsg
+          raw: rawMsg,
         });
       });
       await wrappedNL(from, message);
@@ -487,7 +520,8 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleMenu(jid) {
-    const text = `🤖 *AgentOS Commands*\n\n` +
+    const text =
+      `🤖 *AgentOS Commands*\n\n` +
       `*/start* — Welcome message\n` +
       `*/dashboard* — System overview\n` +
       `*/users* — Active sessions\n` +
@@ -528,7 +562,10 @@ class WhatsAppChannel extends BaseChannel {
         logger.warn(`WhatsApp Dashboard: Could not fetch active users: ${err.message}`);
       }
 
-      const revenue = await db.getRevenue?.('daily').catch(() => ({ total: 0, count: 0 })) || { total: 0, count: 0 };
+      const revenue = (await db.getRevenue?.('daily').catch(() => ({ total: 0, count: 0 }))) || {
+        total: 0,
+        count: 0,
+      };
       const wallet = await db.getWallet(jid).catch(() => ({ balance: 0, currency: 'USD' }));
 
       const cpu = parseInt(resource?.['cpu-load'] || 0);
@@ -539,25 +576,24 @@ class WhatsAppChannel extends BaseChannel {
       const cpuEmoji = Number(cpu) > 80 ? '🔴' : Number(cpu) > 50 ? '🟡' : '🟢';
       const memEmoji = memUsedPercent > 80 ? '🔴' : memUsedPercent > 50 ? '🟡' : '🟢';
 
-      const routerStatus = resource ?
-        `🖥️ *Router Status*\n` +
-        `${cpuEmoji} CPU: *${cpu}%*\n` +
-        `${memEmoji} RAM: *${memUsedPercent}%* used\n` +
-        `⏱ Uptime: \`${resource?.uptime || 'N/A'}\`\n` +
-        `📦 OS: \`${resource?.version || 'N/A'}\`\n\n` :
-        `🖥️ *Router Status*: 🔴 Offline\n\n`;
+      const routerStatus = resource
+        ? `🖥️ *Router Status*\n` +
+          `${cpuEmoji} CPU: *${cpu}%*\n` +
+          `${memEmoji} RAM: *${memUsedPercent}%* used\n` +
+          `⏱ Uptime: \`${resource?.uptime || 'N/A'}\`\n` +
+          `📦 OS: \`${resource?.version || 'N/A'}\`\n\n`
+        : `🖥️ *Router Status*: 🔴 Offline\n\n`;
 
       const walletLine = `💳 Balance: *${(wallet.balance || 0).toFixed(2)} ${wallet.currency || 'USD'}*\n`;
 
-      const text = `📊 *AgentOS Dashboard*\n\n` +
-        routerStatus +
-        `🌐 *Network*\n` +
+      const text =
+        `📊 *AgentOS Dashboard*\n\n${routerStatus}🌐 *Network*\n` +
         `🟢 Active Users: *${activeUsers?.length || 0}*\n\n` +
         `💰 *Finance (Today)*\n` +
         `💵 Revenue: *${revenue.total ? revenue.total.toFixed(2) : '0.00'} USD*\n` +
-        `🎫 Sales: *${revenue.count || 0}* vouchers\n` +
-        walletLine + `\n` +
-        (resource ? `✅ System healthy` : `⚠️ Router offline`);
+        `🎫 Sales: *${revenue.count || 0}* vouchers\n${walletLine}\n${
+          resource ? `✅ System healthy` : `⚠️ Router offline`
+        }`;
 
       await this.send(jid, text);
     } catch (err) {
@@ -607,7 +643,7 @@ class WhatsAppChannel extends BaseChannel {
         plans = [
           { id: '1Hour', name: '1 Hour', price: 0.5 },
           { id: '1Day', name: '1 Day', price: 1.0 },
-          { id: '7Day', name: '7 Days', price: 3.0 }
+          { id: '7Day', name: '7 Days', price: 3.0 },
         ];
       }
 
@@ -615,7 +651,8 @@ class WhatsAppChannel extends BaseChannel {
       const balance = wallet.balance || 0;
       const currency = wallet.currency || 'USD';
 
-      let msgText = `🎫 *Create Voucher*\n\n` +
+      let msgText =
+        `🎫 *Create Voucher*\n\n` +
         `Role: *${isAdmin ? 'Admin (Free)' : 'User'}*\n` +
         `Balance: *${balance} ${currency}*\n\n` +
         `Available Plans:\n`;
@@ -640,13 +677,21 @@ class WhatsAppChannel extends BaseChannel {
     const user = await db.getUser(jid);
     const isAdmin = user?.role === 'admin' || user?.role === 'reseller';
 
-    const planObj = await db.getPlan(planId) || { name: 'Custom', deviceLimit: 1, durationUnit: 'days', durationValue: 1 };
+    const planObj = (await db.getPlan(planId)) || {
+      name: 'Custom',
+      deviceLimit: 1,
+      durationUnit: 'days',
+      durationValue: 1,
+    };
     const price = planObj.price || 0;
 
     if (!isAdmin) {
       const wallet = await db.getWallet(jid);
       if ((wallet.balance || 0) < price) {
-        return this.send(jid, `❌ *Insufficient Balance*\nPlan requires ${price} but you only have ${wallet.balance || 0}. Use */pay* to top up.`);
+        return this.send(
+          jid,
+          `❌ *Insufficient Balance*\nPlan requires ${price} but you only have ${wallet.balance || 0}. Use */pay* to top up.`
+        );
       }
       // Deduct balance
       await db.updateWallet(jid, { balance: (wallet.balance || 0) - price });
@@ -659,9 +704,11 @@ class WhatsAppChannel extends BaseChannel {
 
     const mt = this.agent?.mikrotik || global.mikrotik;
     const dateUtils = require('../../utils/date');
-    const expiresAt = planObj.durationValue && planObj.durationUnit ?
-      dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
-    const loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+    const expiresAt =
+      planObj.durationValue && planObj.durationUnit
+        ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
+        : null;
+    let loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
     await db.createVoucher(code, {
       plan: planId,
@@ -674,7 +721,7 @@ class WhatsAppChannel extends BaseChannel {
       userId: jid,
       createdBy: 'whatsapp',
       value: price,
-      currency: user?.currency || 'USD'
+      currency: user?.currency || 'USD',
     });
 
     // Update user subscription record (matching Telegram)
@@ -690,23 +737,30 @@ class WhatsAppChannel extends BaseChannel {
     }
 
     if (mt) {
-      const _durationToMikrotik = (p) => {
+      const _durationToMikrotik = p => {
         if (!p || !p.durationValue || !p.durationUnit) return null;
         const v = p.durationValue;
         switch (p.durationUnit) {
-          case 'weeks': return `${v}w`;
-          case 'days': return `${v}d`;
-          case 'hours': return `${String(v).padStart(2, '0')}:00:00`;
-          case 'minutes': return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
-          default: return null;
+          case 'weeks':
+            return `${v}w`;
+          case 'days':
+            return `${v}d`;
+          case 'hours':
+            return `${String(v).padStart(2, '0')}:00:00`;
+          case 'minutes':
+            return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
+          default:
+            return null;
         }
       };
 
       try {
         const routerLoginUrl = await mt.addHotspotUser({
-          username: code, password: code, profile: planId,
+          username: code,
+          password: code,
+          profile: planId,
           sharedUsers: planObj.deviceLimit || 1,
-          ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) })
+          ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) }),
         });
         if (routerLoginUrl) {
           loginUrl = routerLoginUrl;
@@ -720,12 +774,15 @@ class WhatsAppChannel extends BaseChannel {
     const QRCode = require('qrcode');
     const qrBuf = await QRCode.toBuffer(loginUrl);
 
-    await this.sendMedia(jid, qrBuf, 'image/png',
+    await this.sendMedia(
+      jid,
+      qrBuf,
+      'image/png',
       `🎫 *Voucher Created*\n\n` +
-      `Code: \`${code}\`\n` +
-      `Plan: *${planObj.name || planId}*\n` +
-      `Expires: ${expiresAt ? new Date(expiresAt).toLocaleString() : 'Never'}\n\n` +
-      `_Scan the code or login manually at the portal._`
+        `Code: \`${code}\`\n` +
+        `Plan: *${planObj.name || planId}*\n` +
+        `Expires: ${expiresAt ? new Date(expiresAt).toLocaleString() : 'Never'}\n\n` +
+        `_Scan the code or login manually at the portal._`
     );
 
     // Trigger printing if thermal printer is configured
@@ -735,7 +792,7 @@ class WhatsAppChannel extends BaseChannel {
         username: code,
         password: code,
         profile: planObj.name || planId,
-        loginUrl: loginUrl
+        loginUrl,
       });
     } catch (e) {
       // Silent fail for printer
@@ -750,7 +807,8 @@ class WhatsAppChannel extends BaseChannel {
       const stats = await mt.executeTool('system.stats');
       const health = mt.state?.lastKnownHealth || {};
 
-      const text = `📊 *Router Statistics*\n\n` +
+      const text =
+        `📊 *Router Statistics*\n\n` +
         `Board: *${stats.board || 'MikroTik'}*\n` +
         `Model: \`${stats.model || 'N/A'}\`\n` +
         `Version: \`${stats.version || 'N/A'}\`\n` +
@@ -778,7 +836,10 @@ class WhatsAppChannel extends BaseChannel {
 
   async _handleReboot(jid) {
     this.pendingInputs.set(jid, { action: 'confirm_reboot' });
-    await this.send(jid, '⚠️ *Confirm System Reboot?*\nAll users will be disconnected. Reply with "yes" to confirm.');
+    await this.send(
+      jid,
+      '⚠️ *Confirm System Reboot?*\nAll users will be disconnected. Reply with "yes" to confirm.'
+    );
   }
 
   async _handlePing(jid, msg, args) {
@@ -794,7 +855,10 @@ class WhatsAppChannel extends BaseChannel {
     await this.send(jid, `📡 Pinging ${host}...`);
     try {
       const result = await mt.executeTool('ping', { host, count: 4 });
-      await this.send(jid, `✅ *Ping ${host}*\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+      await this.send(
+        jid,
+        `✅ *Ping ${host}*\n\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``
+      );
     } catch (err) {
       await this.send(jid, `❌ Ping failed: ${err.message}`);
     }
@@ -830,7 +894,7 @@ class WhatsAppChannel extends BaseChannel {
       userId: jid,
       sender: msg.pushName || jid.split('@')[0],
       channel: 'whatsapp',
-      raw: msg
+      raw: msg,
     });
   }
 
@@ -871,21 +935,23 @@ class WhatsAppChannel extends BaseChannel {
     const balance = wallet.balance || 0;
     const currency = wallet.currency || 'USD';
 
-    await this.send(jid,
+    await this.send(
+      jid,
       `👛 *My Wallet*\n\n` +
-      `Balance: *${balance} ${currency}*\n` +
-      `Status: ✅ Active\n\n` +
-      `_Use */pay* to top up your balance instantly via various payment methods._`
+        `Balance: *${balance} ${currency}*\n` +
+        `Status: ✅ Active\n\n` +
+        `_Use */pay* to top up your balance instantly via various payment methods._`
     );
   }
 
   async _handlePay(jid) {
-    await this.send(jid,
+    await this.send(
+      jid,
       `💳 *Recharge Account*\n\n` +
-      `1. *M-PESA / Mobile Money*\n` +
-      `2. *Credit/Debit Card*\n` +
-      `3. *Cash at Counter*\n\n` +
-      `_Please enter the amount you wish to top up or visit our web portal for automated payments._`
+        `1. *M-PESA / Mobile Money*\n` +
+        `2. *Credit/Debit Card*\n` +
+        `3. *Cash at Counter*\n\n` +
+        `_Please enter the amount you wish to top up or visit our web portal for automated payments._`
     );
   }
 
@@ -901,19 +967,21 @@ class WhatsAppChannel extends BaseChannel {
     this.config.allowed_ids = [jid];
     logger.info(`WhatsAppChannel: JID ${jid} claimed primary admin status.`);
 
-    await this.send(jid,
+    await this.send(
+      jid,
       `🎉 *Success!* You are now the primary admin (\`${jid}\`).\n\n` +
-      `Commands are now strictly restricted to you and authorized personnel.\n` +
-      `_Note: Ensure you update your configuration to persist this change._`
+        `Commands are now strictly restricted to you and authorized personnel.\n` +
+        `_Note: Ensure you update your configuration to persist this change._`
     );
   }
 
   async _handleToken(jid) {
     const token = process.env.GATEWAY_TOKEN || 'Not configured';
-    await this.send(jid,
+    await this.send(
+      jid,
       `🔑 *System Access Token*\n\n` +
-      `Token: \`${token}\`\n\n` +
-      `_Use this for API and WebSocket authentication. Do not share this with anyone!_`
+        `Token: \`${token}\`\n\n` +
+        `_Use this for API and WebSocket authentication. Do not share this with anyone!_`
     );
   }
 
@@ -946,11 +1014,17 @@ class WhatsAppChannel extends BaseChannel {
       return this._handlePing(jid, msg, args);
     }
 
-    await this.send(jid, `🔧 Tool *${toolName}* is not yet fully optimized for interactive WhatsApp mode. Please use the CLI bridge for raw execution.`);
+    await this.send(
+      jid,
+      `🔧 Tool *${toolName}* is not yet fully optimized for interactive WhatsApp mode. Please use the CLI bridge for raw execution.`
+    );
   }
 
   async _handleSetupRouter(jid) {
-    await this.send(jid, `🌐 *Router Onboarding*\n\nThis feature guides you through connecting a new MikroTik router to AgentOS. Please visit the web dashboard for the full visual wizard.`);
+    await this.send(
+      jid,
+      `🌐 *Router Onboarding*\n\nThis feature guides you through connecting a new MikroTik router to AgentOS. Please visit the web dashboard for the full visual wizard.`
+    );
   }
 
   async _handleNetwork(jid) {
@@ -958,7 +1032,7 @@ class WhatsAppChannel extends BaseChannel {
     if (!mt) return this.send(jid, '⚠️ MikroTik not connected.');
 
     try {
-      const interfaces = await mt.getInterfaces?.() || [];
+      const interfaces = (await mt.getInterfaces?.()) || [];
       let msg = `🌐 *Network Interfaces*\n\n`;
       interfaces.forEach(i => {
         const state = i.running === 'true' ? '✅' : '❌';
@@ -973,7 +1047,8 @@ class WhatsAppChannel extends BaseChannel {
 
   async _handleStatus(jid) {
     const status = this.getStatus();
-    const text = `🤖 *System Status*\n\n` +
+    const text =
+      `🤖 *System Status*\n\n` +
       `Platform: *AgentOS WhatsApp*\n` +
       `Status: ${status.connected ? '✅ Connected' : '❌ Disconnected'}\n` +
       `Messages: \`${status.messageCount}\`\n` +
@@ -1081,7 +1156,7 @@ class WhatsAppChannel extends BaseChannel {
       ...super.getStatus(),
       type: 'whatsapp',
       hasQR: !!this.qrCode,
-      authorizedJids: Array.from(this.allowedJids)
+      authorizedJids: Array.from(this.allowedJids),
     };
   }
 

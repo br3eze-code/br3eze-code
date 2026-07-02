@@ -8,7 +8,7 @@ class EnhancedDatabase {
     this.localCache = new Map();
     this.syncQueue = [];
     this.isOnline = false;
-    
+
     this._init();
   }
 
@@ -20,18 +20,18 @@ class EnhancedDatabase {
             credential: admin.credential.cert({
               projectId: process.env.FIREBASE_PROJECT_ID,
               privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL
-            })
+              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            }),
           });
         }
-        
+
         this.db = admin.firestore();
         this.db.settings({ ignoreUndefinedProperties: true });
         this.isOnline = true;
-        
+
         // Setup real-time listeners
         this._setupSyncListeners();
-        
+
         logger.info('Firebase connected - real-time sync active');
       } else {
         logger.warn('Firebase not configured - running in offline mode');
@@ -61,7 +61,7 @@ class EnhancedDatabase {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       used: false,
-      syncStatus: this.isOnline ? 'synced' : 'pending'
+      syncStatus: this.isOnline ? 'synced' : 'pending',
     };
 
     if (this.isOnline) {
@@ -73,7 +73,7 @@ class EnhancedDatabase {
 
     // Also store in local backup
     this._persistLocal();
-    
+
     logger.audit('voucher_created', { code, plan: data.plan });
     return voucher;
   }
@@ -83,7 +83,7 @@ class EnhancedDatabase {
       used: true,
       redeemedBy: userData,
       redeemedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     if (this.isOnline) {
@@ -119,28 +119,35 @@ class EnhancedDatabase {
 
   async syncUserData(userId, data) {
     if (!this.isOnline) return false;
-    
-    await this.db.collection('users').doc(userId).set({
-      ...data,
-      lastSync: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    
+
+    await this.db
+      .collection('users')
+      .doc(userId)
+      .set(
+        {
+          ...data,
+          lastSync: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
     return true;
   }
 
   async getStats() {
-    const agg = await this.db.collection('vouchers')
+    const agg = await this.db
+      .collection('vouchers')
       .where('createdAt', '>', new Date(Date.now() - 86400000))
       .get();
-    
+
     const today = agg.size;
     const used = agg.docs.filter(d => d.data().used).length;
-    
+
     return {
       today,
       used,
       active: today - used,
-      revenue: today * 2 // Approximate
+      revenue: today * 2, // Approximate
     };
   }
 
@@ -149,7 +156,7 @@ class EnhancedDatabase {
     const fs = require('fs');
     const path = require('path');
     const file = path.join(process.cwd(), 'data', 'vouchers-backup.json');
-    
+
     try {
       if (!fs.existsSync(path.dirname(file))) {
         fs.mkdirSync(path.dirname(file), { recursive: true });

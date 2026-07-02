@@ -2,9 +2,9 @@
 // db/user.js
 // Persistent User Database Layer (AgentOS Core)
 
-const Database = require("better-sqlite3");
+const Database = require('better-sqlite3');
 
-const db = new Database("agentos.db");
+const db = new Database('agentos.db');
 
 // ─────────────────────────────
 // 🧱 INIT TABLE

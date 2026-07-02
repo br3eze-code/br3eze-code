@@ -34,12 +34,12 @@ class MemoryManager {
       id: interactionId,
       timestamp: data.timestamp,
       skill: data.result?.skill,
-      input: data.input.text || data.input.action
+      input: data.input.text || data.input.action,
     });
-    
+
     // Keep only last 100 interactions
     await this.adapter.trim(`user:${userId}:history`, -100);
-    
+
     // Store full interaction
     await this.adapter.set(`interaction:${interactionId}`, data, 86400); // 24h TTL
   }
@@ -51,11 +51,15 @@ class MemoryManager {
 
   async createSession(userId, data = {}) {
     const sessionId = crypto.randomUUID();
-    await this.adapter.set(`session:${sessionId}`, {
-      userId,
-      createdAt: Date.now(),
-      data
-    }, 3600); // 1h TTL
+    await this.adapter.set(
+      `session:${sessionId}`,
+      {
+        userId,
+        createdAt: Date.now(),
+        data,
+      },
+      3600
+    ); // 1h TTL
     return sessionId;
   }
 

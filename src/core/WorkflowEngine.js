@@ -9,7 +9,7 @@ class WorkflowEngine {
     this.workflows.set(id, {
       id,
       ...definition,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     });
   }
 
@@ -24,11 +24,11 @@ class WorkflowEngine {
 
     for (let i = 0; i < workflow.steps.length; i++) {
       const step = workflow.steps[i];
-      
+
       try {
         // Resolve variables in parameters
         const resolvedParams = this.resolveVariables(step.params, variables);
-        
+
         // Execute skill or sub-workflow
         let result;
         if (step.workflow) {
@@ -51,10 +51,9 @@ class WorkflowEngine {
             break;
           }
         }
-
       } catch (error) {
         results.push({ step: i, success: false, error: error.message });
-        
+
         if (workflow.onError === 'stop') {
           throw error;
         } else if (workflow.onError === 'continue') {
@@ -70,7 +69,7 @@ class WorkflowEngine {
       workflow: workflowId,
       success: results.every(r => r.success),
       steps: results,
-      variables: Object.fromEntries(variables)
+      variables: Object.fromEntries(variables),
     };
   }
 
@@ -90,14 +89,20 @@ class WorkflowEngine {
     // Simple condition evaluation
     const { var: varName, op, value } = condition;
     const actual = variables.get(varName);
-    
+
     switch (op) {
-      case 'eq': return actual === value;
-      case 'ne': return actual !== value;
-      case 'gt': return actual > value;
-      case 'lt': return actual < value;
-      case 'exists': return actual !== undefined;
-      default: return true;
+      case 'eq':
+        return actual === value;
+      case 'ne':
+        return actual !== value;
+      case 'gt':
+        return actual > value;
+      case 'lt':
+        return actual < value;
+      case 'exists':
+        return actual !== undefined;
+      default:
+        return true;
     }
   }
 }

@@ -1,6 +1,6 @@
 // src/core/SkillRegistry.js
-const fs   = require('fs').promises;
-const fss  = require('fs');            // sync checks
+const fs = require('fs').promises;
+const fss = require('fs'); // sync checks
 const path = require('path');
 const EventEmitter = require('events');
 const { logger } = require('./logger');
@@ -14,22 +14,24 @@ class SkillRegistry extends EventEmitter {
     this.hooks = {
       beforeExecute: [],
       afterExecute: [],
-      onError: []
+      onError: [],
     };
   }
 
   async loadFromDirectory(skillsPath) {
     try {
       const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-      
+
       for (const entry of entries) {
-        logger.debug(`SkillRegistry: Checking entry ${entry.name} (isDirectory: ${entry.isDirectory()})`);
+        logger.debug(
+          `SkillRegistry: Checking entry ${entry.name} (isDirectory: ${entry.isDirectory()})`
+        );
         if (!entry.isDirectory()) continue;
-        
+
         const skillPath = path.join(skillsPath, entry.name);
         await this.loadSkill(skillPath);
       }
-      
+
       this.emit('loaded', this.skills.size);
     } catch (error) {
       if (error.code === 'ENOENT') {
@@ -44,9 +46,9 @@ class SkillRegistry extends EventEmitter {
     try {
       // ── 1. Load manifest (manifest.yaml preferred, skill.json fallback) ────
       let manifest;
-      const yamlManifest  = path.join(skillPath, 'manifest.yaml');
+      const yamlManifest = path.join(skillPath, 'manifest.yaml');
       const yamlManifest2 = path.join(skillPath, 'manifest.yml');
-      const jsonManifest  = path.join(skillPath, 'skill.json');
+      const jsonManifest = path.join(skillPath, 'skill.json');
 
       if (fss.existsSync(yamlManifest) || fss.existsSync(yamlManifest2)) {
         console.log(`[SkillRegistry] Found YAML manifest for ${path.basename(skillPath)}`);
@@ -77,31 +79,34 @@ class SkillRegistry extends EventEmitter {
       }
 
       // ── 3. Normalise to { execute, initialize, destroy, validate } ─────────
-      const mod = (typeof impl === 'function' && impl.prototype?.execute)
-        ? new impl(
-            this.config?.skills?.[manifest.name] || this.config?.[manifest.name] || {},
-            logger,
-            this.config?.workspace || {}
-          )  // class — BaseSkill contract: constructor(config, logger, workspace)
-        : impl;
+      const mod =
+        typeof impl === 'function' && impl.prototype?.execute
+          ? new impl(
+              this.config?.skills?.[manifest.name] || this.config?.[manifest.name] || {},
+              logger,
+              this.config?.workspace || {}
+            ) // class — BaseSkill contract: constructor(config, logger, workspace)
+          : impl;
 
       const skill = {
         manifest,
-        execute:    this.wrapExecution(
-                      (mod.execute || (() => ({ status: 'no-op', skill: manifest.name }))).bind(mod)
-                    ),
-        validate:   (mod.validate   || this.defaultValidate).bind(mod),
+        execute: this.wrapExecution(
+          (mod.execute || (() => ({ status: 'no-op', skill: manifest.name }))).bind(mod)
+        ),
+        validate: (mod.validate || this.defaultValidate).bind(mod),
         initialize: (mod.initialize || (() => Promise.resolve())).bind(mod),
-        destroy:    (mod.destroy    || (() => Promise.resolve())).bind(mod),
-        path: skillPath
+        destroy: (mod.destroy || (() => Promise.resolve())).bind(mod),
+        path: skillPath,
       };
 
       const skillName = manifest.name || path.basename(skillPath);
       logger.info(`SkillRegistry: Initializing ${skillName}...`);
-      
+
       const start = Date.now();
       const timeout = setTimeout(() => {
-        logger.warn(`SkillRegistry: Skill ${skillName} is taking a long time to initialize (>2s)...`);
+        logger.warn(
+          `SkillRegistry: Skill ${skillName} is taking a long time to initialize (>2s)...`
+        );
       }, 2000);
 
       try {
@@ -112,10 +117,9 @@ class SkillRegistry extends EventEmitter {
 
       const duration = Date.now() - start;
       logger.info(`SkillRegistry: ${skillName} initialized in ${duration}ms`);
-      
+
       this.skills.set(manifest.name, skill);
       this.emit('skillLoaded', manifest.name);
-
     } catch (error) {
       const skillName = path.basename(skillPath);
       logger.error(`Failed to load skill from ${skillName}: ${error.message}`);
@@ -126,7 +130,6 @@ class SkillRegistry extends EventEmitter {
     }
   }
 
-
   validateManifest(manifest) {
     const required = ['name', 'version', 'description'];
     for (const field of required) {
@@ -134,7 +137,7 @@ class SkillRegistry extends EventEmitter {
         throw new Error(`Missing required field: ${field}`);
       }
     }
-    
+
     if (!/^[a-z0-9._-]+$/.test(manifest.name)) {
       throw new Error(`Invalid skill name: ${manifest.name}`);
     }
@@ -150,10 +153,13 @@ class SkillRegistry extends EventEmitter {
       // Pull toolName out if present, so we can route correctly.
       let toolName, args;
       if (isClassContract) {
-        toolName = (typeof params === 'object' && params !== null && params.__toolName__)
-          ? params.__toolName__
-          : (typeof params === 'string' ? params : undefined);
-        args = (toolName && typeof params === 'object') ? { ...params } : (params || {});
+        toolName =
+          typeof params === 'object' && params !== null && params.__toolName__
+            ? params.__toolName__
+            : typeof params === 'string'
+              ? params
+              : undefined;
+        args = toolName && typeof params === 'object' ? { ...params } : params || {};
         if (args.__toolName__) delete args.__toolName__;
       }
 
@@ -179,7 +185,6 @@ class SkillRegistry extends EventEmitter {
         }
 
         return result;
-
       } catch (error) {
         // Run error hooks
         for (const hook of this.hooks.onError) {
@@ -193,18 +198,18 @@ class SkillRegistry extends EventEmitter {
   validateParams(params, schema) {
     for (const [key, config] of Object.entries(schema)) {
       const value = params[key];
-      
+
       if (config.required && (value === undefined || value === null)) {
         throw new Error(`Missing required parameter: ${key}`);
       }
-      
+
       if (value !== undefined && config.type) {
         const actualType = Array.isArray(value) ? 'array' : typeof value;
         if (actualType !== config.type) {
           throw new Error(`Invalid type for ${key}: expected ${config.type}, got ${actualType}`);
         }
       }
-      
+
       if (value !== undefined && config.enum && !config.enum.includes(value)) {
         throw new Error(`Invalid value for ${key}: must be one of ${config.enum.join(', ')}`);
       }
@@ -238,7 +243,7 @@ class SkillRegistry extends EventEmitter {
       version: s.manifest.version,
       parameters: s.manifest.parameters,
       examples: s.manifest.examples,
-      tools: s.manifest.tools || []
+      tools: s.manifest.tools || [],
     }));
   }
 
@@ -252,7 +257,7 @@ class SkillRegistry extends EventEmitter {
             name: `${skillName}.${tool.name}`,
             description: tool.description,
             parameters: tool.parameters,
-            returns: tool.returns
+            returns: tool.returns,
           });
         }
       } else {
@@ -261,7 +266,7 @@ class SkillRegistry extends EventEmitter {
           name: skillName,
           description: skill.manifest.description,
           parameters: skill.manifest.parameters || {},
-          returns: 'any'
+          returns: 'any',
         });
       }
     }
@@ -278,7 +283,7 @@ class SkillRegistry extends EventEmitter {
     }
 
     const skillName = toolFullName.slice(0, dotIdx);
-    const toolName  = toolFullName.slice(dotIdx + 1);
+    const toolName = toolFullName.slice(dotIdx + 1);
 
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill not found: ${skillName}`);
@@ -298,10 +303,10 @@ class SkillRegistry extends EventEmitter {
   async reload(name) {
     const skill = this.skills.get(name);
     if (!skill) throw new Error(`Skill not found: ${name}`);
-    
+
     await skill.destroy();
     this.skills.delete(name);
-    
+
     await this.loadSkill(skill.path);
   }
 

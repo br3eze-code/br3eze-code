@@ -9,18 +9,18 @@ class SlackChannel extends BaseChannel {
       description: 'Team collaboration via Slack Bolt',
       configFields: [
         {
-          "name": "token",
-          "type": "password",
-          "message": "Slack Bot Token (xoxb-):",
-          "required": true
+          name: 'token',
+          type: 'password',
+          message: 'Slack Bot Token (xoxb-):',
+          required: true,
         },
         {
-          "name": "appToken",
-          "type": "password",
-          "message": "Slack App Token (xapp-):",
-          "required": true
-        }
-      ]
+          name: 'appToken',
+          type: 'password',
+          message: 'Slack App Token (xapp-):',
+          required: true,
+        },
+      ],
     };
   }
 
@@ -56,7 +56,9 @@ class SlackChannel extends BaseChannel {
   async initializeEventSubscriptions() {
     // This mode requires a public URL and a separate HTTP server to receive webhooks.
     // In many edge cases, Socket Mode is preferred for its simplicity.
-    console.warn('SlackChannel: Event Subscriptions mode requires a webhook handler (not yet fully implemented in core). Using Socket Mode is recommended for standalone agents.');
+    console.warn(
+      'SlackChannel: Event Subscriptions mode requires a webhook handler (not yet fully implemented in core). Using Socket Mode is recommended for standalone agents.'
+    );
   }
 
   async initializeSocketMode() {
@@ -91,13 +93,13 @@ class SlackChannel extends BaseChannel {
 
       const wrappedNL = this._rl(async (userId, msgEvent) => {
         this.emit('message', {
-          userId: userId,
+          userId,
           channel: 'slack',
           channelId: msgEvent.channel,
-          text: text,
+          text,
           threadTs: msgEvent.thread_ts,
           ts: msgEvent.ts,
-          raw: msgEvent
+          raw: msgEvent,
         });
       });
       await wrappedNL(event.user, event);
@@ -116,18 +118,20 @@ class SlackChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
-        await db.upsertUser(jid, {
-          username: msg.user || jid,
-          platform: 'slack',
-          channels: { slack: jid }
-        }).catch(e => console.warn(`Slack user sync failed: ${e.message}`));
+        await db
+          .upsertUser(jid, {
+            username: msg.user || jid,
+            platform: 'slack',
+            channels: { slack: jid },
+          })
+          .catch(e => console.warn(`Slack user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(jid, { channel: 'slack', channelId: jid }).catch(() => { });
+        db.resolveFirebaseUser(jid, { channel: 'slack', channelId: jid }).catch(() => {});
 
         await fn.call(this, jid, msg, match);
       } catch (err) {
         console.error(`SlackChannel handler error: ${err.message}`, { jid });
-        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => { });
+        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => {});
       }
     };
   }
@@ -138,17 +142,20 @@ class SlackChannel extends BaseChannel {
 
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);
-    this.handlers.set('dashboard', (j) => H.handleDashboard(this, j));
-    this.handlers.set('stats', (j) => H.handleStats(this, j));
-    this.handlers.set('network', (j) => H.handleNetwork(this, j));
-    this.handlers.set('users', (j) => H.handleUsers(this, j));
+    this.handlers.set('dashboard', j => H.handleDashboard(this, j));
+    this.handlers.set('stats', j => H.handleStats(this, j));
+    this.handlers.set('network', j => H.handleNetwork(this, j));
+    this.handlers.set('users', j => H.handleUsers(this, j));
     this.handlers.set('voucher', (j, m, a) => H.handleVoucher(this, j, m, a));
     this.handlers.set('bulk', (j, m, a) => H.handleBulkVoucher(this, j, m, a));
-    this.handlers.set('ping', (j) => H.handlePing(this, j));
+    this.handlers.set('ping', j => H.handlePing(this, j));
   }
 
   async _handleStart(jid) {
-    await this.send(jid, '👋 *Welcome to AgentOS for Slack!* Type `/menu` to see available commands.');
+    await this.send(
+      jid,
+      '👋 *Welcome to AgentOS for Slack!* Type `/menu` to see available commands.'
+    );
   }
 
   async _handleMenu(jid) {
@@ -168,7 +175,7 @@ class SlackChannel extends BaseChannel {
     message = this.formatMessage(message);
     const payload = {
       channel: userId,
-      text: message.text
+      text: message.text,
     };
 
     if (message.blocks) {
@@ -189,12 +196,10 @@ class SlackChannel extends BaseChannel {
     // Get all channels bot is member of
     const channels = await this.client.conversations.list({
       types: 'public_channel,private_channel',
-      exclude_archived: true
+      exclude_archived: true,
     });
 
-    const promises = channels.channels
-      .filter(c => c.is_member)
-      .map(c => this.send(c.id, message));
+    const promises = channels.channels.filter(c => c.is_member).map(c => this.send(c.id, message));
 
     return Promise.allSettled(promises);
   }
@@ -211,7 +216,7 @@ class SlackChannel extends BaseChannel {
         blocks: [
           {
             type: 'section',
-            text: { type: 'mrkdwn', text: message.text }
+            text: { type: 'mrkdwn', text: message.text },
           },
           {
             type: 'actions',
@@ -219,10 +224,10 @@ class SlackChannel extends BaseChannel {
               type: 'button',
               text: { type: 'plain_text', text: b.label },
               action_id: b.action,
-              value: JSON.stringify(b.data)
-            }))
-          }
-        ]
+              value: JSON.stringify(b.data),
+            })),
+          },
+        ],
       };
     }
 
@@ -234,7 +239,7 @@ class SlackChannel extends BaseChannel {
       ...super.getStatus(),
       team: this.teamId,
       bot: this.botId,
-      socketMode: this.socketMode
+      socketMode: this.socketMode,
     };
   }
 

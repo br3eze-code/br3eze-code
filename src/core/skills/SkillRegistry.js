@@ -11,31 +11,31 @@ class SkillRegistry {
   async loadFromDirectory(skillsPath, config = {}) {
     const fs = require('fs').promises;
     const path = require('path');
-    
+
     const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const dirPath = path.join(skillsPath, entry.name);
         let manifest = null;
-        
+
         try {
           // Try skill.json first, then manifest.yaml
           const jsonPath = path.join(dirPath, 'skill.json');
           const yamlPath = path.join(dirPath, 'manifest.yaml');
-          
+
           if (require('fs').existsSync(jsonPath)) {
             manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
           } else if (require('fs').existsSync(yamlPath)) {
             const yaml = require('js-yaml');
             manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
           }
-          
+
           if (!manifest) continue;
 
           const entryFile = manifest.entry || 'index.js';
           const codePath = path.join(dirPath, entryFile);
-          
+
           if (!require('fs').existsSync(codePath)) {
             logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
             continue;
@@ -67,8 +67,7 @@ class SkillRegistry {
       const fn = implementation.execute.bind(implementation);
       if (fn.length <= 2) {
         // Legacy contract: execute({ action, params, ... }, context)
-        executor = (toolName, args, ctx) =>
-          fn({ action: toolName, ...(args || {}) }, ctx || {});
+        executor = (toolName, args, ctx) => fn({ action: toolName, ...(args || {}) }, ctx || {});
       } else {
         // Modern contract: execute(toolName, args, ctx)
         executor = (toolName, args, ctx) => fn(toolName, args, ctx || {});
@@ -77,14 +76,16 @@ class SkillRegistry {
       // Plain function
       executor = (params, ctx) => implementation(params, ctx);
     } else {
-      logger.warn(`Skill "${manifest.name}": no execute implementation found — registering as no-op`);
+      logger.warn(
+        `Skill "${manifest.name}": no execute implementation found — registering as no-op`
+      );
       executor = () => ({ status: 'no-op', skill: manifest.name });
     }
 
     this.skills.set(manifest.name, {
       manifest,
       execute: executor,
-      validate: implementation.validate || (() => true)
+      validate: implementation.validate || (() => true),
     });
     this.manifests.set(manifest.name, manifest);
     this.implementations.set(manifest.name, implementation);
@@ -93,7 +94,7 @@ class SkillRegistry {
   async execute(skillName, toolName, args = {}, context = {}) {
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill '${skillName}' not found`);
-    
+
     let actualToolName = toolName;
     let actualArgs = args;
     let actualContext = context;
@@ -137,9 +138,9 @@ class SkillRegistry {
   /** Get all skill descriptions */
   getDescriptions() {
     return Array.from(this.skills.values()).map(s => ({
-      name:        s.manifest.name,
+      name: s.manifest.name,
       description: s.manifest.description,
-      version:     s.manifest.version
+      version: s.manifest.version,
     }));
   }
 }

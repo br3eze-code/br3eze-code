@@ -2,20 +2,20 @@
 const { BaseChannel } = require('./BaseChannel');
 
 class USSDChannel extends BaseChannel {
-    static getMetadata() {
-        return {
-            name: 'USSD',
-            description: 'Offline reach via GSM gateways',
-            configFields: [
+  static getMetadata() {
+    return {
+      name: 'USSD',
+      description: 'Offline reach via GSM gateways',
+      configFields: [
         {
-                "name": "port",
-                "type": "input",
-                "message": "Modem Port:",
-                "default": "/dev/ttyUSB0"
-        }
-]
-        };
-    }
+          name: 'port',
+          type: 'input',
+          message: 'Modem Port:',
+          default: '/dev/ttyUSB0',
+        },
+      ],
+    };
+  }
 
   constructor(config, agent) {
     super(config, agent);
@@ -40,18 +40,22 @@ class USSDChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
-        await db.upsertUser(phoneNumber, {
-          username: phoneNumber,
-          platform: 'ussd',
-          channels: { ussd: phoneNumber }
-        }).catch(e => console.warn(`USSD user sync failed: ${e.message}`));
+        await db
+          .upsertUser(phoneNumber, {
+            username: phoneNumber,
+            platform: 'ussd',
+            channels: { ussd: phoneNumber },
+          })
+          .catch(e => console.warn(`USSD user sync failed: ${e.message}`));
 
         // Resolve (or auto-provision) the caller's Firebase Auth record.
         // Build a scoped UserDoc so handlers can only read/write their own doc.
-        const authUser = await db.resolveFirebaseUser(phoneNumber, {
-          channel: 'ussd',
-          channelId: phoneNumber
-        }).catch(() => null);
+        const authUser = await db
+          .resolveFirebaseUser(phoneNumber, {
+            channel: 'ussd',
+            channelId: phoneNumber,
+          })
+          .catch(() => null);
 
         const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
         const ctx = { phoneNumber, sessionId, userDoc, uid: authUser?.uid || null, db };
@@ -59,7 +63,7 @@ class USSDChannel extends BaseChannel {
         await fn.call(this, phoneNumber, msg, args, sessionId, ctx);
       } catch (err) {
         console.error(`USSDChannel handler error: ${err.message}`, { phoneNumber });
-        await this.send(phoneNumber, `END Error: ${err.message}`, { sessionId }).catch(() => { });
+        await this.send(phoneNumber, `END Error: ${err.message}`, { sessionId }).catch(() => {});
       }
     };
   }
@@ -70,19 +74,25 @@ class USSDChannel extends BaseChannel {
 
     this.handlers.set('start', this._handleStart.bind(this));
     this.handlers.set('menu', this._handleMenu.bind(this));
-    this.handlers.set('dashboard', (j) => H.handleDashboard(this, j));
-    this.handlers.set('stats', (j) => H.handleStats(this, j));
-    this.handlers.set('network', (j) => H.handleNetwork(this, j));
-    this.handlers.set('users', (j) => H.handleUsers(this, j));
-    this.handlers.set('ping', (j) => H.handlePing(this, j));
+    this.handlers.set('dashboard', j => H.handleDashboard(this, j));
+    this.handlers.set('stats', j => H.handleStats(this, j));
+    this.handlers.set('network', j => H.handleNetwork(this, j));
+    this.handlers.set('users', j => H.handleUsers(this, j));
+    this.handlers.set('ping', j => H.handlePing(this, j));
   }
 
   async _handleStart(phoneNumber, msg, args, sessionId) {
-    await this.send(phoneNumber, 'CON Welcome to AgentOS USSD.\n1. Dashboard\n2. Stats\n3. Network\n4. Exit', { sessionId });
+    await this.send(
+      phoneNumber,
+      'CON Welcome to AgentOS USSD.\n1. Dashboard\n2. Stats\n3. Network\n4. Exit',
+      { sessionId }
+    );
   }
 
   async _handleMenu(phoneNumber, msg, args, sessionId) {
-    await this.send(phoneNumber, 'CON AgentOS Menu:\n1. Dashboard\n2. Stats\n3. Network\n4. Exit', { sessionId });
+    await this.send(phoneNumber, 'CON AgentOS Menu:\n1. Dashboard\n2. Stats\n3. Network\n4. Exit', {
+      sessionId,
+    });
   }
 
   async handleIncomingUSSD(sessionId, phoneNumber, text, rawData = {}) {
@@ -121,7 +131,7 @@ class USSDChannel extends BaseChannel {
         channel: 'ussd',
         channelId: phoneNum,
         text: msgText,
-        raw: rawData
+        raw: rawData,
       });
     });
     await wrappedNL(phoneNumber, text, [], sessionId);
@@ -147,7 +157,7 @@ class USSDChannel extends BaseChannel {
 
     // Ensure USSD format (CON for continue, END for terminate)
     if (!text.startsWith('CON ') && !text.startsWith('END ')) {
-      text = 'CON ' + text;
+      text = `CON ${text}`;
     }
 
     if (text.startsWith('END ')) {
@@ -173,7 +183,7 @@ class USSDChannel extends BaseChannel {
     return {
       ...super.getStatus(),
       provider: this.provider,
-      activeSessions: this.sessions.size
+      activeSessions: this.sessions.size,
     };
   }
 }

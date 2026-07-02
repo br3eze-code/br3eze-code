@@ -6,10 +6,14 @@ class MeshSkill {
   async execute(params, context) {
     const { action } = params;
     switch (action) {
-      case 'nodes.list':     return this.listNodes(context);
-      case 'nodes.register': return this.registerNode(params, context);
-      case 'nodes.exec':     return this.execOnNode(params, context);
-      case 'mesh.exec':      return this.execOnAll(params, context);
+      case 'nodes.list':
+        return this.listNodes(context);
+      case 'nodes.register':
+        return this.registerNode(params, context);
+      case 'nodes.exec':
+        return this.execOnNode(params, context);
+      case 'mesh.exec':
+        return this.execOnAll(params, context);
       default:
         throw new Error(`Unknown mesh action: ${action}`);
     }
@@ -22,7 +26,10 @@ class MeshSkill {
     return { success: true, count: nodes.length, nodes };
   }
 
-  async registerNode({ name, host, port = 8728, user = 'admin', password, role = 'branch' }, context) {
+  async registerNode(
+    { name, host, port = 8728, user = 'admin', password, role = 'branch' },
+    context
+  ) {
     if (!name || !host || !password) throw new Error('name, host, and password are required');
     const registry = context.nodeRegistry;
     if (!registry) throw new Error('NodeRegistry not available');
@@ -44,15 +51,17 @@ class MeshSkill {
     if (!tool) throw new Error('tool is required');
     const registry = context.nodeRegistry;
     if (!registry) throw new Error('NodeRegistry not available');
-    const nodes   = registry.list();
+    const nodes = registry.list();
     const results = await Promise.allSettled(
-      nodes.map(n => registry.exec(n.name, tool, toolParams)
-        .then(r  => ({ node: n.name, success: true,  result: r }))
-        .catch(e => ({ node: n.name, success: false, error:  e.message }))
+      nodes.map(n =>
+        registry
+          .exec(n.name, tool, toolParams)
+          .then(r => ({ node: n.name, success: true, result: r }))
+          .catch(e => ({ node: n.name, success: false, error: e.message }))
       )
     );
     const data = results.map(r => r.value || r.reason);
-    const ok   = data.filter(r => r.success).length;
+    const ok = data.filter(r => r.success).length;
     return { success: ok > 0, tool, executed: data.length, succeeded: ok, results: data };
   }
 

@@ -61,7 +61,7 @@ class BaseAdapter extends EventEmitter {
       name: this.name,
       type: this.type,
       actions: this.listActions(),
-      supportsRealtime: false
+      supportsRealtime: false,
     };
   }
 

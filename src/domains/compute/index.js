@@ -5,7 +5,7 @@ class ComputeDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'compute';
-    
+
     this.registerTool({
       name: 'stats',
       description: 'Get CPU and memory utilization statistics',
@@ -17,21 +17,21 @@ class ComputeDomain extends BaseDomain {
           memory: {
             heapUsed: `${Math.floor(memory.heapUsed / 1024 / 1024)}MB`,
             heapTotal: `${Math.floor(memory.heapTotal / 1024 / 1024)}MB`,
-            rss: `${Math.floor(memory.rss / 1024 / 1024)}MB`
-          }
+            rss: `${Math.floor(memory.rss / 1024 / 1024)}MB`,
+          },
         };
-      }
+      },
     });
-    
+
     this.registerTool({
       name: 'processes',
       description: 'List active internal tasks and agents',
       execute: async () => {
         return [
           { id: 'fleet-master', status: 'running', uptime: process.uptime() },
-          { id: 'billing-reaper', status: 'active', interval: '10m' }
+          { id: 'billing-reaper', status: 'active', interval: '10m' },
         ];
-      }
+      },
     });
   }
 

@@ -22,21 +22,21 @@ class MikroTikSkill extends BaseDriver {
     try {
       const manifestPath = path.join(__dirname, 'manifest.yaml');
       const manifest = yaml.load(fs.readFileSync(manifestPath, 'utf8'));
-      
+
       const toolMap = {};
       manifest.tools.forEach(tool => {
         // Map manifest format to tool registry format
         const parameters = {
           type: 'object',
           properties: {},
-          required: []
+          required: [],
         };
 
         if (tool.parameters && Array.isArray(tool.parameters)) {
           tool.parameters.forEach(p => {
             parameters.properties[p.name] = {
               type: p.type || 'string',
-              description: p.description || ''
+              description: p.description || '',
             };
             if (p.required) {
               parameters.required.push(p.name);
@@ -47,7 +47,7 @@ class MikroTikSkill extends BaseDriver {
         toolMap[tool.name] = {
           description: tool.description,
           risk: this._calculateRisk(tool.name),
-          parameters
+          parameters,
         };
       });
 
@@ -59,7 +59,12 @@ class MikroTikSkill extends BaseDriver {
   }
 
   static _calculateRisk(name) {
-    if (name.includes('remove') || name.includes('kick') || name.includes('reboot') || name.includes('block')) {
+    if (
+      name.includes('remove') ||
+      name.includes('kick') ||
+      name.includes('reboot') ||
+      name.includes('block')
+    ) {
       return 'high';
     }
     if (name.includes('add') || name.includes('flush')) {
@@ -80,7 +85,7 @@ class MikroTikSkill extends BaseDriver {
 
     // 2. Normalize command name
     const command = toolName;
-    
+
     logger.info(`[MikroTikSkill] Executing: ${command}`, { args });
 
     try {

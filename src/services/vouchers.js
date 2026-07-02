@@ -3,38 +3,37 @@
 const db = require('../storage/db');
 
 class VoucherService {
+  generateCode() {
+    return `AG-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  }
 
-    generateCode() {
-        return "AG-" + Math.random().toString(36).substr(2, 6).toUpperCase();
-    }
+  async create(plan) {
+    const code = this.generateCode();
 
-    async create(plan) {
-        const code = this.generateCode();
+    const voucher = {
+      code,
+      plan,
+      used: false,
+      createdAt: Date.now(),
+    };
 
-        const voucher = {
-            code,
-            plan,
-            used: false,
-            createdAt: Date.now()
-        };
+    await db.save(code, voucher);
+    return voucher;
+  }
 
-        await db.save(code, voucher);
-        return voucher;
-    }
+  async redeem(code, username) {
+    const voucher = await db.get(code);
 
-    async redeem(code, username) {
-        const voucher = await db.get(code);
+    if (!voucher) throw new Error('Invalid voucher');
+    if (voucher.used) throw new Error('Already used');
 
-        if (!voucher) throw new Error("Invalid voucher");
-        if (voucher.used) throw new Error("Already used");
+    voucher.used = true;
+    voucher.user = username;
 
-        voucher.used = true;
-        voucher.user = username;
+    await db.save(code, voucher);
 
-        await db.save(code, voucher);
-
-        return voucher;
-    }
+    return voucher;
+  }
 }
 
 module.exports = new VoucherService();

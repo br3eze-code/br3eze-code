@@ -1,11 +1,10 @@
-
 // skills/tasks/index.js
 class TasksSkill {
   async execute(params, context) {
     const { action, provider = 'local', task, filters } = params;
-    
+
     const adapter = this.getAdapter(provider, context);
-    
+
     switch (action) {
       case 'create':
         return adapter.create(task);
@@ -27,11 +26,10 @@ class TasksSkill {
   getAdapter(provider, context) {
     switch (provider) {
       case 'todoist':
-        return new TodoistAdapter(context);
       case 'asana':
-        return new AsanaAdapter(context);
       case 'notion':
-        return new NotionAdapter(context);
+        // TODO: not yet implemented — no adapter class exists for these providers
+        throw new Error(`Task provider '${provider}' is not yet implemented`);
       case 'local':
       default:
         return new LocalTaskAdapter(context);
@@ -52,16 +50,16 @@ class LocalTaskAdapter {
       ...task,
       createdAt: new Date().toISOString(),
       status: 'open',
-      createdBy: this.context.userId
+      createdBy: this.context.userId,
     };
-    
+
     await this.context.memory.push(`tasks:${this.context.userId}`, newTask);
     return { success: true, task: newTask };
   }
 
   async list(filters = {}) {
-    const tasks = await this.context.memory.get(`tasks:${this.context.userId}`) || [];
-    
+    const tasks = (await this.context.memory.get(`tasks:${this.context.userId}`)) || [];
+
     let filtered = tasks;
     if (filters.status) {
       filtered = filtered.filter(t => t.status === filters.status);
@@ -72,27 +70,27 @@ class LocalTaskAdapter {
     if (filters.project) {
       filtered = filtered.filter(t => t.project === filters.project);
     }
-    
+
     return {
       count: filtered.length,
-      tasks: filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      tasks: filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     };
   }
 
   async update(id, updates) {
-    const tasks = await this.context.memory.get(`tasks:${this.context.userId}`) || [];
+    const tasks = (await this.context.memory.get(`tasks:${this.context.userId}`)) || [];
     const idx = tasks.findIndex(t => t.id === id);
-    
+
     if (idx === -1) throw new Error('Task not found');
-    
+
     tasks[idx] = { ...tasks[idx], ...updates, updatedAt: new Date().toISOString() };
     await this.context.memory.set(`tasks:${this.context.userId}`, tasks);
-    
+
     return { success: true, task: tasks[idx] };
   }
 
   async delete(id) {
-    const tasks = await this.context.memory.get(`tasks:${this.context.userId}`) || [];
+    const tasks = (await this.context.memory.get(`tasks:${this.context.userId}`)) || [];
     const filtered = tasks.filter(t => t.id !== id);
     await this.context.memory.set(`tasks:${this.context.userId}`, filtered);
     return { success: true };

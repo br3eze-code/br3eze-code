@@ -2,17 +2,18 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const codegen = {
-  name: "codegen",
-  description: "Generate MikroTik RouterOS .rsc code from natural language using Gemini 2.5",
+  name: 'codegen',
+  description: 'Generate MikroTik RouterOS .rsc code from natural language using Gemini 2.5',
   parameters: {
-    type: "object",
+    type: 'object',
     properties: {
       prompt: {
-        type: "string",
-        description: "What RouterOS config to generate. E.g. 'block youtube after 8pm', 'rate limit user john to 2M'"
-      }
+        type: 'string',
+        description:
+          "What RouterOS config to generate. E.g. 'block youtube after 8pm', 'rate limit user john to 2M'",
+      },
     },
-    required: ["prompt"]
+    required: ['prompt'],
   },
 
   run: async ({ prompt }, { mikrotik, gemini, logger }) => {
@@ -28,9 +29,9 @@ Use RouterOS v7 syntax. Be precise with paths like /ip/firewall/filter.
 Current router board: ${context['board-name']}`;
 
     const response = await gemini.generate({
-      model: "gemini-2.5-flash",
+      model: 'gemini-2.5-flash',
       system: systemPrompt,
-      prompt: `Generate RouterOS code for: ${prompt}`
+      prompt: `Generate RouterOS code for: ${prompt}`,
     });
 
     const code = response.text.trim();
@@ -42,11 +43,11 @@ Current router board: ${context['board-name']}`;
 
     return {
       success: true,
-      prompt: prompt,
-      code: code,
-      warning: "Review before executing on production router"
+      prompt,
+      code,
+      warning: 'Review before executing on production router',
     };
-  }
+  },
 };
 
 module.exports = { codegen, GoogleGenerativeAI };

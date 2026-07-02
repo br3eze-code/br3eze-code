@@ -4,17 +4,17 @@ const path = require('path');
 const KNOWLEDGE_DIR = './knowledge';
 
 const note = {
-  name: "note",
-  description: "Read, write, or update AgentOS knowledge base.md files.",
+  name: 'note',
+  description: 'Read, write, or update AgentOS knowledge base.md files.',
   parameters: {
-    type: "object",
+    type: 'object',
     properties: {
-      action: { type: "string", enum: ["read", "write", "append", "search"] },
-      file: { type: "string" },
-      content: { type: "string" },
-      query: { type: "string" }
+      action: { type: 'string', enum: ['read', 'write', 'append', 'search'] },
+      file: { type: 'string' },
+      content: { type: 'string' },
+      query: { type: 'string' },
     },
-    required: ["action", "file"]
+    required: ['action', 'file'],
   },
 
   run: async ({ action, file, content, query }) => {
@@ -34,7 +34,7 @@ const note = {
       return { success: true, action: 'wrote', file, bytes: content.length };
     }
     if (action === 'append') {
-      await fs.appendFile(filePath, '\n' + content);
+      await fs.appendFile(filePath, `\n${content}`);
       return { success: true, action: 'appended', file };
     }
     if (action === 'search') {
@@ -49,7 +49,7 @@ const note = {
       }
       return { query, results };
     }
-  }
+  },
 };
 
 module.exports = { note };

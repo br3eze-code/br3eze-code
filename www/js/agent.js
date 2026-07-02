@@ -6,31 +6,30 @@
 'use strict';
 
 const Agent = (() => {
-
   // ── State ──────────────────────────────────────────────────────
-  let _history    = [];   // {role, content}[]
-  let _sessionId  = null;
-  let _running    = false;
+  let _history = []; // {role, content}[]
+  let _sessionId = null;
+  let _running = false;
 
   // ── DOM refs (lazy) ───────────────────────────────────────────
   const el = () => ({
-    thread:   document.getElementById('agent-thread'),
+    thread: document.getElementById('agent-thread'),
     thinking: document.getElementById('agent-thinking'),
-    thLabel:  document.getElementById('thinking-label'),
-    thSteps:  document.getElementById('thinking-steps'),
-    input:    document.getElementById('agent-input'),
-    sendBtn:  document.getElementById('send-btn'),
-    model:    document.getElementById('agent-model'),
+    thLabel: document.getElementById('thinking-label'),
+    thSteps: document.getElementById('thinking-steps'),
+    input: document.getElementById('agent-input'),
+    sendBtn: document.getElementById('send-btn'),
+    model: document.getElementById('agent-model'),
   });
 
   // ── Init ───────────────────────────────────────────────────────
   function init() {
-    _sessionId = 'ses-' + Date.now();
+    _sessionId = `ses-${Date.now()}`;
     const saved = Store.get(KEYS.HISTORY, []);
     if (saved.length) {
       _history = saved;
       saved.forEach(m => {
-        if (m.role === 'user')      _appendUser(m.content);
+        if (m.role === 'user') _appendUser(m.content);
         else if (m.role === 'assistant') _appendAgent(m.content);
       });
       _removeWelcome();
@@ -84,7 +83,7 @@ const Agent = (() => {
 
   // ── ReAct loop ─────────────────────────────────────────────────
   async function _reactLoop(userPrompt) {
-    const e       = el();
+    const e = el();
     const maxTurns = parseInt(Store.get(KEYS.TURNS, CFG.REACT_MAX_TURNS)) || CFG.REACT_MAX_TURNS;
     _setRunning(true);
 
@@ -100,10 +99,7 @@ const Agent = (() => {
         // ── Ask the backend AI ──────────────────────────────────
         let aiReply;
         try {
-          const res = await Client.v2.ask(
-            _buildReActPrompt(userPrompt, lastThought),
-            _sessionId
-          );
+          const res = await Client.v2.ask(_buildReActPrompt(userPrompt, lastThought), _sessionId);
           aiReply = res.data?.response || res.data?.text || res.data || '';
           if (typeof aiReply === 'object') aiReply = JSON.stringify(aiReply, null, 2);
         } catch (err) {
@@ -146,7 +142,6 @@ const Agent = (() => {
       }
 
       if (!finalAnswer) finalAnswer = lastThought || '(No answer generated)';
-
     } catch (err) {
       finalAnswer = `Agent error: ${err.message}`;
     }
@@ -176,13 +171,18 @@ const Agent = (() => {
       ``,
       context ? `CONTEXT FROM PREVIOUS STEPS:\n${context}\n` : '',
       `USER REQUEST: ${userPrompt}`,
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   // ── Local intent fallback (no backend AI) ─────────────────────
   function _localFallback(prompt) {
     const p = prompt.toLowerCase();
-    if (p.includes('voucher') && (p.includes('create') || p.includes('make') || p.includes('generate'))) {
+    if (
+      p.includes('voucher') &&
+      (p.includes('create') || p.includes('make') || p.includes('generate'))
+    ) {
       const m = p.match(/(\d+)/);
       const n = m ? m[1] : '1';
       return `Thought: User wants to create vouchers.\nAction: voucher.stats\nAction Input: {}\n`;
@@ -196,7 +196,12 @@ const Agent = (() => {
     if (p.includes('revenue') || p.includes('money') || p.includes('financial')) {
       return `Thought: Checking financial summary.\nAction: financial.summary\nAction Input: {}\n`;
     }
-    if (p.includes('resource') || p.includes('cpu') || p.includes('memory') || p.includes('stats')) {
+    if (
+      p.includes('resource') ||
+      p.includes('cpu') ||
+      p.includes('memory') ||
+      p.includes('stats')
+    ) {
       return `Thought: Checking router resources.\nAction: system.stats\nAction Input: {}\n`;
     }
     if (p.includes('ping')) {
@@ -223,9 +228,13 @@ const Agent = (() => {
     const action = text.match(/^Action:\s*(\S+)/m);
     if (action) out.action = action[1].trim();
 
-    const actionInput = text.match(/^Action Input:\s*(.+?)(?=\n(?:Thought|Observation|Final Answer)|$)/ms);
+    const actionInput = text.match(
+      /^Action Input:\s*(.+?)(?=\n(?:Thought|Observation|Final Answer)|$)/ms
+    );
     if (actionInput) {
-      try { out.actionInput = JSON.parse(actionInput[1].trim()); } catch(_) {}
+      try {
+        out.actionInput = JSON.parse(actionInput[1].trim());
+      } catch (_) {}
     }
 
     const fa = text.match(/^Final Answer:\s*([\s\S]+?)$/m);
@@ -323,11 +332,13 @@ const Agent = (() => {
     _running = v;
     const e = el();
     e.sendBtn.disabled = v;
-    e.input.disabled   = v;
+    e.input.disabled = v;
   }
 
   function _scroll(el) {
-    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }
 
   function _save() {
@@ -338,13 +349,16 @@ const Agent = (() => {
 
   function _escHtml(s) {
     return String(s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/\n/g, '<br>');
   }
 
   function _autoResize(el) {
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
   }
 
   return { init, send, sendHint, onKey, clearHistory };

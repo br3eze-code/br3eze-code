@@ -6,16 +6,16 @@ const registry = new promClient.Registry();
 
 // Custom metrics
 const mikrotikCommands = new promClient.Counter({
-  name:       'mikrotik_commands_total',
-  help:       'Total MikroTik commands executed',
+  name: 'mikrotik_commands_total',
+  help: 'Total MikroTik commands executed',
   labelNames: ['tool', 'status'],
-  registers:  [registry]
+  registers: [registry],
 });
 
 const activeConnections = new promClient.Gauge({
-  name:      'websocket_connections_active',
-  help:      'Active WebSocket connections',
-  registers: [registry]
+  name: 'websocket_connections_active',
+  help: 'Active WebSocket connections',
+  registers: [registry],
 });
 
 // Express middleware — records per-request duration
@@ -44,7 +44,7 @@ class Metrics {
   tick(isError = false) {
     this.requests++;
     if (isError) this.errors++;
-    activeConnections.set(this.requests); 
+    activeConnections.set(this.requests);
   }
 
   snapshot() {
@@ -72,6 +72,11 @@ class Metrics {
 
 const metrics = new Metrics();
 
-module.exports = { Metrics, metrics, registry, mikrotikCommands, activeConnections, metricsMiddleware };
-
-
+module.exports = {
+  Metrics,
+  metrics,
+  registry,
+  mikrotikCommands,
+  activeConnections,
+  metricsMiddleware,
+};

@@ -12,32 +12,32 @@ const { STATE_PATH } = require('./config');
 const DB_PATH = path.join(STATE_PATH, 'agentos.db');
 
 class SQLiteDB {
-    constructor() {
-        this._db = null;
+  constructor() {
+    this._db = null;
+  }
+
+  async connect() {
+    if (this._db) return this._db;
+
+    try {
+      if (!fs.existsSync(STATE_PATH)) {
+        fs.mkdirSync(STATE_PATH, { recursive: true });
+      }
+
+      this._db = new Database(DB_PATH, { verbose: msg => logger.debug(`[SQLite] ${msg}`) });
+      this._db.pragma('journal_mode = WAL');
+      this._initSchema();
+
+      logger.info(`SQLite: connected to ${DB_PATH}`);
+      return this._db;
+    } catch (err) {
+      logger.error(`SQLite connection failed: ${err.message}`);
+      throw err;
     }
+  }
 
-    async connect() {
-        if (this._db) return this._db;
-
-        try {
-            if (!fs.existsSync(STATE_PATH)) {
-                fs.mkdirSync(STATE_PATH, { recursive: true });
-            }
-
-            this._db = new Database(DB_PATH, { verbose: (msg) => logger.debug(`[SQLite] ${msg}`) });
-            this._db.pragma('journal_mode = WAL');
-            this._initSchema();
-            
-            logger.info(`SQLite: connected to ${DB_PATH}`);
-            return this._db;
-        } catch (err) {
-            logger.error(`SQLite connection failed: ${err.message}`);
-            throw err;
-        }
-    }
-
-    _initSchema() {
-        const schema = `
+  _initSchema() {
+    const schema = `
             CREATE TABLE IF NOT EXISTS vouchers (
                 code TEXT PRIMARY KEY,
                 status TEXT,
@@ -137,53 +137,53 @@ class SQLiteDB {
             );
         `;
 
-        this._db.exec(schema);
+    this._db.exec(schema);
 
-        // ── Incremental migrations (safe: ignored if column already exists) ──────
-        const _addColumn = (table, column, definition) => {
-            try {
-                this._db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-                logger.debug(`[SQLite] Added column ${table}.${column}`);
-            } catch (e) {
-                if (!e.message.includes('duplicate column')) {
-                    logger.warn(`[SQLite] Migration ${table}.${column}: ${e.message}`);
-                }
-            }
-        };
-
-        _addColumn('users', 'password_hash', 'TEXT');
-        _addColumn('users', 'lastLoginSource', 'TEXT');
-        _addColumn('vouchers', 'amount', 'REAL');
-        _addColumn('vouchers', 'method', 'TEXT');
-    }
-
-    /**
-     * Generic helper for JSON serialization
-     */
-    static toDB(data) {
-        if (data === null || data === undefined) return null;
-        if (typeof data === 'object') return JSON.stringify(data);
-        return data;
-    }
-
-    static fromDB(data) {
-        if (!data) return null;
-        try {
-            return JSON.parse(data);
-        } catch {
-            return data;
+    // ── Incremental migrations (safe: ignored if column already exists) ──────
+    const _addColumn = (table, column, definition) => {
+      try {
+        this._db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        logger.debug(`[SQLite] Added column ${table}.${column}`);
+      } catch (e) {
+        if (!e.message.includes('duplicate column')) {
+          logger.warn(`[SQLite] Migration ${table}.${column}: ${e.message}`);
         }
+      }
+    };
+
+    _addColumn('users', 'password_hash', 'TEXT');
+    _addColumn('users', 'lastLoginSource', 'TEXT');
+    _addColumn('vouchers', 'amount', 'REAL');
+    _addColumn('vouchers', 'method', 'TEXT');
+  }
+
+  /**
+   * Generic helper for JSON serialization
+   */
+  static toDB(data) {
+    if (data === null || data === undefined) return null;
+    if (typeof data === 'object') return JSON.stringify(data);
+    return data;
+  }
+
+  static fromDB(data) {
+    if (!data) return null;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return data;
     }
+  }
 }
 
 // Singleton
 let instance = null;
 async function getSQLite() {
-    if (!instance) {
-        instance = new SQLiteDB();
-        await instance.connect();
-    }
-    return instance._db;
+  if (!instance) {
+    instance = new SQLiteDB();
+    await instance.connect();
+  }
+  return instance._db;
 }
 
 module.exports = { getSQLite, SQLiteDB };

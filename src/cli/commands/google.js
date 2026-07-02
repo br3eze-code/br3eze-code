@@ -8,10 +8,8 @@
 const GoogleWorkspaceSkill = require('../../skills/google-workspace');
 const { getGateway } = require('../../core/gateway-engine');
 
-module.exports = (program) => {
-  const googleCmd = program
-    .command('google')
-    .description('Google Workspace integration tools');
+module.exports = program => {
+  const googleCmd = program.command('google').description('Google Workspace integration tools');
 
   // ── Helper: build skill instance ──────────────────────────────────────────
   const buildSkill = async () => {
@@ -24,22 +22,23 @@ module.exports = (program) => {
     .command('list-docs')
     .description('List Google Drive documents')
     .option('-q, --query <string>', 'Search query')
-    .action(async (options) => {
+    .action(async options => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📄 Google Drive — Documents');
       const s = spinner();
       s.start('Fetching documents…');
       try {
-        const skill  = await buildSkill();
+        const skill = await buildSkill();
         const result = await skill.execute('google.docs.list', { q: options.query });
-        const files  = result?.files || [];
+        const files = result?.files || [];
         s.stop(`${files.length} document(s) found`);
 
         if (!files.length) {
           log.warn('No documents found.');
         } else {
-          const lines = files.map((f, i) =>
-            `${String(i + 1).padStart(2)}. ${f.name}\n    ID: ${f.id}\n    Type: ${f.mimeType}`
+          const lines = files.map(
+            (f, i) =>
+              `${String(i + 1).padStart(2)}. ${f.name}\n    ID: ${f.id}\n    Type: ${f.mimeType}`
           );
           note(lines.join('\n\n'), `📋 Documents (${files.length})`);
         }
@@ -54,13 +53,13 @@ module.exports = (program) => {
     .command('create-doc')
     .description('Create a new Google Doc')
     .requiredOption('-t, --title <string>', 'Document title')
-    .action(async (options) => {
+    .action(async options => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📝 Google Docs — Create Document');
       const s = spinner();
       s.start(`Creating "${options.title}"…`);
       try {
-        const skill  = await buildSkill();
+        const skill = await buildSkill();
         const result = await skill.execute('google.docs.create', { title: options.title });
         s.stop('Document created');
         note(
@@ -84,18 +83,18 @@ module.exports = (program) => {
     .description('Create a Google Calendar event')
     .requiredOption('-s, --summary <string>', 'Event summary / title')
     .option('--start <iso>', 'Start time (ISO 8601, defaults to now)')
-    .option('--end <iso>',   'End time (ISO 8601, defaults to +1 hour)')
-    .action(async (options) => {
+    .option('--end <iso>', 'End time (ISO 8601, defaults to +1 hour)')
+    .action(async options => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📅 Google Calendar — Create Event');
       const s = spinner();
       s.start(`Creating event "${options.summary}"…`);
       try {
-        const now   = new Date();
+        const now = new Date();
         const start = options.start || now.toISOString();
-        const end   = options.end   || new Date(now.getTime() + 3_600_000).toISOString();
+        const end = options.end || new Date(now.getTime() + 3_600_000).toISOString();
 
-        const skill  = await buildSkill();
+        const skill = await buildSkill();
         const result = await skill.execute('google.calendar.create', {
           summary: options.summary,
           start,

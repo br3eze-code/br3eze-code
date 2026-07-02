@@ -10,179 +10,204 @@ const { getConfig } = require('./config');
 const { getDatabase } = require('./database');
 const { getMikroTikClient } = require('./mikrotik');
 
+async function checkMikroTikConnection() {
+  try {
+    const client = await getMikroTikClient();
+    return { status: client.isConnected ? 'ok' : 'error' };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
+
+async function checkDatabaseConnection() {
+  try {
+    const db = await getDatabase();
+    await db.getStats();
+    return { status: 'ok' };
+  } catch (err) {
+    return { status: 'error', message: err.message };
+  }
+}
+
+function checkMemoryUsage() {
+  const { heapUsed, heapTotal } = process.memoryUsage();
+  return { status: heapUsed / heapTotal < 0.9 ? 'ok' : 'warning', heapUsed, heapTotal };
+}
+
 function createApp() {
-    const config = getConfig();
-    const app = express();
+  const config = getConfig();
+  const app = express();
 
-    // Security
-    app.use(helmet());
-    app.use(cors({
-        origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
-        methods: ['GET', 'POST'],
-        allowedHeaders: ['Content-Type', 'Authorization']
-    }));
+  // Security
+  app.use(helmet());
+  app.use(
+    cors({
+      origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+      methods: ['GET', 'POST'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
 
-    // Rate limiting
-    const standardLimiter = rateLimit({
-        windowMs: config.security.rateLimitWindow,
-        max: config.security.rateLimitMax,
-        message: { error: 'Too many requests' }
+  // Rate limiting
+  const standardLimiter = rateLimit({
+    windowMs: config.security.rateLimitWindow,
+    max: config.security.rateLimitMax,
+    message: { error: 'Too many requests' },
+  });
+
+  app.use(express.json({ limit: '10mb' }));
+  app.use(standardLimiter);
+
+  // Request logging
+  app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.path}`, { ip: req.ip });
+    next();
+  });
+
+  // Static files
+  app.use(express.static('public'));
+
+  // === ROUTES ===
+
+  // Health check
+  app.get('/health', async (req, res) => {
+    const checks = await Promise.all([
+      checkMikroTikConnection(),
+      checkDatabaseConnection(),
+      checkMemoryUsage(),
+    ]);
+    const healthy = checks.every(c => c.status === 'ok');
+
+    const mikrotik = await getMikroTikClient().catch(() => ({ isConnected: false }));
+    const db = await getDatabase();
+    const dbStats = await db.getStats();
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'healthy' : 'unhealthy',
+      version: process.env.npm_package_version,
+      timestamp: new Date().toISOString(),
+      checks: {
+        mikrotik: checks[0],
+        database: checks[1],
+        memory: checks[2],
+      },
     });
 
-    app.use(express.json({ limit: '10mb' }));
-    app.use(standardLimiter);
-
-    // Request logging
-    app.use((req, res, next) => {
-        logger.info(`${req.method} ${req.path}`, { ip: req.ip });
-        next();
+    res.json({
+      status: 'ok',
+      service: 'AgentOS',
+      version: config.version,
+      timestamp: new Date().toISOString(),
+      services: {
+        mikrotik: mikrotik.isConnected ? 'connected' : 'disconnected',
+        database: 'active',
+        telegram: config.telegram.token ? 'configured' : 'not_configured',
+      },
+      stats: dbStats,
     });
+  });
 
-    // Static files
-    app.use(express.static('public'));
+  // Voucher redemption
+  app.post('/voucher/redeem', async (req, res) => {
+    try {
+      const schema = Joi.object({
+        code: Joi.string()
+          .pattern(/^AGENT-[A-Z0-9]{6}$/)
+          .required(),
+        user: Joi.string().alphanum().min(3).max(20).required(),
+      });
 
-    // === ROUTES ===
+      const { error, value } = schema.validate(req.body);
+      if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+      }
 
-    // Health check
-    app.get('/health', async (req, res) => {
-          const checks = await Promise.all([
-    checkMikroTikConnection(),
-    checkDatabaseConnection(),
-    checkMemoryUsage()
-  ]);
-         const healthy = checks.every(c => c.status === 'ok');
-  
-        const mikrotik = await getMikroTikClient().catch(() => ({ isConnected: false }));
-        const db = await getDatabase();
-        const dbStats = await db.getStats();
-         res.status(healthy ? 200 : 503).json({
-    status: healthy ? 'healthy' : 'unhealthy',
-    version: process.env.npm_package_version,
-    timestamp: new Date().toISOString(),
-    checks: {
-      mikrotik: checks[0],
-      database: checks[1],
-      memory: checks[2]
+      const { code, user } = value;
+      const db = await getDatabase();
+      const voucher = await db.getVoucher(code);
+
+      if (!voucher) {
+        return res.status(404).json({ error: 'Voucher not found' });
+      }
+      if (voucher.used) {
+        return res.status(400).json({ error: 'Voucher already used' });
+      }
+
+      const mikrotik = await getMikroTikClient();
+      if (!mikrotik.isConnected) {
+        return res.status(503).json({ error: 'Router unavailable' });
+      }
+
+      await mikrotik.addHotspotUser(user, user, voucher.plan);
+      await db.redeemVoucher(code, { username: user, ip: req.ip });
+
+      logger.info(`Voucher redeemed`, { code, user, plan: voucher.plan });
+
+      res.json({
+        status: 'activated',
+        plan: voucher.plan,
+        message: `Access granted: ${voucher.plan}`,
+      });
+    } catch (err) {
+      logger.error('Redeem error:', err);
+      res.status(500).json({ error: 'Failed to activate voucher' });
     }
   });
 
-        res.json({
-            status: 'ok',
-            service: 'AgentOS',
-            version: config.version,
-            timestamp: new Date().toISOString(),
-            services: {
-                mikrotik: mikrotik.isConnected ? 'connected' : 'disconnected',
-                database: 'active',
-                telegram: config.telegram.token ? 'configured' : 'not_configured'
-            },
-            stats: dbStats
-        });
-    });
+  // QR code generation
+  app.get('/voucher/:code/qr', async (req, res) => {
+    try {
+      const { code } = req.params;
+      const db = await getDatabase();
+      const voucher = await db.getVoucher(code);
 
-    // Voucher redemption
-    app.post('/voucher/redeem', async (req, res) => {
-        try {
-            const schema = Joi.object({
-                code: Joi.string().pattern(/^AGENT-[A-Z0-9]{6}$/).required(),
-                user: Joi.string().alphanum().min(3).max(20).required()
-            });
+      if (!voucher) {
+        return res.status(404).json({ error: 'Voucher not found' });
+      }
 
-            const { error, value } = schema.validate(req.body);
-            if (error) {
-                return res.status(400).json({ error: error.details[0].message });
-            }
+      const qrData = JSON.stringify({
+        code,
+        plan: voucher.plan,
+        url: `${req.protocol}://${req.get('host')}/login.html?code=${code}`,
+      });
 
-            const { code, user } = value;
-            const db = await getDatabase();
-            const voucher = await db.getVoucher(code);
+      const qrImage = await QRCode.toDataURL(qrData);
+      res.json({ qr: qrImage, code, plan: voucher.plan });
+    } catch (error) {
+      logger.error('QR generation error:', error);
+      res.status(500).json({ error: 'Could not generate QR' });
+    }
+  });
 
-            if (!voucher) {
-                return res.status(404).json({ error: "Voucher not found" });
-            }
-            if (voucher.used) {
-                return res.status(400).json({ error: "Voucher already used" });
-            }
+  // Tool execution endpoint
+  app.post('/tool/execute', async (req, res) => {
+    try {
+      const { tool, params } = req.body;
+      const mikrotik = await getMikroTikClient();
 
-            const mikrotik = await getMikroTikClient();
-            if (!mikrotik.isConnected) {
-                return res.status(503).json({ error: "Router unavailable" });
-            }
+      if (!mikrotik.getAvailableTools().includes(tool)) {
+        return res.status(400).json({ error: 'Unknown tool' });
+      }
 
-            await mikrotik.addHotspotUser(user, user, voucher.plan);
-            await db.redeemVoucher(code, { username: user, ip: req.ip });
+      const result = await mikrotik.executeTool(tool, ...(params || []));
+      res.json({ success: true, result });
+    } catch (error) {
+      logger.error('Tool execution error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 
-            logger.info(`Voucher redeemed`, { code, user, plan: voucher.plan });
+  // 404 handler
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
 
-            res.json({
-                status: "activated",
-                plan: voucher.plan,
-                message: `Access granted: ${voucher.plan}`
-            });
+  // Error handler
+  app.use((err, req, res, next) => {
+    logger.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
 
-        } catch (err) {
-            logger.error('Redeem error:', err);
-            res.status(500).json({ error: "Failed to activate voucher" });
-        }
-    });
-
-    // QR code generation
-    app.get('/voucher/:code/qr', async (req, res) => {
-        try {
-            const { code } = req.params;
-            const db = await getDatabase();
-            const voucher = await db.getVoucher(code);
-
-            if (!voucher) {
-                return res.status(404).json({ error: "Voucher not found" });
-            }
-
-            const qrData = JSON.stringify({
-                code,
-                plan: voucher.plan,
-                url: `${req.protocol}://${req.get('host')}/login.html?code=${code}`
-            });
-
-            const qrImage = await QRCode.toDataURL(qrData);
-            res.json({ qr: qrImage, code, plan: voucher.plan });
-
-        } catch (error) {
-            logger.error('QR generation error:', error);
-            res.status(500).json({ error: "Could not generate QR" });
-        }
-    });
-
-    // Tool execution endpoint
-    app.post('/tool/execute', async (req, res) => {
-        try {
-            const { tool, params } = req.body;
-            const mikrotik = await getMikroTikClient();
-
-            if (!mikrotik.getAvailableTools().includes(tool)) {
-                return res.status(400).json({ error: "Unknown tool" });
-            }
-
-            const result = await mikrotik.executeTool(tool, ...(params || []));
-            res.json({ success: true, result });
-
-        } catch (error) {
-            logger.error('Tool execution error:', error);
-            res.status(500).json({ success: false, error: error.message });
-        }
-    });
-
-    // 404 handler
-    app.use((req, res) => {
-        res.status(404).json({ error: "Not found" });
-    });
-
-    // Error handler
-    app.use((err, req, res, next) => {
-        logger.error('Unhandled error:', err);
-        res.status(500).json({ error: "Internal server error" });
-    });
-
-    return app;
+  return app;
 }
 
 module.exports = { createApp };

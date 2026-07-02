@@ -5,7 +5,7 @@ class NetworkDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'network';
-    
+
     this.registerTool({
       name: 'ping',
       description: 'Test connectivity to a host',
@@ -16,11 +16,11 @@ class NetworkDomain extends BaseDomain {
           host,
           status: 'reachable',
           latency: `${latency}ms`,
-          packetLoss: '0%'
+          packetLoss: '0%',
         };
-      }
+      },
     });
-    
+
     this.registerTool({
       name: 'monitor',
       description: 'Get real-time traffic statistics for an interface',
@@ -29,9 +29,9 @@ class NetworkDomain extends BaseDomain {
           interface: iface,
           rx: `${(Math.random() * 10).toFixed(2)} Mbps`,
           tx: `${(Math.random() * 2).toFixed(2)} Mbps`,
-          status: 'up'
+          status: 'up',
         };
-      }
+      },
     });
   }
 }

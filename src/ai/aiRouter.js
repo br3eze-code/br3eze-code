@@ -1,11 +1,14 @@
 // src/ai/AIRouter.js
+const ClaudeAdapter = require('../../adapters/claude.adapter');
+const OpenAIAdapter = require('../../adapters/openai.adapter');
+const GeminiAdapter = require('../../adapters/gemini.adapter');
 class AIRouter {
   constructor() {
     this.providers = {
-      'anthropic': new AnthropicAdapter(),
-      'openai': new OpenAIAdapter(),
-      'xai': new XAIAdapter(),
-      'gemini': new GeminiAdapter()  // Keep br3ezeclaw's default
+      anthropic: new ClaudeAdapter(),
+      openai: new OpenAIAdapter(),
+      // TODO: xAI/Grok adapter not yet implemented
+      gemini: new GeminiAdapter(), // Keep br3ezeclaw's default
     };
   }
 
