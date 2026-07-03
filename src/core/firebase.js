@@ -115,13 +115,30 @@ function _resolveCredential() {
     return admin.credential.cert(require(localKey));
   }
 
-  // 6. Application Default Credentials (Cloud Run / GCE / Cloud Shell)
-  try {
-    logger.info('[Firebase] credential source: Application Default Credentials');
-    return admin.credential.applicationDefault();
-  } catch (_) {
-    return null;
+  // 6. Application Default Credentials — Cloud Run / GCE / Cloud Shell only.
+  //    admin.credential.applicationDefault() does NOT fail synchronously
+  //    when no real ADC is available; it happily returns a credential
+  //    object that only fails later, on the first actual Firestore/Auth
+  //    call. That means blindly trying it anywhere (a CI runner, this
+  //    sandbox, a laptop) makes admin.initializeApp() "succeed" and
+  //    db/auth end up truthy-but-non-functional — exactly the opposite
+  //    of the graceful-degrade-to-SQL behavior this module exists for.
+  //    Only attempt it when there's actual evidence we're really running
+  //    on GCP infrastructure.
+  const onGcpRuntime =
+    process.env.K_SERVICE || // Cloud Run
+    process.env.GAE_APPLICATION || // App Engine
+    process.env.FUNCTION_TARGET || // Cloud Functions
+    process.env.GCE_METADATA_HOST; // GCE / generic metadata server present
+  if (onGcpRuntime) {
+    try {
+      logger.info('[Firebase] credential source: Application Default Credentials');
+      return admin.credential.applicationDefault();
+    } catch (_) {
+      return null;
+    }
   }
+  return null;
 }
 
 function init() {

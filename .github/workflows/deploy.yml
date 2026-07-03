@@ -65,7 +65,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push'
+    # Skip cleanly (shows as "skipped", not a failing red X) when Kubernetes
+    # deployment isn't actually configured for this environment. This repo's
+    # real deployment target is Cloud Run (see .github/workflows/*cloud-run*
+    # / App Hosting), not Kubernetes — this job was scaffolded but never
+    # wired up with a real cluster, so it failed on every single push.
+    if: github.event_name == 'push' && secrets.KUBECONFIG != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v7
