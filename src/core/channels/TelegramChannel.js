@@ -340,18 +340,25 @@ class TelegramChannel extends BaseChannel {
             })
             .catch(e => logger.warn(`Telegram user sync failed: ${e.message}`));
 
-          // Resolve Firebase Auth uid and build a scoped UserDoc.
+          // Resolve the contact's authenticated identity — works via a
+          // cached SQL link even if Firebase is currently unreachable.
           // Attach to msg so handlers can call msg.userDoc.read() / .update().
           const authUser = await db
-            .resolveFirebaseUser(String(chatId), {
-              channel: 'telegram',
-              channelId: String(chatId),
-            })
+            .resolveAuthenticatedUser('telegram', String(chatId))
             .catch(() => null);
 
           if (authUser?.uid) {
             msg.userDoc = db.getUserDoc(authUser.uid);
             msg._uid = authUser.uid;
+          } else if (!this._authPrompted?.has(chatId)) {
+            // Only nudge once per process lifetime per chat — avoid nagging
+            // on every single message from an anonymous/unauthenticated user.
+            this._authPrompted = this._authPrompted || new Set();
+            this._authPrompted.add(chatId);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.bot
+              .sendMessage(chatId, getAuthPrompt('telegram'), { parse_mode: 'Markdown' })
+              .catch(() => {});
           }
         }
 

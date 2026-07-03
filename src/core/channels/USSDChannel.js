@@ -48,13 +48,12 @@ class USSDChannel extends BaseChannel {
           })
           .catch(e => console.warn(`USSD user sync failed: ${e.message}`));
 
-        // Resolve (or auto-provision) the caller's Firebase Auth record.
-        // Build a scoped UserDoc so handlers can only read/write their own doc.
+        // Resolve the caller's authenticated identity — works via a cached
+        // SQL link even if Firebase is currently unreachable. Handlers can
+        // check ctx.uid and, if falsy, prompt the caller (within their own
+        // CON/END screen) to register at the login URL.
         const authUser = await db
-          .resolveFirebaseUser(phoneNumber, {
-            channel: 'ussd',
-            channelId: phoneNumber,
-          })
+          .resolveAuthenticatedUser('ussd', phoneNumber)
           .catch(() => null);
 
         const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;

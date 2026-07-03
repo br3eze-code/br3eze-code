@@ -991,7 +991,7 @@ class Database {
     if (this.sqlite) {
       const { SQLiteDB } = require('./sqlite-db');
       const row = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
-      return row ? SQLiteDB.fromDB(row) : null;
+      return row ? SQLiteDB.rowToUser(row) : null;
     }
     const u = this._users.get(id);
     return u ? { id, ...u } : null;
@@ -1091,6 +1091,11 @@ class Database {
         .get();
       return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
     }
+    if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      const row = this.sqlite.prepare('SELECT * FROM users WHERE username = ?').get(username);
+      return row ? SQLiteDB.rowToUser(row) : null;
+    }
     return Array.from(this._users.values()).find(u => u.username === username) || null;
   }
 
@@ -1104,6 +1109,11 @@ class Database {
         .get();
       return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
     }
+    if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      const row = this.sqlite.prepare('SELECT * FROM users WHERE phoneNumber = ?').get(phone);
+      return row ? SQLiteDB.rowToUser(row) : null;
+    }
     return Array.from(this._users.values()).find(u => u.phoneNumber === phone) || null;
   }
 
@@ -1112,6 +1122,11 @@ class Database {
     if (this.db) {
       const snap = await this.db.collection('users').where('email', '==', email).limit(1).get();
       return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+    }
+    if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      const row = this.sqlite.prepare('SELECT * FROM users WHERE email = ?').get(email);
+      return row ? SQLiteDB.rowToUser(row) : null;
     }
     return Array.from(this._users.values()).find(u => u.email === email) || null;
   }
@@ -1126,6 +1141,23 @@ class Database {
         .get();
       return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
     }
+    if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      // channels is a JSON-serialized TEXT column — LIKE narrows candidates
+      // cheaply, then we verify by actually parsing JSON to rule out false
+      // positives from substring collisions (e.g. one chatId being a
+      // substring of another).
+      const candidates = this.sqlite
+        .prepare("SELECT * FROM users WHERE channels LIKE '%' || ? || '%'")
+        .all(String(channelId));
+      for (const row of candidates) {
+        const user = SQLiteDB.rowToUser(row);
+        if (user.channels && String(user.channels[channel]) === String(channelId)) {
+          return user;
+        }
+      }
+      return null;
+    }
     return (
       Array.from(this._users.values()).find(
         u => u.channels && u.channels[channel] === String(channelId)
@@ -1138,6 +1170,14 @@ class Database {
     const update = { [`channels.${channel}`]: String(channelId) };
     if (this.db) {
       await this.db.collection('users').doc(String(userId)).update(update);
+    } else if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      const existing = await this.getUser(userId);
+      if (!existing) return false;
+      const channels = { ...(existing.channels || {}), [channel]: String(channelId) };
+      this.sqlite
+        .prepare('UPDATE users SET channels = ? WHERE uid = ?')
+        .run(SQLiteDB.toDB(channels), String(userId));
     } else {
       const u = this._users.get(String(userId));
       if (!u) return false;
@@ -1320,6 +1360,37 @@ class Database {
     }
 
     return { ...firestoreUser, uid, _fromAuth: true };
+  }
+
+  /**
+   * The one method every channel should call to decide "is this contact a
+   * genuinely authenticated account, or just an auto-registered shadow
+   * contact from first message?" Distinguishes the two by checking that
+   * the resolved record's uid isn't simply the raw channel identifier
+   * (which is what upsertUser() defaults uid to for brand-new contacts —
+   * see createUser()'s `uid: data.uid || id`).
+   *
+   * 1. Try live Firebase Auth resolution + auto-link (works only when
+   *    Firebase is reachable).
+   * 2. Fall back to a previously-cached channel link — this works via the
+   *    SQLite tier even when Firebase is completely down, as long as the
+   *    contact was successfully linked to a real account at some point in
+   *    the past while Firebase *was* up.
+   *
+   * Returns null if neither finds a genuine account — the caller should
+   * treat that as "direct them to {loginUrl} to register/sign in".
+   */
+  async resolveAuthenticatedUser(channel, channelId) {
+    if (!channel || !channelId) return null;
+    const id = String(channelId);
+
+    const live = await this.resolveFirebaseUser(id, { channel, channelId: id }).catch(() => null);
+    if (live?.uid && String(live.uid) !== id) return live;
+
+    const cached = await this.getUserByChannel(channel, id);
+    if (cached?.uid && String(cached.uid) !== id) return cached;
+
+    return null;
   }
 
   async upsertUser(userId, data) {

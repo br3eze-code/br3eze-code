@@ -174,6 +174,26 @@ class SQLiteDB {
       return data;
     }
   }
+
+  /**
+   * Deserialize a `users` table row into the same shape Firestore returns.
+   * The JSON-blob columns (subscriptions, pendingNotification, channels)
+   * need per-field JSON.parse — fromDB(row) on the whole row silently
+   * no-ops (JSON.parse on an object coerces to "[object Object]", fails,
+   * and the catch just returns the row unchanged), which was the actual
+   * previous behavior: those three fields came back as raw JSON strings,
+   * not parsed objects, so e.g. user.channels.telegram was always undefined.
+   */
+  static rowToUser(row) {
+    if (!row) return null;
+    return {
+      id: row.uid,
+      ...row,
+      subscriptions: SQLiteDB.fromDB(row.subscriptions) || [],
+      pendingNotification: SQLiteDB.fromDB(row.pendingNotification) || {},
+      channels: SQLiteDB.fromDB(row.channels) || {},
+    };
+  }
 }
 
 // Singleton

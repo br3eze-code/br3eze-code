@@ -83,14 +83,20 @@ class SMSChannel extends BaseChannel {
           })
           .catch(e => console.warn(`SMS user sync failed: ${e.message}`));
 
-        // Resolve (or auto-provision) the Firebase Auth user for this phone number,
-        // then build a scoped UserDoc so handlers can only touch their own doc.
+        // Resolve the sender's authenticated identity — works via a cached
+        // SQL link even if Firebase is currently unreachable.
         const authUser = await db
-          .resolveFirebaseUser(phoneNumber, {
-            channel: 'sms',
-            channelId: phoneNumber,
-          })
+          .resolveAuthenticatedUser('sms', phoneNumber)
           .catch(() => null);
+
+        if (!authUser?.uid) {
+          this._authPrompted = this._authPrompted || new Set();
+          if (!this._authPrompted.has(phoneNumber)) {
+            this._authPrompted.add(phoneNumber);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.send(phoneNumber, getAuthPrompt('sms')).catch(() => {});
+          }
+        }
 
         const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
 

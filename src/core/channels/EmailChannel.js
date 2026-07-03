@@ -80,9 +80,20 @@ class EmailChannel extends BaseChannel {
           })
           .catch(e => console.warn(`Email user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(emailAddress, { channel: 'email', channelId: emailAddress }).catch(
-          () => {}
-        );
+        const authUser = await db
+          .resolveAuthenticatedUser('email', emailAddress)
+          .catch(() => null);
+        if (!authUser?.uid) {
+          this._authPrompted = this._authPrompted || new Set();
+          if (!this._authPrompted.has(emailAddress)) {
+            this._authPrompted.add(emailAddress);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.send(emailAddress, {
+              subject: 'Please sign in to AgentOS',
+              html: getAuthPrompt('email'),
+            }).catch(() => {});
+          }
+        }
 
         await fn.call(this, emailAddress, msg, match);
       } catch (err) {
@@ -157,8 +168,9 @@ class EmailChannel extends BaseChannel {
     message = this.formatMessage(message);
     const subject = message.subject || 'Message from AgentOS';
     const text = message.text || '';
+    const html = message.html || null;
 
-    console.log(`[Email to ${userId}] Subject: ${subject}\nBody: ${text}`);
+    console.log(`[Email to ${userId}] Subject: ${subject}\nBody: ${text || html}`);
 
     if (this.transporter) {
       try {
@@ -167,6 +179,7 @@ class EmailChannel extends BaseChannel {
           to: userId,
           subject,
           text,
+          ...(html ? { html } : {}),
         });
       } catch (err) {
         console.error(`EmailChannel failed to send to ${userId}: ${err.message}`);

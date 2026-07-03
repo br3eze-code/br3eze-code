@@ -126,7 +126,17 @@ class SlackChannel extends BaseChannel {
           })
           .catch(e => console.warn(`Slack user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(jid, { channel: 'slack', channelId: jid }).catch(() => {});
+        const authUser = await db
+          .resolveAuthenticatedUser('slack', jid)
+          .catch(() => null);
+        if (!authUser?.uid) {
+          this._authPrompted = this._authPrompted || new Set();
+          if (!this._authPrompted.has(jid)) {
+            this._authPrompted.add(jid);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.send(jid, getAuthPrompt('slack')).catch(() => {});
+          }
+        }
 
         await fn.call(this, jid, msg, match);
       } catch (err) {

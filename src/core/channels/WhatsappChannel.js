@@ -376,11 +376,22 @@ class WhatsAppChannel extends BaseChannel {
           })
           .catch(e => logger.warn(`WhatsApp user sync failed: ${e.message}`));
 
-        // Bridge to Firebase Auth if possible
-        db.resolveFirebaseUser(jid, {
-          channel: 'whatsapp',
-          channelId: jid,
-        }).catch(() => {});
+        // Resolve the contact's authenticated identity — works via a
+        // cached SQL link even if Firebase is currently unreachable.
+        const authUser = await db
+          .resolveAuthenticatedUser('whatsapp', jid)
+          .catch(() => null);
+        if (authUser?.uid) {
+          msg.userDoc = db.getUserDoc(authUser.uid);
+          msg._uid = authUser.uid;
+        } else {
+          this._authPrompted = this._authPrompted || new Set();
+          if (!this._authPrompted.has(jid)) {
+            this._authPrompted.add(jid);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.send(jid, getAuthPrompt('whatsapp')).catch(() => {});
+          }
+        }
 
         await fn.call(this, jid, msg, match);
       } catch (err) {
@@ -506,6 +517,54 @@ class WhatsAppChannel extends BaseChannel {
     return this.send(jid, text);
   }
 
+  /**
+   * Send an inline "buttons" prompt. WhatsApp deprecated native outgoing
+   * interactive-button messages for unofficial/non-Business-API clients
+   * (Baileys v7's AnyRegularMessageContent has no outgoing `buttons` field
+   * any more — only buttonReply/listReply for *receiving* template-button
+   * taps). Faking that hack via raw proto is unreliable and risks the
+   * account getting flagged, so this uses the de-facto reliable pattern
+   * instead: a numbered choice list the user replies to with a digit (or
+   * the option's own text), resolved through the same pendingInputs
+   * mechanism /confirm_reboot and /ping already use.
+   *
+   * @param {string} jid
+   * @param {{ title: string, buttons: {id:string,label:string}[], footer?: string, resultAction: string }} opts
+   */
+  async sendButtons(jid, { title, buttons, footer, resultAction }) {
+    if (!Array.isArray(buttons) || !buttons.length) {
+      throw new Error('sendButtons requires a non-empty buttons array');
+    }
+    const body = buttons.map((b, i) => `*${i + 1}.* ${b.label}`).join('\n');
+    const composed =
+      `${title}\n\n${body}\n\n` +
+      `_${footer || `Reply with a number (1-${buttons.length})`}_`;
+
+    this.pendingInputs.set(jid, {
+      action: 'button_reply',
+      data: { buttons, resultAction },
+    });
+    return this.send(jid, composed);
+  }
+
+  /**
+   * Match a user's reply text against a pending buttons list — by index
+   * ("1", "2", ...) or by matching the button id/label text directly.
+   */
+  _resolveButtonReply(text, buttons) {
+    const trimmed = String(text || '').trim();
+    const asNumber = parseInt(trimmed, 10);
+    if (!Number.isNaN(asNumber) && asNumber >= 1 && asNumber <= buttons.length) {
+      return buttons[asNumber - 1];
+    }
+    const lower = trimmed.toLowerCase();
+    return (
+      buttons.find(
+        b => String(b.id).toLowerCase() === lower || String(b.label).toLowerCase() === lower
+      ) || null
+    );
+  }
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   async _handleStart(jid, msg) {
     const pushName = msg.pushName || 'there';
@@ -521,6 +580,24 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleMenu(jid) {
+    await this.sendButtons(jid, {
+      title: '🤖 *AgentOS Commands*',
+      buttons: [
+        { id: 'dashboard', label: 'Dashboard — system overview' },
+        { id: 'voucher', label: 'Create voucher' },
+        { id: 'wallet', label: 'Check wallet balance' },
+        { id: 'pay', label: 'Recharge account' },
+        { id: 'users', label: 'Active sessions' },
+        { id: 'stats', label: 'Router stats' },
+        { id: 'ask', label: 'Ask the AI assistant' },
+        { id: 'help', label: 'Full command list (text)' },
+      ],
+      footer: 'Reply with a number, or type the full /command directly',
+      resultAction: 'command',
+    });
+  }
+
+  async _handleHelp(jid) {
     const text =
       `🤖 *AgentOS Commands*\n\n` +
       `*/start* — Welcome message\n` +
@@ -534,12 +611,9 @@ class WhatsAppChannel extends BaseChannel {
       `*/reboot* — Router reboot\n` +
       `*/ping <host>* — Network test\n` +
       `*/ask <query>* — AI assistant\n` +
+      `*/menu* — Interactive quick menu\n` +
       `*/help* — This message`;
     await this.send(jid, text);
-  }
-
-  async _handleHelp(jid) {
-    await this._handleMenu(jid);
   }
 
   async _handleDashboard(jid, msg, opts = {}) {
@@ -1070,6 +1144,29 @@ class WhatsAppChannel extends BaseChannel {
       }
     } else if (action === 'ping') {
       await this._handlePing(jid, msg, ['', text]);
+    } else if (action === 'button_reply') {
+      const { buttons, resultAction } = data;
+      const resolved = this._resolveButtonReply(text, buttons);
+      if (!resolved) {
+        await this.send(
+          jid,
+          `❓ Please reply with a number (1-${buttons.length}) or the option text.`
+        );
+        // Re-arm the same prompt so the user can retry
+        this.pendingInputs.set(jid, { action: 'button_reply', data: { buttons, resultAction } });
+        return;
+      }
+      // Re-dispatch to the real target action with the resolved button's id
+      await this._executePending(jid, msg, { text: resolved.id, action: resultAction, data: {} });
+    } else if (action === 'command') {
+      // Dispatch to a registered command handler by name (used by the
+      // /menu button-driven shortcut list). Called directly, not re-wrapped
+      // in _rl — we're already inside an _rl-wrapped call path from the
+      // incoming message that triggered this button reply.
+      const handler = this.handlers.get(text);
+      if (handler) {
+        await handler.call(this, jid, msg, []);
+      }
     } else if (action.startsWith('tool:')) {
       const toolName = action.split(':')[1];
       await this._handleTool(jid, msg, [null, toolName, text]);

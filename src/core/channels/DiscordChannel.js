@@ -103,7 +103,17 @@ class DiscordChannel extends BaseChannel {
           })
           .catch(e => console.warn(`Discord user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(jid, { channel: 'discord', channelId: jid }).catch(() => {});
+        const authUser = await db
+          .resolveAuthenticatedUser('discord', jid)
+          .catch(() => null);
+        if (!authUser?.uid) {
+          this._authPrompted = this._authPrompted || new Set();
+          if (!this._authPrompted.has(jid)) {
+            this._authPrompted.add(jid);
+            const { getAuthPrompt } = require('../authPrompt');
+            this.send(jid, getAuthPrompt('discord')).catch(() => {});
+          }
+        }
 
         await fn.call(this, jid, msg, match);
       } catch (err) {
