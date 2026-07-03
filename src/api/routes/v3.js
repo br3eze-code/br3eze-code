@@ -7,6 +7,8 @@
 
 'use strict';
 
+const { DEFAULT_LOGIN_DOMAIN } = require('../../core/config');
+
 const express = require('express');
 const router = express.Router();
 const { logger } = require('../../core/logger');
@@ -65,7 +67,7 @@ router.post('/bulk/vouchers', async (req, res) => {
 
     for (let i = 0; i < n; i++) {
       const code = `BLK-${part()}-${part()}`;
-      const loginUrl = `http://${global.mikrotik?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+      const loginUrl = `http://${global.mikrotik?.config?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
       const v = await global.database.createVoucher(code, {
         plan,
         planName: planObj.name || plan,

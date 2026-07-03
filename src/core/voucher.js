@@ -6,7 +6,7 @@
  */
 
 const eventBus = require('../core/eventBus');
-const { getConfig } = require('./config');
+const { getConfig, DEFAULT_LOGIN_DOMAIN } = require('./config');
 
 class VoucherAgent {
   constructor() {
@@ -118,7 +118,7 @@ class VoucherAgent {
       username: code,
       password,
       profile: plan,
-      loginUrl: loginUrl || `http://br3eze.africa/login?username=${code}&password=${password}`,
+      loginUrl: loginUrl || `http://${DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${password}`,
       createdAt: new Date().toISOString(),
     };
   }

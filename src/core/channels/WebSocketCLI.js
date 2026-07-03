@@ -3,7 +3,7 @@
 const WebSocket = require('ws');
 const QRCode = require('qrcode');
 const { logger } = require('../logger');
-const { getConfig } = require('../config');
+const { getConfig, DEFAULT_LOGIN_DOMAIN } = require('../config');
 const { getMikroTikClient } = require('../mikrotik');
 const { getDatabase } = require('../database');
 const { generate: voucherCode } = require('../voucher');
@@ -301,7 +301,7 @@ class WebSocketCLI {
         planObj.durationValue && planObj.durationUnit
           ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
           : null;
-      let loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+      let loginUrl = `http://${mikrotik?.state?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
       const vData = {
         plan,

@@ -6,6 +6,7 @@ const cors = require('cors');
 const compression = require('compression');
 const EventEmitter = require('events');
 const path = require('path');
+const { DEFAULT_LOGIN_DOMAIN } = require('./config');
 
 const security = require('./security');
 const { logger } = require('./logger');
@@ -489,7 +490,7 @@ class Gateway extends EventEmitter {
           planObj.durationValue && planObj.durationUnit
             ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
             : null;
-        const loginUrl = `http://${mt?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${mt?.config?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
         const vData = {
           ...req.body,
@@ -751,7 +752,7 @@ class Gateway extends EventEmitter {
         const crypto = require('crypto');
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
         if (global.database) {
           await global.database.createVoucher(code, {

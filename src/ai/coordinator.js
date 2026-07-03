@@ -2,6 +2,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const EventEmitter = require('events');
 const { logger } = require('../core/logger');
+const { DEFAULT_LOGIN_DOMAIN } = require('../core/config');
 
 const { QNAPProcessor } = require('./qnap-integration');
 
@@ -235,7 +236,7 @@ When managing CCTV, target devices by their deviceId.`;
             ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
             : null;
 
-        const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${this.mikrotik?.state?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
         const vData = {
           plan: params.plan,

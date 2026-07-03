@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { EncryptionVault } = require('../../core/vault');
+const { DEFAULT_LOGIN_DOMAIN } = require('../../core/config');
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -129,7 +130,7 @@ function decodeFirebaseToken(token) {
 
 async function firebaseLogin({ log, note }) {
   const { text } = await import('@clack/prompts');
-  const loginUrl = 'https://br3eze.africa/login';
+  const loginUrl = `https://${DEFAULT_LOGIN_DOMAIN}/login`;
   note(
     `1. Open ${loginUrl} in a browser.\n` +
       `2. Log in with your operator/administrator credentials.\n` +

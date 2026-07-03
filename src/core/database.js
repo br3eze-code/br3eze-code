@@ -196,40 +196,9 @@ class Database {
       this.sqlite = await getSQLite();
       logger.info('Database: SQLite initialized');
 
-      if (process.env.FIREBASE_PROJECT_ID) {
-        if (!admin.apps.length) {
-          let credential;
-
-          if (
-            process.env.FIREBASE_SERVICE_ACCOUNT &&
-            fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT)
-          ) {
-            credential = admin.credential.cert(
-              require(path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT))
-            );
-            logger.info(
-              `Firebase: loaded service account from ${process.env.FIREBASE_SERVICE_ACCOUNT}`
-            );
-          } else if (process.env.FIREBASE_PRIVATE_KEY) {
-            let pk = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-            if (pk.startsWith('"') && pk.endsWith('"')) pk = pk.slice(1, -1);
-            if (!pk.includes('-----BEGIN PRIVATE KEY-----')) {
-              pk = `-----BEGIN PRIVATE KEY-----\n${pk}\n-----END PRIVATE KEY-----`;
-            }
-            credential = admin.credential.cert({
-              projectId: process.env.FIREBASE_PROJECT_ID,
-              privateKey: pk,
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            });
-          }
-
-          if (credential) {
-            admin.initializeApp({ credential, databaseURL: process.env.FIREBASE_DATABASE_URL });
-          }
-        }
-
-        this.db = admin.firestore();
-        this.db.settings({ ignoreUndefinedProperties: true });
+      const { db } = require('./firebase');
+      if (db) {
+        this.db = db;
         logger.info('Firebase: Firestore connected');
         this._seedPlans().catch(e => logger.warn('Plan seed error:', e.message));
         return;

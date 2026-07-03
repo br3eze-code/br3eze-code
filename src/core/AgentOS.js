@@ -47,14 +47,15 @@ class AgentOS extends EventEmitter {
     });
     this.billing = new (require('./universal-billing'))({ database: this.database });
 
-    // Load MikroTik as an optional domain plugin (graceful if not configured)
-    this._loadDomainPlugin('mikrotik');
-
-    // Convenience accessor kept for backward-compat: resolves from plugin map
-    Object.defineProperty(this, 'mikrotik', {
-      get: () => this._domainPlugins.get('mikrotik') ?? null,
-      configurable: true,
-    });
+    // Load configured domain plugins generically — none are hardcoded by
+    // name. Defaults to ['mikrotik'] to preserve existing behaviour for
+    // deployments that don't set config.domainPlugins explicitly; set it
+    // to [] to boot with zero domain plugins, or add more ids (each must
+    // resolve to a ./<id> module under src/core/ exporting getManager()).
+    const pluginIds = Array.isArray(this.config.domainPlugins)
+      ? this.config.domainPlugins
+      : ['mikrotik'];
+    for (const id of pluginIds) this._loadDomainPlugin(id);
 
     // Discovery and orchestrator are domain-agnostic; they operate on the plugin map
     try {
@@ -80,6 +81,11 @@ class AgentOS extends EventEmitter {
    * Load an optional domain plugin by id.
    * Plugin must export a getManager() factory or a class with a destroy() method.
    * Failures are non-fatal — the kernel stays domain-agnostic.
+   *
+   * Also defines a same-named convenience getter on the instance
+   * (this[id]) resolving from the plugin map, purely for ergonomics —
+   * this.mikrotik, this.dahua, etc. all work identically once loaded,
+   * none of them are special-cased.
    */
   _loadDomainPlugin(id) {
     try {
@@ -91,6 +97,12 @@ class AgentOS extends EventEmitter {
             ? new mod()
             : mod;
       this._domainPlugins.set(id, manager);
+      if (!(id in this)) {
+        Object.defineProperty(this, id, {
+          get: () => this._domainPlugins.get(id) ?? null,
+          configurable: true,
+        });
+      }
       logger.info(`AgentOS: Domain plugin loaded — ${id}`);
     } catch (err) {
       logger.debug(`AgentOS: Optional domain plugin '${id}' not loaded — ${err.message}`);

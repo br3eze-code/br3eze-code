@@ -6,6 +6,7 @@ const _chalk = require('chalk');
 const chalk = _chalk.default || _chalk;
 const { logger } = require('../logger');
 const { BaseChannel } = require('./BaseChannel');
+const { DEFAULT_LOGIN_DOMAIN } = require('../config');
 
 class WhatsAppChannel extends BaseChannel {
   static getMetadata() {
@@ -708,7 +709,7 @@ class WhatsAppChannel extends BaseChannel {
       planObj.durationValue && planObj.durationUnit
         ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
         : null;
-    let loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+    let loginUrl = `http://${mt?.state?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
     await db.createVoucher(code, {
       plan: planId,

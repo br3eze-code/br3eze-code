@@ -1,5 +1,6 @@
 ﻿const { BaseDriver } = require('../base.js');
 const { logger } = require('../../core/logger');
+const { DEFAULT_LOGIN_DOMAIN } = require('../../core/config');
 
 class AgentOSCoreDriver extends BaseDriver {
   static id = 'agentos';
@@ -82,7 +83,7 @@ class AgentOSCoreDriver extends BaseDriver {
             username: 'TEST-USER',
             password: 'TEST-PASSWORD',
             profile: 'DIAGNOSTIC',
-            loginUrl: 'http://br3eze.africa/login',
+            loginUrl: `http://${DEFAULT_LOGIN_DOMAIN}/login`,
           });
           return { success: true, message: 'Test page sent to printer' };
         } catch (err) {

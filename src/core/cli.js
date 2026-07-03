@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const pc = require('picocolors');
 const clack = require('@clack/prompts');
 const { fmtBytes } = require('./utils');
+const { DEFAULT_LOGIN_DOMAIN } = require('./config');
 
 /**
  * AgentOSCLI — Interactive REPL powered by @clack/prompts + picocolors
@@ -402,7 +403,7 @@ class AgentOSCLI {
       planObj.durationValue && planObj.durationUnit
         ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
         : null;
-    const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
+    const loginUrl = `http://${this.mikrotik?.state?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
 
     const vData = {
       plan,
@@ -644,7 +645,7 @@ class AgentOSCLI {
       this._err('Voucher not found');
       return;
     }
-    const url = `http://${this.config?.MIKROTIK?.IP || 'br3eze.africa'}/login.html?code=${code}`;
+    const url = `http://${this.config?.MIKROTIK?.IP || DEFAULT_LOGIN_DOMAIN}/login.html?code=${code}`;
     try {
       const qr = await QRCode.toString(JSON.stringify({ code, plan: v.plan, url }), {
         type: 'terminal',
