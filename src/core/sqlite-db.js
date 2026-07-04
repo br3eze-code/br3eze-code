@@ -79,7 +79,7 @@ class SQLiteDB {
             );
 
             CREATE TABLE IF NOT EXISTS wallets (
-                uid TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY,
                 balance REAL,
                 currency TEXT,
                 lastUpdated TEXT
@@ -89,13 +89,14 @@ class SQLiteDB {
                 id TEXT PRIMARY KEY,
                 name TEXT,
                 description TEXT,
-                dataLimit TEXT,
-                deviceLimit INTEGER,
+                value REAL,
+                currency TEXT,
                 durationUnit TEXT,
                 durationValue INTEGER,
-                durationDays INTEGER,
-                imageUrl TEXT,
-                price REAL,
+                deviceLimit INTEGER,
+                speedLimit TEXT,
+                dataLimit TEXT,
+                features TEXT,
                 active INTEGER,
                 createdAt TEXT
             );
@@ -109,6 +110,7 @@ class SQLiteDB {
                 currency TEXT,
                 status TEXT,
                 description TEXT,
+                metadata TEXT,
                 timestamp TEXT,
                 createdAt TEXT
             );
@@ -183,15 +185,80 @@ class SQLiteDB {
    * and the catch just returns the row unchanged), which was the actual
    * previous behavior: those three fields came back as raw JSON strings,
    * not parsed objects, so e.g. user.channels.telegram was always undefined.
+   *
+   * FIX: Parse each JSON column individually, preserving all other fields,
+   * and add a properly-keyed `id` field (mapped from `uid`).
    */
   static rowToUser(row) {
     if (!row) return null;
     return {
       id: row.uid,
-      ...row,
+      uid: row.uid,
+      username: row.username,
+      fullname: row.fullname,
+      email: row.email,
+      phoneNumber: row.phoneNumber,
+      address: row.address,
+      platform: row.platform,
+      deviceModel: row.deviceModel,
+      lastIP: row.lastIP,
+      role: row.role,
+      credits: row.credits,
       subscriptions: SQLiteDB.fromDB(row.subscriptions) || [],
       pendingNotification: SQLiteDB.fromDB(row.pendingNotification) || {},
       channels: SQLiteDB.fromDB(row.channels) || {},
+      createdAt: row.createdAt,
+      lastSeen: row.lastSeen,
+    };
+  }
+
+  /**
+   * Deserialize a `plans` table row
+   */
+  static rowToPlan(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      value: row.value,
+      currency: row.currency,
+      durationUnit: row.durationUnit,
+      durationValue: row.durationValue,
+      deviceLimit: row.deviceLimit,
+      speedLimit: row.speedLimit,
+      dataLimit: row.dataLimit,
+      features: SQLiteDB.fromDB(row.features) || {},
+      active: row.active === 1,
+      createdAt: row.createdAt,
+    };
+  }
+
+  /**
+   * Deserialize a `vouchers` table row
+   */
+  static rowToVoucher(row) {
+    if (!row) return null;
+    return {
+      id: row.code,
+      code: row.code,
+      status: row.status,
+      used: row.used === 1,
+      usedAt: row.usedAt,
+      usedBy: row.usedBy,
+      redeemedByUsername: row.redeemedByUsername,
+      plan: row.plan,
+      planName: row.planName,
+      durationUnit: row.durationUnit,
+      durationValue: row.durationValue,
+      deviceLimit: row.deviceLimit,
+      value: row.value,
+      currency: row.currency,
+      loginUrl: row.loginUrl,
+      expiresAt: row.expiresAt,
+      createdBy: row.createdBy,
+      redemption: SQLiteDB.fromDB(row.redemption) || {},
+      createdAt: row.createdAt,
     };
   }
 }
