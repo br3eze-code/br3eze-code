@@ -6,7 +6,7 @@
 // ── Imports ───────────────────────────────────────────────────────────────────
 const { RouterOSClient } = require('routeros-client');
 const { logger } = require('./logger');
-const { getConfig } = require('./config');
+const { getConfig, DEFAULT_LOGIN_DOMAIN } = require('./config');
 const NodeCache = require('node-cache');
 const Joi = require('joi');
 const EventEmitter = require('events');
@@ -731,7 +731,7 @@ class MikroTikManager extends EventEmitter {
       }
     }
 
-    let dnsName = process.env.HOTSPOT_DNS_NAME || this.config.hotspotDnsName || 'router.lan';
+    let dnsName = process.env.HOTSPOT_DNS_NAME || this.config.hotspotDnsName || DEFAULT_LOGIN_DOMAIN;
     try {
       const profiles = await this.state.conn.menu('/ip/hotspot/profile').get();
       const defaultProfile = profiles.find(p => p['dns-name']) || profiles[0];

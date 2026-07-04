@@ -65,39 +65,44 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    # Skip cleanly (shows as "skipped", not a failing red X) when Kubernetes
-    # deployment isn't actually configured for this environment. This repo's
-    # real deployment target is Cloud Run (see .github/workflows/*cloud-run*
-    # / App Hosting), not Kubernetes — this job was scaffolded but never
-    # wired up with a real cluster, so it failed on every single push.
-    if: github.event_name == 'push' && secrets.KUBECONFIG != ''
+    if: github.event_name == 'push'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Validate secrets
+        id: validate
         run: |
-          [ -n "${{ secrets.KUBECONFIG }}" ] || { echo "❌ KUBECONFIG secret missing"; exit 1; }
-          echo "✓ Secrets validated"
+          if [ -z "${{ secrets.KUBECONFIG }}" ]; then
+            echo "ℹ️  KUBECONFIG secret not configured — this repo's actual deployment target is Cloud Run, not Kubernetes. Skipping the rest of this job (not a failure)."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "✓ Secrets validated"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install Helm
+        if: steps.validate.outputs.configured == 'true'
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
 
       - name: Setup Kubernetes context
+        if: steps.validate.outputs.configured == 'true'
         uses: azure/k8s-set-context@v5
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
 
       - name: Create namespace
+        if: steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
           echo "✓ Namespace: $NAMESPACE"
 
       - name: Create secrets
+        if: steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl create secret generic agentos \
@@ -112,6 +117,7 @@ jobs:
           echo "✓ Secrets created"
 
       - name: Create ConfigMap
+        if: steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           if [ -f workspace.json ]; then
@@ -122,6 +128,7 @@ jobs:
           fi
 
       - name: Helm upgrade
+        if: steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           INGRESS_HOST="${{ secrets.KUBE_INGRESS_HOST || 'br3eze.africa' }}"
@@ -138,6 +145,7 @@ jobs:
           echo "✓ Helm upgrade complete — $IMAGE_TAG"
 
       - name: Verify deployment
+        if: steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           kubectl rollout status deployment/agentos -n "$NAMESPACE" --timeout=5m
@@ -145,7 +153,7 @@ jobs:
           echo "✓ Deployment verified"
 
       - name: Rollback on failure
-        if: failure()
+        if: failure() && steps.validate.outputs.configured == 'true'
         run: |
           NAMESPACE="${{ secrets.KUBE_NAMESPACE || 'agentos' }}"
           helm rollback agentos -n "$NAMESPACE" || echo "Rollback not available (first deploy)"

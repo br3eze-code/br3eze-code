@@ -3,6 +3,7 @@
  */
 
 const logger = require('../utils/logger');
+const { DEFAULT_LOGIN_DOMAIN } = require('../../../src/core/config');
 
 const config = {
   // Primary router
@@ -25,7 +26,7 @@ const config = {
 
   // Hotspot configuration
   hotspot: {
-    dnsName: process.env.HOTSPOT_DNS_NAME || 'wifi.local',
+    dnsName: process.env.HOTSPOT_DNS_NAME || DEFAULT_LOGIN_DOMAIN,
     htmlDirectory: process.env.HOTSPOT_HTML_DIR || 'hotspot',
     loginBy: process.env.HOTSPOT_LOGIN_METHODS || 'http-chap,https',
     defaultProfile: process.env.HOTSPOT_DEFAULT_PROFILE || 'default',

@@ -225,11 +225,13 @@
       "/tmp/jest-deps/node_modules"
     ],
     "collectCoverageFrom": [
-      "src/core/*.js",
-      "src/utils/*.js",
+      "src/**/*.js",
       "adapters/*.js",
-      "agents/*.js",
-      "tools/system/*.js"
+      "agents/**/*.js",
+      "tools/**/*.js",
+      "server/src/**/*.js",
+      "!src/**/*.test.js",
+      "!**/node_modules/**"
     ],
     "coverageReporters": [
       "text",

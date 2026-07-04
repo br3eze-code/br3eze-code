@@ -3,6 +3,7 @@
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { BaseProvider } = require('./base');
+const { logger } = require('../core/logger');
 
 class GeminiProvider extends BaseProvider {
   constructor(config = {}) {
@@ -117,9 +118,24 @@ class GeminiProvider extends BaseProvider {
   }
 
   formatTools(tools) {
+    // Real, enforced safety cap — ToolRegistry.getManifest() has long
+    // declared `safety.maxToolsPerRequest` but nothing ever actually
+    // checked it before sending function declarations to the model, so a
+    // growing tool registry would eventually silently blow past whatever
+    // schema/request-size limit the provider enforces. Configurable via
+    // env since different providers/models tolerate different counts.
+    const MAX_TOOLS_PER_REQUEST = parseInt(process.env.MAX_TOOLS_PER_REQUEST, 10) || 128;
+    let safeTools = tools;
+    if (tools.length > MAX_TOOLS_PER_REQUEST) {
+      logger.warn(
+        `[GeminiProvider] ${tools.length} tools registered, exceeds MAX_TOOLS_PER_REQUEST=${MAX_TOOLS_PER_REQUEST} — truncating. ` +
+          'Consider filtering to only the tools relevant to this request instead of sending the whole registry.'
+      );
+      safeTools = tools.slice(0, MAX_TOOLS_PER_REQUEST);
+    }
     return [
       {
-        functionDeclarations: tools.map(tool => ({
+        functionDeclarations: safeTools.map(tool => ({
           name: tool.name,
           description: tool.description,
           parameters: {
