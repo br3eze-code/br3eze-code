@@ -404,7 +404,7 @@ class Database {
       const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
       if (row) {
         const { SQLiteDB } = require('./sqlite-db');
-        return SQLiteDB.fromDB(row);
+        return SQLiteDB.rowToPlan(row);
       }
     }
 
@@ -418,7 +418,7 @@ class Database {
         const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(hashedId);
         if (row) {
           const { SQLiteDB } = require('./sqlite-db');
-          return SQLiteDB.fromDB(row);
+          return SQLiteDB.rowToPlan(row);
         }
       }
     }
@@ -474,7 +474,7 @@ class Database {
       rows = this.sqlite.prepare('SELECT * FROM plans').all();
     }
     const { SQLiteDB } = require('./sqlite-db');
-    return rows.map(r => SQLiteDB.fromDB(r));
+    return rows.map(r => SQLiteDB.rowToPlan(r));
   }
 
   async createPlan(planId, data) {
@@ -552,7 +552,7 @@ class Database {
     const row = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
     if (!row) return null;
     const { SQLiteDB } = require('./sqlite-db');
-    return SQLiteDB.fromDB(row);
+    return SQLiteDB.rowToVoucher(row);
   }
 
   async createVoucher(code, data = {}) {
@@ -751,7 +751,7 @@ class Database {
 
       this.sqlite.transaction(() => {
         voucher = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
-        if (voucher) voucher = SQLiteDB.fromDB(voucher);
+        if (voucher) voucher = SQLiteDB.rowToVoucher(voucher);
 
         if (!voucher || voucher.used || voucher.status === 'used')
           throw new Error('Voucher is invalid or already used.');
@@ -788,9 +788,9 @@ class Database {
             code
           );
 
-        // Update Wallet
+        // Update Wallet — wallets has no JSON columns, so this is a
+        // straight pass-through, but use the row directly for clarity
         let wallet = this.sqlite.prepare('SELECT * FROM wallets WHERE id = ?').get(id);
-        if (wallet) wallet = SQLiteDB.fromDB(wallet);
         const currentBalance = wallet ? wallet.balance || 0 : 0;
         const newBalance = currentBalance + val;
 
@@ -802,7 +802,7 @@ class Database {
 
         // Update User
         let user = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
-        if (user) user = SQLiteDB.fromDB(user);
+        if (user) user = SQLiteDB.rowToUser(user);
 
         const vouchersUsed = [...(user?.vouchersUsed || []), code];
         this.sqlite

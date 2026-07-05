@@ -74,6 +74,7 @@ class SQLiteDB {
                 subscriptions TEXT,
                 pendingNotification TEXT,
                 channels TEXT,
+                vouchersUsed TEXT,
                 createdAt TEXT,
                 lastSeen TEXT
             );
@@ -207,6 +208,7 @@ class SQLiteDB {
       subscriptions: SQLiteDB.fromDB(row.subscriptions) || [],
       pendingNotification: SQLiteDB.fromDB(row.pendingNotification) || {},
       channels: SQLiteDB.fromDB(row.channels) || {},
+      vouchersUsed: SQLiteDB.fromDB(row.vouchersUsed) || [],
       createdAt: row.createdAt,
       lastSeen: row.lastSeen,
     };
