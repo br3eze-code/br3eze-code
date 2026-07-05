@@ -94,18 +94,14 @@
         </config-file>
 
         <!-- App Icons -->
-        <icon src="www/images/logo/logo.png" density="mdpi" />
-        <icon src="www/images/logo/logo.png" density="hdpi" />
-        <icon src="www/images/logo/logo.png" density="xhdpi" />
-        <icon src="www/images/logo/logo.png" density="xxhdpi" />
-        <icon src="www/images/logo/logo.png" density="xxxhdpi" />
-
-        <!-- Custom Resource File -->
-        <resource-file src="www/res/android/my-color.xml"
-            target="app/src/main/res/values/my-colors.xml" />
+        <icon src="www/img/logo.png" density="mdpi" />
+        <icon src="www/img/logo.png" density="hdpi" />
+        <icon src="www/img/logo.png" density="xhdpi" />
+        <icon src="www/img/logo.png" density="xxhdpi" />
+        <icon src="www/img/logo.png" density="xxxhdpi" />
 
         <!-- Splash Screen (Android 12+) -->
-        <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/res/android/logo.png" />
+        <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/img/logo.png" />
         <preference name="AndroidWindowSplashScreenBackground" value="#000000" />
         <preference name="AndroidPersistentFileLocation" value="Compatibility" />
         <preference name="AndroidLaunchMode" value="singleTask" />
