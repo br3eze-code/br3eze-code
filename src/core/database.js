@@ -1032,7 +1032,36 @@ class Database {
       lastSeen: now,
     };
     if (this.db) await this.db.collection('users').doc(id).set(doc, { merge: true });
-    else {
+    else if (this.sqlite) {
+      const { SQLiteDB } = require('./sqlite-db');
+      this.sqlite
+        .prepare(
+          `
+                INSERT OR REPLACE INTO users
+                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, vouchersUsed, createdAt, lastSeen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `
+        )
+        .run(
+          doc.uid,
+          doc.username,
+          doc.fullname,
+          doc.email,
+          doc.phoneNumber,
+          doc.address,
+          doc.platform,
+          doc.deviceModel,
+          doc.lastIP,
+          doc.role,
+          doc.credits,
+          SQLiteDB.toDB(doc.subscriptions),
+          SQLiteDB.toDB(doc.pendingNotification),
+          SQLiteDB.toDB(doc.channels || {}),
+          SQLiteDB.toDB([]),
+          doc.createdAt,
+          doc.lastSeen
+        );
+    } else {
       this._users.set(id, doc);
       this._saveLocal('users');
     }
@@ -1052,8 +1081,8 @@ class Database {
         .prepare(
           `
                 INSERT OR REPLACE INTO users 
-                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, createdAt, lastSeen) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, vouchersUsed, createdAt, lastSeen) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `
         )
         .run(
@@ -1071,6 +1100,7 @@ class Database {
           SQLiteDB.toDB(updated.subscriptions),
           SQLiteDB.toDB(updated.pendingNotification),
           SQLiteDB.toDB(updated.channels),
+          SQLiteDB.toDB(updated.vouchersUsed || []),
           updated.createdAt,
           updated.lastSeen
         );

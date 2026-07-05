@@ -104,7 +104,7 @@ describe('redeemVoucher via SQLite fallback', () => {
     );
   });
 
-  test('getAllPlans() correctly deserializes features for every row', async () => {
+  test('getPlans() correctly deserializes features for every row', async () => {
     if (!sqliteAvailable) return;
 
     await db.createPlan('test-plan-2', {
@@ -116,7 +116,7 @@ describe('redeemVoucher via SQLite fallback', () => {
       features: { hd: false },
     });
 
-    const plans = await db.getAllPlans();
+    const plans = await db.getPlans(false);
     const found = plans.find(p => p.id === 'test-plan-2');
     expect(found.features).toEqual({ hd: false });
   });
