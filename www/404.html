@@ -3,77 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>404 Not Found · AgentOS</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap">
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .error-container {
-      max-width: 480px;
-      margin: 80px auto;
-      padding: 0 16px;
-      text-align: center;
-    }
-    .error-sigil {
-      font-size: 72px;
-      color: var(--red);
-      text-shadow: 0 0 20px rgba(255,51,85,0.4);
-      margin-bottom: 24px;
-      font-family: var(--font-hdr);
-    }
-    .error-title {
-      font-family: var(--font-hdr);
-      font-size: 24px;
-      color: var(--text);
-      margin-bottom: 12px;
-      letter-spacing: 3px;
-    }
-    .error-msg {
-      color: var(--text-dim);
-      font-size: 14px;
-      line-height: 1.6;
-      margin-bottom: 32px;
-    }
-    .btn-home {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background: var(--cyan);
-      border: none;
-      border-radius: var(--radius);
-      color: #000;
-      font-family: var(--font-hdr);
-      font-size: 13px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      text-align: center;
-      text-decoration: none;
-      font-weight: bold;
-      transition: opacity 0.2s;
-    }
-    .btn-home:active {
-      opacity: 0.8;
-    }
-  </style>
+  <title>404 Not Found · Power Connect</title>
+  <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
-  <div id="app">
-    <header class="app-header">
-      <div class="header-brand">
-        <span class="brand-sigil" style="color: var(--red); text-shadow: 0 0 12px var(--red);">◈</span>
-        <span class="brand-name">AGENT<span class="brand-accent">OS</span></span>
-        <span class="brand-ver" style="color: var(--red);">ERROR</span>
-      </div>
-    </header>
+  <header class="main-header">
+    <div class="header-left"><span class="logo">POWER CONNECT</span></div>
+  </header>
 
-    <main class="app-main">
-      <div class="error-container">
-        <div class="error-sigil">404</div>
-        <div class="error-title">SYSTEM ERROR</div>
-        <div class="error-msg">The requested resource or page was not found on this node. Please return to the AgentOS dashboard.</div>
-        <a href="index.html" class="btn-home">GO TO DASHBOARD</a>
+  <main class="content-panel">
+    <div class="card auth-card" style="margin: 60px auto;">
+      <div class="auth-header" style="text-align:center;">
+        <div style="font-size:56px;color:var(--color-danger-text);margin-bottom:16px;">404</div>
+        <h2>Page Not Found</h2>
+        <p>The requested resource or page was not found on this node. Please return to the dashboard.</p>
       </div>
-    </main>
-  </div>
+      <a href="index.html" class="btn btn-primary btn-block">Go to Dashboard</a>
+    </div>
+  </main>
 </body>
 </html>

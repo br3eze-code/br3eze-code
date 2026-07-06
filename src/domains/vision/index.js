@@ -6,7 +6,7 @@ class VisionDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'vision';
-
+    
     this.registerTool({
       name: 'generateImage',
       description: 'Generate images using providers like OpenAI (image2.0 / DALL-E) or Nanobanana',
@@ -14,21 +14,13 @@ class VisionDomain extends BaseDomain {
         logger.info(`[VisionDomain] Generating image via ${provider} for prompt: ${prompt}`);
         if (provider === 'openai') {
           // Placeholder for OpenAI image2.0 / DALL-E 2/3
-          return {
-            success: true,
-            url: 'https://cdn.br3eze.africa/vision/openai_mock.png',
-            provider,
-          };
+          return { success: true, url: 'https://cdn.br3eze.africa/vision/openai_mock.png', provider };
         } else if (provider === 'nanobanana') {
           // Placeholder for Nanobanana image generation
-          return {
-            success: true,
-            url: 'https://cdn.br3eze.africa/vision/nanobanana_mock.png',
-            provider,
-          };
+          return { success: true, url: 'https://cdn.br3eze.africa/vision/nanobanana_mock.png', provider };
         }
         return { success: false, error: 'Unsupported image provider' };
-      },
+      }
     });
 
     this.registerTool({
@@ -37,7 +29,7 @@ class VisionDomain extends BaseDomain {
       execute: async (imageUrl, prompt) => {
         logger.info(`[VisionDomain] Editing image ${imageUrl} with prompt: ${prompt}`);
         return { success: true, url: 'https://cdn.br3eze.africa/vision/edited_mock.png' };
-      },
+      }
     });
   }
 }

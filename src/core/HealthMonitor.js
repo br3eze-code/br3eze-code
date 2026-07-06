@@ -11,7 +11,7 @@ class HealthMonitor extends EventEmitter {
       interactions: 0,
       errors: 0,
       skillExecutions: new Map(),
-      channelMessages: new Map(),
+      channelMessages: new Map()
     };
     this.checks = [];
     this.interval = null;
@@ -19,10 +19,10 @@ class HealthMonitor extends EventEmitter {
 
   start(intervalMs = 30000) {
     this.interval = setInterval(() => this.runChecks(), intervalMs);
-
+    
     // Setup event listeners
     this.agent.on('interaction', () => this.metrics.interactions++);
-    this.agent.skills.on('skillLoaded', name => {
+    this.agent.skills.on('skillLoaded', (name) => {
       this.metrics.skillExecutions.set(name, { count: 0, errors: 0 });
     });
   }
@@ -33,7 +33,7 @@ class HealthMonitor extends EventEmitter {
 
   async runChecks() {
     const results = [];
-
+    
     for (const check of this.checks) {
       try {
         const start = Date.now();
@@ -41,20 +41,20 @@ class HealthMonitor extends EventEmitter {
         results.push({
           name: check.name,
           status: result ? 'healthy' : 'unhealthy',
-          responseTime: Date.now() - start,
+          responseTime: Date.now() - start
         });
       } catch (error) {
         results.push({
           name: check.name,
           status: 'error',
-          error: error.message,
+          error: error.message
         });
       }
     }
 
     const status = this.compileStatus(results);
     this.emit('healthCheck', status);
-
+    
     return status;
   }
 
@@ -66,21 +66,21 @@ class HealthMonitor extends EventEmitter {
       cpu: process.cpuUsage(),
       loadAvg: os.loadavg(),
       freeMem: os.freemem(),
-      totalMem: os.totalmem(),
+      totalMem: os.totalmem()
     };
 
     const unhealthy = checkResults.filter(r => r.status !== 'healthy');
-
+    
     // Add MikroTik health if available
     let router = null;
     if (this.agent?.mikrotik) {
-      const mt = this.agent.mikrotik;
-      router = {
-        isConnected: mt.state?.isConnected || false,
-        health: mt.state?.lastKnownHealth || null,
-      };
+        const mt = this.agent.mikrotik;
+        router = {
+            isConnected: mt.state?.isConnected || false,
+            health: mt.state?.lastKnownHealth || null
+        };
     }
-
+    
     return {
       status: unhealthy.length === 0 ? 'healthy' : 'degraded',
       system,
@@ -91,8 +91,8 @@ class HealthMonitor extends EventEmitter {
         totalErrors: this.metrics.errors,
         errorRate: this.metrics.errors / Math.max(this.metrics.interactions, 1),
         skillStats: Object.fromEntries(this.metrics.skillExecutions),
-        channelStats: Object.fromEntries(this.metrics.channelMessages),
-      },
+        channelStats: Object.fromEntries(this.metrics.channelMessages)
+      }
     };
   }
 

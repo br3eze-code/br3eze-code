@@ -5,7 +5,7 @@ class MikroTikSkill {
     this.connections = new Map();
     this.poolConfig = {
       maxConnections: 5,
-      idleTimeout: 600000,
+      idleTimeout: 600000
     };
   }
 
@@ -25,7 +25,7 @@ class MikroTikSkill {
 
   async execute(params, context) {
     const { action, router, params: actionParams } = params;
-
+    
     // Get router configuration
     const routerConfig = await this.getRouterConfig(router, context);
     if (!routerConfig) {
@@ -34,7 +34,7 @@ class MikroTikSkill {
 
     // Route to specific action
     const [category, method] = action.split('.');
-
+    
     switch (category) {
       case 'users':
         return this.handleUsers(method, routerConfig, actionParams);
@@ -53,7 +53,7 @@ class MikroTikSkill {
 
   async handleUsers(action, routerConfig, params) {
     const client = await this.getConnection(routerConfig);
-
+    
     try {
       switch (action) {
         case 'list':
@@ -65,15 +65,15 @@ class MikroTikSkill {
               address: u.address,
               uptime: u.uptime,
               bytesIn: u['bytes-in'],
-              bytesOut: u['bytes-out'],
-            })),
+              bytesOut: u['bytes-out']
+            }))
           };
-
+          
         case 'kick':
           if (!params.username) throw new Error('Username required');
           await client.menu('/ip hotspot active').remove({ name: params.username });
           return { success: true, message: `User ${params.username} kicked` };
-
+          
         case 'add':
           if (!params.username || !params.password) {
             throw new Error('Username and password required');
@@ -81,10 +81,10 @@ class MikroTikSkill {
           await client.menu('/ip hotspot user').add({
             name: params.username,
             password: params.password,
-            profile: params.profile || 'default',
+            profile: params.profile || 'default'
           });
           return { success: true, message: `User ${params.username} created` };
-
+          
         default:
           throw new Error(`Unknown user action: ${action}`);
       }
@@ -95,7 +95,7 @@ class MikroTikSkill {
 
   async handleSystem(action, routerConfig, params) {
     const client = await this.getConnection(routerConfig);
-
+    
     try {
       switch (action) {
         case 'stats':
@@ -104,22 +104,22 @@ class MikroTikSkill {
             cpu: resources['cpu-load'],
             memory: {
               total: resources['total-memory'],
-              free: resources['free-memory'],
+              free: resources['free-memory']
             },
             uptime: resources.uptime,
-            version: resources.version,
+            version: resources.version
           };
-
+          
         case 'reboot':
           if (!params.confirm) {
-            return {
+            return { 
               requiresConfirmation: true,
-              message: 'Type YES to confirm reboot',
+              message: 'Type YES to confirm reboot'
             };
           }
           await client.menu('/system').reboot();
           return { success: true, message: 'Router rebooting...' };
-
+          
         default:
           throw new Error(`Unknown system action: ${action}`);
       }
@@ -130,40 +130,40 @@ class MikroTikSkill {
 
   async getConnection(routerConfig) {
     const key = `${routerConfig.host}:${routerConfig.port}`;
-
+    
     // Connection pooling logic
     let pool = this.connections.get(key);
     if (!pool) {
       pool = { available: [], inUse: [] };
       this.connections.set(key, pool);
     }
-
+    
     // Reuse available connection
     if (pool.available.length > 0) {
       const conn = pool.available.pop();
       pool.inUse.push(conn);
       return conn;
     }
-
+    
     // Create new connection
     const client = new RouterOSClient({
       host: routerConfig.host,
       port: routerConfig.port,
       user: routerConfig.user,
       password: routerConfig.password,
-      timeout: 30000,
+      timeout: 30000
     });
-
+    
     await client.connect();
     pool.inUse.push(client);
-
+    
     return client;
   }
 
   releaseConnection(routerConfig, client) {
     const key = `${routerConfig.host}:${routerConfig.port}`;
     const pool = this.connections.get(key);
-
+    
     if (pool) {
       const idx = pool.inUse.indexOf(client);
       if (idx > -1) {
@@ -185,7 +185,7 @@ class MikroTikSkill {
 
   async getRouterConfig(routerId, context) {
     // Get from agent memory/config
-    const routers = (await context.memory.get('config:routers')) || {};
+    const routers = await context.memory.get('config:routers') || {};
     return routers[routerId];
   }
 

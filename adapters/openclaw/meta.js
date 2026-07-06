@@ -19,20 +19,19 @@ function agentOSAdapter(kernelInstance) {
   const skills = [];
 
   // getTools() iterates registered domains and returns { name, description, parameters, risk }
-  const tools =
-    kernelInstance && typeof kernelInstance.getTools === 'function'
-      ? kernelInstance.getTools()
-      : {};
+  const tools = kernelInstance && typeof kernelInstance.getTools === 'function'
+    ? kernelInstance.getTools()
+    : {};
 
   for (const [name, spec] of Object.entries(tools)) {
     skills.push({
       name,
-      description: spec.description || '',
-      parameters: spec.parameters || {},
-      risk: spec.risk || 'low',
+      description:  spec.description  || '',
+      parameters:   spec.parameters   || {},
+      risk:         spec.risk         || 'low',
       execute: async (args, context) => {
         const ctx = {
-          userId: context?.user_id || 'openclaw_user',
+          userId:    context?.user_id   || 'openclaw_user',
           workspace: context?.workspace || process.env.AGENTOS_STATE_PATH || '/data/agentos',
         };
         return kernelInstance.execute(name, args, ctx);
@@ -41,14 +40,14 @@ function agentOSAdapter(kernelInstance) {
   }
 
   return {
-    id: process.env.AGENTOS_AGENT_ID || 'agentos',
-    name: process.env.AGENTOS_AGENT_NAME || 'AgentOS',
-    version: require('../../package.json').version,
+    id:          process.env.AGENTOS_AGENT_ID || 'agentos',
+    name:        process.env.AGENTOS_AGENT_NAME || 'AgentOS',
+    version:     require('../../package.json').version,
     description: 'Domain-agnostic AI agent with multi-channel, multi-skill support',
-    author: 'AgentOS',
+    author:      'AgentOS',
     skills,
   };
 }
 
-module.exports = agentOSAdapter;
+module.exports         = agentOSAdapter;
 module.exports.default = agentOSAdapter;

@@ -12,28 +12,28 @@ class BaseChannel extends EventEmitter {
     this.connected = false;
     this.options = options;
   }
-
+  
   /**
    * Initialize and connect to channel
    */
   async connect() {
     throw new Error('connect() must be implemented by subclass');
   }
-
+  
   /**
    * Disconnect from channel
    */
   async disconnect() {
     throw new Error('disconnect() must be implemented by subclass');
   }
-
+  
   /**
    * Send message to recipient
    */
   async send(recipient, message) {
     throw new Error('send() must be implemented by subclass');
   }
-
+  
   /**
    * Format message for channel-specific rendering
    */
@@ -43,7 +43,7 @@ class BaseChannel extends EventEmitter {
     }
     return message;
   }
-
+  
   /**
    * Generate frame from channel-specific event
    */
@@ -56,13 +56,14 @@ class BaseChannel extends EventEmitter {
       content: event.content,
       timestamp: Date.now(),
       isDM: event.isDM !== undefined ? event.isDM : true,
-      metadata: event.metadata || {},
+      metadata: event.metadata || {}
     };
   }
-
+  
   generateId() {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 }
 
 module.exports = { BaseChannel };
+

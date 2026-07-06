@@ -3,13 +3,13 @@ const { logger } = require('../logger');
 const { BaseChannel } = require('./BaseChannel');
 
 class CLIChannel extends BaseChannel {
-  static getMetadata() {
-    return {
-      name: 'CLI',
-      description: 'Messaging channel',
-      configFields: [],
-    };
-  }
+    static getMetadata() {
+        return {
+            name: 'CLI',
+            description: 'Messaging channel',
+            configFields: []
+        };
+    }
 
   constructor(config, agent) {
     super(config, agent);
@@ -20,10 +20,10 @@ class CLIChannel extends BaseChannel {
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: 'AgentOS> ',
+      prompt: 'AgentOS> '
     });
 
-    this.rl.on('line', async line => {
+    this.rl.on('line', async (line) => {
       const text = line.trim();
       if (!text) {
         this.rl.prompt();
@@ -40,7 +40,7 @@ class CLIChannel extends BaseChannel {
         text,
         userId: 'cli-user',
         channel: 'cli',
-        raw: line,
+        raw: line
       });
     });
 
@@ -55,7 +55,7 @@ class CLIChannel extends BaseChannel {
   }
 
   async send(userId, message) {
-    const text = typeof message === 'string' ? message : message.text || JSON.stringify(message);
+    const text = typeof message === 'string' ? message : (message.text || JSON.stringify(message));
     process.stdout.write(`\n${text}\n`);
     if (this.rl) this.rl.prompt();
   }
@@ -67,7 +67,7 @@ class CLIChannel extends BaseChannel {
   getStatus() {
     return {
       ...super.getStatus(),
-      type: 'cli',
+      type: 'cli'
     };
   }
 

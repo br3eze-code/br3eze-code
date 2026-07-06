@@ -6,5 +6,5 @@ module.exports = {
     { name: 'time', description: 'Current time and date' },
     { name: 'system_info', description: 'Host system information' },
     { name: 'random', description: 'Generate UUID or password' },
-  ],
+  ]
 };

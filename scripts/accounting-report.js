@@ -10,23 +10,23 @@
  *     --mode daily --out reports/accounting [--verbose]
  */
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
-const get = (flag, def = '') => {
+const get  = (flag, def = '') => {
   const i = args.indexOf(flag);
   return i !== -1 && args[i + 1] ? args[i + 1] : def;
 };
 
-const FROM = get('--from', new Date(Date.now() - 86400000 * 30).toISOString().slice(0, 10));
-const TO = get('--to', new Date().toISOString().slice(0, 10));
-const MODE = get('--mode', 'daily');
-const OUT_DIR = get('--out', 'reports/accounting');
+const FROM    = get('--from', new Date(Date.now() - 86400000 * 30).toISOString().slice(0, 10));
+const TO      = get('--to',   new Date().toISOString().slice(0, 10));
+const MODE    = get('--mode', 'daily');
+const OUT_DIR = get('--out',  'reports/accounting');
 const VERBOSE = args.includes('--verbose');
 
-const log = (...a) => console.log('[accounting]', ...a);
+const log  = (...a) => console.log('[accounting]', ...a);
 const vlog = (...a) => VERBOSE && console.log('[accounting:verbose]', ...a);
 
 // ── Firebase init (optional — gracefully skip in CI without credentials) ──────
@@ -37,16 +37,12 @@ async function initFirebase() {
     if (admin.apps.length === 0) {
       const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
       if (credPath && fs.existsSync(credPath)) {
-        admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-          projectId: process.env.FIREBASE_PROJECT_ID,
-        });
+        admin.initializeApp({ credential: admin.credential.applicationDefault(),
+                              projectId: process.env.FIREBASE_PROJECT_ID });
       } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
         const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        admin.initializeApp({
-          credential: admin.credential.cert(sa),
-          projectId: process.env.FIREBASE_PROJECT_ID,
-        });
+        admin.initializeApp({ credential: admin.credential.cert(sa),
+                              projectId: process.env.FIREBASE_PROJECT_ID });
       } else {
         log('⚠  No Firebase credentials — running in offline/mock mode');
         return false;
@@ -67,20 +63,19 @@ async function fetchTransactions(from, to) {
 
   const collections = ['vouchers', 'payments', 'sessions', 'transactions'];
   const fromTs = new Date(from);
-  const toTs = new Date(`${to}T23:59:59Z`);
-  const all = [];
+  const toTs   = new Date(to + 'T23:59:59Z');
+  const all    = [];
 
   for (const col of collections) {
     try {
       vlog(`Querying ${col}...`);
-      const q = db
-        .collection(col)
+      let q = db.collection(col)
         .where('createdAt', '>=', fromTs)
         .where('createdAt', '<=', toTs)
         .orderBy('createdAt', 'desc')
         .limit(10000);
 
-      const snap = await q.get();
+      let snap = await q.get();
       let page = snap;
       while (!page.empty) {
         page.docs.forEach(d => all.push({ id: d.id, collection: col, ...d.data() }));
@@ -124,16 +119,15 @@ function getMockTransactions(from, to) {
 // ── Compute report ────────────────────────────────────────────────────────────
 function computeReport(txns, from, to, mode) {
   const completed = txns.filter(t => t.status === 'completed' || !t.status);
-  const failed = txns.filter(t => t.status === 'failed');
-  const revenue = completed.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const failRate = txns.length ? ((failed.length / txns.length) * 100).toFixed(2) : '0.00';
+  const failed    = txns.filter(t => t.status === 'failed');
+  const revenue   = completed.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const failRate  = txns.length ? (failed.length / txns.length * 100).toFixed(2) : '0.00';
 
   // Daily breakdown
   const byDay = {};
   txns.forEach(t => {
     const d = (t.createdAt?.toDate?.() || new Date(t.createdAt || Date.now()))
-      .toISOString()
-      .slice(0, 10);
+      .toISOString().slice(0, 10);
     if (!byDay[d]) byDay[d] = { date: d, count: 0, revenue: 0, failures: 0 };
     byDay[d].count++;
     if (t.status === 'completed' || !t.status) byDay[d].revenue += Number(t.amount) || 0;
@@ -141,27 +135,19 @@ function computeReport(txns, from, to, mode) {
   });
 
   // Anomaly detection — days with revenue < 50% of average
-  const days = Object.values(byDay);
+  const days  = Object.values(byDay);
   const avgRev = days.length ? days.reduce((s, d) => s + d.revenue, 0) / days.length : 0;
   const anomalies = [];
   days.forEach(d => {
     if (d.revenue < avgRev * 0.5 && avgRev > 0) {
-      anomalies.push({
-        date: d.date,
-        severity: 'high',
+      anomalies.push({ date: d.date, severity: 'high',
         message: `Revenue $${d.revenue.toFixed(2)} is <50% of daily avg $${avgRev.toFixed(2)}`,
-        actual: d.revenue,
-        expected: avgRev,
-      });
+        actual: d.revenue, expected: avgRev });
     }
     if (d.failures > d.count * 0.3) {
-      anomalies.push({
-        date: d.date,
-        severity: 'high',
-        message: `Failure rate ${((d.failures / d.count) * 100).toFixed(0)}% exceeds 30%`,
-        actual: d.failures,
-        expected: d.count * 0.3,
-      });
+      anomalies.push({ date: d.date, severity: 'high',
+        message: `Failure rate ${(d.failures/d.count*100).toFixed(0)}% exceeds 30%`,
+        actual: d.failures, expected: d.count * 0.3 });
     }
   });
 
@@ -187,19 +173,17 @@ function writeReports(report, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
 
   // summary.json
-  fs.writeFileSync(
-    path.join(outDir, 'summary.json'),
-    JSON.stringify({ summary: report.summary, daily_count: report.daily.length }, null, 2)
-  );
+  fs.writeFileSync(path.join(outDir, 'summary.json'),
+    JSON.stringify({ summary: report.summary, daily_count: report.daily.length }, null, 2));
 
   // anomalies.json
-  fs.writeFileSync(path.join(outDir, 'anomalies.json'), JSON.stringify(report.anomalies, null, 2));
+  fs.writeFileSync(path.join(outDir, 'anomalies.json'),
+    JSON.stringify(report.anomalies, null, 2));
 
   // report.csv
   const csvHeader = 'date,count,revenue_usd,failures\n';
-  const csvRows = report.daily
-    .map(d => `${d.date},${d.count},${d.revenue.toFixed(2)},${d.failures}`)
-    .join('\n');
+  const csvRows   = report.daily.map(d =>
+    `${d.date},${d.count},${d.revenue.toFixed(2)},${d.failures}`).join('\n');
   fs.writeFileSync(path.join(outDir, 'report.csv'), csvHeader + csvRows);
 
   // summary.md
@@ -221,9 +205,7 @@ function writeReports(report, outDir) {
     `## Anomalies (${report.anomalies.length})`,
     report.anomalies.length === 0
       ? '_No anomalies detected._'
-      : report.anomalies
-          .map(a => `- **[${a.severity.toUpperCase()}]** ${a.date}: ${a.message}`)
-          .join('\n'),
+      : report.anomalies.map(a => `- **[${a.severity.toUpperCase()}]** ${a.date}: ${a.message}`).join('\n'),
     '',
     `_Generated: ${s.generated_at}_`,
   ].join('\n');
@@ -241,14 +223,12 @@ function writeReports(report, outDir) {
   log(`   Output : ${OUT_DIR}`);
 
   await initFirebase();
-  const txns = await fetchTransactions(FROM, TO);
+  const txns   = await fetchTransactions(FROM, TO);
   const report = computeReport(txns, FROM, TO, MODE);
   writeReports(report, OUT_DIR);
 
   const { summary: s } = report;
-  log(
-    `✅ Done — Revenue: $${s.total_revenue_usd} | Txns: ${s.total_transactions} | Anomalies: ${report.anomalies.length}`
-  );
+  log(`✅ Done — Revenue: $${s.total_revenue_usd} | Txns: ${s.total_transactions} | Anomalies: ${report.anomalies.length}`);
   process.exit(0);
 })().catch(err => {
   console.error('[accounting] Fatal:', err);

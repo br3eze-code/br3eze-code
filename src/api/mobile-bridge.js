@@ -20,7 +20,7 @@ class MobileBridge {
       try {
         const token = req.headers.authorization?.replace('Bearer ', '');
         if (!token) throw new Error('No token');
-
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.userId = decoded.uid;
         next();
@@ -33,13 +33,13 @@ class MobileBridge {
     this.router.post('/voucher/validate', async (req, res) => {
       try {
         const { code, macAddress, deviceFingerprint } = req.body;
-
+        
         // Q-NAP fraud check
         const fraudCheck = await this.qnap.analyzeTransaction({
           userId: macAddress,
           amount: 0,
           timestamp: Date.now(),
-          deviceFingerprint,
+          deviceFingerprint
         });
 
         const db = await getDatabase();
@@ -60,21 +60,26 @@ class MobileBridge {
 
         // Activate on MikroTik
         const mt = getManager();
-        await mt.addHotspotUser(`voucher_${code}`, code, voucher.plan || 'default');
+        await mt.addHotspotUser(
+          `voucher_${code}`,
+          code,
+          voucher.plan || 'default'
+        );
 
         // Mark as used
         await db.redeemVoucher(code, {
           macAddress,
           activatedAt: new Date().toISOString(),
-          deviceFingerprint,
+          deviceFingerprint
         });
 
         res.json({
           valid: true,
           plan: voucher.plan,
           expiresAt: this._calculateExpiry(voucher.plan),
-          riskCheck: fraudCheck.recommendation,
+          riskCheck: fraudCheck.recommendation
         });
+
       } catch (error) {
         logger.error('Voucher validation error:', error);
         res.status(500).json({ error: 'Internal error' });
@@ -85,7 +90,10 @@ class MobileBridge {
     this.router.get('/status', authenticate, async (req, res) => {
       try {
         const mt = getManager();
-        const [stats, activeUsers] = await Promise.all([mt.getSystemStats(), mt.getActiveUsers()]);
+        const [stats, activeUsers] = await Promise.all([
+          mt.getSystemStats(),
+          mt.getActiveUsers()
+        ]);
 
         res.json({
           online: mt.state.isConnected,
@@ -93,7 +101,7 @@ class MobileBridge {
           memory: stats['memory-usage-percent'],
           uptime: stats.uptime,
           activeUsers: activeUsers.length,
-          gatewayVersion: process.env.npm_package_version,
+          gatewayVersion: process.env.npm_package_version
         });
       } catch (error) {
         res.status(503).json({ error: 'Router unavailable' });
@@ -105,12 +113,12 @@ class MobileBridge {
       try {
         const { subscriptions, deviceToken } = req.body;
         const db = await getDatabase();
-
+        
         // Store in Firebase for cross-device sync
         await db.syncUserData(req.userId, {
           subscriptions,
           deviceToken,
-          lastSync: new Date().toISOString(),
+          lastSync: new Date().toISOString()
         });
 
         res.json({ success: true, timestamp: Date.now() });
@@ -122,12 +130,12 @@ class MobileBridge {
     // Real-time notifications webhook
     this.router.post('/notify', authenticate, async (req, res) => {
       const { type, message, priority } = req.body;
-
+      
       // Forward to Telegram if linked
       if (req.userId) {
         // Notification logic
       }
-
+      
       res.json({ queued: true });
     });
   }

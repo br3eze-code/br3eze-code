@@ -13,5 +13,5 @@ const coreLogger = require('../core/logger');
 module.exports = {
   ...coreLogger,
   // Alias: some files do `const { Logger } = require('../utils/logger')`
-  Logger: coreLogger.logger,
+  Logger: coreLogger.logger
 };

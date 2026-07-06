@@ -5,7 +5,7 @@ class SecurityDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'security';
-
+    
     this.registerTool({
       name: 'audit',
       description: 'Perform a basic security audit of the current node',
@@ -18,19 +18,21 @@ class SecurityDomain extends BaseDomain {
           memory: `${Math.floor(memory.rss / 1024 / 1024)}MB`,
           checks: [
             { name: 'Firewall', status: 'active' },
-            { name: 'Encryption', status: 'enabled' },
-          ],
+            { name: 'Encryption', status: 'enabled' }
+          ]
         };
-      },
+      }
     });
-
+    
     this.registerTool({
       name: 'sessions',
       description: 'List active administrative sessions',
       execute: async () => {
         // In a real implementation, this would query system logs or MikroTik
-        return [{ user: 'admin', ip: '127.0.0.1', type: 'local', active: true }];
-      },
+        return [
+          { user: 'admin', ip: '127.0.0.1', type: 'local', active: true }
+        ];
+      }
     });
   }
 }

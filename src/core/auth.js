@@ -19,7 +19,7 @@ async function authorize({ userId, tool, args, routerId }) {
 
   const needs = await sandbox.needsApproval(userId, toolName);
   if (needs) {
-    const req = await sandbox.requestApproval({ userId, toolName, args, routerId });
+    const req = await sandbox.requestApproval({ userId, toolName: toolName, args, routerId });
     await audit.log({ userId, tool: toolName, status: 'PENDING_APPROVAL', approvalId: req.id });
     return { status: 'needs_approval', approvalId: req.id };
   }

@@ -9,7 +9,7 @@ class AgentOSError extends Error {
     this.code = code;
     this.context = context;
     this.timestamp = new Date().toISOString();
-
+    
     // Capture stack trace
     Error.captureStackTrace(this, this.constructor);
   }
@@ -21,7 +21,7 @@ class AgentOSError extends Error {
       message: this.message,
       context: this.context,
       timestamp: this.timestamp,
-      stack: this.stack,
+      stack: this.stack
     };
   }
 }
@@ -75,5 +75,5 @@ module.exports = {
   DatabaseError,
   NetworkError,
   AuthenticationError,
-  PermissionError,
+  PermissionError
 };

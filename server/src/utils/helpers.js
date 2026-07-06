@@ -2,19 +2,19 @@
  * Helper utilities
  */
 
-const { randomUUID: uuidv4 } = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Format bytes to human readable string
  * @param {number} bytes - Bytes to format
  * @returns {string} Formatted string
  */
-const formatBytes = bytes => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 /**
@@ -22,14 +22,14 @@ const formatBytes = bytes => {
  * @param {number} seconds - Uptime in seconds
  * @returns {string} Formatted uptime
  */
-const formatUptime = seconds => {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+const formatUptime = (seconds) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
 
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
 };
 
 /**
@@ -37,27 +37,27 @@ const formatUptime = seconds => {
  * @param {string} timeStr - MikroTik time string
  * @returns {number} Seconds
  */
-const parseMikrotikTime = timeStr => {
-  if (!timeStr) return 0;
+const parseMikrotikTime = (timeStr) => {
+    if (!timeStr) return 0;
 
-  let seconds = 0;
-  const units = {
-    w: 604800,
-    d: 86400,
-    h: 3600,
-    m: 60,
-    s: 1,
-  };
+    let seconds = 0;
+    const units = {
+        w: 604800,
+        d: 86400,
+        h: 3600,
+        m: 60,
+        s: 1
+    };
 
-  const matches = timeStr.match(/(\d+)([wdhms])/g) || [];
+    const matches = timeStr.match(/(\d+)([wdhms])/g) || [];
 
-  matches.forEach(match => {
-    const value = parseInt(match.slice(0, -1));
-    const unit = match.slice(-1);
-    seconds += value * units[unit];
-  });
+    matches.forEach(match => {
+        const value = parseInt(match.slice(0, -1));
+        const unit = match.slice(-1);
+        seconds += value * units[unit];
+    });
 
-  return seconds;
+    return seconds;
 };
 
 /**
@@ -65,13 +65,13 @@ const parseMikrotikTime = timeStr => {
  * @param {string} mac - MAC address
  * @returns {string} Standardized MAC (AA:BB:CC:DD:EE:FF)
  */
-const sanitizeMacAddress = mac => {
-  if (!mac) return null;
-  return mac
-    .toUpperCase()
-    .replace(/[^0-9A-F]/g, '')
-    .match(/.{1,2}/g)
-    .join(':');
+const sanitizeMacAddress = (mac) => {
+    if (!mac) return null;
+    return mac
+        .toUpperCase()
+        .replace(/[^0-9A-F]/g, '')
+        .match(/.{1,2}/g)
+        .join(':');
 };
 
 /**
@@ -79,7 +79,7 @@ const sanitizeMacAddress = mac => {
  * @returns {string} Session ID
  */
 const generateSessionId = () => {
-  return uuidv4().replace(/-/g, '');
+    return uuidv4().replace(/-/g, '');
 };
 
 /**
@@ -89,27 +89,27 @@ const generateSessionId = () => {
  * @returns {Object} Merged object
  */
 const deepMerge = (target, source) => {
-  const output = Object.assign({}, target);
+    const output = Object.assign({}, target);
 
-  if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach(key => {
-      if (isObject(source[key])) {
-        if (!(key in target)) {
-          Object.assign(output, { [key]: source[key] });
-        } else {
-          output[key] = deepMerge(target[key], source[key]);
-        }
-      } else {
-        Object.assign(output, { [key]: source[key] });
-      }
-    });
-  }
+    if (isObject(target) && isObject(source)) {
+        Object.keys(source).forEach(key => {
+            if (isObject(source[key])) {
+                if (!(key in target)) {
+                    Object.assign(output, { [key]: source[key] });
+                } else {
+                    output[key] = deepMerge(target[key], source[key]);
+                }
+            } else {
+                Object.assign(output, { [key]: source[key] });
+            }
+        });
+    }
 
-  return output;
+    return output;
 };
 
-const isObject = item => {
-  return item && typeof item === 'object' && !Array.isArray(item);
+const isObject = (item) => {
+    return item && typeof item === 'object' && !Array.isArray(item);
 };
 
 /**
@@ -117,8 +117,8 @@ const isObject = item => {
  * @param {Object} req - Express request
  * @returns {string} Rate limit key
  */
-const rateLimitKeyGenerator = req => {
-  return req.ip || req.headers['x-forwarded-for'] || 'unknown';
+const rateLimitKeyGenerator = (req) => {
+    return req.ip || req.headers['x-forwarded-for'] || 'unknown';
 };
 
 /**
@@ -126,9 +126,9 @@ const rateLimitKeyGenerator = req => {
  * @param {string} email - Email to validate
  * @returns {boolean} Validity
  */
-const isValidEmail = email => {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(String(email).toLowerCase());
+const isValidEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).toLowerCase());
 };
 
 /**
@@ -136,7 +136,7 @@ const isValidEmail = email => {
  * @param {number} ms - Milliseconds
  * @returns {Promise<void>}
  */
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Retry function with exponential backoff
@@ -146,30 +146,30 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
  * @returns {Promise<any>}
  */
 const retryWithBackoff = async (fn, maxRetries = 3, delay = 1000) => {
-  let lastError;
+    let lastError;
 
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      const backoffDelay = delay * Math.pow(2, i);
-      await sleep(backoffDelay);
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            const backoffDelay = delay * Math.pow(2, i);
+            await sleep(backoffDelay);
+        }
     }
-  }
 
-  throw lastError;
+    throw lastError;
 };
 
 module.exports = {
-  formatBytes,
-  formatUptime,
-  parseMikrotikTime,
-  sanitizeMacAddress,
-  generateSessionId,
-  deepMerge,
-  rateLimitKeyGenerator,
-  isValidEmail,
-  sleep,
-  retryWithBackoff,
+    formatBytes,
+    formatUptime,
+    parseMikrotikTime,
+    sanitizeMacAddress,
+    generateSessionId,
+    deepMerge,
+    rateLimitKeyGenerator,
+    isValidEmail,
+    sleep,
+    retryWithBackoff
 };

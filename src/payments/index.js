@@ -10,19 +10,20 @@ const PesaPalProvider = require('./providers/pesapay-provider');
 const setupPesaPalRoutes = require('./routes/pesapal-webhooks');
 const setupPesaPalCommands = require('./commands/pesapal-commands');
 
+
 module.exports = {
   PaymentGateway,
   PaymentService,
   webhookHandler,
-  PesaPalIntegration,
+   PesaPalIntegration,
   PesaPalProvider,
   setupPesaPalRoutes,
   setupPesaPalCommands,
-
+  
   // Factory function for easy initialization
-
-  createPaymentService: config => {
+  
+  createPaymentService: (config) => {
     const gateway = new PaymentGateway(config);
     return new PaymentService(gateway);
-  },
+  }
 };

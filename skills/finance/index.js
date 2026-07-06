@@ -6,20 +6,13 @@ class FinanceSkill {
   async execute(params, context) {
     const { action, ...args } = params;
     switch (action) {
-      case 'finance.report':
-        return this.report(context);
-      case 'finance.trends':
-        return this.trends(context);
-      case 'finance.audit':
-        return this.audit(args, context);
-      case 'p2p.transfer':
-        return this.p2pTransfer(args, context);
-      case 'p2p.resolve':
-        return this.p2pResolve(args, context);
-      case 'mastercard.initiate':
-        return this.mastercardInitiate(args, context);
-      case 'mastercard.status':
-        return this.mastercardStatus(args, context);
+      case 'finance.report': return this.report(context);
+      case 'finance.trends': return this.trends(context);
+      case 'finance.audit': return this.audit(args, context);
+      case 'p2p.transfer': return this.p2pTransfer(args, context);
+      case 'p2p.resolve': return this.p2pResolve(args, context);
+      case 'mastercard.initiate': return this.mastercardInitiate(args, context);
+      case 'mastercard.status': return this.mastercardStatus(args, context);
       default:
         throw new Error(`Unknown finance action: ${action}`);
     }
@@ -41,7 +34,7 @@ class FinanceSkill {
       success: true,
       total_usd: total.toFixed(2),
       by_plan: byPlan,
-      voucher_count: vouchers.length,
+      voucher_count: vouchers.length
     };
   }
 
@@ -79,7 +72,7 @@ class FinanceSkill {
     // Fee calculation
     const feePercent = parseFloat(process.env.P2P_FEE_PERCENT || '0');
     const feeFlat = parseFloat(process.env.P2P_FEE_FLAT || '0');
-    const fee = (amount * feePercent) / 100 + feeFlat;
+    const fee = (amount * feePercent / 100) + feeFlat;
     const net = amount - fee;
 
     // Dual-entry bookkeeping
@@ -90,7 +83,7 @@ class FinanceSkill {
       amount: -amount,
       fee,
       currency,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
     await db.recordTransaction({
       type: 'p2p_transfer_received',
@@ -98,17 +91,17 @@ class FinanceSkill {
       from,
       amount: net,
       currency,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     });
 
     return {
       success: true,
       sent: amount,
-      fee,
+      fee: fee,
       net_received: net,
       recipient_uid: recipient.uid,
       recipient_name: recipient.display,
-      currency,
+      currency
     };
   }
 
@@ -128,7 +121,7 @@ class FinanceSkill {
     return {
       success: true,
       uid: user.uid || user.id,
-      display: user.username || user.email || user.phoneNumber || user.id,
+      display: user.username || user.email || user.phoneNumber || user.id
     };
   }
 
@@ -149,7 +142,7 @@ class FinanceSkill {
 
   // ── Helpers ──────────────────────────────────────────────────────
   _planPrice(plan) {
-    const prices = { '1hour': 0.5, '1Day': 2.0, '7Day': 3.0, '30Day': 6.0 };
+    const prices = { '1hour': 0.50, '1Day': 2.00, '7Day': 3.00, '30Day': 6.00 };
     return prices[plan] || 0;
   }
 

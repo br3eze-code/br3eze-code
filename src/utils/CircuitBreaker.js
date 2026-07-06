@@ -11,34 +11,27 @@ class CircuitBreaker {
    * @param {number} halfOpenLimit - max concurrent half-open probes (default 1)
    */
   constructor(threshold = 5, timeout = 60_000, halfOpenLimit = 1) {
-    this.threshold = threshold;
-    this.timeout = timeout;
-    this.halfOpenLimit = halfOpenLimit;
-    this.failureCount = 0;
-    this.successCount = 0;
-    this.state = 'CLOSED';
-    this.nextAttempt = 0;
-    this.lastError = null;
+    this.threshold      = threshold;
+    this.timeout        = timeout;
+    this.halfOpenLimit  = halfOpenLimit;
+    this.failureCount   = 0;
+    this.successCount   = 0;
+    this.state          = 'CLOSED';
+    this.nextAttempt    = 0;
+    this.lastError      = null;
     this.halfOpenProbes = 0;
-    this._openedAt = null;
+    this._openedAt      = null;
   }
 
-  get isOpen() {
-    return this.state === 'OPEN';
-  }
-  get isClosed() {
-    return this.state === 'CLOSED';
-  }
-  get isHalfOpen() {
-    return this.state === 'HALF_OPEN';
-  }
+  get isOpen()     { return this.state === 'OPEN'; }
+  get isClosed()   { return this.state === 'CLOSED'; }
+  get isHalfOpen() { return this.state === 'HALF_OPEN'; }
 
   async execute(fn, fallback = null) {
     if (this.state === 'OPEN') {
       if (Date.now() < this.nextAttempt) {
         const waitMs = this.nextAttempt - Date.now();
-        if (fallback)
-          return fallback(new Error(`Circuit OPEN — retry in ${Math.ceil(waitMs / 1000)}s`));
+        if (fallback) return fallback(new Error(`Circuit OPEN — retry in ${Math.ceil(waitMs / 1000)}s`));
         throw new Error(`Circuit breaker OPEN — retry in ${Math.ceil(waitMs / 1000)}s`);
       }
       // Transition to HALF_OPEN
@@ -66,11 +59,11 @@ class CircuitBreaker {
 
   _onSuccess() {
     this.failureCount = 0;
-    this.lastError = null;
+    this.lastError    = null;
     if (this.state === 'HALF_OPEN') {
       this.successCount++;
       if (this.successCount >= 2) {
-        this.state = 'CLOSED';
+        this.state        = 'CLOSED';
         this.successCount = 0;
         this.halfOpenProbes = 0;
       }
@@ -82,35 +75,35 @@ class CircuitBreaker {
     this.failureCount++;
     if (this.state === 'HALF_OPEN') {
       // Probe failed → reopen
-      this.state = 'OPEN';
+      this.state       = 'OPEN';
       this.nextAttempt = Date.now() + this.timeout;
-      this._openedAt = Date.now();
+      this._openedAt   = Date.now();
       this.halfOpenProbes = 0;
     } else if (this.failureCount >= this.threshold) {
-      this.state = 'OPEN';
+      this.state       = 'OPEN';
       this.nextAttempt = Date.now() + this.timeout;
-      this._openedAt = Date.now();
+      this._openedAt   = Date.now();
     }
   }
 
   reset() {
-    this.failureCount = 0;
-    this.successCount = 0;
-    this.state = 'CLOSED';
-    this.nextAttempt = 0;
-    this.lastError = null;
+    this.failureCount   = 0;
+    this.successCount   = 0;
+    this.state          = 'CLOSED';
+    this.nextAttempt    = 0;
+    this.lastError      = null;
     this.halfOpenProbes = 0;
-    this._openedAt = null;
+    this._openedAt      = null;
   }
 
   toJSON() {
     return {
-      state: this.state,
+      state:        this.state,
       failureCount: this.failureCount,
-      threshold: this.threshold,
-      openedAt: this._openedAt ? new Date(this._openedAt).toISOString() : null,
+      threshold:    this.threshold,
+      openedAt:     this._openedAt ? new Date(this._openedAt).toISOString() : null,
       nextAttemptAt: this.nextAttempt ? new Date(this.nextAttempt).toISOString() : null,
-      lastError: this.lastError?.message || null,
+      lastError:    this.lastError?.message || null,
     };
   }
 }

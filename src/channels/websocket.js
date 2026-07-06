@@ -1,3 +1,4 @@
+
 /**
  * WebSocket Channel
  */
@@ -12,12 +13,12 @@ class WebSocketChannel extends BaseChannel {
     this.logger = new Logger('WebSocketChannel');
     this.clients = new Map();
   }
-
+  
   async connect() {
     // WebSocket is managed by Gateway
     this.connected = true;
   }
-
+  
   async disconnect() {
     for (const [id, client] of this.clients) {
       client.close();
@@ -25,27 +26,26 @@ class WebSocketChannel extends BaseChannel {
     this.clients.clear();
     this.connected = false;
   }
-
+  
   registerClient(clientId, ws) {
     this.clients.set(clientId, ws);
-
+    
     ws.on('close', () => {
       this.clients.delete(clientId);
     });
   }
-
+  
   async send(recipient, message) {
     const client = this.clients.get(recipient);
     if (!client) {
       throw new Error(`WebSocket client not found: ${recipient}`);
     }
-
-    if (client.readyState === 1) {
-      // OPEN
+    
+    if (client.readyState === 1) { // OPEN
       client.send(JSON.stringify(this.formatMessage(message)));
     }
   }
-
+  
   formatMessage(message) {
     if (typeof message === 'string') {
       return { type: 'message', content: message };
@@ -55,3 +55,4 @@ class WebSocketChannel extends BaseChannel {
 }
 
 module.exports = { WebSocketChannel };
+

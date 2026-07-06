@@ -8,24 +8,15 @@ class ProjectSkill {
     const db = context.db;
 
     switch (action) {
-      case 'project.create':
-        return this.createProject(project, db);
-      case 'project.list':
-        return this.listProjects(db);
-      case 'project.get':
-        return this.getProject(params.id, db);
-      case 'project.update':
-        return this.updateProject(params.id, project || task, db);
-      case 'project.delete':
-        return this.deleteProject(params.id, db);
-      case 'project.critical_path':
-        return this.criticalPath(params.id, db);
-      case 'project.evm':
-        return this.evm(params.id, db);
-      case 'project.report':
-        return this.report(params.id, db);
-      case 'project.export':
-        return this.exportProject(params.id, db);
+      case 'project.create':        return this.createProject(project, db);
+      case 'project.list':          return this.listProjects(db);
+      case 'project.get':           return this.getProject(params.id, db);
+      case 'project.update':        return this.updateProject(params.id, project || task, db);
+      case 'project.delete':        return this.deleteProject(params.id, db);
+      case 'project.critical_path': return this.criticalPath(params.id, db);
+      case 'project.evm':           return this.evm(params.id, db);
+      case 'project.report':        return this.report(params.id, db);
+      case 'project.export':        return this.exportProject(params.id, db);
       default:
         throw new Error(`Unknown project action: ${action}`);
     }
@@ -38,7 +29,7 @@ class ProjectSkill {
     const record = {
       id,
       name: project.name,
-      bac: project.bac || 0, // Budget at Completion
+      bac: project.bac || 0,          // Budget at Completion
       tasks: (project.tasks || []).map((t, i) => ({
         id: t.id || `t${i + 1}`,
         title: t.title,
@@ -47,16 +38,16 @@ class ProjectSkill {
         actualCost: t.actualCost || 0,
         plannedValue: t.plannedValue || 0,
         earnedValue: t.earnedValue || 0,
-        status: t.status || 'open',
+        status: t.status || 'open'
       })),
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
     await db.set(`project:${id}`, record);
     return { success: true, id, project: record };
   }
 
   async listProjects(db) {
-    const projects = (await db.list('project:')) || [];
+    const projects = await db.list('project:') || [];
     return { success: true, count: projects.length, projects };
   }
 
@@ -90,7 +81,7 @@ class ProjectSkill {
       success: true,
       project: project.name,
       bac: project.bac,
-      export: { tasks: cpm.tasks, evm, criticalPath: cpm.criticalPath },
+      export: { tasks: cpm.tasks, evm, criticalPath: cpm.criticalPath }
     };
   }
 
@@ -102,17 +93,15 @@ class ProjectSkill {
   }
 
   _computeCPM(tasks) {
-    const map = Object.fromEntries(
-      tasks.map(t => [t.id, { ...t, ES: 0, EF: 0, LS: 0, LF: 0, float: 0 }])
-    );
+    const map = Object.fromEntries(tasks.map(t => [t.id, { ...t, ES: 0, EF: 0, LS: 0, LF: 0, float: 0 }]));
 
     // Forward pass — ES / EF
     const visited = new Set();
-    const forwardPass = id => {
+    const forwardPass = (id) => {
       if (visited.has(id)) return;
       visited.add(id);
       const t = map[id];
-      for (const dep of t.dependencies || []) {
+      for (const dep of (t.dependencies || [])) {
         forwardPass(dep);
         t.ES = Math.max(t.ES, map[dep].EF);
       }
@@ -124,10 +113,7 @@ class ProjectSkill {
     const projectEnd = Math.max(...tasks.map(t => map[t.id].EF));
 
     // Backward pass — LS / LF
-    tasks.forEach(t => {
-      map[t.id].LF = projectEnd;
-      map[t.id].LS = projectEnd - map[t.id].duration;
-    });
+    tasks.forEach(t => { map[t.id].LF = projectEnd; map[t.id].LS = projectEnd - map[t.id].duration; });
     const backOrder = [...tasks].reverse();
     for (const t of backOrder) {
       const successors = tasks.filter(s => (s.dependencies || []).includes(t.id));
@@ -151,18 +137,18 @@ class ProjectSkill {
 
   _computeEVM(tasks, bac) {
     const PV = tasks.reduce((s, t) => s + (t.plannedValue || 0), 0);
-    const EV = tasks.reduce((s, t) => s + (t.earnedValue || 0), 0);
-    const AC = tasks.reduce((s, t) => s + (t.actualCost || 0), 0);
+    const EV = tasks.reduce((s, t) => s + (t.earnedValue  || 0), 0);
+    const AC = tasks.reduce((s, t) => s + (t.actualCost   || 0), 0);
     const BAC = bac || PV;
 
-    const SPI = PV ? +(EV / PV).toFixed(3) : null;
-    const CPI = AC ? +(EV / AC).toFixed(3) : null;
-    const SV = +(EV - PV).toFixed(2);
-    const CV = +(EV - AC).toFixed(2);
-    const ETC = CPI ? +((BAC - EV) / CPI).toFixed(2) : null;
-    const EAC = ETC != null ? +(AC + ETC).toFixed(2) : null;
-    const VAC = EAC != null ? +(BAC - EAC).toFixed(2) : null;
-    const TCPI = BAC - AC ? +((BAC - EV) / (BAC - AC)).toFixed(3) : null;
+    const SPI  = PV  ? +(EV / PV).toFixed(3)  : null;
+    const CPI  = AC  ? +(EV / AC).toFixed(3)  : null;
+    const SV   = +(EV - PV).toFixed(2);
+    const CV   = +(EV - AC).toFixed(2);
+    const ETC  = CPI ? +((BAC - EV) / CPI).toFixed(2) : null;
+    const EAC  = ETC != null ? +(AC + ETC).toFixed(2) : null;
+    const VAC  = EAC != null ? +(BAC - EAC).toFixed(2) : null;
+    const TCPI = (BAC - AC) ? +((BAC - EV) / (BAC - AC)).toFixed(3) : null;
 
     return { PV, EV, AC, BAC, SPI, CPI, SV, CV, ETC, EAC, VAC, TCPI };
   }
@@ -173,9 +159,8 @@ class ProjectSkill {
     const cpm = this._computeCPM(project.tasks);
     const evm = this._computeEVM(project.tasks, project.bac);
 
-    const scheduleHealth =
-      evm.SPI >= 1 ? '✅ On/Ahead of Schedule' : `⚠️ Behind Schedule (SPI=${evm.SPI})`;
-    const costHealth = evm.CPI >= 1 ? '✅ Under Budget' : `⚠️ Over Budget (CPI=${evm.CPI})`;
+    const scheduleHealth = evm.SPI >= 1 ? '✅ On/Ahead of Schedule' : `⚠️ Behind Schedule (SPI=${evm.SPI})`;
+    const costHealth     = evm.CPI >= 1 ? '✅ Under Budget'          : `⚠️ Over Budget (CPI=${evm.CPI})`;
 
     return {
       success: true,
@@ -183,7 +168,7 @@ class ProjectSkill {
       cpm: { criticalPath: cpm.criticalPath, projectDuration: cpm.projectDuration },
       evm,
       health: { schedule: scheduleHealth, cost: costHealth },
-      tasks: cpm.tasks,
+      tasks: cpm.tasks
     };
   }
 

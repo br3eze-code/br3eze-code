@@ -1,4 +1,4 @@
-// src/core/gateway-engine.js
+// src/core/gateway-engine.js 
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
@@ -6,7 +6,6 @@ const cors = require('cors');
 const compression = require('compression');
 const EventEmitter = require('events');
 const path = require('path');
-const { DEFAULT_LOGIN_DOMAIN } = require('./config');
 
 const security = require('./security');
 const { logger } = require('./logger');
@@ -37,16 +36,14 @@ class Gateway extends EventEmitter {
       port: config.port || config.gateway?.port || 19876,
       host: config.host || config.gateway?.host || '127.0.0.1',
       token: resolvedToken,
-      ...config,
+      ...config
     };
 
     // Log token prefix so operators can verify it loaded
     if (resolvedToken) {
       logger.info(`Gateway token loaded: ${resolvedToken.substring(0, 8)}…`);
     } else {
-      logger.warn(
-        '⚠️  No gateway token set — API routes are unauthenticated. Set AGENTOS_GATEWAY_TOKEN.'
-      );
+      logger.warn('⚠️  No gateway token set — API routes are unauthenticated. Set AGENTOS_GATEWAY_TOKEN.');
     }
 
     this.app = express();
@@ -55,25 +52,26 @@ class Gateway extends EventEmitter {
     this.channelManager = new ChannelManager(this.ai);
 
     // Relay special events from ChannelManager to system
-    this.channelManager.on('qr', data => {
+    this.channelManager.on('qr', (data) => {
       logger.info(`Relaying QR code for ${data.channel}`);
       this.broadcast({ type: 'qr', payload: data }, 'websocket');
     });
 
-    this.channelManager.on('command', data => {
+    this.channelManager.on('command', (data) => {
       logger.info(`Received command ${data.command} from ${data.channel}`);
       if (data.command === 'initiate-whatsapp') {
         this._handleWhatsAppInitiation();
       }
     });
 
-    this.channelManager.on('status', data => {
+    this.channelManager.on('status', (data) => {
       logger.info(`Channel status update: ${data.channel} is now ${data.status}`);
       this.broadcast({ type: 'channel-status', payload: data }, 'websocket');
     });
 
     this._setupExpress();
   }
+
 
   async _handleWhatsAppInitiation() {
     try {
@@ -83,7 +81,7 @@ class Gateway extends EventEmitter {
       if (!this.channelManager.channels.has('whatsapp')) {
         await this.channelManager.register({
           type: 'whatsapp',
-          config: this.config.whatsapp || { enabled: true },
+          config: this.config.whatsapp || { enabled: true }
         });
       } else {
         // Force a re-init if possible or just log
@@ -122,7 +120,7 @@ class Gateway extends EventEmitter {
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        channels: Object.keys(this.channelManager.getStatus()),
+        channels: Object.keys(this.channelManager.getStatus())
       });
     });
 
@@ -153,10 +151,7 @@ class Gateway extends EventEmitter {
       }
 
       const db = global.database;
-      let uid = null,
-        role = 'user',
-        authSource = null,
-        userRecord = null;
+      let uid = null, role = 'user', authSource = null, userRecord = null;
 
       // ── 1. Try Firebase Auth ─────────────────────────────────────────────────
       try {
@@ -166,30 +161,18 @@ class Gateway extends EventEmitter {
           const apiKey = process.env.FIREBASE_API_KEY;
           if (apiKey) {
             const https = require('https');
-            const signInPayload = JSON.stringify({
-              email: username,
-              password,
-              returnSecureToken: true,
-            });
+            const signInPayload = JSON.stringify({ email: username, password, returnSecureToken: true });
             const fbResult = await new Promise((resolve, reject) => {
-              const req2 = https.request(
-                {
-                  hostname: 'identitytoolkit.googleapis.com',
-                  path: `/v1/accounts:signInWithPassword?key=${apiKey}`,
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(signInPayload),
-                  },
-                },
-                r => {
-                  let data = '';
-                  r.on('data', d => {
-                    data += d;
-                  });
-                  r.on('end', () => resolve({ status: r.statusCode, body: JSON.parse(data) }));
-                }
-              );
+              const req2 = https.request({
+                hostname: 'identitytoolkit.googleapis.com',
+                path: `/v1/accounts:signInWithPassword?key=${apiKey}`,
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(signInPayload) }
+              }, (r) => {
+                let data = '';
+                r.on('data', d => { data += d; });
+                r.on('end', () => resolve({ status: r.statusCode, body: JSON.parse(data) }));
+              });
               req2.on('error', reject);
               req2.write(signInPayload);
               req2.end();
@@ -220,13 +203,11 @@ class Gateway extends EventEmitter {
           const bcrypt = require('bcryptjs');
           let row = null;
           if (db.sqlite) {
-            row = db.sqlite
-              .prepare(
-                'SELECT uid, role, password_hash FROM users WHERE (username = ? OR email = ?) LIMIT 1'
-              )
-              .get(username, username);
+            row = db.sqlite.prepare(
+              'SELECT uid, role, password_hash FROM users WHERE (username = ? OR email = ?) LIMIT 1'
+            ).get(username, username);
           }
-          if (row && row.password_hash && (await bcrypt.compare(password, row.password_hash))) {
+          if (row && row.password_hash && await bcrypt.compare(password, row.password_hash)) {
             uid = row.uid;
             role = row.role || 'user';
             authSource = 'sqlite';
@@ -267,10 +248,7 @@ class Gateway extends EventEmitter {
       // ── 4. Update lastSeen in local store ────────────────────────────────────
       if (db && uid) {
         try {
-          await db.updateUser(uid, {
-            lastSeen: new Date().toISOString(),
-            lastLoginSource: authSource,
-          });
+          await db.updateUser(uid, { lastSeen: new Date().toISOString(), lastLoginSource: authSource });
         } catch (_) {}
       }
 
@@ -280,7 +258,7 @@ class Gateway extends EventEmitter {
         role,
         plan,
         source: authSource,
-        mikrotikProvisioned,
+        mikrotikProvisioned
       });
     });
 
@@ -293,11 +271,7 @@ class Gateway extends EventEmitter {
       if (!engine) return res.status(503).json({ error: 'AskEngine not initialized' });
 
       if (wantStream) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        });
+        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
         try {
           for await (const ev of engine.stream(prompt)) {
             res.write(`data: ${JSON.stringify(ev)}\n\n`);
@@ -321,23 +295,16 @@ class Gateway extends EventEmitter {
       try {
         const { roles } = require('../policies/roles.json');
         res.json({ roles });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/users/platform', async (req, res) => {
       try {
         const { getUserSandbox } = require('./userSandbox');
         const sandbox = getUserSandbox({ db: global.database });
-        const users = await sandbox.listUsers({
-          role: req.query.role,
-          limit: parseInt(req.query.limit) || 50,
-        });
+        const users = await sandbox.listUsers({ role: req.query.role, limit: parseInt(req.query.limit) || 50 });
         res.json({ users });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/users/platform/:uid/role', async (req, res) => {
@@ -347,9 +314,7 @@ class Gateway extends EventEmitter {
         const operatorId = req.user?.id || 'gateway';
         await sandbox.setRole(operatorId, req.params.uid, req.body.role);
         res.json({ ok: true });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     // ── ToolForge API ────────────────────────────────────────────────────────
@@ -357,21 +322,15 @@ class Gateway extends EventEmitter {
       try {
         const { getToolForge } = require('./toolForge');
         res.json({ tools: getToolForge().listActive() });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/forge/proposals', (req, res) => {
       try {
         const { getToolForge } = require('./toolForge');
         const forge = getToolForge();
-        res.json({
-          proposals: forge.listProposals(req.query.status ? { status: req.query.status } : {}),
-        });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+        res.json({ proposals: forge.listProposals(req.query.status ? { status: req.query.status } : {}) });
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/forge/propose', async (req, res) => {
@@ -380,9 +339,7 @@ class Gateway extends EventEmitter {
         const forge = getToolForge({ skillRegistry: this.ai?.skillRegistry });
         const propId = await forge.propose({ ...req.body, proposedBy: req.user?.id || 'api' });
         res.json({ ok: true, proposalId: propId });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/forge/proposals/:id/approve', (req, res) => {
@@ -390,22 +347,15 @@ class Gateway extends EventEmitter {
         const { getToolForge } = require('./toolForge');
         const result = getToolForge().approve(req.params.id, { by: req.user?.id || 'api' });
         res.json({ ok: true, proposal: result });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/forge/proposals/:id/reject', (req, res) => {
       try {
         const { getToolForge } = require('./toolForge');
-        const result = getToolForge().reject(req.params.id, {
-          by: req.user?.id || 'api',
-          reason: req.body?.reason,
-        });
+        const result = getToolForge().reject(req.params.id, { by: req.user?.id || 'api', reason: req.body?.reason });
         res.json({ ok: true, proposal: result });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.delete('/api/v1/forge/tools/:id', (req, res) => {
@@ -413,18 +363,14 @@ class Gateway extends EventEmitter {
         const { getToolForge } = require('./toolForge');
         getToolForge().revoke(req.params.id, { by: req.user?.id || 'api' });
         res.json({ ok: true });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/forge/receipts', (req, res) => {
       try {
         const { getToolForge } = require('./toolForge');
         res.json({ receipts: getToolForge().listReceipts(parseInt(req.query.limit) || 50) });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── A2A Protocol Routes ───────────────────────────────────────────────────
@@ -435,43 +381,37 @@ class Gateway extends EventEmitter {
     }
 
     // ── Email Webhook Capture ────────────────────────────────────────────────
-    this.app.post(
-      '/api/v1/webhooks/email',
-      express.urlencoded({ extended: true }),
-      async (req, res) => {
-        try {
-          const emailChannel = this.channelManager.channels.get('email');
-          if (!emailChannel) return res.status(503).json({ error: 'Email channel not active' });
+    this.app.post('/api/v1/webhooks/email', express.urlencoded({ extended: true }), async (req, res) => {
+      try {
+        const emailChannel = this.channelManager.channels.get('email');
+        if (!emailChannel) return res.status(503).json({ error: 'Email channel not active' });
+        
+        // Parse common webhook payloads (SendGrid Inbound Parse, Mailgun, etc.)
+        const payload = req.body;
+        const sender = payload.sender || payload.from || payload.envelope?.from;
+        const subject = payload.subject || '';
+        const text = payload.text || payload['body-plain'] || '';
 
-          // Parse common webhook payloads (SendGrid Inbound Parse, Mailgun, etc.)
-          const payload = req.body;
-          const sender = payload.sender || payload.from || payload.envelope?.from;
-          const subject = payload.subject || '';
-          const text = payload.text || payload['body-plain'] || '';
+        if (!sender) return res.status(400).json({ error: 'Sender address missing' });
 
-          if (!sender) return res.status(400).json({ error: 'Sender address missing' });
+        // Strip out Name <email@domain.com> to just email@domain.com if needed
+        const emailMatch = sender.match(/<(.+)>/);
+        const emailAddress = emailMatch ? emailMatch[1] : sender;
 
-          // Strip out Name <email@domain.com> to just email@domain.com if needed
-          const emailMatch = sender.match(/<(.+)>/);
-          const emailAddress = emailMatch ? emailMatch[1] : sender;
-
-          await emailChannel.adapter.handleIncomingEmail(emailAddress, subject, text, payload);
-          res.status(200).send('OK');
-        } catch (err) {
-          logger.error(`Email webhook error: ${err.message}`);
-          res.status(500).json({ error: err.message });
-        }
+        await emailChannel.adapter.handleIncomingEmail(emailAddress, subject, text, payload);
+        res.status(200).send('OK');
+      } catch (err) {
+        logger.error(`Email webhook error: ${err.message}`);
+        res.status(500).json({ error: err.message });
       }
-    );
+    });
 
     // ── Voucher routes ────────────────────────────────────────────────────────
     this.app.get('/api/v1/vouchers/stats', async (req, res) => {
       try {
         if (!global.database) return res.status(503).json({ error: 'Database not ready' });
         res.json(await global.database.getStats());
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/vouchers', async (req, res) => {
@@ -486,11 +426,9 @@ class Gateway extends EventEmitter {
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
 
         const mt = global.mikrotik;
-        const expiresAt =
-          planObj.durationValue && planObj.durationUnit
-            ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
-            : null;
-        const loginUrl = `http://${mt?.config?.host || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
+        const expiresAt = planObj.durationValue && planObj.durationUnit ?
+          dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
+        const loginUrl = `http://${mt?.config?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         const vData = {
           ...req.body,
@@ -501,52 +439,42 @@ class Gateway extends EventEmitter {
           deviceLimit: req.body.deviceLimit || planObj.deviceLimit || 1,
           expiresAt: req.body.expiresAt || expiresAt,
           loginUrl: req.body.loginUrl || loginUrl,
-          createdBy: req.body.createdBy || 'api',
+          createdBy: req.body.createdBy || 'api'
         };
 
         const voucher = await global.database.createVoucher(code, vData);
 
         if (mt && mt.state.isConnected) {
           try {
-            const _durationToMikrotik = p => {
+            const _durationToMikrotik = (p) => {
               if (!p || !p.durationValue || !p.durationUnit) return null;
               const v = p.durationValue;
               switch (p.durationUnit) {
-                case 'weeks':
-                  return `${v}w`;
-                case 'days':
-                  return `${v}d`;
-                case 'hours':
-                  return `${String(v).padStart(2, '0')}:00:00`;
-                case 'minutes':
-                  return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
-                default:
-                  return null;
+                case 'weeks': return `${v}w`;
+                case 'days': return `${v}d`;
+                case 'hours': return `${String(v).padStart(2, '0')}:00:00`;
+                case 'minutes': return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
+                default: return null;
               }
             };
             await mt.addHotspotUser({
-              username: code,
-              password: code,
-              profile: plan,
+              username: code, password: code, profile: plan,
               sharedUsers: vData.deviceLimit,
-              ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) }),
+              ...(vData.expiresAt && { limitUptime: _durationToMikrotik(vData) })
             });
           } catch (err) {
             logger.error('Failed to add voucher to Mikrotik:', err.message);
           }
         }
         res.json({ ok: true, voucher });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/vouchers/redeem', async (req, res) => {
       try {
         const { code, user } = req.body;
         if (!code || !user) return res.status(400).json({ error: 'code and user required' });
-        if (!global.mikrotik || !global.mikrotik.state?.isConnected)
-          return res.status(503).json({ error: 'Router unavailable' });
+        if (!global.mikrotik || !global.mikrotik.state?.isConnected) return res.status(503).json({ error: 'Router unavailable' });
 
         const voucher = await global.database.getVoucher(code);
         if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
@@ -555,9 +483,7 @@ class Gateway extends EventEmitter {
         await global.mikrotik.addHotspotUser(user, user, voucher.planId || voucher.plan);
         await global.database.redeemVoucher(code, { username: user, ip: req.ip });
         res.json({ ok: true, status: 'activated', plan: voucher.planId || voucher.plan });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/users/sync', async (req, res) => {
@@ -568,9 +494,7 @@ class Gateway extends EventEmitter {
           await global.mikrotik.addHotspotUser(user, user, planId);
         }
         res.json({ ok: true });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/vouchers/:code/qr', async (req, res) => {
@@ -579,13 +503,9 @@ class Gateway extends EventEmitter {
         const voucher = await global.database.getVoucher(req.params.code);
         if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
         const url = `${req.protocol}://${req.get('host')}/login.html?code=${req.params.code}`;
-        const qr = await QRCode.toDataURL(
-          JSON.stringify({ code: req.params.code, plan: voucher.plan, url })
-        );
+        const qr = await QRCode.toDataURL(JSON.stringify({ code: req.params.code, plan: voucher.plan, url }));
         res.json({ ok: true, qr, code: req.params.code, plan: voucher.plan });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── MikroTik tool execution ───────────────────────────────────────────────
@@ -594,9 +514,7 @@ class Gateway extends EventEmitter {
         if (!global.mikrotik) return res.status(503).json({ error: 'MikroTik not connected' });
         const result = await global.mikrotik.executeTool(req.params.tool, req.body);
         res.json({ ok: true, result });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/tools', (req, res) => {
@@ -606,60 +524,42 @@ class Gateway extends EventEmitter {
 
     // ── Scheduled tasks (cron / interval / once) ────────────────────────────────
     this.app.get('/api/v1/tasks', (req, res) => {
-      if (!global.taskScheduler)
-        return res.status(503).json({ error: 'TaskScheduler not running' });
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
       res.json({ tasks: global.taskScheduler.listTasks({ domain: req.query.domain }) });
     });
 
     this.app.post('/api/v1/tasks', (req, res) => {
-      if (!global.taskScheduler)
-        return res.status(503).json({ error: 'TaskScheduler not running' });
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
       try {
         const { domain, prompt, scheduleType, scheduleValue } = req.body || {};
         if (!prompt || !scheduleType || !scheduleValue) {
-          return res
-            .status(400)
-            .json({ error: 'prompt, scheduleType, and scheduleValue are required' });
+          return res.status(400).json({ error: 'prompt, scheduleType, and scheduleValue are required' });
         }
-        const task = global.taskScheduler.createTask({
-          domain,
-          prompt,
-          scheduleType,
-          scheduleValue,
-        });
+        const task = global.taskScheduler.createTask({ domain, prompt, scheduleType, scheduleValue });
         res.json({ ok: true, task });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/tasks/:id/run', async (req, res) => {
-      if (!global.taskScheduler)
-        return res.status(503).json({ error: 'TaskScheduler not running' });
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
       try {
         const task = global.taskScheduler.getTask(req.params.id);
         if (!task) return res.status(404).json({ error: 'Task not found' });
         const result = await global.taskScheduler.runTask(task);
         res.json({ ok: true, result });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/tasks/:id/enabled', (req, res) => {
-      if (!global.taskScheduler)
-        return res.status(503).json({ error: 'TaskScheduler not running' });
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
       try {
         const task = global.taskScheduler.setEnabled(req.params.id, !!req.body?.enabled);
         res.json({ ok: true, task });
-      } catch (e) {
-        res.status(400).json({ error: e.message });
-      }
+      } catch (e) { res.status(400).json({ error: e.message }); }
     });
 
     this.app.delete('/api/v1/tasks/:id', (req, res) => {
-      if (!global.taskScheduler)
-        return res.status(503).json({ error: 'TaskScheduler not running' });
+      if (!global.taskScheduler) return res.status(503).json({ error: 'TaskScheduler not running' });
       global.taskScheduler.deleteTask(req.params.id);
       res.json({ ok: true });
     });
@@ -667,12 +567,9 @@ class Gateway extends EventEmitter {
     // ── Financial trends ──────────────────────────────────────────────────────
     this.app.get('/api/v1/trends', async (req, res) => {
       try {
-        if (!global.financial)
-          return res.status(503).json({ error: 'Financial service not ready' });
+        if (!global.financial) return res.status(503).json({ error: 'Financial service not ready' });
         res.json(await global.financial.getTrends());
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── Mesh nodes ───────────────────────────────────────────────────────────
@@ -688,49 +585,36 @@ class Gateway extends EventEmitter {
         const node = global.nodeRegistry.add(name, ip, user, pass, port);
         await node.connect();
         res.json({ ok: true, name, status: 'connected' });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── Memory & Sessions ────────────────────────────────────────────────────
     this.app.get('/api/v1/sessions/:id', async (req, res) => {
       try {
-        if (!global.memoryManager)
-          return res.status(503).json({ error: 'Memory service not ready' });
+        if (!global.memoryManager) return res.status(503).json({ error: 'Memory service not ready' });
         const session = await global.memoryManager.getSession(req.params.id);
         if (!session) return res.status(404).json({ error: 'Session not found' });
         res.json(session);
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/users/:id/memory', async (req, res) => {
       try {
-        if (!global.memoryManager)
-          return res.status(503).json({ error: 'Memory service not ready' });
-        const history =
-          (await global.memoryManager.adapter.get(`user:${req.params.id}:history`)) || [];
+        if (!global.memoryManager) return res.status(503).json({ error: 'Memory service not ready' });
+        const history = await global.memoryManager.adapter.get(`user:${req.params.id}:history`) || [];
         const context = await global.memoryManager.getUserContext(req.params.id);
         res.json({ history, context });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.post('/api/v1/users/:id/permissions', async (req, res) => {
       try {
-        if (!global.memoryManager)
-          return res.status(503).json({ error: 'Memory service not ready' });
+        if (!global.memoryManager) return res.status(503).json({ error: 'Memory service not ready' });
         const { permissions } = req.body;
-        if (!Array.isArray(permissions))
-          return res.status(400).json({ error: 'permissions must be an array' });
+        if (!Array.isArray(permissions)) return res.status(400).json({ error: 'permissions must be an array' });
         await global.memoryManager.setPermissions(req.params.id, permissions);
         res.json({ ok: true, permissions });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── Additional Voucher / Payment ──────────────────────────────────────────
@@ -743,21 +627,19 @@ class Gateway extends EventEmitter {
         const dateUtils = require('../utils/date');
 
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
-        const expiresAt =
-          planObj.durationValue && planObj.durationUnit
-            ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
-            : null;
+        const expiresAt = planObj.durationValue && planObj.durationUnit ?
+          dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
         // This would integrate with UniversalBilling/Payment providers
         const crypto = require('crypto');
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
-        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || DEFAULT_LOGIN_DOMAIN}/login?username=${code}&password=${code}`;
+        const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'br3eze.africa'}/login?username=${code}&password=${code}`;
 
         if (global.database) {
           await global.database.createVoucher(code, {
             planId: plan,
-            planName: planObj.name || plan,
+            planName: planObj.name || planId,
             durationUnit: planObj.durationUnit || null,
             durationValue: planObj.durationValue || null,
             deviceLimit: planObj.deviceLimit || 1,
@@ -766,43 +648,32 @@ class Gateway extends EventEmitter {
             amount,
             method,
             status: 'paid',
-            createdBy: 'api-pay',
+            createdBy: 'api-pay'
           });
 
           // Auto provision on payment
           if (global.mikrotik && global.mikrotik.state?.isConnected) {
-            const _durationToMikrotik = p => {
+            const _durationToMikrotik = (p) => {
               if (!p || !p.durationValue || !p.durationUnit) return null;
               const v = p.durationValue;
               switch (p.durationUnit) {
-                case 'weeks':
-                  return `${v}w`;
-                case 'days':
-                  return `${v}d`;
-                case 'hours':
-                  return `${String(v).padStart(2, '0')}:00:00`;
-                case 'minutes':
-                  return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
-                default:
-                  return null;
+                case 'weeks': return `${v}w`;
+                case 'days': return `${v}d`;
+                case 'hours': return `${String(v).padStart(2, '0')}:00:00`;
+                case 'minutes': return `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}:00`;
+                default: return null;
               }
             };
-            await global.mikrotik
-              .addHotspotUser({
-                username: code,
-                password: code,
-                profile: plan,
-                sharedUsers: planObj.deviceLimit || 1,
-                ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) }),
-              })
-              .catch(() => {});
+            await global.mikrotik.addHotspotUser({
+              username: code, password: code, profile: plan,
+              sharedUsers: planObj.deviceLimit || 1,
+              ...(expiresAt && { limitUptime: _durationToMikrotik(planObj) })
+            }).catch(() => { });
           }
         }
 
         res.json({ ok: true, code, status: 'paid' });
-      } catch (e) {
-        res.status(500).json({ error: e.message });
-      }
+      } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     // ── Mobile bridge ────────────────────────────────────────────────────────
@@ -824,9 +695,7 @@ class Gateway extends EventEmitter {
 
     // Resource monitoring log
     const { rss, heapUsed } = process.memoryUsage();
-    logger.debug(
-      `Initial memory usage: RSS=${Math.round(rss / 1024 / 1024)}MB, Heap=${Math.round(heapUsed / 1024 / 1024)}MB`
-    );
+    logger.debug(`Initial memory usage: RSS=${Math.round(rss / 1024 / 1024)}MB, Heap=${Math.round(heapUsed / 1024 / 1024)}MB`);
 
     // Initialize A2A Protocol if available
     if (a2aPlugin) {
@@ -834,7 +703,7 @@ class Gateway extends EventEmitter {
         a2aPlugin.onBootstrap({
           logger,
           metrics,
-          eventBus: this,
+          eventBus: this
         });
 
         // Register the gateway itself as an A2A participant
@@ -842,14 +711,14 @@ class Gateway extends EventEmitter {
         const gatewayContext = {
           id: 'gateway',
           capabilities: ['system', 'mikrotik', 'billing'],
-          send: async msg => {
+          send: async (msg) => {
             logger.info(`Gateway received A2A message: ${JSON.stringify(msg)}`);
             this.emit('a2a.message', msg);
             return { delivered: true };
-          },
+          }
         };
 
-        // A2APlugin stores adapters in a Map. We can manually add it
+        // A2APlugin stores adapters in a Map. We can manually add it 
         // or trigger onAgentInit if we had a proper agent object.
         // For the gateway, we'll expose it as a virtual agent.
         if (a2aPlugin.adapters) {
@@ -873,8 +742,8 @@ class Gateway extends EventEmitter {
       config: {
         server: this.server,
         path: '/ws',
-        token: this.config.token,
-      },
+        token: this.config.token
+      }
     });
 
     // 2. WhatsApp Channel
@@ -882,7 +751,7 @@ class Gateway extends EventEmitter {
       logger.debug('Registering WhatsApp channel...');
       await this.channelManager.register({
         type: 'whatsapp',
-        config: this.config.whatsapp,
+        config: this.config.whatsapp
       });
     }
 
@@ -891,7 +760,7 @@ class Gateway extends EventEmitter {
       logger.debug('Registering Telegram channel...');
       await this.channelManager.register({
         type: 'telegram',
-        config: this.config.telegram,
+        config: this.config.telegram
       });
     }
 
@@ -900,7 +769,7 @@ class Gateway extends EventEmitter {
       logger.debug('Registering Slack channel...');
       await this.channelManager.register({
         type: 'slack',
-        config: this.config.slack,
+        config: this.config.slack
       });
     }
 
@@ -909,7 +778,7 @@ class Gateway extends EventEmitter {
       logger.debug('Registering Discord channel...');
       await this.channelManager.register({
         type: 'discord',
-        config: this.config.discord,
+        config: this.config.discord
       });
     }
 
@@ -919,7 +788,7 @@ class Gateway extends EventEmitter {
       // The http.Server emits 'error' (not a callback argument) on EADDRINUSE.
       // We must listen for it BEFORE calling .listen(), otherwise the rejection
       // is unhandled and crashes the process before our catch block can act.
-      const onError = err => {
+      const onError = (err) => {
         this.server.removeListener('error', onError);
         logger.error(`Gateway bind failed on port ${this.config.port}: ${err.message}`);
         reject(err);
@@ -953,7 +822,7 @@ class Gateway extends EventEmitter {
 
     if (this.server) {
       logger.debug('Closing HTTP/WebSocket server...');
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         // Force-close all keep-alive connections so the port is freed
         // immediately and the next PM2 restart doesn't hit EADDRINUSE.
         if (typeof this.server.closeAllConnections === 'function') {
@@ -970,7 +839,7 @@ class Gateway extends EventEmitter {
         }, 5000);
         forceKill.unref(); // don't block process exit
 
-        this.server.close(err => {
+        this.server.close((err) => {
           clearTimeout(forceKill);
           if (err) logger.warn(`Gateway stop: ${err.message}`);
           resolve();
@@ -983,7 +852,7 @@ class Gateway extends EventEmitter {
   }
 
   broadcast(message, channel = null) {
-    this.channelManager.broadcast(message, type => !channel || type === channel);
+    this.channelManager.broadcast(message, (type) => !channel || type === channel);
   }
 }
 

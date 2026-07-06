@@ -37,16 +37,10 @@ const Vouchers = (() => {
       return;
     }
 
-    list.innerHTML = items
-      .map(v => {
-        const status = v.status || (v.used ? 'used' : 'active');
-        const badgeClass =
-          status === 'used'
-            ? 'badge-used'
-            : status === 'expired'
-              ? 'badge-expired'
-              : 'badge-active';
-        return `
+    list.innerHTML = items.map(v => {
+      const status = v.status || (v.used ? 'used' : 'active');
+      const badgeClass = status === 'used' ? 'badge-used' : status === 'expired' ? 'badge-expired' : 'badge-active';
+      return `
         <div class="voucher-card" onclick="Vouchers.showDetail('${_esc(v.code)}')">
           <div>
             <div class="voucher-code">${_esc(v.code)}</div>
@@ -56,8 +50,7 @@ const Vouchers = (() => {
           <div class="voucher-plan">${_esc(v.planName || v.plan || '—')}</div>
           <div></div>
         </div>`;
-      })
-      .join('');
+    }).join('');
   }
 
   function filter(f, btn) {
@@ -77,13 +70,11 @@ const Vouchers = (() => {
     try {
       const res = await Client.v1.getVoucher(code);
       v = res.data || v;
-    } catch (_) {}
+    } catch(_) {}
     if (!v) return UI.toast('Voucher not found', 'err');
 
     const status = v.status || (v.used ? 'used' : 'active');
-    UI.openModal(
-      'Voucher Detail',
-      `
+    UI.openModal('Voucher Detail', `
       <div class="vchr-detail-code">${_esc(v.code)}</div>
       <div class="vchr-detail-rows">
         <div class="vchr-row"><span class="lbl">PLAN</span><span class="val">${_esc(v.planName || v.plan || '—')}</span></div>
@@ -95,21 +86,15 @@ const Vouchers = (() => {
       </div>
       <button class="share-btn" onclick="Vouchers.share('${_esc(v.code)}')">↗ SHARE LOGIN LINK</button>
       <button class="share-btn" onclick="Vouchers.copyCode('${_esc(v.code)}')">⧉ COPY CODE</button>
-    `
-    );
+    `);
   }
 
   async function share(code) {
     const v = _all.find(x => x.code === code);
     const url = v?.loginUrl || `${Client.getBase()}/login.html?code=${code}`;
     if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'AgentOS Voucher',
-          text: `Your WiFi voucher: ${code}`,
-          url,
-        });
-      } catch (_) {}
+      try { await navigator.share({ title: 'AgentOS Voucher', text: `Your WiFi voucher: ${code}`, url }); }
+      catch(_) {}
     } else {
       copyCode(code);
     }
@@ -125,20 +110,14 @@ const Vouchers = (() => {
   // ── Create flow ────────────────────────────────────────────────
   function openCreate() {
     const plans = Object.entries(CFG.PLANS);
-    UI.openModal(
-      'New Voucher',
-      `
+    UI.openModal('New Voucher', `
       <div class="plan-grid" id="plan-grid">
-        ${plans
-          .map(
-            ([id, p]) => `
+        ${plans.map(([id, p]) => `
           <div class="plan-card ${id === _selectedPlan ? 'selected' : ''}" data-plan="${id}" onclick="Vouchers.selectPlan('${id}')">
             <div class="plan-name">${_esc(p.name)}</div>
             <div class="plan-price">$${p.price.toFixed(2)}</div>
             <div class="plan-dur">${_esc(p.dur)}</div>
-          </div>`
-          )
-          .join('')}
+          </div>`).join('')}
       </div>
       <div class="qty-row">
         <label>QUANTITY</label>
@@ -148,22 +127,16 @@ const Vouchers = (() => {
         <button class="modal-btn-cancel" onclick="UI.closeModal()">CANCEL</button>
         <button class="modal-btn-ok" onclick="Vouchers.submitCreate()">GENERATE</button>
       </div>
-    `
-    );
+    `);
   }
 
   function selectPlan(id) {
     _selectedPlan = id;
-    document
-      .querySelectorAll('.plan-card')
-      .forEach(c => c.classList.toggle('selected', c.dataset.plan === id));
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.toggle('selected', c.dataset.plan === id));
   }
 
   async function submitCreate() {
-    const qty = Math.max(
-      1,
-      Math.min(100, parseInt(document.getElementById('vchr-qty').value) || 1)
-    );
+    const qty = Math.max(1, Math.min(100, parseInt(document.getElementById('vchr-qty').value) || 1));
     UI.closeModal();
     UI.toast(`Generating ${qty} voucher(s)…`, 'inf');
     try {
@@ -184,23 +157,8 @@ const Vouchers = (() => {
   }
 
   function _esc(s) {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  return {
-    load,
-    render,
-    filter,
-    search,
-    showDetail,
-    share,
-    copyCode,
-    openCreate,
-    selectPlan,
-    submitCreate,
-  };
+  return { load, render, filter, search, showDetail, share, copyCode, openCreate, selectPlan, submitCreate };
 })();

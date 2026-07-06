@@ -42,13 +42,7 @@ jobs:
           echo "📦 Canary: $CANARY"
 
       - name: Publish → GitHub Packages
-        run: |
-          CANARY_VERSION="${{ steps.ver.outputs.canary }}"
-          if npm view "@br3eze-code/br3eze-code@${CANARY_VERSION}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
-            echo "ℹ️  @br3eze-code/br3eze-code@${CANARY_VERSION} is already published — skipping (idempotent, not a failure)."
-          else
-            npm publish --tag canary --access public
-          fi
+        run: npm publish --tag canary --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,5 +65,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Install with:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install @br3eze-code/br3eze-code@canary" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @br3eze-code@canary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

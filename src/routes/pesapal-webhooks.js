@@ -9,14 +9,15 @@ const router = express.Router();
  * @param {PesaPalIntegration} pesapalIntegration - PesaPal integration instance
  */
 function setupPesaPalRoutes(pesapalIntegration) {
+  
   // IPN Endpoint - PesaPal sends POST notifications here
   router.post('/ipn', express.urlencoded({ extended: true }), express.json(), async (req, res) => {
     console.log('[PesaPal IPN] Received:', req.body);
-
+    
     try {
       // Verify the webhook
       const isValid = await pesapalIntegration.provider.verifyWebhook(req.body, req.headers);
-
+      
       if (!isValid) {
         console.error('[PesaPal IPN] Invalid verification');
         return res.status(400).send('Invalid');
@@ -36,6 +37,7 @@ function setupPesaPalRoutes(pesapalIntegration) {
 
       // IMPORTANT: Must respond with "OK" for PesaPal to stop retrying
       res.status(200).send('OK');
+      
     } catch (error) {
       console.error('[PesaPal IPN] Error:', error);
       // Still return 200 to prevent PesaPal from retrying

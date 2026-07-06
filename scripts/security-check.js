@@ -4,7 +4,7 @@
 /**
  * scripts/security-check.js
  * Security validation for CI/CD pipeline
- *
+ * 
  * Checks:
  * - No hardcoded secrets/credentials
  * - No dangerous dependencies
@@ -17,10 +17,7 @@ const { execSync } = require('node:child_process');
 
 const log = (...a) => console.log(...a);
 const warn = (...a) => console.warn('⚠️ ', ...a);
-const err = (...a) => {
-  console.error('❌', ...a);
-  process.exit(1);
-};
+const err = (...a) => { console.error('❌', ...a); process.exit(1); };
 
 let issues = 0;
 
@@ -34,17 +31,20 @@ const secretPatterns = [
   { name: 'Firebase Key', rx: /"type"\s*:\s*"service_account"/ },
 ];
 
-const filesToCheck = ['package.json', 'src/**/*.js', 'bin/**/*.js', 'scripts/**/*.js', '.env'];
+const filesToCheck = [
+  'package.json',
+  'src/**/*.js',
+  'bin/**/*.js',
+  'scripts/**/*.js',
+  '.env',
+];
 
 try {
   for (const pattern of secretPatterns) {
-    const result = execSync(
-      `grep -r "${pattern.rx.source}" ${filesToCheck.join(' ')} 2>/dev/null || true`,
-      {
-        encoding: 'utf8',
-      }
-    ).trim();
-
+    const result = execSync(`grep -r "${pattern.rx.source}" ${filesToCheck.join(' ')} 2>/dev/null || true`, {
+      encoding: 'utf8',
+    }).trim();
+    
     if (result) {
       warn(`Found pattern: ${pattern.name}`);
       issues++;
@@ -63,7 +63,7 @@ log('\n📦 Checking dependencies...');
 
 const dangerousPkgs = new Set([
   'eval',
-  'vm2', // deprecated
+  'vm2',  // deprecated
   'serialize-javascript', // has vulnerabilities
 ]);
 
@@ -81,7 +81,7 @@ try {
       issues++;
     }
   }
-
+  
   log('✓ Dependency check passed');
 } catch (e) {
   warn(`Could not read package.json: ${e.message}`);
@@ -98,7 +98,7 @@ try {
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────
-log(`\n${'─'.repeat(50)}`);
+log('\n' + '─'.repeat(50));
 if (issues === 0) {
   log('✅ Security check passed with 0 issues');
   process.exit(0);

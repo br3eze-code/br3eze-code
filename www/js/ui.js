@@ -5,6 +5,7 @@
 'use strict';
 
 const UI = (() => {
+
   function openModal(title, bodyHtml) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = bodyHtml;
@@ -30,31 +31,20 @@ const UI = (() => {
   }
 
   function confirm(message, onYes) {
-    openModal(
-      'Confirm',
-      `
+    openModal('Confirm', `
       <p style="font-size:13px;color:var(--text);margin-bottom:16px;">${message}</p>
       <div class="modal-actions">
         <button class="modal-btn-cancel" onclick="UI.closeModal()">CANCEL</button>
         <button class="modal-btn-ok" id="confirm-yes">CONFIRM</button>
       </div>
-    `
-    );
-    document.getElementById('confirm-yes').onclick = () => {
-      closeModal();
-      onYes();
-    };
+    `);
+    document.getElementById('confirm-yes').onclick = () => { closeModal(); onYes(); };
   }
 
   function toggleEye(inputId, btn) {
     const inp = document.getElementById(inputId);
-    if (inp.type === 'password') {
-      inp.type = 'text';
-      btn.textContent = '🙈';
-    } else {
-      inp.type = 'password';
-      btn.textContent = '👁';
-    }
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+    else { inp.type = 'password'; btn.textContent = '👁'; }
   }
 
   return { openModal, closeModal, toast, confirm, toggleEye };

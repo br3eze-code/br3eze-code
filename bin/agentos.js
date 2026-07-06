@@ -5,3 +5,4 @@
  * Points to the consolidated main entry point.
  */
 require('../main.js');
+

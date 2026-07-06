@@ -25,7 +25,7 @@ class PaymentService {
       paymentMethod,
       customerPhone,
       customerEmail,
-      metadata = {},
+      metadata = {}
     } = params;
 
     // Generate unique reference
@@ -42,8 +42,8 @@ class PaymentService {
       metadata: {
         userId,
         voucherType,
-        ...metadata,
-      },
+        ...metadata
+      }
     });
 
     // Store transaction in database
@@ -58,13 +58,13 @@ class PaymentService {
         reference,
         transactionId: paymentResult.transactionId,
         createdAt: new Date(),
-        metadata: paymentResult,
+        metadata: paymentResult
       });
     }
 
     return {
       ...paymentResult,
-      reference,
+      reference
     };
   }
 
@@ -77,7 +77,7 @@ class PaymentService {
   async processSuccessfulPayment(transactionId, provider) {
     // Get transaction details
     const transaction = await this.gateway.verifyPayment(provider, transactionId);
-
+    
     if (!transaction.success) {
       throw new Error('Payment not completed');
     }
@@ -87,7 +87,7 @@ class PaymentService {
       await this.db.collection('transactions').doc(transactionId).update({
         status: 'completed',
         completedAt: new Date(),
-        paymentDetails: transaction,
+        paymentDetails: transaction
       });
     }
 
@@ -101,27 +101,24 @@ class PaymentService {
       transactionId,
       createdAt: new Date(),
       expiresAt: this.calculateExpiry(transaction.metadata?.voucherType),
-      used: false,
+      used: false
     };
 
     // Store voucher
     if (this.db) {
       await this.db.collection('vouchers').doc(voucherCode).set(voucher);
-
+      
       // Update user wallet
       if (transaction.metadata?.userId) {
-        await this.db
-          .collection('users')
-          .doc(transaction.metadata.userId)
-          .collection('vouchers')
-          .add(voucher);
+        await this.db.collection('users').doc(transaction.metadata.userId)
+          .collection('vouchers').add(voucher);
       }
     }
 
     return {
       success: true,
       voucher,
-      transaction,
+      transaction
     };
   }
 
@@ -151,7 +148,7 @@ class PaymentService {
         refundAmount: amount,
         refundReason: reason,
         refundId: result.refundId,
-        refundedAt: new Date(),
+        refundedAt: new Date()
       });
     }
 
@@ -168,9 +165,8 @@ class PaymentService {
     if (!this.db) return [];
 
     const { limit = 50, offset = 0 } = options;
-
-    const snapshot = await this.db
-      .collection('transactions')
+    
+    const snapshot = await this.db.collection('transactions')
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .limit(limit)
@@ -179,7 +175,7 @@ class PaymentService {
 
     return snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data(),
+      ...doc.data()
     }));
   }
 
@@ -208,9 +204,9 @@ class PaymentService {
       '1Hour': 1,
       '1Day': 24,
       '1Week': 24 * 7,
-      '1Month': 24 * 30,
+      '1Month': 24 * 30
     };
-
+    
     const hours = multipliers[type] || 24;
     return new Date(now.getTime() + hours * 60 * 60 * 1000);
   }

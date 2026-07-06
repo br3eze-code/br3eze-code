@@ -19,10 +19,10 @@ const { logger } = require('../core/logger');
 
 class BaseDomain {
   constructor() {
-    this.name = 'base';
-    this.description = '';
+    this.name         = 'base';
+    this.description  = '';
     this.capabilities = [];
-    this.tools = [];
+    this.tools        = [];
   }
 
   /**
@@ -54,9 +54,9 @@ class BaseDomain {
     for (const tool of this.tools) {
       out[`${this.name}.${tool.name}`] = {
         description: tool.description || tool.name,
-        parameters: tool.parameters || {},
-        risk: tool.risk || 'low',
-        execute: (ctx, params) => (Array.isArray(params) ? tool.execute(...params) : tool.execute(params)),
+        parameters:  tool.parameters  || {},
+        risk:        tool.risk        || 'low',
+        execute:     (ctx, params) => tool.execute(params, ctx),
       };
     }
     return out;
@@ -68,9 +68,9 @@ class BaseDomain {
    */
   async execute(ctx = {}) {
     const { tool, params } = ctx;
-    const skill = this.tools.find(t => t.name === tool || `${this.name}.${t.name}` === tool);
+    const skill = this.tools.find((t) => t.name === tool || t.name === `${this.name}.${tool}`);
     if (!skill) throw new Error(`Domain "${this.name}": tool not found — "${tool}"`);
-    return Array.isArray(params) ? skill.execute(...params) : skill.execute(params);
+    return skill.execute(params, ctx);
   }
 
   /**
@@ -80,7 +80,7 @@ class BaseDomain {
   getCapabilities() {
     if (this.capabilities && this.capabilities.length) return this.capabilities;
     // Fall back to tool names if capabilities list is empty
-    return this.tools.map(t => t.name);
+    return this.tools.map((t) => t.name);
   }
 
   /**
@@ -88,8 +88,7 @@ class BaseDomain {
    * @param {string|object} intent
    * @returns {null|object}
    */
-  async plan(intent) {
-    // eslint-disable-line no-unused-vars
+  async plan(intent) { // eslint-disable-line no-unused-vars
     return null;
   }
 }

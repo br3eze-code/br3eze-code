@@ -65,10 +65,7 @@ function computeInitialNextRun(scheduleType, scheduleValue, now = new Date()) {
   }
   if (scheduleType === 'cron') {
     validateCron(scheduleValue);
-    const expression = CronExpressionParser.parse(scheduleValue, {
-      currentDate: now,
-      tz: TIMEZONE,
-    });
+    const expression = CronExpressionParser.parse(scheduleValue, { currentDate: now, tz: TIMEZONE });
     return expression.next().toISOString();
   }
   const intervalMs = validateInterval(scheduleValue);
@@ -80,10 +77,7 @@ function computeNextRun(task, now = new Date()) {
 
   if (task.schedule_type === 'cron') {
     validateCron(task.schedule_value);
-    const expression = CronExpressionParser.parse(task.schedule_value, {
-      currentDate: now,
-      tz: TIMEZONE,
-    });
+    const expression = CronExpressionParser.parse(task.schedule_value, { currentDate: now, tz: TIMEZONE });
     return expression.next().toISOString();
   }
 
@@ -120,9 +114,7 @@ class TaskScheduler extends EventEmitter {
     const hasKernel = opts.kernel && typeof opts.kernel.dispatch === 'function';
     const hasEngine = opts.engine && typeof opts.engine.run === 'function';
     if (!hasKernel && !hasEngine) {
-      throw new Error(
-        'TaskScheduler requires either { kernel } with dispatch(agentConfig, context) or { engine } with run(prompt)'
-      );
+      throw new Error('TaskScheduler requires either { kernel } with dispatch(agentConfig, context) or { engine } with run(prompt)');
     }
     this._kernel = opts.kernel || null;
     this._engine = opts.engine || null;
@@ -193,15 +185,11 @@ class TaskScheduler extends EventEmitter {
     };
     this._mem.set(id, task);
     if (this._db) {
-      this._db
-        .prepare(
-          `
+      this._db.prepare(`
         INSERT INTO scheduled_tasks
           (id, domain, prompt, schedule_type, schedule_value, next_run, enabled, createdAt, updatedAt)
         VALUES (@id, @domain, @prompt, @schedule_type, @schedule_value, @next_run, @enabled, @createdAt, @updatedAt)
-      `
-        )
-        .run(task);
+      `).run(task);
     }
     this.emit('task:created', task);
     return task;
@@ -244,37 +232,21 @@ class TaskScheduler extends EventEmitter {
   _persist(task) {
     this._mem.set(task.id, task);
     if (this._db) {
-      this._db
-        .prepare(
-          `
+      this._db.prepare(`
         UPDATE scheduled_tasks SET
           next_run=@next_run, last_run=@last_run, last_status=@last_status,
           last_summary=@last_summary, enabled=@enabled, updatedAt=@updatedAt
         WHERE id=@id
-      `
-        )
-        .run(task);
+      `).run(task);
     }
   }
 
   _logRun({ task_id, run_at, duration_ms, status, result, error }) {
     if (!this._db) return;
-    this._db
-      .prepare(
-        `
+    this._db.prepare(`
       INSERT INTO task_runs (id, task_id, run_at, duration_ms, status, result, error)
       VALUES (?,?,?,?,?,?,?)
-    `
-      )
-      .run(
-        `run-${crypto.randomUUID().slice(0, 8)}`,
-        task_id,
-        run_at,
-        duration_ms,
-        status,
-        result,
-        error
-      );
+    `).run(`run-${crypto.randomUUID().slice(0, 8)}`, task_id, run_at, duration_ms, status, result, error);
   }
 
   // ── execution ─────────────────────────────────────────────────────────
@@ -310,10 +282,9 @@ class TaskScheduler extends EventEmitter {
     }
 
     const nextRun = computeNextRun(task, new Date());
-    const summary =
-      status === 'error'
-        ? `Error: ${error || 'Unknown error'}`
-        : (resultText || 'Completed').toString().slice(0, 200);
+    const summary = status === 'error'
+      ? `Error: ${error || 'Unknown error'}`
+      : (resultText || 'Completed').toString().slice(0, 200);
 
     task.next_run = nextRun;
     task.last_run = new Date().toISOString();
@@ -323,31 +294,15 @@ class TaskScheduler extends EventEmitter {
     this._persist(task);
 
     const durationMs = Date.now() - startedAt;
-    this._logRun({
-      task_id: task.id,
-      run_at: task.last_run,
-      duration_ms: durationMs,
-      status,
-      result: resultText,
-      error: error || null,
-    });
+    this._logRun({ task_id: task.id, run_at: task.last_run, duration_ms: durationMs, status, result: resultText, error: error || null });
 
     this.emit('task:ran', { task_id: task.id, status, durationMs, nextRun });
-    return {
-      status,
-      task_id: task.id,
-      result: resultText,
-      duration_ms: durationMs,
-      next_run: nextRun,
-      error,
-    };
+    return { status, task_id: task.id, result: resultText, duration_ms: durationMs, next_run: nextRun, error };
   }
 
   /** Runs every due, enabled task once. */
   async runDueTasks(now = new Date()) {
-    const due = this.listTasks().filter(
-      t => t.enabled && t.next_run && new Date(t.next_run) <= now
-    );
+    const due = this.listTasks().filter(t => t.enabled && t.next_run && new Date(t.next_run) <= now);
     const results = [];
     for (const task of due) {
       results.push(await this.runTask(task));

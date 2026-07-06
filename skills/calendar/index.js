@@ -1,8 +1,9 @@
+
 // skills/calendar/index.js
-const {
-  LocalCalendarAdapter,
-  GoogleCalendarAdapter,
-  OutlookCalendarAdapter,
+const { 
+  LocalCalendarAdapter, 
+  GoogleCalendarAdapter, 
+  OutlookCalendarAdapter 
 } = require('./adapters');
 
 class CalendarSkill {
@@ -13,9 +14,9 @@ class CalendarSkill {
       params = toolName;
     }
     const { action, provider = 'local', event } = params || {};
-
+    
     const adapter = this.getAdapter(provider, context);
-
+    
     switch (action) {
       case 'create':
         return adapter.createEvent(event);

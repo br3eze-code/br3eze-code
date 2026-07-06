@@ -17,7 +17,7 @@ const HandlerLibrary = {
     const db = await getDatabase();
     const stats = await db.getStats();
     const uptime = Math.floor(process.uptime());
-
+    
     // CPU & RAM
     const load = os.loadavg()[0];
     const cpuUsage = Math.round(load * 100) / 100;
@@ -26,7 +26,7 @@ const HandlerLibrary = {
     const memUsage = Math.round(((totalMem - freeMem) / totalMem) * 100);
 
     const statusEmoji = cpuUsage > 2.0 || memUsage > 90 ? '🟡' : '🟢';
-
+    
     let text = `📊 *${global.AGENTOS.BRAND.name} Dashboard*\n`;
     text += `• *Status:* ${statusEmoji} Optimal\n`;
     text += `• *Uptime:* ${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m\n`;
@@ -34,7 +34,7 @@ const HandlerLibrary = {
     text += `• *Active Users:* ${stats.activeUsers || 0}\n`;
     text += `• *CPU Load:* ${cpuUsage}\n`;
     text += `• *RAM Usage:* ${memUsage}%\n`;
-
+    
     await channel.send(jid, text);
   },
 
@@ -44,7 +44,7 @@ const HandlerLibrary = {
   async handleStats(channel, jid) {
     const mt = global.mikrotik;
     let text = `🌡️ *Hardware Telemetry*\n`;
-
+    
     if (mt && mt.state.isConnected) {
       try {
         const res = await mt.getSystemResources();
@@ -61,12 +61,12 @@ const HandlerLibrary = {
     } else {
       text += `• _Router disconnected_\n`;
     }
-
+    
     text += `\n🤖 *Software Stats*\n`;
     text += `• *Node:* ${process.version}\n`;
     text += `• *PID:* ${process.pid}\n`;
     text += `• *Platform:* ${process.platform}`;
-
+    
     await channel.send(jid, text);
   },
 
@@ -80,7 +80,7 @@ const HandlerLibrary = {
     try {
       const interfaces = await mt.getInterfaces();
       const dhcp = await mt.getDhcpLeases();
-
+      
       let text = `🌐 *Network Status*\n\n`;
       text += `*Interfaces:*\n`;
       interfaces.forEach(i => {
@@ -114,7 +114,7 @@ const HandlerLibrary = {
         text += `• *${u.user}* - ${u.address} (${u.uptime})\n`;
       });
       if (active.length > 15) text += `• _...and ${active.length - 15} more_\n`;
-
+      
       await channel.send(jid, text);
     } catch (err) {
       await channel.send(jid, `❌ *User list error:* ${err.message}`);
@@ -126,11 +126,10 @@ const HandlerLibrary = {
    */
   async handleBulkVoucher(channel, jid, msg, args) {
     if (args.length < 3) return channel.send(jid, '📝 *Usage:* `/bulk <plan> <qty>`');
-
+    
     const plan = args[1];
     const qty = parseInt(args[2]);
-    if (isNaN(qty) || qty < 1 || qty > 50)
-      return channel.send(jid, '❌ *Quantity must be between 1 and 50.*');
+    if (isNaN(qty) || qty < 1 || qty > 50) return channel.send(jid, '❌ *Quantity must be between 1 and 50.*');
 
     const { getDatabase } = require('../database');
     const db = await getDatabase();
@@ -151,7 +150,7 @@ const HandlerLibrary = {
 
       let text = `✅ *Bulk Generation Complete!* (${qty} vouchers)\n\n`;
       text += `\`${codes.join(', ')}\``;
-
+      
       await channel.send(jid, text);
     } catch (err) {
       await channel.send(jid, `❌ *Bulk error:* ${err.message}`);
@@ -163,7 +162,7 @@ const HandlerLibrary = {
    */
   async handleVoucher(channel, jid, msg, args) {
     if (args.length < 2) return channel.send(jid, '📝 *Usage:* `/voucher <plan_name>`');
-
+    
     const plan = args[1];
     const { getDatabase } = require('../database');
     const db = await getDatabase();
@@ -172,19 +171,16 @@ const HandlerLibrary = {
     try {
       // Generate code
       const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
+      
       // Update DB
       await db.createVoucher(code, { plan, createdBy: jid });
-
+      
       // Add to MikroTik if connected
       if (mt && mt.state.isConnected) {
         await mt.addHotspotUser({ username: code, password: code, profile: plan });
       }
 
-      await channel.send(
-        jid,
-        `🎫 *Voucher Created!*\n\n*Code:* \`${code}\`\n*Plan:* ${plan}\n\n_Note: This has been added to the router automatically._`
-      );
+      await channel.send(jid, `🎫 *Voucher Created!*\n\n*Code:* \`${code}\`\n*Plan:* ${plan}\n\n_Note: This has been added to the router automatically._`);
     } catch (err) {
       await channel.send(jid, `❌ *Voucher error:* ${err.message}`);
     }
@@ -198,7 +194,7 @@ const HandlerLibrary = {
     await channel.send(jid, '🏓 *Pong!*');
     const end = Date.now();
     await channel.send(jid, `⏱️ *Latency:* ${end - start}ms`);
-  },
+  }
 };
 
 module.exports = HandlerLibrary;

@@ -9,12 +9,12 @@ class DiscordChannel extends BaseChannel {
       description: 'Community alerts via Discord.js',
       configFields: [
         {
-          name: 'token',
-          type: 'password',
-          message: 'Discord Bot Token:',
-          required: true,
-        },
-      ],
+          "name": "token",
+          "type": "password",
+          "message": "Discord Bot Token:",
+          "required": true
+        }
+      ]
     };
   }
 
@@ -32,9 +32,9 @@ class DiscordChannel extends BaseChannel {
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.DirectMessages
       ],
-      partials: [Partials.Channel],
+      partials: [Partials.Channel]
     });
     this._registerHandlers();
   }
@@ -45,7 +45,7 @@ class DiscordChannel extends BaseChannel {
       console.log(`Discord bot logged in as ${this.client.user.tag}`);
     });
 
-    this.client.on('messageCreate', async message => {
+    this.client.on('messageCreate', async (message) => {
       if (message.author.bot) return;
 
       const text = message.content || '';
@@ -70,13 +70,13 @@ class DiscordChannel extends BaseChannel {
 
       const wrappedNL = this._rl(async (userId, msgEvent) => {
         this.emit('message', {
-          userId,
+          userId: userId,
           channel: 'discord',
           channelId: msgEvent.channelId,
           guildId: msgEvent.guildId,
-          text,
+          text: text,
           isDM: !msgEvent.guild,
-          raw: msgEvent,
+          raw: msgEvent
         });
       });
       await wrappedNL(message.author.id, message);
@@ -94,31 +94,19 @@ class DiscordChannel extends BaseChannel {
 
         const { getDatabase } = require('../database');
         const db = await getDatabase();
+        
+        await db.upsertUser(jid, {
+          username: msg.author?.username || jid,
+          platform: 'discord',
+          channels: { discord: jid }
+        }).catch(e => console.warn(`Discord user sync failed: ${e.message}`));
 
-        await db
-          .upsertUser(jid, {
-            username: msg.author?.username || jid,
-            platform: 'discord',
-            channels: { discord: jid },
-          })
-          .catch(e => console.warn(`Discord user sync failed: ${e.message}`));
-
-        const authUser = await db
-          .resolveAuthenticatedUser('discord', jid)
-          .catch(() => null);
-        if (!authUser?.uid) {
-          this._authPrompted = this._authPrompted || new Set();
-          if (!this._authPrompted.has(jid)) {
-            this._authPrompted.add(jid);
-            const { getAuthPrompt } = require('../authPrompt');
-            this.send(jid, getAuthPrompt('discord')).catch(() => {});
-          }
-        }
+        db.resolveFirebaseUser(jid, { channel: 'discord', channelId: jid }).catch(() => { });
 
         await fn.call(this, jid, msg, match);
       } catch (err) {
         console.error(`DiscordChannel handler error: ${err.message}`, { jid });
-        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => {});
+        await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => { });
       }
     };
   }
@@ -129,20 +117,17 @@ class DiscordChannel extends BaseChannel {
 
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);
-    this.handlers.set('dashboard', j => H.handleDashboard(this, j));
-    this.handlers.set('stats', j => H.handleStats(this, j));
-    this.handlers.set('network', j => H.handleNetwork(this, j));
-    this.handlers.set('users', j => H.handleUsers(this, j));
+    this.handlers.set('dashboard', (j) => H.handleDashboard(this, j));
+    this.handlers.set('stats', (j) => H.handleStats(this, j));
+    this.handlers.set('network', (j) => H.handleNetwork(this, j));
+    this.handlers.set('users', (j) => H.handleUsers(this, j));
     this.handlers.set('voucher', (j, m, a) => H.handleVoucher(this, j, m, a));
     this.handlers.set('bulk', (j, m, a) => H.handleBulkVoucher(this, j, m, a));
-    this.handlers.set('ping', j => H.handlePing(this, j));
+    this.handlers.set('ping', (j) => H.handlePing(this, j));
   }
 
   async _handleStart(jid) {
-    await this.send(
-      jid,
-      '👋 **Welcome to AgentOS for Discord!** Type `/menu` to see available commands.'
-    );
+    await this.send(jid, '👋 **Welcome to AgentOS for Discord!** Type `/menu` to see available commands.');
   }
 
   async _handleMenu(jid) {
@@ -163,7 +148,7 @@ class DiscordChannel extends BaseChannel {
     const channel = await this.client.channels.fetch(userId);
 
     const payload = {
-      content: message.text,
+      content: message.text
     };
 
     if (message.embeds) {
@@ -171,7 +156,7 @@ class DiscordChannel extends BaseChannel {
         title: e.title,
         description: e.description,
         color: e.color,
-        fields: e.fields,
+        fields: e.fields
       }));
     }
 
@@ -212,23 +197,19 @@ class DiscordChannel extends BaseChannel {
     if (message.buttons) {
       return {
         text: message.text,
-        embeds: [
-          {
-            description: message.text,
-            color: 0x0099ff,
-          },
-        ],
-        components: [
-          {
-            type: 1,
-            components: message.buttons.map(b => ({
-              type: 2,
-              label: b.label,
-              style: 1,
-              custom_id: b.action,
-            })),
-          },
-        ],
+        embeds: [{
+          description: message.text,
+          color: 0x0099ff
+        }],
+        components: [{
+          type: 1,
+          components: message.buttons.map(b => ({
+            type: 2,
+            label: b.label,
+            style: 1,
+            custom_id: b.action
+          }))
+        }]
       };
     }
 
@@ -239,7 +220,7 @@ class DiscordChannel extends BaseChannel {
     return {
       ...super.getStatus(),
       guilds: this.client.guilds?.cache.size || 0,
-      users: this.client.users?.cache.size || 0,
+      users: this.client.users?.cache.size || 0
     };
   }
 

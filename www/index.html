@@ -1,317 +1,412 @@
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;
-             connect-src 'self' ws: wss: http: https: ws://localhost:* wss://localhost:* http://localhost:* http://127.0.0.1:*;
-             img-src 'self' data: https: blob:;
-             font-src 'self' data: https://fonts.gstatic.com;">
-  <meta name="theme-color" content="#000810">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>AgentOS · Br3eze</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap">
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-<div id="app">
+    <head>
+        <meta charset="utf-8">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="initial-1, width=device-width, viewport-fit=cover">
+        <meta name="color-scheme" content="light dark">
+        <meta name="theme-color" content="#050505">
+        <link rel="manifest" href="manifest.json">
+        <link rel="icon" href="img/logo.png">
+        <link rel="apple-touch-icon" href="img/logo.png">
 
-  <!-- ── HEADER ─────────────────────────────────────────────── -->
-  <header class="app-header">
-    <div class="header-brand">
-      <span class="brand-sigil">◈</span>
-      <span class="brand-name">AGENT<span class="brand-accent">OS</span></span>
-      <span class="brand-ver" id="hdr-ver">v2026</span>
+        <!-- Font Awesome -->
+        <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="css/index.css">
+        <title>Power Connect</title>
+        <style>
+    #authScreen, #mainApp, #mainHeader {
+        display: none; 
+    }
+</style>
+    </head>
+    <body>
+
+<!-- Power Hotspot Header -->
+<header class="main-header" id="mainHeader" style="display: none;">
+    <div class="header-left">
+        <span class="logo">POWER CONNECT</span>
     </div>
-    <div class="header-status">
-      <div class="status-pill" id="conn-pill">
-        <span class="status-dot" id="conn-dot"></span>
-        <span id="conn-label">OFFLINE</span>
-      </div>
+    <div class="header-right">
+        <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
     </div>
-  </header>
 
-  <!-- ── MAIN CONTENT ───────────────────────────────────────── -->
-  <main class="app-main">
-
-    <!-- DASHBOARD ──────────────────────────────────────────── -->
-    <section id="tab-dashboard" class="tab-pane active">
-      <div class="kpi-row">
-        <div class="kpi-card" data-nav="users">
-          <div class="kpi-icon">◉</div>
-          <div class="kpi-body">
-            <span class="kpi-val" id="kpi-active">—</span>
-            <span class="kpi-label">ACTIVE USERS</span>
-          </div>
+    <div class="user-dropdown" id="userDropdown">
+        <div class="dropdown-header">
+            <strong id="dropdownFullname"></strong>
+            <p id="dropdownEmail"></p>
         </div>
-        <div class="kpi-card" data-nav="vouchers">
-          <div class="kpi-icon">◈</div>
-          <div class="kpi-body">
-            <span class="kpi-val" id="kpi-vouchers">—</span>
-            <span class="kpi-label">VOUCHERS</span>
-          </div>
+        <div class="dropdown-menu">
+            <ul>
+                <li onclick="showSection('settings');">
+                    <i class="fas fa-cog"></i>Profile
+                </li>
+                <li onclick="Auth.logout(); toggleDropdown('userDropdown');">
+                    <i class="fas fa-sign-out-alt"></i> Sign Out
+                </li>
+            </ul>
         </div>
-        <div class="kpi-card" data-nav="financial">
-          <div class="kpi-icon">◆</div>
-          <div class="kpi-body">
-            <span class="kpi-val" id="kpi-revenue">—</span>
-            <span class="kpi-label">TODAY $USD</span>
-          </div>
-        </div>
-        <div class="kpi-card" id="kpi-health-card">
-          <div class="kpi-icon">◇</div>
-          <div class="kpi-body">
-            <span class="kpi-val" id="kpi-health">—</span>
-            <span class="kpi-label">ROUTER</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="quick-grid">
-        <button class="q-btn" onclick="App.createVoucher()">
-          <span class="q-icon">✦</span><span>New Voucher</span>
-        </button>
-        <button class="q-btn" onclick="App.switchTab('agent')">
-          <span class="q-icon">⬡</span><span>Ask Agent</span>
-        </button>
-        <button class="q-btn" onclick="App.executeTool('system.stats')">
-          <span class="q-icon">◈</span><span>Router Stats</span>
-        </button>
-        <button class="q-btn" onclick="App.executeTool('router.reboot')" data-danger>
-          <span class="q-icon">↺</span><span>Reboot</span>
-        </button>
-      </div>
-
-      <div class="activity-panel">
-        <div class="panel-hdr"><span>ACTIVITY LOG</span><button class="clear-btn" onclick="App.clearActivity()">CLEAR</button></div>
-        <ul id="activity-list" class="activity-list">
-          <li class="activity-empty">Waiting for events…</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- AGENT (ReAct Loop) ──────────────────────────────────── -->
-    <section id="tab-agent" class="tab-pane">
-      <div class="agent-header">
-        <div class="agent-brand">
-          <span class="agent-sigil">⬡</span>
-          <div>
-            <div class="agent-title">HERMES AGENT</div>
-            <div class="agent-sub">ReAct · Multi-turn · Tool-calling · Stream</div>
-          </div>
-        </div>
-        <div class="agent-controls">
-          <select id="agent-model" class="ctrl-select">
-            <option value="gemini">Gemini</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="openai">OpenAI</option>
-            <option value="ollama">Ollama</option>
-          </select>
-          <button class="ctrl-btn" onclick="Agent.clearHistory()">RESET</button>
-        </div>
-      </div>
-
-      <div class="agent-thread" id="agent-thread">
-        <div class="agent-welcome">
-          <div class="welcome-sigil">⬡</div>
-          <p>AgentOS Hermes is ready. I can manage your MikroTik router, create vouchers, check users, run network diagnostics, and execute multi-step plans.</p>
-          <div class="welcome-hints">
-            <button class="hint-chip" onclick="Agent.sendHint(this)">Create 5 vouchers for 1Day plan</button>
-            <button class="hint-chip" onclick="Agent.sendHint(this)">Show active users and disconnect idle ones</button>
-            <button class="hint-chip" onclick="Agent.sendHint(this)">Revenue report for today</button>
-            <button class="hint-chip" onclick="Agent.sendHint(this)">Router resource usage</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="agent-thinking" id="agent-thinking" hidden>
-        <div class="thinking-bar">
-          <span class="thinking-dot"></span>
-          <span id="thinking-label">Reasoning…</span>
-        </div>
-        <div id="thinking-steps" class="thinking-steps"></div>
-      </div>
-
-      <div class="agent-input-row">
-        <textarea id="agent-input" class="agent-input" rows="2"
-          placeholder="Describe what you want to do…"
-          onkeydown="Agent.onKey(event)"></textarea>
-        <button class="send-btn" id="send-btn" onclick="Agent.send()">▶</button>
-      </div>
-    </section>
-
-    <!-- VOUCHERS ───────────────────────────────────────────── -->
-    <section id="tab-vouchers" class="tab-pane">
-      <div class="section-hdr">
-        <div class="filter-row">
-          <button class="filter-btn active" data-filter="all" onclick="Vouchers.filter('all',this)">ALL</button>
-          <button class="filter-btn" data-filter="active" onclick="Vouchers.filter('active',this)">ACTIVE</button>
-          <button class="filter-btn" data-filter="used" onclick="Vouchers.filter('used',this)">USED</button>
-          <button class="filter-btn" data-filter="expired" onclick="Vouchers.filter('expired',this)">EXPIRED</button>
-        </div>
-        <input type="search" id="voucher-search" class="search-input" placeholder="Search code…" oninput="Vouchers.search(this.value)">
-      </div>
-      <div id="voucher-list" class="voucher-list">
-        <div class="list-loading">Loading vouchers…</div>
-      </div>
-      <button class="fab" onclick="App.createVoucher()">+</button>
-    </section>
-
-    <!-- USERS ──────────────────────────────────────────────── -->
-    <section id="tab-users" class="tab-pane">
-      <div class="section-hdr">
-        <span class="section-title">HOTSPOT USERS</span>
-        <button class="icon-btn" onclick="Users.refresh()">↺</button>
-      </div>
-      <div class="sub-section">
-        <div class="sub-hdr"><span class="dot-green">●</span> ACTIVE SESSIONS</div>
-        <div id="active-users-list" class="user-list"><div class="list-loading">Loading…</div></div>
-      </div>
-      <div class="sub-section">
-        <div class="sub-hdr"><span class="dot-dim">●</span> ALL USERS</div>
-        <div id="all-users-list" class="user-list"><div class="list-loading">Loading…</div></div>
-      </div>
-    </section>
-
-    <!-- TOOLS ──────────────────────────────────────────────── -->
-    <section id="tab-tools" class="tab-pane">
-      <div class="tools-grid">
-        <div class="tool-group">
-          <div class="tool-group-hdr">ROUTER</div>
-          <button class="tool-btn" onclick="App.executeTool('router.status')">STATUS</button>
-          <button class="tool-btn" onclick="App.executeTool('system.stats')">RESOURCES</button>
-          <button class="tool-btn" onclick="App.executeTool('router.users')">USER LIST</button>
-          <button class="tool-btn" onclick="App.executeTool('router.active')">ACTIVE</button>
-          <button class="tool-btn" onclick="App.executeTool('router.backup')">BACKUP</button>
-          <button class="tool-btn danger" onclick="App.executeTool('router.reboot')">REBOOT</button>
-        </div>
-        <div class="tool-group">
-          <div class="tool-group-hdr">NETWORK</div>
-          <button class="tool-btn" onclick="App.pingPrompt()">PING</button>
-          <button class="tool-btn" onclick="App.executeTool('network.interfaces')">INTERFACES</button>
-          <button class="tool-btn" onclick="App.executeTool('network.scan')">SCAN</button>
-          <button class="tool-btn" onclick="App.executeTool('network.dhcp')">DHCP LEASES</button>
-        </div>
-        <div class="tool-group">
-          <div class="tool-group-hdr">VOUCHERS</div>
-          <button class="tool-btn" onclick="App.executeTool('voucher.stats')">STATS</button>
-          <button class="tool-btn" onclick="App.executeTool('voucher.plans')">PLANS</button>
-          <button class="tool-btn" onclick="App.executeTool('voucher.list')">LIST</button>
-          <button class="tool-btn" onclick="App.createVoucher()">CREATE</button>
-        </div>
-        <div class="tool-group">
-          <div class="tool-group-hdr">SYSTEM</div>
-          <button class="tool-btn" onclick="App.executeTool('system.health')">HEALTH</button>
-          <button class="tool-btn" onclick="App.executeTool('audit.list')">AUDIT LOG</button>
-          <button class="tool-btn" onclick="App.executeTool('system.providers')">AI PROVIDERS</button>
-          <button class="tool-btn" onclick="App.executeTool('system.channels')">CHANNELS</button>
-        </div>
-      </div>
-      <div class="tool-output-panel">
-        <div class="panel-hdr"><span>OUTPUT</span><button class="clear-btn" onclick="document.getElementById('tool-out').textContent='Ready.'">CLEAR</button></div>
-        <pre id="tool-out" class="tool-out">Ready.</pre>
-      </div>
-    </section>
-
-    <!-- SETTINGS ───────────────────────────────────────────── -->
-    <section id="tab-settings" class="tab-pane">
-      <div class="settings-block">
-        <div class="settings-hdr">CONNECTION</div>
-        <div class="field-row">
-          <label>Gateway URL</label>
-          <input type="url" id="cfg-url" class="cfg-input" placeholder="http://192.168.88.1:19876" autocomplete="off" autocorrect="off" spellcheck="false">
-        </div>
-        <div class="field-row">
-          <label>Bearer Token</label>
-          <div class="input-eye-row">
-            <input type="password" id="cfg-token" class="cfg-input" placeholder="AGENTOS_GATEWAY_TOKEN" autocomplete="off">
-            <button class="eye-btn" onclick="UI.toggleEye('cfg-token',this)">👁</button>
-          </div>
-        </div>
-        <button class="save-btn" onclick="App.saveSettings()">SAVE &amp; CONNECT</button>
-        <button class="test-btn" onclick="App.testConnection()">TEST CONNECTION</button>
-      </div>
-
-      <div class="settings-block">
-        <div class="settings-hdr">AGENT</div>
-        <div class="field-row">
-          <label>Default Model</label>
-          <select id="cfg-model" class="cfg-select">
-            <option value="gemini">Gemini (default)</option>
-            <option value="anthropic">Anthropic Claude</option>
-            <option value="openai">OpenAI GPT</option>
-            <option value="ollama">Ollama (local)</option>
-          </select>
-        </div>
-        <div class="field-row">
-          <label>Max ReAct Turns</label>
-          <input type="number" id="cfg-turns" class="cfg-input" value="8" min="1" max="20">
-        </div>
-      </div>
-
-      <div class="settings-block">
-        <div class="settings-hdr">ABOUT</div>
-        <div class="about-row"><span>AgentOS Hermes</span><span class="muted" id="abt-ver">v2026.6.17</span></div>
-        <div class="about-row"><span>Br3eze Africa</span><span class="muted">africa-south1</span></div>
-        <div class="about-row"><span>Architecture</span><span class="muted">ReAct · MCP · A2A</span></div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- ── BOTTOM NAV ─────────────────────────────────────────── -->
-  <nav class="bottom-nav">
-    <button class="nav-btn active" data-tab="dashboard" onclick="App.switchTab('dashboard',this)">
-      <span class="nav-icon">◈</span><span class="nav-lbl">HOME</span>
-    </button>
-    <button class="nav-btn" data-tab="agent" onclick="App.switchTab('agent',this)">
-      <span class="nav-icon">⬡</span><span class="nav-lbl">AGENT</span>
-    </button>
-    <button class="nav-btn" data-tab="vouchers" onclick="App.switchTab('vouchers',this)">
-      <span class="nav-icon">✦</span><span class="nav-lbl">VOUCHERS</span>
-    </button>
-    <button class="nav-btn" data-tab="users" onclick="App.switchTab('users',this)">
-      <span class="nav-icon">◉</span><span class="nav-lbl">USERS</span>
-    </button>
-    <button class="nav-btn" data-tab="tools" onclick="App.switchTab('tools',this)">
-      <span class="nav-icon">◇</span><span class="nav-lbl">TOOLS</span>
-    </button>
-    <button class="nav-btn" data-tab="settings" onclick="App.switchTab('settings',this)">
-      <span class="nav-icon">⚙</span><span class="nav-lbl">CONFIG</span>
-    </button>
-  </nav>
-
-</div><!-- #app -->
-
-<!-- ── MODAL ──────────────────────────────────────────────────── -->
-<div id="modal-overlay" class="modal-overlay hidden" onclick="UI.closeModal(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-hdr">
-      <span id="modal-title">Dialog</span>
-      <button class="modal-close" onclick="UI.closeModal()">✕</button>
     </div>
-    <div class="modal-body" id="modal-body"></div>
-  </div>
+</header>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+    <div class="auth-container">
+        <div class="card auth-card" id="loginForm">
+            <div class="auth-header"><h2>Welcome Back!</h2><p>Login to access your hotspot</p></div>
+            <form id="loginFormElement">
+                <div class="form-group"><label>Username</label><input type="text" placeholder="Username" id="loginIdentifier" required autocomplete="username"></div>
+                <div class="form-group"><label>Password</label><input type="password" placeholder="Password" id="loginPassword" required autocomplete="current-password"></div>
+                <button type="submit" class="btn btn-primary btn-block">🔐 Login </button>
+            </form>
+            <div class="auth-divider"><hr><span>or continue with</span><hr></div>
+            <button type="button" class="google-btn" onclick="Auth.loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                Continue with Google
+            </button>
+            <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
+        </div>
+        <div class="card auth-card hidden" id="signupForm">
+            <div class="auth-header"><h2>Create Account</h2><p>Join Power Hotspot today</p></div>
+            <form id="signupFormElement">
+                <div class="form-group"><label>Full Name</label><input type="text" id="signupFullname" autocomplete="name" required></div>
+                <div class="form-group"><label>Username</label><input type="text" id="signupUsername" autocomplete="username" required></div>
+                <div class="form-group"><label>Email</label><input type="email" id="signupEmail" required autocomplete="email"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="signupPassword" required autocomplete="new-password" minlength="6"></div>
+               <div class="form-group"><label>Confirm Password</label><input type="password" id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
+                <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
+            </form>
+            <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
+        </div>
+    </div>
 </div>
 
-<!-- ── TOAST ──────────────────────────────────────────────────── -->
-<div id="toast-root"></div>
 
-<!-- ── SCRIPTS ────────────────────────────────────────────────── -->
-<script src="js/config.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/client.js"></script>
-<script src="js/ws.js"></script>
-<script src="js/tools.js"></script>
-<script src="js/agent.js"></script>
-<script src="js/vouchers.js"></script>
-<script src="js/users.js"></script>
-<script src="js/ui.js"></script>
+<!-- MAIN APP --->
+<div class="dashboard-container" id="mainApp" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <ul>
+            <li onclick="showSection('home')" class="active" data-section="home"><i class="fas fa-home"></i> <span class="nav-text">Home</span></li>
+            <li id="sidebarPlansLink" onclick="showSection('subscriptions')" data-section="subscriptions"><i class="fas fa-box"></i> <span class="nav-text">Plans</span></li>
+            <li onclick="showSection('orders')" data-section="orders"><i class="fas fa-history"></i> <span class="nav-text">Orders</span></li>
+            <li onclick="showSection('messages')" data-section="messages"><i class="fas fa-envelope"></i> <span class="nav-text">Messages</span></li>
+            <li onclick="showSection('settings')" data-section="settings"><i class="fas fa-cog"></i> <span class="nav-text">Settings</span></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="content-panel">
+        <section id="home-section" class="dashboard-section">
+            <h1>Dashboard</h1>
+            <p class="account-info text-medium">Welcome, <span id="navUsername">User</span></p>
+            
+            <!-- Active Plan Status Card -->
+            <div class="card active-plan-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span class="text-medium"><i class="fas fa-wifi"></i> Status</span>
+                    <span id="dashUptime" style="font-weight:bold;">Checking...</span>
+                </div>
+                
+                <!-- Progress Bar Container -->
+                <div class="progress-track">
+                    <div class="progress-fill" id="planProgressBar" style="width: 0%;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px; color:var(--color-text-medium);">
+                    <span>Activated: <span id="planStartLabel">--</span></span>
+                    <span>Expires: <span id="planEndLabel">--</span></span>
+                </div>
+            </div>
+
+            <div class="grid grid-3">
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value">$<span id="dashCredits">0.00</span></div><div class="stat-label">Balance</div></div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-box"></i></div><div class="stat-value" id="dashPlans">0</div><div class="stat-label">Active Plans</div></div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-mobile-alt"></i></div><div class="stat-value" id="dashDevices">0</div><div class="stat-label">Devices</div></div>
+            </div>
+            
+            <h2>Quick Actions</h2>
+            <div class="card"><div class="grid grid-4">
+                <button class="btn" onclick="showSection('subscriptions')"><i class="fas fa-cart-plus"></i> Browse Plans</button>
+                <button class="btn" onclick="openShareCredit()"><i class="fas fa-share-alt"></i> Share Credit</button>
+                <button class="btn" onclick="openRedeemVoucher()"><i class="fas fa-ticket-alt"></i> Redeem Code</button>
+                <button class="btn btn-danger" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div></div>
+        </section>
+        
+        <section id="admin-stats-section" class="dashboard-section hidden">
+            <div class="admin-header-controls">
+                <h1>Admin Intelligence</h1>
+                <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <select id="statsTimeFilter" class="time-filter-select" onchange="renderAdminStats()">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="month">This Month (Daily)</option>
+                        <option value="year">This Year (Monthly)</option>
+                    </select>
+                    <button class="btn ai-analysis-btn" onclick="openAdminAI()">
+                        <i class="fas fa-brain"></i> Ask AI Insight
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-4">
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value">$<span id="statsTotalRevenue">0</span></div><div class="stat-label">Total Revenue</div></div>
+                <div class="card stat-card clickable" onclick="openActiveConnectionsModal()">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-value" id="statsTotalUsers">0</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-rocket"></i></div><div class="stat-value" id="statsActivePlans">0</div><div class="stat-label">Active Plans</div></div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-headset"></i></div><div class="stat-value" id="statsOpenTickets">0</div><div class="stat-label">Open Tickets</div></div>
+            </div>
+            
+            <!-- Scrollable Charts -->
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Revenue Trend</h3>
+                    <div class="chart-scroll-wrapper">
+                        <div class="chart-container" id="revenueChart">
+                            <p class="text-medium">Loading revenue data...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Plan Performance</h3>
+                    <div class="chart-scroll-wrapper">
+                        <div class="chart-container" id="popularityChart" style="display:block; height: auto; overflow-y: auto;">
+                            <p class="text-medium">Loading plan data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="subscriptions-section" class="dashboard-section hidden">
+            <h1>Available Plans</h1><p class="text-medium">Select a plan to activate internet service for your devices.</p>
+            <div class="grid grid-3" id="plansList"></div>
+        </section>
+        
+        <section id="orders-section" class="dashboard-section hidden">
+            <h1>Transaction History</h1><p class="text-medium">Review all your credit movements (purchases, sharing, redemptions).</p>
+            <div class="card" style="padding: 0;"><div id="transactionHistoryContainer"><p class="text-medium" style="padding: 25px;">Loading transaction history...</p></div></div>
+        </section>
+        
+        <section id="messages-section" class="dashboard-section hidden">
+            <h1>Messages</h1><p class="text-medium">View your past and active support conversations.</p>
+            <div class="card" style="padding: 0; margin-bottom: 5px;">
+                <div class="modal-header" style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);"><h3 style="font-weight: 500; font-size: 1.1rem;">Support Tickets</h3><button class="btn btn-sm" onclick="openSubmitTicketModal();">+ New Ticket</button></div>
+                <div id="ticketListContainer"><p class="text-medium" style="padding: 25px;">Loading tickets...</p></div>
+            </div>
+            <div style="text-align: right; padding-top: 10px;"><button class="btn btn-info" onclick="openChatBotModal()"><i class="fas fa-headset" style="position: sticky;"></i> Contact Live Support</button></div>
+        </section>
+
+        <section id="settings-section" class="dashboard-section hidden">
+            <h1>Settings</h1>
+            <div class="card">
+                <h3>Profile</h3>
+                <form id="updateProfileForm">
+                    <div class="form-group"><label for="settingsFullname">Full Name</label><input type="text" id="settingsFullname" required></div>
+                     <div class="form-group"><label for="settingsUsername">Username</label><input type="text" id="settingsUsername" required></div>
+                     <div class="form-group"><label for="settingsPhoneNumber">Phone Number</label><input type="tel" id="settingsPhoneNumber" required></div>
+                     <div class="form-group"><label for="settingsAddress">Address</label><input type="text" id="settingsAddress" required></div>
+                    <div class="form-group"><label for="settingsEmail">Email</label><input type="email" id="settingsEmail" disabled></div>
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </form>
+            </div>
+
+            <div id="adminToolsContainer" class="hidden">
+                <h2>Admin Tools</h2><p style="color: var(--color-danger-text);">⚠️ Caution: These actions affect all users and system settings.</p>
+                <div class="admin-section"><h3>User Management</h3><div id="userListContainer"></div></div>
+                <div class="admin-section"><h3>Plan Management</h3><button class="btn btn-sm" onclick="openAdminPlanModal()">+ Add New Plan</button><div id="planListAdminContainer"></div></div>
+                <div class="admin-section"><h3>Voucher Management</h3><button class="btn btn-sm" onclick="openGenerateVoucherModal()">+ Generate Voucher</button><div id="voucherListContainer"></div></div>
+                <div class="admin-section"><h3>System Network Settings</h3><div id="networkSettingsDisplay" style="margin-bottom: 1rem;"></div><button class="btn btn-sm" onclick="openEditNetworkModal()">Edit Network Settings</button></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Modals -->
+<div class="modal" id="activeConnectionsModal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header"><h3>Active Network Connections</h3>
+            <button class="modal-close" onclick="closeModal('activeConnectionsModal')">×</button></div>
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="connectionSearch" placeholder="Search IP or Username..." class="form-control" onkeyup="filterConnectionsTable()" style="width: 100%;height: 30px"></div>
+        <div id="activeConnectionsContainer" style="max-height: 400px; overflow-y: auto;"></div>
+        <div class="modal-actions"><button type="button" class="btn btn-primary" onclick="closeModal('activeConnectionsModal')">Close</button></div>
+    </div>
+</div>
+
+<div class="modal" id="shareCreditModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Share Credits</h3><button class="modal-close" onclick="closeModal('shareCreditModal')">×</button></div>
+        <form id="shareCreditForm">
+            <div class="form-group"><label>Recipient Email</label><input type="email" id="shareRecipientEmail" required></div>
+            <div class="form-group"><label>Amount ($)</label><input type="number" step="0.01" id="shareAmount" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('shareCreditModal')">Cancel</button><button type="submit" class="btn btn-primary">Send</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="sendVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Send Voucher to User</h3><button class="modal-close" onclick="closeModal('sendVoucherModal')">×</button></div>
+        <form id="sendVoucherForm">
+            <div class="form-group"><label for="voucherRecipient">Select User</label><select id="voucherRecipient" required></select></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('sendVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Send Voucher</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="ticketDetailModal">
+    <div class="modal-content" style="max-width: 700px; display: flex; flex-direction: column; max-height: 85vh;">
+        <div class="modal-header">
+            <div><h3 id="ticketModalTitle" style="margin-bottom: 5px;">Ticket Detail</h3><small class="text-medium" id="ticketModalSubtitle">Loading...</small></div>
+            <button class="modal-close" onclick="closeModal('ticketDetailModal')">×</button>
+        </div>
+        
+        <div class="ticket-meta-bar" style="background: var(--color-sidebar); padding: 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div><span id="ticketModalStatus"></span></div><div id="ticketModalActions"></div>
+        </div>
+       
+        <div id="ticketRepliesContainer" class="chat-log" style="flex: 1; min-height: 300px; overflow-y: auto; background: var(--color-sidebar); border: 1px solid var(--color-border); border-radius: 4px; padding: 15px; margin-bottom: 15px;"></div>
+        
+        <form id="ticketReplyForm" style="display: flex; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 15px;">
+            <input type="hidden" id="currentTicketId">
+            <textarea id="ticketReplyInput" rows="2" placeholder="Type a reply..." style="flex: 1; resize: none;" class="form-control"></textarea>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send</button>
+        </form>
+    </div>
+</div>
+<div class="modal" id="submitTicketModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Submit New Support Ticket</h3><button class="modal-close" onclick="closeModal('submitTicketModal')">×</button></div>
+        <form id="newTicketForm">
+            <div class="form-group"><label for="newTicketSubject">Issue Subject</label><input type="text" id="newTicketSubject" required></div>
+            <div class="form-group"><label for="newTicketBody">Detailed Description</label><textarea id="newTicketBody" rows="5" required></textarea></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('submitTicketModal')">Cancel</button><button type="submit" class="btn btn-primary">Submit Ticket</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Chat Modal with Emoji Support -->
+<div class="modal" id="chatBoxModal">
+    <div class="modal-content" style="height: cover;max-width:850px;">
+        <div class="modal-header" style="margin-bottom: 0; height: auto; flex-shrink: 0;"><h3>Live Support Chat</h3><button class="modal-close" onclick="closeModal('chatBoxModal')">×</button></div>
+        <div class="chat-container">
+            <div class="chat-log" id="chatLog"></div>
+            <div class="emoji-picker-container" id="emojiPicker"></div>
+            <div class="chat-input-area">
+               <button class="emoji-trigger-btn" onclick="toggleEmojiPicker()">😃</button>
+<input type="text" id="chatInput" placeholder="Type message..." autocomplete="off" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast hidden" id="toast"><div class="toast-icon" id="toastIcon">ℹ️</div><div class="toast-message" id="toastMessage">Notification</div></div>
+
+<div class="modal" id="adminUserModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="adminUserModalTitle">Manage User</h3><button class="modal-close" onclick="closeModal('adminUserModal')">×</button></div>
+        <form id="adminUserForm">
+            <input type="hidden" id="adminUserId">
+            <div class="form-group"><label>Full Name</label><input type="text" id="adminUserFullname" required></div>
+            <div class="form-group"><label>Email</label><input type="email" id="adminUserEmail" readonly></div>
+            <div class="form-group"><label>Credits</label><input type="number" step="0.01" id="adminUserCredits" required></div>
+            <div class="form-group"><label>Role</label><select id="adminUserRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+            <div class="modal-actions"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="adminPlanModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="adminPlanModalTitle">Manage Plan</h3><button class="modal-close" onclick="closeModal('adminPlanModal')">×</button></div>
+        <form id="adminPlanForm">
+            <input type="hidden" id="adminPlanId">
+            <div class="form-group"><label>Plan Name</label><input type="text" id="adminPlanName" required></div>
+            <div class="form-group"><label>Description</label><input type="text" id="adminPlanDesc" required></div>
+            <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="adminPlanPrice" required></div>
+            <div class="form-group">
+                <label>Duration</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="adminPlanDuration" required style="flex: 1;">
+                    <select id="adminPlanDurationUnit" style="flex: 1;">
+                         <option value="minutes">Minute</option>
+                         <option value="hours">Hour</option>
+                         <option value="days">Day</option>
+                         <option value="weeks">Week</option>
+                         <option value="months">Month</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group"><label>Device Limit</label><input type="number" id="adminPlanDevices" required></div>
+            <div class="form-group">
+                <label>Plan Image</label>
+                <div class="image-preview-container">
+                    <img id="adminPlanImagePreview" src="" alt="Image Preview" class="image-preview"/>
+                    <span id="imageUploadPlaceholder" style="color:var(--color-text-medium); pointer-events:none;">No image selected</span>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="btn btn-sm" id="uploadPlanImageBtn"><i class="fas fa-camera"></i> Select Image</button>
+                </div>
+                <input type="file" id="browserFileInput" accept="image/*" style="display: none;">
+                <input type="hidden" id="adminPlanImageUrl">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger hidden" id="deletePlanBtn" type="button">Delete</button>
+                <button type="submit" class="btn btn-primary">Save Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="adminNetworkModal"><div class="modal-content"><div class="modal-header"><h3>Edit Network Settings</h3><button class="modal-close" onclick="closeModal('adminNetworkModal')">×</button></div><form id="adminNetworkForm"><div class="form-group"><label>SSID (Network Name)</label><input type="text" id="adminNetworkSsid" required></div><div class="form-group"><label>Password</label><input type="text" id="adminNetworkPassword" required></div><div class="modal-actions"><button type="submit" class="btn btn-primary">Update Network</button></div></form></div></div>
+<div class="modal" id="redeemVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Redeem Voucher Code</h3><button class="modal-close" onclick="closeModal('redeemVoucherModal')">×</button></div>
+        <form id="redeemVoucherForm">
+            <div class="form-group"><label for="voucherCodeInput">Enter Code</label><input type="text" id="voucherCodeInput" placeholder="STAR-XXXX-XXXX" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('redeemVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Redeem</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="generateVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Generate Vouchers</h3><button class="modal-close" onclick="closeModal('generateVoucherModal')">×</button></div>
+        <form id="generateVoucherForm">
+            <div class="form-group"><label for="voucherValue">Credit Value ($)</label><input type="number" step="0.01" id="voucherValue" value="5.00" required></div>
+            <div class="form-group"><label for="voucherQuantity">Quantity</label><input type="number" id="voucherQuantity" value="10" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('generateVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Generate</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- CDN Libraries -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script>
+    // Cordova: only load in the real native WebView/file:// context -- avoids a
+    // 404 (and the cordova.* undefined-global bugs it used to mask) when this
+    // page is served as a plain website/installed PWA.
+    if (window.location.protocol === 'file:' || /Cordova/i.test(navigator.userAgent)) {
+        const s = document.createElement('script');
+        s.src = 'cordova.js';
+        document.head.appendChild(s);
+    }
+</script>
+<script src="js/index.js"></script>
 <script src="js/app.js"></script>
-
-</body>
+    </body>
 </html>

@@ -138,14 +138,3 @@ router-backup/
 *.swp
 *.swo
 *~
-# Local secrets (never commit real tokens)
-*.podman.env.local
-*.local.env
-
-# Cordova build artifacts — regenerated fresh by `cordova platform add`
-# on every build. Committing these caused CI to see an incomplete/stale
-# snapshot and skip full platform setup (platform add saw the directory
-# already existed and no-op'd, leaving required generated files like
-# cdv_strings.xml missing -> ENOENT in `cordova prepare`).
-platforms/
-plugins/

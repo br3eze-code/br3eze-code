@@ -5,28 +5,28 @@
 
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 const { getDatabase } = require('../../core/database');
 const { costTracker } = require('../../core/cost-tracker');
 
-module.exports = program => {
+module.exports = (program) => {
   program
     .command('status')
     .description('Show system status')
     .alias('s')
     .option('--json', 'Output as JSON')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
 
       const statusData = {
-        agentos: {},
-        gateway: {},
-        router: {},
+        agentos:      {},
+        gateway:      {},
+        router:       {},
         capabilities: { skills: 0, domains: 0 },
-        costs: costTracker.snapshot(),
-        timestamp: new Date().toISOString(),
+        costs:        costTracker.snapshot(),
+        timestamp:    new Date().toISOString(),
       };
 
       try {
@@ -51,10 +51,7 @@ module.exports = program => {
             process.kill(parseInt(pid), 0);
             statusData.gateway = { status: 'running', pid: parseInt(pid) };
           } catch {
-            statusData.gateway = {
-              status: 'stale',
-              error: 'PID file exists but process not running',
-            };
+            statusData.gateway = { status: 'stale', error: 'PID file exists but process not running' };
           }
         } else {
           statusData.gateway = { status: 'stopped' };
@@ -64,26 +61,20 @@ module.exports = program => {
         statusData.channels = {
           telegram: !!process.env.TELEGRAM_BOT_TOKEN || !!process.env.TELEGRAM_TOKEN,
           whatsapp: !!process.env.WHATSAPP_TOKEN,
-          slack: !!process.env.SLACK_BOT_TOKEN || !!process.env.SLACK_TOKEN,
-          discord: !!process.env.DISCORD_TOKEN,
+          slack:    !!process.env.SLACK_BOT_TOKEN || !!process.env.SLACK_TOKEN,
+          discord:  !!process.env.DISCORD_TOKEN,
         };
 
         // ── Capabilities ─────────────────────────────────────────
         try {
           const skillsPath = path.join(process.cwd(), 'src', 'skills');
           if (fs.existsSync(skillsPath))
-            statusData.capabilities.skills = fs
-              .readdirSync(skillsPath, { withFileTypes: true })
-              .filter(d => d.isDirectory()).length;
+            statusData.capabilities.skills = fs.readdirSync(skillsPath, { withFileTypes: true }).filter(d => d.isDirectory()).length;
 
           const domainsPath = path.join(process.cwd(), 'src', 'domains');
           if (fs.existsSync(domainsPath))
-            statusData.capabilities.domains = fs
-              .readdirSync(domainsPath, { withFileTypes: true })
-              .filter(d => d.isDirectory()).length;
-        } catch {
-          /* ignore */
-        }
+            statusData.capabilities.domains = fs.readdirSync(domainsPath, { withFileTypes: true }).filter(d => d.isDirectory()).length;
+        } catch { /* ignore */ }
 
         // ── MikroTik ─────────────────────────────────────────────
         const s = spinner();
@@ -96,10 +87,10 @@ module.exports = program => {
           const stats = await mikrotik.getSystemStats();
           s.stop('Router telemetry collected');
           statusData.router = {
-            status: 'connected',
-            cpu: `${stats['cpu-load'] || 0}%`,
-            memory: `${stats['memory-usage-percent'] || 0}%`,
-            uptime: stats['uptime'] || 'unknown',
+            status:  'connected',
+            cpu:     `${stats['cpu-load'] || 0}%`,
+            memory:  `${stats['memory-usage-percent'] || 0}%`,
+            uptime:  stats['uptime'] || 'unknown',
             version: stats['version'] || 'unknown',
           };
         } catch (e) {
@@ -131,6 +122,7 @@ module.exports = program => {
 
         // Force exit: DB + MikroTik handles stay open otherwise
         process.exit(0);
+
       } catch (error) {
         log.error(`Status failed: ${error.message}`);
         process.exit(1);
@@ -154,13 +146,13 @@ function renderStatus(data, brand, { intro, outro, note }) {
   note(identityLines.join('\n'), '📦 System Identity');
 
   // ── Gateway & Router ─────────────────────────────────────────
-  const gwStatus =
-    data.gateway.status === 'running' ? `running (PID: ${data.gateway.pid})` : data.gateway.status;
+  const gwStatus = data.gateway.status === 'running'
+    ? `running (PID: ${data.gateway.pid})`
+    : data.gateway.status;
 
-  const routerLine =
-    data.router.status === 'connected'
-      ? `connected  CPU: ${data.router.cpu}  Memory: ${data.router.memory}`
-      : `disconnected${data.router.error ? `  — ${data.router.error}` : ''}`;
+  const routerLine = data.router.status === 'connected'
+    ? `connected  CPU: ${data.router.cpu}  Memory: ${data.router.memory}`
+    : `disconnected${data.router.error ? '  — ' + data.router.error : ''}`;
 
   const channels = [];
   if (data.channels?.telegram) channels.push('Telegram');
@@ -173,9 +165,10 @@ function renderStatus(data, brand, { intro, outro, note }) {
     `Gateway  :  ${gwStatus}`,
     `Router   :  ${routerLine}`,
     `Channels :  ${channelStr}`,
-    ...(data.router.status === 'connected'
-      ? [`Uptime   :  ${data.router.uptime}`, `RouterOS :  ${data.router.version}`]
-      : []),
+    ...(data.router.status === 'connected' ? [
+      `Uptime   :  ${data.router.uptime}`,
+      `RouterOS :  ${data.router.version}`,
+    ] : []),
   ];
   note(infraLines.join('\n'), '🌐 Infrastructure');
 
@@ -184,7 +177,7 @@ function renderStatus(data, brand, { intro, outro, note }) {
   if (data.vouchers && !data.vouchers.error) {
     billingLines.push(
       `Vouchers:  ${data.vouchers.active} active / ${data.vouchers.total} total` +
-        `  (${data.vouchers.used || 0} used, ${data.vouchers.expired || 0} expired)`
+      `  (${data.vouchers.used || 0} used, ${data.vouchers.expired || 0} expired)`
     );
   }
   if (data.costs) {
@@ -192,7 +185,7 @@ function renderStatus(data, brand, { intro, outro, note }) {
     const outT = data.costs.totalOutputTokens || 0;
     const total = inT + outT;
     billingLines.push(`AI Cost :  $${data.costs.estimatedUSD}  (${total} tokens)`);
-
+    
     if (total > 0) {
       const width = 30;
       const inWidth = Math.round((inT / total) * width);
@@ -203,7 +196,7 @@ function renderStatus(data, brand, { intro, outro, note }) {
       billingLines.push(`Usage   :  ${bar}`);
       billingLines.push(`           Input: ${inPct}%   Output: ${outPct}%`);
     } else {
-      billingLines.push(`Usage   :  ${'░'.repeat(30)}`);
+      billingLines.push(`Usage   :  ` + '░'.repeat(30));
       billingLines.push(`           Input: 0%   Output: 0%`);
     }
   }

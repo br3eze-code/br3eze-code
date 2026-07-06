@@ -2,7 +2,6 @@
 // Express middleware for handling payment webhooks
 
 const crypto = require('crypto');
-const express = require('express');
 
 /**
  * Create webhook handler middleware
@@ -13,10 +12,14 @@ const express = require('express');
 function createWebhookHandler(gateway, onPaymentSuccess, onPaymentFailed) {
   return async (req, res) => {
     const provider = req.params.provider;
-
+    
     try {
       // Verify webhook signature
-      const isValid = await gateway.handleWebhook(provider, req.body, req.headers);
+      const isValid = await gateway.handleWebhook(
+        provider,
+        req.body,
+        req.headers
+      );
 
       if (!isValid) {
         return res.status(400).json({ error: 'Invalid signature' });
@@ -42,6 +45,7 @@ function createWebhookHandler(gateway, onPaymentSuccess, onPaymentFailed) {
 
       // Acknowledge receipt
       res.status(200).json({ received: true });
+      
     } catch (error) {
       console.error(`Webhook error for ${provider}:`, error);
       res.status(500).json({ error: 'Webhook processing failed' });
@@ -59,23 +63,23 @@ function setupWebhookRoutes(app, gateway, callbacks) {
 
   // Register webhook endpoints for each provider
   app.post('/webhooks/:provider', express.raw({ type: 'application/json' }), handler);
-
+  
   // Provider-specific endpoints (some require specific paths)
   app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res) => {
     req.params.provider = 'stripe';
     handler(req, res);
   });
-
+  
   app.post('/webhooks/ecocash', (req, res) => {
     req.params.provider = 'ecocash';
     handler(req, res);
   });
-
+  
   app.post('/webhooks/netone', (req, res) => {
     req.params.provider = 'netone';
     handler(req, res);
   });
-
+  
   app.post('/webhooks/paynow', (req, res) => {
     req.params.provider = 'paynow';
     handler(req, res);
@@ -84,5 +88,5 @@ function setupWebhookRoutes(app, gateway, callbacks) {
 
 module.exports = {
   createWebhookHandler,
-  setupWebhookRoutes,
+  setupWebhookRoutes
 };

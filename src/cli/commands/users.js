@@ -22,7 +22,7 @@
 
 const chalk = require('chalk');
 
-module.exports = program => {
+module.exports = (program) => {
   // ── MikroTik / Hotspot users ───────────────────────────────────────────
   const users = program
     .command('users')
@@ -33,7 +33,7 @@ module.exports = program => {
     .description('List active hotspot sessions')
     .option('-a, --all', 'Show all users (not just active)')
     .option('-l, --limit <n>', 'Limit results', '20')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, spinner, log } = await import('@clack/prompts');
       intro(chalk.cyan('👥  Hotspot Users'));
       const s = spinner();
@@ -42,21 +42,13 @@ module.exports = program => {
         const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         const users = await mikrotik.executeTool(
-          options.all ? 'mikrotik.hotspot.user.getAll' : 'users.active',
-          {},
-          {}
+          options.all ? 'mikrotik.hotspot.user.getAll' : 'users.active', {}, {}
         );
         s.stop(`Found ${users.length} user(s)`);
-        if (!users.length) {
-          log.warn('No active sessions');
-          outro('');
-          return;
-        }
+        if (!users.length) { log.warn('No active sessions'); outro(''); return; }
         const rows = users.slice(0, parseInt(options.limit));
         rows.forEach(u => {
-          log.info(
-            `${chalk.green(u.name || u['mac-address'] || u.id)} — IP: ${chalk.yellow(u.address || '—')} uptime: ${u.uptime || '—'}`
-          );
+          log.info(`${chalk.green(u.name || u['mac-address'] || u.id)} — IP: ${chalk.yellow(u.address || '—')} uptime: ${u.uptime || '—'}`);
         });
       } catch (e) {
         s.stop('Failed');
@@ -68,7 +60,7 @@ module.exports = program => {
   users
     .command('kick <name>')
     .description('Kick / disconnect a hotspot user')
-    .action(async name => {
+    .action(async (name) => {
       const { intro, outro, spinner, log } = await import('@clack/prompts');
       intro(chalk.red('🦵  Kick User'));
       const s = spinner();
@@ -100,11 +92,7 @@ module.exports = program => {
         const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         const password = options.password || Math.random().toString(36).slice(2, 10);
-        await mikrotik.executeTool(
-          'mikrotik.hotspot.user.add',
-          { name, password, profile: options.profile },
-          {}
-        );
+        await mikrotik.executeTool('mikrotik.hotspot.user.add', { name, password, profile: options.profile }, {});
         s.stop('Created');
         log.success(`User ${chalk.bold(name)} created — password: ${chalk.yellow(password)}`);
       } catch (e) {
@@ -123,10 +111,7 @@ module.exports = program => {
       intro(chalk.red('🗑️  Remove Hotspot User'));
       if (!options.force) {
         const ok = await confirm({ message: `Remove ${chalk.bold(name)}? This cannot be undone.` });
-        if (isCancel(ok) || !ok) {
-          outro('Cancelled');
-          return;
-        }
+        if (isCancel(ok) || !ok) { outro('Cancelled'); return; }
       }
       const s = spinner();
       s.start(`Removing ${name}...`);
@@ -146,7 +131,7 @@ module.exports = program => {
   users
     .command('status <name>')
     .description('Show session stats for a hotspot user')
-    .action(async name => {
+    .action(async (name) => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro(chalk.cyan('📊  User Status'));
       const s = spinner();
@@ -157,9 +142,7 @@ module.exports = program => {
         const stats = await mikrotik.executeTool('system.stats', { user: name }, {});
         s.stop('Done');
         note(
-          Object.entries(stats)
-            .map(([k, v]) => `${chalk.gray(k.padEnd(16))} ${chalk.white(v)}`)
-            .join('\n'),
+          Object.entries(stats).map(([k, v]) => `${chalk.gray(k.padEnd(16))} ${chalk.white(v)}`).join('\n'),
           `Stats: ${name}`
         );
       } catch (e) {
@@ -176,11 +159,8 @@ module.exports = program => {
     .action(async (name, options) => {
       const { intro, outro, text, spinner, log, isCancel } = await import('@clack/prompts');
       intro(chalk.yellow('🔀  Transfer User'));
-      const routerId = options.to || (await text({ message: 'Target router ID:' }));
-      if (isCancel(routerId)) {
-        outro('Cancelled');
-        return;
-      }
+      const routerId = options.to || await text({ message: 'Target router ID:' });
+      if (isCancel(routerId)) { outro('Cancelled'); return; }
       const s = spinner();
       s.start(`Transferring ${name} → ${routerId}...`);
       try {
@@ -207,7 +187,7 @@ module.exports = program => {
     .option('--role <role>', 'Filter by role')
     .option('-l, --limit <n>', 'Max results', '50')
     .option('--json', 'Print as JSON')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, spinner, log } = await import('@clack/prompts');
       if (!options.json) intro(chalk.cyan('👥  Platform Users'));
       const s = options.json ? null : spinner();
@@ -217,29 +197,17 @@ module.exports = program => {
         const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
-        const userList = await sandbox.listUsers({
-          role: options.role,
-          limit: parseInt(options.limit),
-        });
+        const userList = await sandbox.listUsers({ role: options.role, limit: parseInt(options.limit) });
         if (s) s.stop(`${userList.length} user(s)`);
 
-        if (options.json) {
-          console.log(JSON.stringify(userList, null, 2));
-          return;
-        }
+        if (options.json) { console.log(JSON.stringify(userList, null, 2)); return; }
 
-        if (!userList.length) {
-          log.warn('No users found');
-          outro('');
-          return;
-        }
+        if (!userList.length) { log.warn('No users found'); outro(''); return; }
         const { roles } = require('../../policies/roles.json');
         userList.forEach(u => {
           const roleLabel = roles[u.role]?.label || u.role || 'user';
           const sandboxFlag = roles[u.role]?.sandbox ? chalk.yellow(' [sandbox]') : '';
-          log.info(
-            `${chalk.bold(u.uid || u.email || '—')} ${chalk.gray(roleLabel)}${sandboxFlag} ${chalk.dim(u.lastSeen || u.createdAt || '')}`
-          );
+          log.info(`${chalk.bold(u.uid || u.email || '—')} ${chalk.gray(roleLabel)}${sandboxFlag} ${chalk.dim(u.lastSeen || u.createdAt || '')}`);
         });
       } catch (e) {
         if (s) s.stop('Failed');
@@ -252,7 +220,7 @@ module.exports = program => {
   platform
     .command('show <uid>')
     .description('Show full profile and role for a platform user')
-    .action(async uid => {
+    .action(async (uid) => {
       const { intro, outro, note, spinner, log } = await import('@clack/prompts');
       intro(chalk.cyan(`👤  User: ${uid}`));
       const s = spinner();
@@ -263,24 +231,19 @@ module.exports = program => {
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const user = await sandbox.getUser(uid);
-        if (!user) {
-          s.stop('Not found');
-          log.warn(`User ${uid} not found`);
-          outro('');
-          return;
-        }
+        if (!user) { s.stop('Not found'); log.warn(`User ${uid} not found`); outro(''); return; }
         const role = await sandbox.getRole(uid);
         s.stop('Found');
         note(
           `UID:      ${chalk.white(user.uid || uid)}\n` +
-            `Name:     ${chalk.white(user.fullname || user.username || '—')}\n` +
-            `Email:    ${chalk.white(user.email || '—')}\n` +
-            `Role:     ${chalk.yellow(role.label || user.role || 'user')}\n` +
-            `Sandbox:  ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
-            `Source:   ${chalk.dim(user._source || '—')}\n` +
-            `Created:  ${chalk.dim(user.createdAt || '—')}\n` +
-            `Last seen:${chalk.dim(user.lastSeen || '—')}\n` +
-            `Tools:    ${chalk.dim((role.tools || []).join(', '))}`,
+          `Name:     ${chalk.white(user.fullname || user.username || '—')}\n` +
+          `Email:    ${chalk.white(user.email || '—')}\n` +
+          `Role:     ${chalk.yellow(role.label || user.role || 'user')}\n` +
+          `Sandbox:  ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
+          `Source:   ${chalk.dim(user._source || '—')}\n` +
+          `Created:  ${chalk.dim(user.createdAt || '—')}\n` +
+          `Last seen:${chalk.dim(user.lastSeen || '—')}\n` +
+          `Tools:    ${chalk.dim((role.tools || []).join(', '))}`,
           'User Profile'
         );
       } catch (e) {
@@ -317,7 +280,7 @@ module.exports = program => {
   platform
     .command('sandbox <uid>')
     .description('Enable developer sandbox mode for a user (no real mutations)')
-    .action(async uid => {
+    .action(async (uid) => {
       const { intro, outro, spinner, log } = await import('@clack/prompts');
       intro(chalk.magenta('🧪  Sandbox Mode'));
       const s = spinner();
@@ -347,10 +310,7 @@ module.exports = program => {
       intro(chalk.red('🗑️  Delete Platform User'));
       if (!options.force) {
         const ok = await confirm({ message: `Permanently delete ${chalk.bold(uid)}?` });
-        if (isCancel(ok) || !ok) {
-          outro('Cancelled');
-          return;
-        }
+        if (isCancel(ok) || !ok) { outro('Cancelled'); return; }
       }
       const s = spinner();
       s.start(`Deleting ${uid}...`);
@@ -376,24 +336,19 @@ module.exports = program => {
     .command('roles')
     .description('List all available roles and their permissions')
     .option('--json', 'Print as JSON')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, note } = await import('@clack/prompts');
       const { roles } = require('../../policies/roles.json');
 
-      if (options.json) {
-        console.log(JSON.stringify(roles, null, 2));
-        return;
-      }
+      if (options.json) { console.log(JSON.stringify(roles, null, 2)); return; }
 
       intro(chalk.cyan('🎭  Available Roles'));
       for (const [id, role] of Object.entries(roles)) {
         const sandboxBadge = role.sandbox ? chalk.yellow(' [sandbox]') : '';
-        const approvalBadge = role.requireApproval?.length
-          ? chalk.red(' [some approval required]')
-          : '';
+        const approvalBadge = role.requireApproval?.length ? chalk.red(' [some approval required]') : '';
         note(
           `Tools: ${chalk.dim((role.tools || []).join(', '))}\n` +
-            `Approval required: ${chalk.dim((role.requireApproval || []).join(', ') || 'none')}`,
+          `Approval required: ${chalk.dim((role.requireApproval || []).join(', ') || 'none')}`,
           `${chalk.bold(id)} — ${role.label}${sandboxBadge}${approvalBadge}`
         );
       }
@@ -417,10 +372,10 @@ module.exports = program => {
         const role = await sandbox.getRole(login);
         note(
           `Login:   ${chalk.white(creds?.login || '— not logged in')}\n` +
-            `Name:    ${chalk.white(creds?.name || '—')}\n` +
-            `Role:    ${chalk.yellow(role.label || 'user')}\n` +
-            `Sandbox: ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
-            `Tools:   ${chalk.dim((role.tools || []).join(', '))}`,
+          `Name:    ${chalk.white(creds?.name || '—')}\n` +
+          `Role:    ${chalk.yellow(role.label || 'user')}\n` +
+          `Sandbox: ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
+          `Tools:   ${chalk.dim((role.tools || []).join(', '))}`,
           'Your Identity'
         );
       } catch (e) {

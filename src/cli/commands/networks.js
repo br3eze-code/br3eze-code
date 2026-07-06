@@ -5,7 +5,8 @@
 
 'use strict';
 
-module.exports = program => {
+
+module.exports = (program) => {
   const network = program
     .command('network')
     .description('Network diagnostics and RouterOS tools')
@@ -17,17 +18,14 @@ module.exports = program => {
     .description('Ping test from router')
     .option('--count, -c <n>', 'Number of pings', '4')
     .action(async (host, options) => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Pinging ${host}…`);
       try {
         const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
-        const result = await mikrotik.ping(host, parseInt(options.count) || 4);
-        s.stop(
-          `Ping complete — ${result.filter(r => r.received > 0).length}/${result.length} replies`
-        );
+        const result   = await mikrotik.ping(host, parseInt(options.count) || 4);
+        s.stop(`Ping complete — ${result.filter(r => r.received > 0).length}/${result.length} replies`);
 
         const lines = result.map((r, i) => {
           const ok = r.received > 0;
@@ -45,20 +43,16 @@ module.exports = program => {
     .command('scan')
     .description('Scan for connected devices (DHCP leases)')
     .action(async () => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start('Scanning DHCP leases…');
       try {
         const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
-        const leases = await mikrotik.getDhcpLeases();
+        const leases   = await mikrotik.getDhcpLeases();
         s.stop(`${leases.length} device(s) found`);
 
-        if (!leases.length) {
-          log.warn('No DHCP leases.');
-          return;
-        }
+        if (!leases.length) { log.warn('No DHCP leases.'); return; }
 
         const lines = leases.map((l, i) => {
           const status = l.status === 'bound' ? '●' : '○';
@@ -76,15 +70,14 @@ module.exports = program => {
     .command('firewall')
     .description('Show firewall rules')
     .option('--type <type>', 'Rule type: filter | nat | mangle', 'filter')
-    .action(async options => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+    .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Fetching ${options.type} rules…`);
       try {
         const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
-        const rules = await mikrotik.getFirewallRules(options.type);
+        const rules    = await mikrotik.getFirewallRules(options.type);
         s.stop(`${rules.length} ${options.type} rule(s)`);
 
         const visible = rules.slice(0, 15);
@@ -107,8 +100,7 @@ module.exports = program => {
     .description('Block an IP or MAC address')
     .option('--reason <reason>', 'Block reason', 'Manual block via CLI')
     .action(async (target, options) => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Blocking ${target}…`);
       try {
@@ -127,14 +119,10 @@ module.exports = program => {
   network
     .command('unblock <target>')
     .description('Unblock an IP or MAC address')
-    .action(async target => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+    .action(async (target) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const ok = await confirm({ message: `Unblock ${target}?` });
-      if (isCancel(ok) || !ok) {
-        log.warn('Cancelled.');
-        return;
-      }
+      if (isCancel(ok) || !ok) { log.warn('Cancelled.'); return; }
 
       const s = spinner();
       s.start(`Unblocking ${target}…`);
@@ -154,15 +142,14 @@ module.exports = program => {
     .command('sync-profiles')
     .description('Sync hotspot user profiles from MikroTik → database')
     .action(async () => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('🔄 Profile Sync');
       const s = spinner();
       s.start('Fetching profiles from MikroTik…');
 
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
-        const { getDatabase } = require('../../core/database');
+        const { getMikroTikClient }  = require('../../core/mikrotik');
+        const { getDatabase }        = require('../../core/database');
 
         const mikrotik = await getMikroTikClient();
         const profiles = await mikrotik.getHotspotProfiles();
@@ -177,24 +164,23 @@ module.exports = program => {
           return;
         }
 
-        let created = 0,
-          existing = 0;
+        let created = 0, existing = 0;
         for (const p of profiles) {
           if (p.name === 'default') continue;
-          const planId = db.hashPlanId(p.name);
+          const planId  = db.hashPlanId(p.name);
           const planRef = db.db.collection('plans').doc(planId);
           const planDoc = await planRef.get();
 
           if (!planDoc.exists) {
             await planRef.set({
-              name: p.name,
+              name:          p.name,
               mikrotikProfile: p.name,
-              active: true,
-              price: 0,
+              active:        true,
+              price:         0,
               durationValue: 1,
-              durationUnit: 'days',
-              deviceLimit: 1,
-              createdAt: new Date().toISOString(),
+              durationUnit:  'days',
+              deviceLimit:   1,
+              createdAt:     new Date().toISOString(),
               syncedFromRouter: true,
             });
             created++;

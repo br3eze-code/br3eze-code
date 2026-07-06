@@ -4,9 +4,6 @@
     "commonjs": true,
     "es2022": true
   },
-  "globals": {
-    "WebSocket": "readonly"
-  },
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "script"
@@ -31,9 +28,7 @@
     "no-return-await": "warn",
     "require-await": "warn",
     "no-shadow": ["warn", { "hoist": "functions" }],
-    "no-empty": ["error", { "allowEmptyCatch": true }],
-    "no-case-declarations": "warn",
-    "no-use-before-define": ["error", { "functions": false, "classes": false, "variables": false }]
+    "no-use-before-define": ["error", { "functions": false, "classes": true, "variables": true }]
   },
   "overrides": [
     {
@@ -59,47 +54,6 @@
       "rules": {
         "no-unused-vars": "warn"
       }
-    },
-    {
-      "files": ["agents/wifi_agent/**/*.js"],
-      "env": {
-        "browser": true
-      },
-      "globals": {
-        "cordova": "readonly",
-        "device": "readonly"
-      }
-    },
-    {
-      "files": ["extentions/chrome/**/*.js"],
-      "env": {
-        "browser": true,
-        "webextensions": true
-      }
-    },
-    {
-      "files": ["www/**/*.js"],
-      "parserOptions": {
-        "sourceType": "script"
-      },
-      "env": {
-        "browser": true,
-        "node": false
-      },
-      "globals": {
-        "CFG": "readonly",
-        "UI": "readonly",
-        "App": "readonly",
-        "Client": "readonly",
-        "WS": "readonly",
-        "Store": "readonly",
-        "KEYS": "readonly",
-        "Users": "readonly",
-        "Agent": "readonly",
-        "Vouchers": "readonly",
-        "Tools": "readonly",
-        "cordova": "readonly"
-      }
     }
   ],
   "ignorePatterns": [
@@ -109,7 +63,6 @@
     "data/",
     "platforms/",
     "www/lib/",
-    "custom-plugins/*/www/",
     "*.min.js"
   ]
 }

@@ -31,7 +31,7 @@ class PesaPalIntegration {
       if (!this.provider.config.ipnId && ipnUrl) {
         const result = await this.provider.registerIPN(ipnUrl, 'POST');
         console.log('[PesaPal] New IPN registered:', result);
-
+        
         // Save to config
         this.provider.config.ipnId = result.ipn_id;
       }
@@ -48,39 +48,39 @@ class PesaPalIntegration {
    */
   async createVoucherPurchase(userId, voucherType, amount, customerInfo = {}) {
     const reference = `BR3EZE-${userId}-${Date.now()}`;
-
+    
     try {
       const payment = await this.provider.createPayment({
-        amount,
+        amount: amount,
         currency: 'USD',
         description: `Br3eze WiFi Voucher - ${voucherType}`,
-        reference,
+        reference: reference,
         customerEmail: customerInfo.email || `user${userId}@br3eze.africa`,
         customerPhone: customerInfo.phone || '',
         customerName: customerInfo.name || 'Br3eze Customer',
-        notificationId: this.provider.config.ipnId,
+        notificationId: this.provider.config.ipnId
       });
 
       // Store pending transaction
       if (this.db) {
         await this.db.collection('transactions').doc(payment.orderTrackingId).set({
           userId: userId.toString(),
-          voucherType,
-          amount,
+          voucherType: voucherType,
+          amount: amount,
           currency: 'USD',
           status: 'pending',
           merchantReference: reference,
           orderTrackingId: payment.orderTrackingId,
           provider: 'pesapal',
           createdAt: new Date(),
-          customerInfo,
+          customerInfo: customerInfo
         });
       }
 
       return {
         success: true,
         ...payment,
-        reference,
+        reference: reference
       };
     } catch (error) {
       console.error('[PesaPal] Voucher purchase creation failed:', error);
@@ -99,10 +99,10 @@ class PesaPalIntegration {
       if (this.db) {
         await this.db.collection('transactions').doc(orderTrackingId).update({
           status: 'completed',
-          paymentMethod,
-          confirmationCode,
+          paymentMethod: paymentMethod,
+          confirmationCode: confirmationCode,
           paidAt: new Date(),
-          ipnData,
+          ipnData: ipnData
         });
 
         // Get transaction details
@@ -117,38 +117,37 @@ class PesaPalIntegration {
         await this.db.collection('vouchers').doc(voucherCode).set({
           code: voucherCode,
           type: tx.voucherType,
-          amount,
+          amount: amount,
           currency: 'USD',
           transactionId: orderTrackingId,
           userId: tx.userId,
           createdAt: new Date(),
           expiresAt: expiryDate,
           used: false,
-          status: 'active',
+          status: 'active'
         });
 
         // Send to user via Telegram
         if (this.telegramBot) {
-          await this.telegramBot.sendMessage(
-            tx.userId,
+          await this.telegramBot.sendMessage(tx.userId, 
             `✅ *Payment Successful!*\n\n` +
-              `🎫 *Your WiFi Voucher Code:*\n` +
-              `\`${voucherCode}\`\n\n` +
-              `📊 *Details:*\n` +
-              `• Type: ${tx.voucherType}\n` +
-              `• Amount: $${amount}\n` +
-              `• Payment: ${paymentMethod}\n` +
-              `• Confirmation: ${confirmationCode}\n` +
-              `• Valid until: ${expiryDate.toLocaleString()}\n\n` +
-              `Connect to Br3eze WiFi and enter this code!`,
+            `🎫 *Your WiFi Voucher Code:*\n` +
+            `\`${voucherCode}\`\n\n` +
+            `📊 *Details:*\n` +
+            `• Type: ${tx.voucherType}\n` +
+            `• Amount: $${amount}\n` +
+            `• Payment: ${paymentMethod}\n` +
+            `• Confirmation: ${confirmationCode}\n` +
+            `• Valid until: ${expiryDate.toLocaleString()}\n\n` +
+            `Connect to Br3eze WiFi and enter this code!`,
             { parse_mode: 'Markdown' }
           );
         }
 
         return {
           success: true,
-          voucherCode,
-          orderTrackingId,
+          voucherCode: voucherCode,
+          orderTrackingId: orderTrackingId
         };
       }
     } catch (error) {
@@ -174,14 +173,13 @@ class PesaPalIntegration {
    */
   calculateExpiry(type) {
     const now = new Date();
-    const hours =
-      {
-        '1Hour': 1,
-        '1Day': 24,
-        '1Week': 24 * 7,
-        '1Month': 24 * 30,
-      }[type] || 24;
-
+    const hours = {
+      '1Hour': 1,
+      '1Day': 24,
+      '1Week': 24 * 7,
+      '1Month': 24 * 30
+    }[type] || 24;
+    
     return new Date(now.getTime() + hours * 60 * 60 * 1000);
   }
 

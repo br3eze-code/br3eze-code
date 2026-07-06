@@ -8,7 +8,7 @@ class EmailSkill {
 
   async execute(params, context) {
     const { action, provider = 'smtp', ...config } = params;
-
+    
     switch (action) {
       case 'send':
         return this.sendEmail(provider, config, context);
@@ -23,7 +23,7 @@ class EmailSkill {
 
   async sendEmail(provider, config, context) {
     const transporter = await this.getTransporter(provider, context);
-
+    
     const mailOptions = {
       from: config.from || context.config?.email?.defaultFrom,
       to: config.to,
@@ -33,17 +33,17 @@ class EmailSkill {
       attachments: config.attachments?.map(a => ({
         filename: a.name,
         content: a.content,
-        path: a.path,
-      })),
+        path: a.path
+      }))
     };
 
     const result = await transporter.sendMail(mailOptions);
-
+    
     return {
       success: true,
       messageId: result.messageId,
       accepted: result.accepted,
-      rejected: result.rejected,
+      rejected: result.rejected
     };
   }
 
@@ -63,33 +63,33 @@ class EmailSkill {
           secure: config.secure,
           auth: {
             user: config.user,
-            pass: config.pass,
+            pass: config.pass
           },
           pool: true,
-          maxConnections: 5,
+          maxConnections: 5
         });
         break;
-
+        
       case 'sendgrid':
         transporter = nodemailer.createTransport({
           service: 'SendGrid',
           auth: {
-            api_key: config.apiKey,
-          },
+            api_key: config.apiKey
+          }
         });
         break;
-
+        
       case 'aws-ses':
         const aws = require('@aws-sdk/client-ses');
         const ses = new aws.SES({
           region: config.region,
           credentials: {
             accessKeyId: config.accessKeyId,
-            secretAccessKey: config.secretAccessKey,
-          },
+            secretAccessKey: config.secretAccessKey
+          }
         });
         transporter = nodemailer.createTransport({
-          SES: { ses, aws },
+          SES: { ses, aws }
         });
         break;
     }

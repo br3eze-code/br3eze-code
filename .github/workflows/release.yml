@@ -104,7 +104,7 @@ jobs:
 
             ### Install
             ```bash
-            npm install @br3eze-code/br3eze-code@${{ steps.version.outputs.version }}
+            npm install @br3eze-code/agentos@${{ steps.version.outputs.version }}
             ```
           draft: false
           prerelease: false
@@ -114,12 +114,6 @@ jobs:
 
       - name: Publish to GitHub Packages
         if: steps.bump.outputs.bumped == 'true'
-        run: |
-          PKG_VERSION="${{ steps.version.outputs.version }}"
-          if npm view "@br3eze-code/br3eze-code@${PKG_VERSION}" version --registry https://npm.pkg.github.com >/dev/null 2>&1; then
-            echo "ℹ️  @br3eze-code/br3eze-code@${PKG_VERSION} is already published — skipping (idempotent, not a failure)."
-          else
-            npm publish --access public
-          fi
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

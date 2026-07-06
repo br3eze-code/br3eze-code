@@ -13,15 +13,15 @@ const SALT_ROUNDS = 12;
  * @returns {string} Secure random password
  */
 const generateSecurePassword = (length = 32) => {
-  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
-  const bytes = crypto.randomBytes(length);
-  let password = '';
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    const bytes = crypto.randomBytes(length);
+    let password = '';
 
-  for (let i = 0; i < length; i++) {
-    password += charset[bytes[i] % charset.length];
-  }
+    for (let i = 0; i < length; i++) {
+        password += charset[bytes[i] % charset.length];
+    }
 
-  return password;
+    return password;
 };
 
 /**
@@ -29,7 +29,7 @@ const generateSecurePassword = (length = 32) => {
  * @returns {string} JWT-compatible session ID
  */
 const generateSessionToken = () => {
-  return crypto.randomBytes(32).toString('hex');
+    return crypto.randomBytes(32).toString('hex');
 };
 
 /**
@@ -37,8 +37,8 @@ const generateSessionToken = () => {
  * @param {string} password - Plain text password
  * @returns {Promise<string>} Hashed password
  */
-const hashPassword = async password => {
-  return bcrypt.hash(password, SALT_ROUNDS);
+const hashPassword = async (password) => {
+    return bcrypt.hash(password, SALT_ROUNDS);
 };
 
 /**
@@ -48,7 +48,7 @@ const hashPassword = async password => {
  * @returns {Promise<boolean>} Match result
  */
 const verifyPassword = async (password, hash) => {
-  return bcrypt.compare(password, hash);
+    return bcrypt.compare(password, hash);
 };
 
 /**
@@ -56,9 +56,9 @@ const verifyPassword = async (password, hash) => {
  * @param {string} uid - Firebase user ID
  * @returns {string} MikroTik username
  */
-const generateMikrotikUsername = uid => {
-  // MikroTik has username length limits, so we hash the UID
-  return `fb_${crypto.createHash('sha256').update(uid).digest('hex').substring(0, 20)}`;
+const generateMikrotikUsername = (uid) => {
+    // MikroTik has username length limits, so we hash the UID
+    return `fb_${crypto.createHash('sha256').update(uid).digest('hex').substring(0, 20)}`;
 };
 
 /**
@@ -68,12 +68,12 @@ const generateMikrotikUsername = uid => {
  * @returns {string} Encrypted data
  */
 const encrypt = (text, key) => {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const authTag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    const authTag = cipher.getAuthTag();
+    return iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted;
 };
 
 /**
@@ -83,15 +83,15 @@ const encrypt = (text, key) => {
  * @returns {string} Decrypted data
  */
 const decrypt = (encryptedData, key) => {
-  const parts = encryptedData.split(':');
-  const iv = Buffer.from(parts[0], 'hex');
-  const authTag = Buffer.from(parts[1], 'hex');
-  const encrypted = parts[2];
-  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
-  decipher.setAuthTag(authTag);
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+    const parts = encryptedData.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const authTag = Buffer.from(parts[1], 'hex');
+    const encrypted = parts[2];
+    const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
+    decipher.setAuthTag(authTag);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
 };
 
 /**
@@ -101,7 +101,10 @@ const decrypt = (encryptedData, key) => {
  * @returns {string} HMAC signature
  */
 const generateWebhookSignature = (payload, secret) => {
-  return crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+    return crypto
+        .createHmac('sha256', secret)
+        .update(JSON.stringify(payload))
+        .digest('hex');
 };
 
 /**
@@ -112,18 +115,21 @@ const generateWebhookSignature = (payload, secret) => {
  * @returns {boolean} Validity
  */
 const verifyWebhookSignature = (payload, signature, secret) => {
-  const expected = generateWebhookSignature(payload, secret);
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    const expected = generateWebhookSignature(payload, secret);
+    return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expected)
+    );
 };
 
 module.exports = {
-  generateSecurePassword,
-  generateSessionToken,
-  hashPassword,
-  verifyPassword,
-  generateMikrotikUsername,
-  encrypt,
-  decrypt,
-  generateWebhookSignature,
-  verifyWebhookSignature,
+    generateSecurePassword,
+    generateSessionToken,
+    hashPassword,
+    verifyPassword,
+    generateMikrotikUsername,
+    encrypt,
+    decrypt,
+    generateWebhookSignature,
+    verifyWebhookSignature
 };

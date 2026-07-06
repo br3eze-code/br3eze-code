@@ -1,205 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta http-equiv="pragma" content="no-cache">
-  <meta http-equiv="expires" content="-1">
-  <title>Login · Br3eze Hotspot</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap">
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .login-container {
-      max-width: 420px;
-      margin: 40px auto;
-      padding: 0 16px;
-    }
-    .login-card {
-      background: var(--bg1);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: var(--shadow-cyan);
-    }
-    .login-title {
-      font-family: var(--font-hdr);
-      font-size: 20px;
-      color: var(--cyan);
-      margin-bottom: 24px;
-      text-align: center;
-      letter-spacing: 3px;
-    }
-    .form-group {
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .form-group label {
-      color: var(--text-dim);
-      font-family: var(--font-hdr);
-      font-size: 11px;
-      letter-spacing: 1px;
-    }
-    .form-input {
-      background: var(--bg2);
-      border: 1px solid var(--border-dim);
-      border-radius: var(--radius);
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 14px;
-      padding: 10px 12px;
-      transition: border-color 0.2s;
-    }
-    .form-input:focus {
-      outline: none;
-      border-color: var(--cyan);
-    }
-    .btn-login {
-      display: block;
-      width: 100%;
-      padding: 12px;
-      background: var(--cyan);
-      border: none;
-      border-radius: var(--radius);
-      color: #000;
-      font-family: var(--font-hdr);
-      font-size: 13px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      text-align: center;
-      font-weight: bold;
-      transition: opacity 0.2s;
-      margin-top: 24px;
-    }
-    .btn-login:active {
-      opacity: 0.8;
-    }
-    .error-box {
-      background: rgba(255,51,85,0.1);
-      border: 1px solid var(--red);
-      color: var(--red);
-      padding: 10px;
-      border-radius: var(--radius);
-      margin-bottom: 16px;
-      font-size: 12px;
-      text-align: center;
-    }
-    .qr-scanner-btn {
-      background: var(--bg2);
-      border: 1px solid var(--border-dim);
-      color: var(--cyan);
-      padding: 8px;
-      border-radius: var(--radius);
-      font-family: var(--font-hdr);
-      font-size: 10px;
-      letter-spacing: 1px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      margin-top: 8px;
-      width: 100%;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Power Connect - Sign In</title>
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="css/index.css">
 </head>
+
 <body>
-  <div id="app">
-    <header class="app-header">
-      <div class="header-brand">
-        <span class="brand-sigil">◈</span>
-        <span class="brand-name">AGENT<span class="brand-accent">OS</span></span>
-        <span class="brand-ver">HOTSPOT</span>
-      </div>
-      <div class="header-status">
-        <div class="status-pill">
-          <span class="status-dot"></span>
-          <span>SIGN IN</span>
+
+  <div id="authScreen">
+    <div class="auth-container">
+      
+      <!-- LOGIN FORM -->
+      <div class="card auth-card" id="loginForm">
+        <div class="auth-header">
+          <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+          <h2>Power Connect</h2>
+          <p>Sign in to access the high-speed network</p>
         </div>
-      </div>
-    </header>
 
-    <main class="app-main" style="overflow-y: auto;">
-      <div class="login-container">
-        <div class="login-card">
-          <div class="login-title">WIFI LOGIN</div>
+        <!-- Hidden form for actual MikroTik login submission -->
+        <form id="mikrotik-form" name="login" action="$(link-login-only)" method="post" style="display:none;">
+          <input type="hidden" name="dst" value="$(link-orig)" />
+          <input type="hidden" name="popup" value="true" />
+          <input type="hidden" name="username" id="mk-username" />
+          <input type="hidden" name="password" id="mk-password" />
+        </form>
 
-          $(if error)
-          <div class="error-box">
-            $(error)
+        <form id="loginFormElement">
+          <div class="form-group">
+            <label>Username, Email or Voucher</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user"></i>
+              <input type="text" id="loginIdentifier" placeholder="Enter username or voucher" required autocomplete="username">
+            </div>
           </div>
-          $(endif)
 
-          <form name="login" action="$(link-login-only)" method="post">
-            <input type="hidden" name="dst" value="$(link-orig)" />
-            <input type="hidden" name="popup" value="true" />
-
-            <div class="form-group">
-              <label for="username">VOUCHER CODE / USERNAME</label>
-              <input type="text" id="username" name="username" class="form-input" placeholder="Enter code or username" value="$(username)" required autocomplete="username">
+          <div class="form-group">
+            <label>Password (Leave blank for voucher)</label>
+            <div class="input-wrapper">
+              <i class="fas fa-key"></i>
+              <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" style="padding-right: 48px;">
+              <button type="button" class="qr-btn" title="Scan QR Code" onclick="scanQRCode()">
+                <i class="fas fa-qrcode"></i>
+              </button>
             </div>
+          </div>
 
-            <div class="form-group">
-              <label for="password">PASSWORD (LEAVE BLANK FOR VOUCHER)</label>
-              <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" autocomplete="current-password">
-            </div>
+          <div id="qr-reader" style="display:none;"></div>
 
-            <button type="submit" class="btn-login">CONNECT</button>
-          </form>
+          <button type="submit" class="btn btn-primary btn-block" id="login-submit-btn">Connect to WiFi</button>
+        </form>
 
-          <button id="qr-btn" class="qr-scanner-btn" onclick="toggleQR()">◈ SCAN VOUCHER QR</button>
-          <div id="qr-reader" style="width: 100%; display: none; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;"></div>
+        <div class="auth-divider">
+          <hr>
+          <span>or continue with</span>
+          <hr>
         </div>
+
+        <button type="button" class="google-btn" id="googleSignInBtn" onclick="Auth.loginWithGoogle()">
+          <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#EA4335"
+              d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <path fill="#4285F4"
+              d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+            <path fill="#FBBC05"
+              d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+            <path fill="#34A853"
+              d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+          </svg>
+          Sign in with Google
+        </button>
+
+        <div id="error-message"></div>
+
+        <div class="auth-toggle">Need an account? <a onclick="toggleAuthForm()">Sign up</a></div>
       </div>
-    </main>
+
+      <!-- SIGNUP FORM -->
+      <div class="card auth-card hidden" id="signupForm">
+        <div class="auth-header">
+          <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+          <h2>Create Account</h2>
+          <p>Join Power Hotspot today</p>
+        </div>
+        
+        <form id="signupFormElement">
+          <div class="form-group">
+            <label>Full Name</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user-circle"></i>
+              <input type="text" id="signupFullname" placeholder="John Doe" autocomplete="name" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Username</label>
+            <div class="input-wrapper">
+              <i class="fas fa-user"></i>
+              <input type="text" id="signupUsername" placeholder="johndoe" autocomplete="username" required>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Email Address</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope"></i>
+              <input type="email" id="signupEmail" placeholder="john@example.com" required autocomplete="email">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock"></i>
+              <input type="password" id="signupPassword" placeholder="••••••••" required autocomplete="new-password" minlength="6">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-shield-alt"></i>
+              <input type="password" id="signupConfirmPassword" placeholder="••••••••" required autocomplete="new-password" minlength="6">
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
+        </form>
+        
+        <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
+      </div>
+      
+    </div>
   </div>
 
+  <div id="toast" class="toast">
+    <span id="toastIcon"></span>
+    <span id="toastMessage"></span>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title"></h3>
+        <button class="close-modal" onclick="UI.closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Firebase SDKs (Google sign-in / Br3eze Africa account only -- the actual
+       hotspot login below posts straight to the router and does not depend on Firebase) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="js/html5-qrcode.min.js"></script>
-  <script>
-    let html5QrcodeScanner = null;
-    function toggleQR() {
-      const readerDiv = document.getElementById('qr-reader');
-      const btn = document.getElementById('qr-btn');
-      if (readerDiv.style.display === 'none') {
-        readerDiv.style.display = 'block';
-        btn.textContent = '✕ CLOSE SCANNER';
-        startQR();
-      } else {
-        stopQR();
-      }
-    }
+  <script src="js/ui.js"></script>
+  <script src="js/login-inline.js"></script>
 
-    function startQR() {
-      html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: 250 });
-      html5QrcodeScanner.render((decodedText) => {
-        let code = decodedText.trim();
-        if (code.includes('?code=')) {
-          const urlParams = new URLSearchParams(code.split('?')[1]);
-          code = urlParams.get('code') || code;
-        }
-        document.getElementById('username').value = code;
-        document.getElementById('password').value = '';
-        stopQR();
-        if (code) {
-          document.forms['login'].submit();
-        }
-      }, (error) => {
-        // ignore scanning errors
-      });
-    }
-
-    function stopQR() {
-      const readerDiv = document.getElementById('qr-reader');
-      const btn = document.getElementById('qr-btn');
-      readerDiv.style.display = 'none';
-      btn.textContent = '◈ SCAN VOUCHER QR';
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.clear().catch(err => console.error("Error clearing scanner", err));
-        html5QrcodeScanner = null;
-      }
-    }
-  </script>
 </body>
+
 </html>

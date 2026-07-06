@@ -1,5 +1,4 @@
 const { EventEmitter } = require('events');
-const { logger } = require('../../core/logger');
 // src/plugins/adapters/mikrotik-adapter.js
 const BaseAdapter = require('../base-adapter');
 const { RouterOSClient } = require('routeros-client');
@@ -13,11 +12,11 @@ class MikroTikAdapter extends BaseAdapter {
       'user.add': this.addHotspotUser.bind(this),
       'user.kick': this.kickUser.bind(this),
       'users.active': this.getActiveUsers.bind(this),
-      ping: this.ping.bind(this),
+      'ping': this.ping.bind(this),
       'system.stats': this.getSystemStats.bind(this),
       'system.reboot': this.reboot.bind(this),
       'firewall.block': this.blockAddress.bind(this),
-      'voucher.create': this.createVoucher.bind(this),
+      'voucher.create': this.createVoucher.bind(this)
     };
   }
 
@@ -27,12 +26,12 @@ class MikroTikAdapter extends BaseAdapter {
       user: this.config.user,
       password: this.config.password,
       port: this.config.port || 8728,
-      timeout: 10000,
+      timeout: 10000
     });
 
     this.connection = await this.client.connect();
     this.connected = true;
-
+    
     // Create resource representation
     const router = new Resource({
       type: 'router',
@@ -42,8 +41,8 @@ class MikroTikAdapter extends BaseAdapter {
       properties: {
         host: this.config.host,
         port: this.config.port,
-        version: await this.getVersion(),
-      },
+        version: await this.getVersion()
+      }
     });
 
     this.resources.set(router.id, router);
@@ -60,16 +59,13 @@ class MikroTikAdapter extends BaseAdapter {
   async discover() {
     // Discover connected devices/leases
     const leases = await this.connection.menu('/ip/dhcp-server/lease').get();
-    const devices = leases.map(
-      lease =>
-        new Resource({
-          type: 'network_client',
-          provider: 'mikrotik',
-          name: lease.hostName || lease.macAddress,
-          parentId: Array.from(this.resources.keys())[0],
-          properties: lease,
-        })
-    );
+    const devices = leases.map(lease => new Resource({
+      type: 'network_client',
+      provider: 'mikrotik',
+      name: lease.hostName || lease.macAddress,
+      parentId: Array.from(this.resources.keys())[0],
+      properties: lease
+    }));
 
     devices.forEach(d => this.resources.set(d.id, d));
     return Array.from(this.resources.values());
@@ -85,7 +81,7 @@ class MikroTikAdapter extends BaseAdapter {
       adapter: 'mikrotik',
       resource: resourceId,
       action,
-      params: this.sanitizeParams(params),
+      params: this.sanitizeParams(params)
     });
 
     return await this.actionMap[action](params);
@@ -95,19 +91,19 @@ class MikroTikAdapter extends BaseAdapter {
     // Implementation from previous code
     const code = this.generateCode();
     const profile = params.plan || 'default';
-
+    
     await this.connection.menu('/ip/hotspot/user').add({
       name: code,
       password: code,
-      profile,
-      comment: `Voucher: ${params.notes || 'AgentOS'}`,
+      profile: profile,
+      comment: `Voucher: ${params.notes || 'AgentOS'}`
     });
 
     return {
       code,
       profile,
       expiresAt: this.calculateExpiry(profile),
-      qrCode: await this.generateQR(code),
+      qrCode: await this.generateQR(code)
     };
   }
 

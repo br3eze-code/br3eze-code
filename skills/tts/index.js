@@ -13,7 +13,7 @@ class TTSSkill {
 
   async initialize() {
     await fs.mkdir(this.cacheDir, { recursive: true });
-
+    
     // Initialize providers
     this.providers.set('edge', new EdgeTTSProvider());
     this.providers.set('openai', new OpenAITTSProvider());
@@ -23,7 +23,7 @@ class TTSSkill {
 
   async execute(params, context) {
     const { action, provider = 'edge', ...config } = params;
-
+    
     const providerInstance = this.providers.get(provider);
     if (!providerInstance) {
       throw new Error(`Unknown TTS provider: ${provider}`);
@@ -43,14 +43,14 @@ class TTSSkill {
 
   async synthesize(provider, config, context) {
     const cacheKey = this.getCacheKey(config);
-
+    
     // Check cache
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
 
     const cachePath = path.join(this.cacheDir, `${cacheKey}.${config.format || 'mp3'}`);
-
+    
     try {
       // Check file cache
       await fs.access(cachePath);
@@ -67,12 +67,12 @@ class TTSSkill {
       voice: config.voice,
       speed: config.speed || 1.0,
       format: config.format || 'mp3',
-      language: config.language || 'en',
+      language: config.language || 'en'
     });
 
     // Save to cache
     await fs.writeFile(cachePath, audioBuffer);
-
+    
     // Clean old cache files if needed
     await this.cleanupCache();
 
@@ -82,7 +82,7 @@ class TTSSkill {
       url,
       duration: this.estimateDuration(config.text, config.speed),
       size: audioBuffer.length,
-      cached: false,
+      cached: false
     };
 
     this.cache.set(cacheKey, result);
@@ -94,14 +94,14 @@ class TTSSkill {
       text: config.text,
       voice: config.voice,
       speed: config.speed || 1.0,
-      format: config.format || 'mp3',
+      format: config.format || 'mp3'
     });
 
     return {
       success: true,
       stream,
       contentType: `audio/${config.format || 'mp3'}`,
-      transferEncoding: 'chunked',
+      transferEncoding: 'chunked'
     };
   }
 
@@ -116,7 +116,7 @@ class TTSSkill {
     // Average speaking rate: ~150 words per minute
     const words = text.split(/\s+/).length;
     const minutes = words / 150;
-    return Math.round((minutes * 60) / speed);
+    return Math.round(minutes * 60 / speed);
   }
 
   async cleanupCache() {
@@ -127,7 +127,7 @@ class TTSSkill {
     const stats = await Promise.all(
       files.map(async f => ({
         name: f,
-        stat: await fs.stat(path.join(this.cacheDir, f)),
+        stat: await fs.stat(path.join(this.cacheDir, f))
       }))
     );
 
@@ -161,11 +161,9 @@ class EdgeTTSProvider {
 
     const os = require('os');
     const tempFile = path.join(os.tmpdir(), `tts-${Date.now()}.mp3`);
-
+    
     try {
-      await execAsync(
-        `edge-tts --voice "${voice}" --rate="${Math.round((speed - 1) * 100)}%" --text "${text.replace(/"/g, '\\"')}" --write-media "${tempFile}"`
-      );
+      await execAsync(`edge-tts --voice "${voice}" --rate="${Math.round((speed - 1) * 100)}%" --text "${text.replace(/"/g, '\\"')}" --write-media "${tempFile}"`);
       const buffer = await fs.readFile(tempFile);
       await fs.unlink(tempFile);
       return buffer;
@@ -180,7 +178,7 @@ class EdgeTTSProvider {
       { id: 'en-US-AriaNeural', name: 'Aria', gender: 'female', language: 'en-US' },
       { id: 'en-US-GuyNeural', name: 'Guy', gender: 'male', language: 'en-US' },
       { id: 'en-GB-SoniaNeural', name: 'Sonia', gender: 'female', language: 'en-GB' },
-      { id: 'en-AU-NatashaNeural', name: 'Natasha', gender: 'female', language: 'en-AU' },
+      { id: 'en-AU-NatashaNeural', name: 'Natasha', gender: 'female', language: 'en-AU' }
     ].filter(v => v.language.startsWith(language));
   }
 }
@@ -191,16 +189,16 @@ class OpenAITTSProvider {
     const response = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model: 'tts-1',
         input: text,
         voice,
         speed,
-        response_format: format,
-      }),
+        response_format: format
+      })
     });
 
     if (!response.ok) {
@@ -217,7 +215,7 @@ class OpenAITTSProvider {
       { id: 'fable', name: 'Fable', gender: 'female' },
       { id: 'onyx', name: 'Onyx', gender: 'male' },
       { id: 'nova', name: 'Nova', gender: 'female' },
-      { id: 'shimmer', name: 'Shimmer', gender: 'female' },
+      { id: 'shimmer', name: 'Shimmer', gender: 'female' }
     ];
   }
 }
@@ -229,16 +227,16 @@ class ElevenLabsProvider {
       method: 'POST',
       headers: {
         'xi-api-key': process.env.ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         text,
         model_id: 'eleven_monolingual_v1',
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.5,
-        },
-      }),
+          similarity_boost: 0.5
+        }
+      })
     });
 
     if (!response.ok) {
@@ -250,7 +248,7 @@ class ElevenLabsProvider {
 
   async getVoices() {
     const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY },
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
     });
 
     const data = await response.json();
@@ -258,7 +256,7 @@ class ElevenLabsProvider {
       id: v.voice_id,
       name: v.name,
       gender: v.labels?.gender || 'unknown',
-      preview: v.preview_url,
+      preview: v.preview_url
     }));
   }
 }
@@ -280,9 +278,7 @@ class LocalTTSProvider {
         await execAsync(`say -o "${tempFile}" --rate=${rate} "${text.replace(/"/g, '\\"')}"`);
       } else if (platform === 'linux') {
         // espeak or festival
-        await execAsync(
-          `espeak "${text.replace(/"/g, '\\"')}" -w "${tempFile}" -s ${Math.round(speed * 150)}`
-        );
+        await execAsync(`espeak "${text.replace(/"/g, '\\"')}" -w "${tempFile}" -s ${Math.round(speed * 150)}`);
       } else if (platform === 'win32') {
         // Windows PowerShell TTS
         const psScript = `
@@ -311,26 +307,25 @@ $synth.Dispose();
       const { exec } = require('child_process');
       const { promisify } = require('util');
       const execAsync = promisify(exec);
-
+      
       const { stdout } = await execAsync('say -v "?"');
-      return stdout
-        .split('\n')
+      return stdout.split('\n')
         .filter(line => line.trim())
         .map(line => {
           const match = line.match(/^(\w+)\s+(\w+)\s+#\s+(.+)$/);
-          return match
-            ? {
-                id: match[1],
-                name: match[1],
-                language: match[2],
-                description: match[3],
-              }
-            : null;
+          return match ? {
+            id: match[1],
+            name: match[1],
+            language: match[2],
+            description: match[3]
+          } : null;
         })
         .filter(Boolean);
     }
 
-    return [{ id: 'default', name: 'System Default', language: 'en' }];
+    return [
+      { id: 'default', name: 'System Default', language: 'en' }
+    ];
   }
 }
 

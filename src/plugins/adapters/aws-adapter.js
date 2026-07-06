@@ -13,7 +13,7 @@ class AWSAdapter extends BaseAdapter {
       'vm.reboot': this.rebootInstance.bind(this),
       'vm.status': this.getInstanceStatus.bind(this),
       'vm.create': this.createInstance.bind(this),
-      'vm.terminate': this.terminateInstance.bind(this),
+      'vm.terminate': this.terminateInstance.bind(this)
     };
   }
 
@@ -21,7 +21,7 @@ class AWSAdapter extends BaseAdapter {
     AWS.config.update({
       accessKeyId: this.config.accessKeyId,
       secretAccessKey: this.config.secretAccessKey,
-      region: this.config.region,
+      region: this.config.region
     });
 
     this.ec2 = new AWS.EC2();
@@ -46,8 +46,8 @@ class AWSAdapter extends BaseAdapter {
             state: instance.State.Name,
             publicIp: instance.PublicIpAddress,
             privateIp: instance.PrivateIpAddress,
-            region: this.config.region,
-          },
+            region: this.config.region
+          }
         });
         instances.push(resource);
         this.resources.set(instance.InstanceId, resource);

@@ -12,11 +12,11 @@ class PluginRegistry {
   // Register built-in adapters — optional SDKs are wrapped gracefully
   registerBuiltins() {
     const builtin = [
-      ['mikrotik', './adapters/mikrotik-adapter'],
-      ['aws', './adapters/aws-adapter'],
-      ['docker', './adapters/docker-adapter'],
-      ['kubernetes', './adapters/kubernetes-adapter'],
-      ['proxmox', './adapters/proxmox-adapter'],
+      ['mikrotik',    './adapters/mikrotik-adapter'],
+      ['aws',         './adapters/aws-adapter'],
+      ['docker',      './adapters/docker-adapter'],
+      ['kubernetes',  './adapters/kubernetes-adapter'],
+      ['proxmox',     './adapters/proxmox-adapter'],
     ];
     for (const [name, path] of builtin) {
       try {
@@ -37,16 +37,14 @@ class PluginRegistry {
   async load(name, config) {
     const AdapterClass = this.adapters.get(name);
     if (!AdapterClass) {
-      throw new Error(
-        `Adapter '${name}' not found. Registered: ${Array.from(this.adapters.keys())}`
-      );
+      throw new Error(`Adapter '${name}' not found. Registered: ${Array.from(this.adapters.keys())}`);
     }
 
     const instance = new AdapterClass(config);
     await instance.connect();
-
+    
     // Index resources
-    instance.on('resource discovered', resource => {
+    instance.on('resource discovered', (resource) => {
       this.resourceIndex.set(resource.id, { adapter: name, resource });
     });
 

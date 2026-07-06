@@ -11,47 +11,39 @@ class McPorterSkill {
 
   async execute(params, context) {
     const { action, router, filename } = params;
-
+    
     const routerConfig = await this.getRouterConfig(router, context);
     if (!routerConfig) {
       throw new Error(`Router not found: ${router}`);
     }
 
     const client = await this.getConnection(routerConfig);
-
+    
     try {
       switch (action) {
         case 'backup.save':
           const backupName = filename || `backup_${new Date().toISOString().replace(/[:.]/g, '-')}`;
           await client.menu('/system backup').save({ name: backupName });
-          return {
-            success: true,
-            filename: `${backupName}.backup`,
-            message: 'Backup created on router',
-          };
+          return { success: true, filename: `${backupName}.backup`, message: 'Backup created on router' };
 
         case 'backup.list':
           const files = await client.menu('/file').print();
           return {
             backups: files.filter(f => f.type === 'backup' || f.name.endsWith('.backup')),
-            exports: files.filter(f => f.name.endsWith('.rsc')),
+            exports: files.filter(f => f.name.endsWith('.rsc'))
           };
 
         case 'export.run':
           const exportName = filename || `config_${new Date().toISOString().replace(/[:.]/g, '-')}`;
           await client.write(['/export', `file=${exportName}`]);
-          return {
-            success: true,
-            filename: `${exportName}.rsc`,
-            message: 'Configuration exported to RSC file',
-          };
+          return { success: true, filename: `${exportName}.rsc`, message: 'Configuration exported to RSC file' };
 
         case 'restore':
           if (!filename) throw new Error('Filename required for restore');
           if (!params.confirm) {
             return {
               requiresConfirmation: true,
-              message: `Restoring ${filename} will REBOOT the router. Set 'confirm: true' to proceed.`,
+              message: `Restoring ${filename} will REBOOT the router. Set 'confirm: true' to proceed.`
             };
           }
           await client.menu('/system backup').load({ name: filename });
@@ -68,14 +60,14 @@ class McPorterSkill {
   async getConnection(routerConfig) {
     const key = `${routerConfig.host}:${routerConfig.port}`;
     let conn = this.connections.get(key);
-
+    
     if (!conn) {
       conn = new RouterOSClient({
         host: routerConfig.host,
         port: routerConfig.port,
         user: routerConfig.user,
         password: routerConfig.password,
-        timeout: 30000,
+        timeout: 30000
       });
       await conn.connect();
       this.connections.set(key, conn);
@@ -89,10 +81,10 @@ class McPorterSkill {
   }
 
   async getRouterConfig(routerId, context) {
-    const routers = (await context.memory?.get('config:routers')) || {};
+    const routers = await context.memory?.get('config:routers') || {};
     // Fallback to global config if no router memory
     if (!routers[routerId] && routerId === 'default') {
-      return this.config.mikrotik;
+        return this.config.mikrotik;
     }
     return routers[routerId];
   }

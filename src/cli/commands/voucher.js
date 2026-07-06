@@ -5,20 +5,23 @@
 
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
 const QRCode = require('qrcode');
 const { getDatabase } = require('../../core/database');
 
 // ── Plan definitions (mirrors 36.js CONFIG.VOUCHER_PLANS) ────────────────────
 const PLAN_DEFS = {
-  '1hour': { label: '1 Hour', price: 1.0, duration: '1h' },
-  '1Day': { label: '1 Day', price: 5.0, duration: '24h' },
-  '7Day': { label: '7 Days', price: 25.0, duration: '7d' },
-  '30Day': { label: '30 Days', price: 80.0, duration: '30d' },
+  '1hour': { label: '1 Hour',   price: 1.00,  duration: '1h'  },
+  '1Day':  { label: '1 Day',    price: 5.00,  duration: '24h' },
+  '7Day':  { label: '7 Days',   price: 25.00, duration: '7d'  },
+  '30Day': { label: '30 Days',  price: 80.00, duration: '30d' },
 };
 
-module.exports = program => {
-  const voucher = program.command('voucher').description('Manage access vouchers').alias('v');
+module.exports = (program) => {
+  const voucher = program
+    .command('voucher')
+    .description('Manage access vouchers')
+    .alias('v');
 
   // ── voucher create ────────────────────────────────────────────────────────
   voucher
@@ -46,21 +49,14 @@ module.exports = program => {
           options: Object.entries(PLAN_DEFS).map(([k, v]) => ({
             value: k,
             label: `${v.label.padEnd(10)}  $${v.price.toFixed(2)}`,
-            hint: v.duration,
+            hint:  v.duration,
           })),
         });
-        if (isCancel(choice)) {
-          log.warn('Cancelled.');
-          return;
-        }
+        if (isCancel(choice)) { log.warn('Cancelled.'); return; }
         plan = choice;
       }
 
-      const planDef = PLAN_DEFS[plan] || {
-        label: plan,
-        price: 0,
-        duration: options.duration || '1h',
-      };
+      const planDef = PLAN_DEFS[plan] || { label: plan, price: 0, duration: options.duration || '1h' };
       const duration = options.duration || planDef.duration;
       const qty = Math.max(1, parseInt(options.qty) || 1);
 
@@ -75,8 +71,7 @@ module.exports = program => {
         for (let i = 0; i < qty; i++) {
           const code = voucherAgent.generate(plan);
           await db.createVoucher(code, {
-            plan,
-            duration,
+            plan, duration,
             createdAt: new Date(),
             createdBy: 'cli',
           });
@@ -90,8 +85,8 @@ module.exports = program => {
               username: code,
               password: code,
               profile: planDef.label,
-              loginUrl,
-            }).catch(e => log.warn(`Thermal print failed: ${e.message}`));
+              loginUrl: loginUrl
+            }).catch(e => log.warn('Thermal print failed: ' + e.message));
           } catch (err) {}
         }
 
@@ -134,7 +129,7 @@ module.exports = program => {
     .option('--limit <n>', 'Number to show', '10')
     .option('--used', 'Show only used vouchers')
     .option('--active', 'Show only active vouchers')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start('Fetching vouchers…');
@@ -142,7 +137,7 @@ module.exports = program => {
       try {
         const db = await getDatabase();
         let vouchers = await db.getRecentVouchers(parseInt(options.limit));
-        if (options.used) vouchers = vouchers.filter(v => v.used);
+        if (options.used)   vouchers = vouchers.filter(v => v.used);
         if (options.active) vouchers = vouchers.filter(v => !v.used);
         s.stop(`${vouchers.length} voucher(s) found`);
 
@@ -168,7 +163,7 @@ module.exports = program => {
   voucher
     .command('revoke <code>')
     .description('Revoke an unused voucher')
-    .action(async code => {
+    .action(async (code) => {
       const { intro, outro, spinner, note, log, select, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Revoking ${code}…`);
@@ -176,16 +171,8 @@ module.exports = program => {
         const db = await getDatabase();
         const v = await db.getVoucher(code);
 
-        if (!v) {
-          s.stop('Voucher not found');
-          log.error('Voucher not found');
-          return;
-        }
-        if (v.used) {
-          s.stop('Already used');
-          log.warn('Voucher already used — cannot revoke');
-          return;
-        }
+        if (!v) { s.stop('Voucher not found'); log.error('Voucher not found'); return; }
+        if (v.used) { s.stop('Already used'); log.warn('Voucher already used — cannot revoke'); return; }
 
         await db.deleteVoucher(code);
         s.stop(`Revoked: ${code}`);
@@ -215,11 +202,7 @@ module.exports = program => {
       } else {
         const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
         s.stop('Config valid');
-        checks.push({
-          name: 'Config',
-          status: 'ok',
-          details: `prefix: ${cfg.vouchers?.prefix || 'STAR'}`,
-        });
+        checks.push({ name: 'Config', status: 'ok', details: `prefix: ${cfg.vouchers?.prefix || 'STAR'}` });
       }
 
       // Database
@@ -228,11 +211,7 @@ module.exports = program => {
         const db = await getDatabase();
         const stats = await db.getStats();
         s.stop('Database reachable');
-        checks.push({
-          name: 'Database',
-          status: 'ok',
-          details: `${db.db ? 'Firebase' : 'Local'}  ${stats.total} total, ${stats.active} active`,
-        });
+        checks.push({ name: 'Database', status: 'ok', details: `${db.db ? 'Firebase' : 'Local'}  ${stats.total} total, ${stats.active} active` });
       } catch (e) {
         s.stop(`Database error: ${e.message}`);
         checks.push({ name: 'Database', status: 'error', details: e.message });

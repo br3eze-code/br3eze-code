@@ -11,7 +11,7 @@ const registry = require('./ToolRegistry');
  */
 function loadAllDomains(config = {}) {
   const domainsDir = path.join(__dirname, '../domains');
-
+  
   if (!fs.existsSync(domainsDir)) {
     logger.warn('Domains directory not found');
     return;
@@ -28,14 +28,11 @@ function loadAllDomains(config = {}) {
       if (fs.existsSync(indexPath)) {
         try {
           const domainModule = require(indexPath);
-
+          
           if (typeof domainModule.register === 'function') {
             // Functional registration pattern
             domainModule.register(registry, config[item] || {});
-          } else if (
-            typeof domainModule === 'function' &&
-            domainModule.prototype instanceof require('../domains/BaseDomain')
-          ) {
+          } else if (typeof domainModule === 'function' && domainModule.prototype instanceof require('../domains/BaseDomain')) {
             // Class registration pattern
             const DomainClass = domainModule;
             const domainInstance = new DomainClass(config[item] || {});

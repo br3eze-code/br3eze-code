@@ -5,13 +5,13 @@ const { BaseChannel } = require('./BaseChannel');
 const WebSocketCLI = require('./WebSocketCLI');
 
 class WebSocketChannel extends BaseChannel {
-  static getMetadata() {
-    return {
-      name: 'WebSocket',
-      description: 'Messaging channel',
-      configFields: [],
-    };
-  }
+    static getMetadata() {
+        return {
+            name: 'WebSocket',
+            description: 'Messaging channel',
+            configFields: []
+        };
+    }
 
   constructor(config, agent) {
     super(config, agent);
@@ -32,9 +32,9 @@ class WebSocketChannel extends BaseChannel {
       server: this.server,
       path: this.path,
       verifyClient: this.verifyClient.bind(this),
-      perMessageDeflate: false, // CVE-2026-1526: disables memory-exhaustion vector
+      perMessageDeflate: false,    // CVE-2026-1526: disables memory-exhaustion vector
       maxPayload: 1024 * 1024,
-      clientTracking: true,
+      clientTracking: true
     });
 
     this.wss.on('connection', (ws, req) => {
@@ -49,14 +49,14 @@ class WebSocketChannel extends BaseChannel {
         payload: {
           service: 'AgentOS',
           version: '2026.4.11',
-          timestamp: new Date().toISOString(),
-        },
+          timestamp: new Date().toISOString()
+        }
       });
 
-      ws.on('message', data => this.handleIncomingMessage(clientId, data));
+      ws.on('message', (data) => this.handleIncomingMessage(clientId, data));
       ws.on('close', () => this.handleDisconnect(clientId));
-      ws.on('error', err => logger.error(`WebSocket error ${clientId}:`, err));
-
+      ws.on('error', (err) => logger.error(`WebSocket error ${clientId}:`, err));
+      
       this.connected = true;
     });
 
@@ -66,7 +66,7 @@ class WebSocketChannel extends BaseChannel {
   verifyClient(info) {
     const url = new URL(info.req.url, `http://${info.req.headers.host}`);
     const token = url.searchParams.get('token') || info.req.headers['x-agentos-token'];
-    const expected = this.config.token || process.env.GATEWAY_TOKEN;
+    const expected = this.config.token || (process.env.GATEWAY_TOKEN);
 
     if (!token || !expected) return false;
 
@@ -84,14 +84,14 @@ class WebSocketChannel extends BaseChannel {
     this.messageCount++;
     try {
       const message = JSON.parse(data);
-
+      
       // Standardize message for AgentOS
       if (message.type === 'interaction' || message.type === 'message') {
         this.emit('message', {
           text: message.text || message.payload?.text,
           userId: clientId,
           channel: 'websocket',
-          raw: message,
+          raw: message
         });
       } else {
         // Handle other legacy message types (ping, status, etc.)
@@ -131,24 +131,24 @@ class WebSocketChannel extends BaseChannel {
         if (global.mikrotik) {
           this.sendToWs(client.ws, {
             type: 'tool.list',
-            tools: global.mikrotik.getAvailableTools(),
+            tools: global.mikrotik.getAvailableTools()
           });
         }
         break;
 
       case 'status':
-        this.sendToWs(client.ws, {
-          type: 'status',
-          payload: this.getStatus(),
+        this.sendToWs(client.ws, { 
+          type: 'status', 
+          payload: this.getStatus() 
         });
         break;
 
       case 'initiate-whatsapp':
         logger.info(`Received initiate-whatsapp from client ${clientId}`);
-        this.emit('command', {
-          clientId,
-          command: 'initiate-whatsapp',
-          payload: message.payload,
+        this.emit('command', { 
+          clientId, 
+          command: 'initiate-whatsapp', 
+          payload: message.payload 
         });
         break;
 
@@ -184,11 +184,11 @@ class WebSocketChannel extends BaseChannel {
 
     const session = new WebSocketCLI(clientId, client.ws, this);
     this.cliSessions.set(clientId, session);
-
+    
     session.sendPrompt();
-    this.sendToWs(client.ws, {
-      type: 'cli.started',
-      message: 'Interactive CLI session started. Type "exit" to quit.',
+    this.sendToWs(client.ws, { 
+      type: 'cli.started', 
+      message: 'Interactive CLI session started. Type "exit" to quit.' 
     });
   }
 
@@ -209,7 +209,7 @@ class WebSocketChannel extends BaseChannel {
   async _handleCliExec(clientId, msg) {
     const client = this.clients.get(clientId);
     if (!client) return;
-
+    
     const command = msg.command || msg.payload?.command;
     if (!command) return;
 
@@ -219,19 +219,19 @@ class WebSocketChannel extends BaseChannel {
         { text: command, userId: clientId },
         { channel: 'websocket', isCli: true }
       );
-
+      
       this.sendToWs(client.ws, {
         type: 'cli.result',
         id: msg.id,
         success: true,
-        result: result.result?.text || JSON.stringify(result.result),
+        result: result.result?.text || JSON.stringify(result.result)
       });
     } catch (error) {
       this.sendToWs(client.ws, {
         type: 'cli.result',
         id: msg.id,
         success: false,
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -241,7 +241,7 @@ class WebSocketChannel extends BaseChannel {
     if (session) {
       session.destroy();
       this.cliSessions.delete(clientId);
-
+      
       const client = this.clients.get(clientId);
       if (client) {
         this.sendToWs(client.ws, { type: 'cli.stopped' });
@@ -255,13 +255,13 @@ class WebSocketChannel extends BaseChannel {
       clientId,
       ws,
       registeredAt: Date.now(),
-      lastActivity: Date.now(),
+      lastActivity: Date.now()
     };
 
     this.clients.set(clientId, nodeInfo);
     this.sendToWs(ws, {
       type: 'node.registered',
-      payload: { nodeId: payload.nodeId, registeredAt: Date.now() },
+      payload: { nodeId: payload.nodeId, registeredAt: Date.now() }
     });
 
     logger.info(`Node registered: ${payload.nodeId} from ${clientId}`);
@@ -275,13 +275,13 @@ class WebSocketChannel extends BaseChannel {
 
   _broadcastNodeList() {
     const nodes = [];
-    this.clients.forEach(client => {
+    this.clients.forEach((client) => {
       if (client.nodeId) {
         nodes.push({
           nodeId: client.nodeId,
           platform: client.platform,
           capabilities: client.capabilities,
-          connectedAt: client.connectedAt || client.registeredAt,
+          connectedAt: client.connectedAt || client.registeredAt
         });
       }
     });
@@ -292,14 +292,14 @@ class WebSocketChannel extends BaseChannel {
   async _handleCommandInvoke(clientId, ws, msg) {
     const { command, params } = msg.payload;
     logger.info(`Command invoke: ${command} from ${clientId}`);
-
+    
     // Relay to system
     this.emit('message', {
       text: command,
       params,
       userId: clientId,
       channel: 'websocket',
-      raw: msg,
+      raw: msg
     });
   }
 
@@ -312,7 +312,7 @@ class WebSocketChannel extends BaseChannel {
         id: msg.id,
         tool: msg.tool,
         result,
-        success: true,
+        success: true
       });
     } catch (error) {
       this.sendToWs(ws, {
@@ -320,7 +320,7 @@ class WebSocketChannel extends BaseChannel {
         id: msg.id,
         tool: msg.tool,
         error: error.message,
-        success: false,
+        success: false
       });
     }
   }
@@ -361,7 +361,7 @@ class WebSocketChannel extends BaseChannel {
     return {
       ...super.getStatus(),
       type: 'websocket',
-      clients: this.clients.size,
+      clients: this.clients.size
     };
   }
 

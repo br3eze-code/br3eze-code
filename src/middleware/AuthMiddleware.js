@@ -7,11 +7,11 @@ class AuthMiddleware {
   async authenticate(token) {
     // Verify JWT or API key
     const decoded = this.verifyToken(token);
-
+    
     return {
       userId: decoded.sub,
       permissions: decoded.permissions || ['user:read'],
-      sessionId: decoded.jti,
+      sessionId: decoded.jti
     };
   }
 

@@ -5,16 +5,18 @@
 
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
 const { CONFIG_PATH } = require('../../core/config');
 
-module.exports = program => {
-  const dahua = program.command('dahua').description('Manage Dahua cameras');
+module.exports = (program) => {
+  const dahua = program
+    .command('dahua')
+    .description('Manage Dahua cameras');
 
   // ── Resolve skill (lazy, exits on bad config) ─────────────────────────────
   const getSkill = () => {
     if (!fs.existsSync(CONFIG_PATH)) {
-      console.error('No configuration found — run: agentos onboard');
+      log.error('No configuration found — run: agentos onboard');
       process.exit(1);
     }
     const DahuaSkill = require('../../skills/dahua/index.js');
@@ -27,19 +29,18 @@ module.exports = program => {
     .command('list')
     .description('List configured Dahua devices')
     .action(async () => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📷 Dahua Devices');
       const s = spinner();
       s.start('Fetching device list…');
       try {
         const skill = getSkill();
-        const res = await skill.execute('dahua.device.list', {});
+        const res   = await skill.execute('dahua.device.list', {});
         const devices = Array.isArray(res) ? res : [res];
         s.stop(`${devices.length} device(s) found`);
 
-        const lines = devices.map(
-          (d, i) => `${String(i + 1).padStart(2)}. ${d.name || d.id || JSON.stringify(d)}`
+        const lines = devices.map((d, i) =>
+          `${String(i + 1).padStart(2)}. ${d.name || d.id || JSON.stringify(d)}`
         );
         note(lines.join('\n'), '📋 Device List');
         outro('Done.');
@@ -55,21 +56,22 @@ module.exports = program => {
     .description('Get snapshot URL or path')
     .option('-d, --device <id>', 'Device ID')
     .option('-c, --channel <n>', 'Channel number')
-    .action(async options => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+    .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📸 Dahua Snapshot');
       const s = spinner();
       s.start(`Fetching snapshot${options.device ? ` for device ${options.device}` : ''}…`);
       try {
         const skill = getSkill();
-        const res = await skill.execute('dahua.snapshot.get', {
-          device: options.device,
+        const res   = await skill.execute('dahua.snapshot.get', {
+          device:  options.device,
           channel: options.channel,
         });
         s.stop('Snapshot retrieved');
         note(
-          typeof res === 'string' ? `URL/Path :  ${res}` : JSON.stringify(res, null, 2),
+          typeof res === 'string'
+            ? `URL/Path :  ${res}`
+            : JSON.stringify(res, null, 2),
           '🖼️  Snapshot'
         );
         outro('Done.');
@@ -85,16 +87,12 @@ module.exports = program => {
     .description('Reboot a Dahua device')
     .option('-d, --device <id>', 'Device ID')
     .option('--force', 'Skip confirmation prompt')
-    .action(async options => {
-      const { intro, outro, spinner, note, log, confirm, isCancel } =
-        await import('@clack/prompts');
+    .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       if (!options.force) {
         const target = options.device || 'all devices';
         const ok = await confirm({ message: `Reboot ${target}?`, initialValue: false });
-        if (isCancel(ok) || !ok) {
-          log.warn('Cancelled.');
-          return;
-        }
+        if (isCancel(ok) || !ok) { log.warn('Cancelled.'); return; }
       }
 
       const s = spinner();

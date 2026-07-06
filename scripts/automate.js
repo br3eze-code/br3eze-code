@@ -40,17 +40,17 @@ function sendAlert(subject, message) {
     const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
     const data = JSON.stringify({
       chat_id: process.env.TELEGRAM_ALLOWED_CHAT_ID.split(',')[0],
-      text: `⚠️ *${subject}*\n${message}`,
+      text: `⚠️ *${subject}*\n${message}`
     });
 
     const req = https.request(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': data.length,
-      },
+        'Content-Length': data.length
+      }
     });
-    req.on('error', e => log(`Failed to send Telegram alert: ${e.message}`, true));
+    req.on('error', (e) => log(`Failed to send Telegram alert: ${e.message}`, true));
     req.write(data);
     req.end();
   }
@@ -68,7 +68,7 @@ function backupDatabase() {
     const backupPath = path.join(CONFIG.backupDir, `agentos_backup_${timestamp}.db`);
     fs.copyFileSync(CONFIG.dbPath, backupPath);
     log(`Database backed up successfully to ${backupPath}`);
-
+    
     // Cleanup old backups (keep last 7 days)
     const files = fs.readdirSync(CONFIG.backupDir);
     const now = Date.now();
@@ -89,27 +89,25 @@ function backupDatabase() {
 // Check Server Status
 function checkServer() {
   const protocol = CONFIG.serverUrl.startsWith('https') ? https : http;
-  protocol
-    .get(CONFIG.serverUrl, res => {
-      if (res.statusCode >= 200 && res.statusCode < 400) {
-        log('Server is UP.');
-      } else {
-        const msg = `Server responded with status code: ${res.statusCode}`;
-        log(msg, true);
-        sendAlert('Server Down or Degraded', msg);
-      }
-    })
-    .on('error', err => {
-      log(`Server check failed: ${err.message}`, true);
-      sendAlert('Server Unreachable', err.message);
-    });
+  protocol.get(CONFIG.serverUrl, (res) => {
+    if (res.statusCode >= 200 && res.statusCode < 400) {
+      log('Server is UP.');
+    } else {
+      const msg = `Server responded with status code: ${res.statusCode}`;
+      log(msg, true);
+      sendAlert('Server Down or Degraded', msg);
+    }
+  }).on('error', (err) => {
+    log(`Server check failed: ${err.message}`, true);
+    sendAlert('Server Unreachable', err.message);
+  });
 }
 
 // Start Automation
 function start() {
   ensureDirs();
   log('Automation started: Monitoring server, database, and logging errors invisibly.');
-
+  
   // Initial checks
   checkServer();
   backupDatabase();

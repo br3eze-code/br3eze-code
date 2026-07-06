@@ -14,9 +14,9 @@ class MissionControl {
         status: d.health,
         agents: d.adapter.getActiveAgents(),
         // Visual positioning for canvas
-        position: this.layoutEngine.getPosition(id),
+        position: this.layoutEngine.getPosition(id)
       })),
-      connections: this.discoverConnections(),
+      connections: this.discoverConnections()
     };
   }
 
@@ -29,7 +29,7 @@ class MissionControl {
       artifacts: s.artifacts,
       // Router-specific: network topology, vouchers, users
       // Cloud-specific: resources, costs, deployments
-      context: s.domainContext,
+      context: s.domainContext
     }));
   }
 }

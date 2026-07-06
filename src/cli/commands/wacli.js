@@ -5,33 +5,36 @@
 
 'use strict';
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
-const qrcode = require('qrcode-terminal');
+const qrcode       = require('qrcode-terminal');
 const { getConfig } = require('../../core/config');
 
-module.exports = program => {
+module.exports = (program) => {
   program
     .command('wacli')
     .description('WhatsApp CLI — QR pairing, auth status, and diagnostics')
-    .option('--reset', 'Reset auth state (forces QR re-pair)')
-    .option('--status', 'Show current WhatsApp auth state')
-    .option('--debug-vouchers', 'Run voucher system diagnostics')
-    .action(async options => {
+    .option('--reset',         'Reset auth state (forces QR re-pair)')
+    .option('--status',        'Show current WhatsApp auth state')
+    .option('--debug-vouchers','Run voucher system diagnostics')
+    .action(async (options) => {
       const { intro, outro, spinner, note, log, isCancel } = await import('@clack/prompts');
-      const config = getConfig();
+      const config   = getConfig();
       const waConfig = config.whatsapp || { enabled: true };
 
-      const authDir = path.resolve(process.cwd(), waConfig.authStateFolder || 'data/whatsapp_auth');
+      const authDir = path.resolve(
+        process.cwd(),
+        waConfig.authStateFolder || 'data/whatsapp_auth'
+      );
 
       // ── --status ────────────────────────────────────────────────────────
       if (options.status) {
         intro('📱 WhatsApp Auth Status');
 
-        const credsFile = path.join(authDir, 'creds.json');
-        const authExists = fs.existsSync(authDir);
-        const credsExist = fs.existsSync(credsFile);
+        const credsFile   = path.join(authDir, 'creds.json');
+        const authExists  = fs.existsSync(authDir);
+        const credsExist  = fs.existsSync(credsFile);
 
         note(
           [
@@ -44,9 +47,7 @@ module.exports = program => {
           'Session Info'
         );
 
-        outro(
-          credsExist ? '✓ WhatsApp is authenticated.' : '⚠  QR pair required — run: agentos wacli'
-        );
+        outro(credsExist ? '✓ WhatsApp is authenticated.' : '⚠  QR pair required — run: agentos wacli');
         return;
       }
 
@@ -75,14 +76,10 @@ module.exports = program => {
         s.start('Connecting to database…');
         try {
           const { getDatabase } = require('../../core/database');
-          const db = await getDatabase();
+          const db    = await getDatabase();
           const stats = await db.getStats();
           s.stop('Database reachable');
-          checks.push({
-            name: 'Database',
-            ok: true,
-            detail: `${db.db ? 'Firebase' : 'Local'}  total=${stats.total || 0} active=${stats.active || 0}`,
-          });
+          checks.push({ name: 'Database', ok: true, detail: `${db.db ? 'Firebase' : 'Local'}  total=${stats.total || 0} active=${stats.active || 0}` });
         } catch (e) {
           s.stop(`Database error: ${e.message}`);
           checks.push({ name: 'Database', ok: false, detail: e.message });
@@ -99,7 +96,9 @@ module.exports = program => {
           checks.push({ name: 'Generator', ok: false, detail: e.message });
         }
 
-        const lines = checks.map(c => `${c.ok ? '●' : '■'} ${c.name.padEnd(12)}  ${c.detail}`);
+        const lines = checks.map(c =>
+          `${c.ok ? '●' : '■'} ${c.name.padEnd(12)}  ${c.detail}`
+        );
         note(lines.join('\n'), '📋 Diagnostics');
 
         const errors = checks.filter(c => !c.ok).length;
@@ -119,7 +118,7 @@ module.exports = program => {
 
       const channel = new WhatsAppChannel(waConfig, stubAgent);
 
-      channel.on('qr', qrStr => {
+      channel.on('qr', (qrStr) => {
         console.log('\n');
         log.step('Scan this QR code with WhatsApp on your phone:');
         qrcode.generate(qrStr, { small: true });

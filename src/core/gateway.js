@@ -33,16 +33,11 @@ class Gateway extends EventEmitter {
     this.options = {
       port: options.port || process.env.GATEWAY_PORT || 3000,
       host: options.host || process.env.GATEWAY_HOST || '0.0.0.0',
-      heartbeatInterval:
-        options.heartbeatInterval || parseInt(process.env.HEARTBEAT_INTERVAL) || 1800000,
-      skillsPath:
-        options.skillsPath || process.env.SKILLS_PATH || path.join(process.cwd(), 'src/skills'),
-      memoryPath:
-        options.memoryPath ||
-        process.env.MEMORY_BASE_PATH ||
-        path.join(process.cwd(), 'data/sessions'),
+      heartbeatInterval: options.heartbeatInterval || parseInt(process.env.HEARTBEAT_INTERVAL) || 1800000,
+      skillsPath: options.skillsPath || process.env.SKILLS_PATH || path.join(process.cwd(), 'src/skills'),
+      memoryPath: options.memoryPath || process.env.MEMORY_BASE_PATH || path.join(process.cwd(), 'data/sessions'),
       sessionMode: options.sessionMode || process.env.SESSION_MODE || 'isolated',
-      ...options,
+      ...options
     };
 
     this.logger = new Logger('Gateway');
@@ -54,7 +49,7 @@ class Gateway extends EventEmitter {
     this.toolRegistry = new ToolRegistry({ skillsPath: this.options.skillsPath });
     this.sessionManager = new SessionManager({
       basePath: this.options.memoryPath,
-      mode: this.options.sessionMode,
+      mode: this.options.sessionMode
     });
     this.memoryStore = new MemoryStore({ basePath: this.options.memoryPath });
     this.providerManager = new ProviderManager();
@@ -66,13 +61,13 @@ class Gateway extends EventEmitter {
       sessionManager: this.sessionManager,
       memoryStore: this.memoryStore,
       providerManager: this.providerManager,
-      safetyEnvelope: this.safetyEnvelope,
+      safetyEnvelope: this.safetyEnvelope
     });
 
     // Heartbeat for autonomous operation
     this.heartbeat = new Heartbeat({
       interval: this.options.heartbeatInterval,
-      agentRuntime: this.agentRuntime,
+      agentRuntime: this.agentRuntime
     });
 
     // Channel adapters
@@ -102,7 +97,7 @@ class Gateway extends EventEmitter {
         skills: this.toolRegistry.getSkillNames(),
         providers: this.providerManager.getAvailableProviders(),
         channels: Array.from(this.channels.keys()),
-        uptime: process.uptime(),
+        uptime: process.uptime()
       });
     });
 
@@ -118,7 +113,7 @@ class Gateway extends EventEmitter {
           sender: req.body.sender || 'rest-api',
           channel: 'rest',
           content: req.body.input,
-          metadata: req.body.metadata || {},
+          metadata: req.body.metadata || {}
         });
         res.json(result);
       } catch (error) {
@@ -148,8 +143,8 @@ class Gateway extends EventEmitter {
    */
   registerChannel(name, adapter) {
     this.channels.set(name, adapter);
-    adapter.on('message', frame => this.handleFrame(frame));
-    adapter.on('error', error => this.logger.error(`Channel ${name} error:`, error));
+    adapter.on('message', (frame) => this.handleFrame(frame));
+    adapter.on('error', (error) => this.logger.error(`Channel ${name} error:`, error));
     this.logger.info(`Registered channel: ${name}`);
   }
 
@@ -196,7 +191,7 @@ class Gateway extends EventEmitter {
       timestamp: frame.timestamp || Date.now(),
       isDM: frame.isDM !== undefined ? frame.isDM : true,
       metadata: frame.metadata || {},
-      agentId: frame.agentId || 'default',
+      agentId: frame.agentId || 'default'
     };
   }
 
@@ -219,7 +214,7 @@ class Gateway extends EventEmitter {
 
     this.logger.info(`WebSocket client connected: ${clientId}`);
 
-    ws.on('message', async data => {
+    ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data);
         const result = await this.handleFrame({
@@ -227,7 +222,7 @@ class Gateway extends EventEmitter {
           sender: clientId,
           channel: 'websocket',
           content: message.content,
-          metadata: message.metadata || {},
+          metadata: message.metadata || {}
         });
         ws.send(JSON.stringify(result));
       } catch (error) {
@@ -240,18 +235,16 @@ class Gateway extends EventEmitter {
       this.logger.info(`WebSocket client disconnected: ${clientId}`);
     });
 
-    ws.on('error', error => {
+    ws.on('error', (error) => {
       this.logger.error(`WebSocket error for ${clientId}:`, error);
     });
 
     // Send welcome message
-    ws.send(
-      JSON.stringify({
-        type: 'connected',
-        clientId,
-        message: 'Connected to AgentOS OpenClaw Gateway',
-      })
-    );
+    ws.send(JSON.stringify({
+      type: 'connected',
+      clientId,
+      message: 'Connected to AgentOS OpenClaw Gateway'
+    }));
   }
 
   /**
@@ -269,16 +262,16 @@ class Gateway extends EventEmitter {
       gateway: {
         running: this.server !== null,
         port: this.options.port,
-        connections: this.clients.size,
+        connections: this.clients.size
       },
       skills: {
         loaded: this.toolRegistry.getSkillNames(),
-        toolCount: this.toolRegistry.getToolCount(),
+        toolCount: this.toolRegistry.getToolCount()
       },
       providers: this.providerManager.getAvailableProviders(),
       channels: Array.from(this.channels.keys()),
       sessions: await this.sessionManager.getStats(),
-      uptime: process.uptime(),
+      uptime: process.uptime()
     };
   }
 
@@ -293,9 +286,7 @@ class Gateway extends EventEmitter {
     console.log(`🔧 Total Tools: ${status.skills.toolCount}`);
     console.log(`\\n🤖 AI Providers: ${status.providers.join(', ')}`);
     console.log(`📡 Channels: ${status.channels.join(', ')}`);
-    console.log(
-      `\\n⏱️  Uptime: ${Math.floor(status.uptime / 60)}m ${Math.floor(status.uptime % 60)}s`
-    );
+    console.log(`\\n⏱️  Uptime: ${Math.floor(status.uptime / 60)}m ${Math.floor(status.uptime % 60)}s`);
     console.log('═══════════════════════════════════════\\n');
   }
 

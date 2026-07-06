@@ -11,14 +11,14 @@ class LinuxDomain extends BaseDomain {
     this.registerTool({
       name: 'shell',
       description: 'Execute a shell command',
-      execute: async command => {
+      execute: async (command) => {
         try {
           const { stdout, stderr } = await execAsync(command);
           return stdout || stderr;
         } catch (err) {
           return `Error: ${err.message}`;
         }
-      },
+      }
     });
 
     this.registerTool({
@@ -27,7 +27,7 @@ class LinuxDomain extends BaseDomain {
       execute: async () => {
         const { stdout } = await execAsync('uptime -p');
         return stdout.trim();
-      },
+      }
     });
   }
 }

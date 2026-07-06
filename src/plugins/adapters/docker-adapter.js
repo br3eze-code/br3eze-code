@@ -15,7 +15,7 @@ class DockerAdapter extends BaseAdapter {
       'container.exec': this.execCommand.bind(this),
       'container.stats': this.getStats.bind(this),
       'compose.up': this.composeUp.bind(this),
-      'compose.down': this.composeDown.bind(this),
+      'compose.down': this.composeDown.bind(this)
     };
   }
 
@@ -23,9 +23,9 @@ class DockerAdapter extends BaseAdapter {
     this.docker = new Docker({
       host: this.config.host,
       port: this.config.port || 2375,
-      protocol: this.config.protocol || 'http',
+      protocol: this.config.protocol || 'http'
     });
-
+    
     await this.docker.ping();
     this.connected = true;
     return this;
@@ -33,22 +33,19 @@ class DockerAdapter extends BaseAdapter {
 
   async discover() {
     const containers = await this.docker.listContainers({ all: true });
-    const resources = containers.map(
-      c =>
-        new Resource({
-          type: 'container',
-          provider: 'docker',
-          name: c.Names[0].replace('/', ''),
-          id: c.Id,
-          capabilities: Object.keys(this.actionMap),
-          properties: {
-            image: c.Image,
-            status: c.Status,
-            state: c.State,
-            ports: c.Ports,
-          },
-        })
-    );
+    const resources = containers.map(c => new Resource({
+      type: 'container',
+      provider: 'docker',
+      name: c.Names[0].replace('/', ''),
+      id: c.Id,
+      capabilities: Object.keys(this.actionMap),
+      properties: {
+        image: c.Image,
+        status: c.Status,
+        state: c.State,
+        ports: c.Ports
+      }
+    }));
 
     resources.forEach(r => this.resources.set(r.id, r));
     return resources;
@@ -69,11 +66,12 @@ class DockerAdapter extends BaseAdapter {
     const { exec } = require('child_process');
     const util = require('util');
     const execAsync = util.promisify(exec);
-
-    const { stdout } = await execAsync(`docker-compose -f ${params.file} -p ${projectName} up -d`, {
-      cwd: params.workingDir,
-    });
-
+    
+    const { stdout } = await execAsync(
+      `docker-compose -f ${params.file} -p ${projectName} up -d`,
+      { cwd: params.workingDir }
+    );
+    
     return { status: 'deployed', output: stdout };
   }
 

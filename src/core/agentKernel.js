@@ -16,26 +16,19 @@
  */
 
 const EventEmitter = require('events');
-const crypto = require('crypto');
-const path = require('path');
-const sdk = require('../plugin-sdk');
+const crypto       = require('crypto');
+const path         = require('path');
+const sdk          = require('../plugin-sdk');
 
 let _logger;
 function log(level, ...a) {
-  try {
-    _logger = _logger || require('./logger').logger;
-    _logger[level](...a);
-  } catch (_) {
-    console[level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log'](...a);
-  }
+  try { _logger = _logger || require('./logger').logger; _logger[level](...a); }
+  catch (_) { console[level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log'](...a); }
 }
 
 // ── Embedded session store (SQLite + Map fallback) ───────────────────────────
 class _SessionStore {
-  constructor() {
-    this._mem = new Map();
-    this._db = null;
-  }
+  constructor() { this._mem = new Map(); this._db = null; }
 
   init(dbPath) {
     try {
@@ -60,37 +53,21 @@ class _SessionStore {
   _write(s) {
     this._mem.set(s.id, s);
     if (!this._db) return;
-    this._db
-      .prepare(
-        `INSERT OR REPLACE INTO agent_sessions
+    this._db.prepare(
+      `INSERT OR REPLACE INTO agent_sessions
        (id,domain,state,checkpoint,retryCount,recoverable,createdAt,updatedAt,meta)
        VALUES (?,?,?,?,?,?,?,?,?)`
-      )
-      .run(
-        s.id,
-        s.domain,
-        s.state,
-        s.checkpoint,
-        s.retryCount || 0,
-        s.recoverable ? 1 : 0,
-        s.createdAt,
-        s.updatedAt || s.createdAt,
-        JSON.stringify(s.meta || {})
-      );
+    ).run(s.id, s.domain, s.state, s.checkpoint, s.retryCount || 0,
+      s.recoverable ? 1 : 0, s.createdAt, s.updatedAt || s.createdAt,
+      JSON.stringify(s.meta || {}));
   }
 
   create(config) {
     const now = Date.now();
     const s = {
-      id: crypto.randomUUID(),
-      domain: config.domain || 'default',
-      state: 'initializing',
-      checkpoint: now,
-      retryCount: 0,
-      recoverable: true,
-      createdAt: now,
-      updatedAt: now,
-      meta: config.meta || {},
+      id: crypto.randomUUID(), domain: config.domain || 'default',
+      state: 'initializing', checkpoint: now, retryCount: 0,
+      recoverable: true, createdAt: now, updatedAt: now, meta: config.meta || {},
     };
     this._write(s);
     return s;
@@ -100,11 +77,7 @@ class _SessionStore {
     if (this._mem.has(id)) return this._mem.get(id);
     if (this._db) {
       const row = this._db.prepare('SELECT * FROM agent_sessions WHERE id=?').get(id);
-      if (row) {
-        const s = { ...row, recoverable: !!row.recoverable, meta: JSON.parse(row.meta || '{}') };
-        this._mem.set(id, s);
-        return s;
-      }
+      if (row) { const s = { ...row, recoverable: !!row.recoverable, meta: JSON.parse(row.meta || '{}') }; this._mem.set(id, s); return s; }
     }
     return null;
   }
@@ -112,18 +85,16 @@ class _SessionStore {
   transition(id, toState) {
     const VALID = {
       initializing: ['running', 'failed'],
-      running: ['paused', 'completed', 'failed'],
-      paused: ['running', 'failed'],
-      completed: [],
-      failed: ['initializing'],
+      running:      ['paused', 'completed', 'failed'],
+      paused:       ['running', 'failed'],
+      completed:    [],
+      failed:       ['initializing'],
     };
     const s = this.get(id);
     if (!s) throw new Error(`Session not found: ${id}`);
     if (!(VALID[s.state] || []).includes(toState))
       throw new Error(`Invalid transition: ${s.state} -> ${toState}`);
-    s.state = toState;
-    s.updatedAt = Date.now();
-    s.checkpoint = Date.now();
+    s.state = toState; s.updatedAt = Date.now(); s.checkpoint = Date.now();
     this._write(s);
     return s;
   }
@@ -133,22 +104,17 @@ class _SessionStore {
 class AgentKernel extends EventEmitter {
   constructor(opts = {}) {
     super();
-    this.domains = new Map();
-    this.agents = new Map();
+    this.domains  = new Map();
+    this.agents   = new Map();
     this._sessions = new _SessionStore();
-    this._opts = opts;
-    this._ready = false;
+    this._opts    = opts;
+    this._ready   = false;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   init(dbPath) {
-    const p =
-      dbPath ||
-      this._opts.dbPath ||
-      path.join(
-        process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'),
-        'agentos.sqlite'
-      );
+    const p = dbPath || this._opts.dbPath ||
+      path.join(process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'), 'agentos.sqlite');
     this._sessions.init(p);
     this._ready = true;
     this.emit('kernel:ready', { domains: this.domains.size });
@@ -167,8 +133,7 @@ class AgentKernel extends EventEmitter {
 
   // ── Domain resolution ──────────────────────────────────────────────────────
   resolveDomain(intent) {
-    if (!intent || !this.domains.size)
-      return this.domains.size ? [...this.domains.values()][0] : null;
+    if (!intent || !this.domains.size) return this.domains.size ? [...this.domains.values()][0] : null;
 
     // Caller passed explicit { domain: 'network' }
     if (typeof intent === 'object' && intent.domain) {
@@ -176,16 +141,15 @@ class AgentKernel extends EventEmitter {
       if (d) return d;
     }
 
-    const needle = (
-      typeof intent === 'object' ? intent.text || intent.action || '' : String(intent)
-    ).toLowerCase();
+    const needle = (typeof intent === 'object' ? (intent.text || intent.action || '') : String(intent)).toLowerCase();
 
     // Domain id match
-    for (const [id, entry] of this.domains) if (needle.includes(id)) return entry;
+    for (const [id, entry] of this.domains)
+      if (needle.includes(id)) return entry;
 
     // Capability keyword match
     for (const [, entry] of this.domains)
-      if ((entry.capabilities || []).some(c => needle.includes(c.toLowerCase()))) return entry;
+      if ((entry.capabilities || []).some((c) => needle.includes(c.toLowerCase()))) return entry;
 
     // First registered
     return [...this.domains.values()][0];
@@ -205,17 +169,14 @@ class AgentKernel extends EventEmitter {
     this.emit('dispatch:start', { sessionId: session.id, domain: session.domain });
     try {
       this._sessions.transition(session.id, 'running');
-      const result =
-        typeof domain.adapter.execute === 'function'
-          ? await domain.adapter.execute(context)
-          : await domain.adapter.getSkills?.()[0]?.execute?.(context);
+      const result = typeof domain.adapter.execute === 'function'
+        ? await domain.adapter.execute(context)
+        : await domain.adapter.getSkills?.()[0]?.execute?.(context);
       this._sessions.transition(session.id, 'completed');
       this.emit('dispatch:done', { sessionId: session.id });
       return result;
     } catch (err) {
-      try {
-        this._sessions.transition(session.id, 'failed');
-      } catch (_) {}
+      try { this._sessions.transition(session.id, 'failed'); } catch (_) {}
       this.emit('dispatch:error', { sessionId: session.id, error: err.message });
       throw err;
     }
@@ -225,7 +186,7 @@ class AgentKernel extends EventEmitter {
   async execute(toolName, params = {}) {
     const domain = [...this.domains.values()][0];
     if (!domain) throw new Error('No domain registered — cannot execute tool');
-    const skill = domain.adapter.getSkills?.().find(s => s.name === toolName);
+    const skill = domain.adapter.getSkills?.().find((s) => s.name === toolName);
     if (!skill) throw new Error(`Tool not found: ${toolName}`);
     this.emit('command:run', { tool: toolName, params });
     const result = await skill.execute(params);
@@ -246,11 +207,11 @@ class AgentKernel extends EventEmitter {
   getTools() {
     const out = {};
     for (const [, entry] of this.domains) {
-      for (const skill of entry.adapter.getSkills?.() || []) {
+      for (const skill of (entry.adapter.getSkills?.() || [])) {
         out[skill.name] = {
           description: skill.description || '',
-          parameters: skill.parameters || {},
-          risk: skill.risk || 'low',
+          parameters:  skill.parameters  || {},
+          risk:        skill.risk        || 'low',
         };
       }
     }

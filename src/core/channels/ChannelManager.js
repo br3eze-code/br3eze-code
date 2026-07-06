@@ -41,7 +41,9 @@ class ChannelManager extends EventEmitter {
   async initialize() {
     logger.info('ChannelManager: Initializing channels from configuration...');
 
-    const channelConfigs = this.agent.config.channels ? [...this.agent.config.channels] : [];
+    const channelConfigs = this.agent.config.channels
+      ? [...this.agent.config.channels]
+      : [];
 
     // ── Fallback: detect channels from environment variables ────────────────
     if (channelConfigs.length === 0) {
@@ -52,8 +54,8 @@ class ChannelManager extends EventEmitter {
             token: process.env.TELEGRAM_TOKEN,
             allowed_ids: process.env.ALLOWED_CHAT_IDS
               ? process.env.ALLOWED_CHAT_IDS.split(',')
-              : [],
-          },
+              : []
+          }
         });
       }
 
@@ -65,8 +67,8 @@ class ChannelManager extends EventEmitter {
             authStateFolder: process.env.WHATSAPP_AUTH_DIR || './data/whatsapp_auth',
             allowed_ids: process.env.ALLOWED_CHAT_IDS
               ? process.env.ALLOWED_CHAT_IDS.split(',')
-              : [],
-          },
+              : []
+          }
         });
       }
     }
@@ -74,14 +76,10 @@ class ChannelManager extends EventEmitter {
     // ── Auto-detect additional channels from root config ────────────────────
     const autoChannels = ['slack', 'discord', 'email', 'sms', 'ussd'];
     for (const type of autoChannels) {
-      if (
-        this.agent.config[type] &&
-        this.agent.config[type].enabled &&
-        !channelConfigs.find(c => c.type === type)
-      ) {
+      if (this.agent.config[type] && this.agent.config[type].enabled && !channelConfigs.find(c => c.type === type)) {
         channelConfigs.push({
           type,
-          config: this.agent.config[type],
+          config: this.agent.config[type]
         });
       }
     }
@@ -90,14 +88,9 @@ class ChannelManager extends EventEmitter {
     //    or auto-enabled when running interactively in the foreground (a TTY,
     //    not a detached --daemon process) and not explicitly disabled ───────
     const cliExplicitlyDisabled = this.agent.config.cli?.enabled === false;
-    const cliExplicitlyEnabled =
-      this.agent.config.cli?.enabled === true || process.env.AGENTOS_CLI_CHANNEL === 'true';
+    const cliExplicitlyEnabled = this.agent.config.cli?.enabled === true || process.env.AGENTOS_CLI_CHANNEL === 'true';
     const cliInteractiveDefault = Boolean(process.stdin.isTTY) && !this.agent.config.daemon;
-    if (
-      !channelConfigs.find(c => c.type === 'cli') &&
-      !cliExplicitlyDisabled &&
-      (cliExplicitlyEnabled || cliInteractiveDefault)
-    ) {
+    if (!channelConfigs.find(c => c.type === 'cli') && !cliExplicitlyDisabled && (cliExplicitlyEnabled || cliInteractiveDefault)) {
       channelConfigs.push({ type: 'cli', config: this.agent.config.cli || {} });
     }
 
@@ -134,18 +127,18 @@ class ChannelManager extends EventEmitter {
       const channel = new ChannelClass(config, this.agent);
 
       // Route inbound messages through the agent
-      channel.on('message', async msg => {
+      channel.on('message', async (msg) => {
         const result = await this.agent.processInteraction(msg, {
           channel: type,
-          channelId: channel.id,
+          channelId: channel.id
         });
         await channel.send(msg.userId, this.formatResponse(result));
       });
 
       // Bubble up special events
-      channel.on('qr', qr => this.emit('qr', { channel: type, qr }));
-      channel.on('command', cmd => this.emit('command', { channel: type, ...cmd }));
-      channel.on('status', status => this.emit('status', { channel: type, status }));
+      channel.on('qr', (qr) => this.emit('qr', { channel: type, qr }));
+      channel.on('command', (cmd) => this.emit('command', { channel: type, ...cmd }));
+      channel.on('status', (status) => this.emit('status', { channel: type, status }));
 
       await channel.initialize();
       this.channels.set(type, channel);
@@ -164,14 +157,13 @@ class ChannelManager extends EventEmitter {
     if (!result.success) {
       return {
         text: `❌ ${result.error}`,
-        suggestions: result.help ? [result.help] : undefined,
+        suggestions: result.help ? [result.help] : undefined
       };
     }
     return {
-      text:
-        result.result && result.result.text ? result.result.text : JSON.stringify(result.result),
+      text: result.result && result.result.text ? result.result.text : JSON.stringify(result.result),
       buttons: result.result && result.result.buttons,
-      metadata: result.metadata,
+      metadata: result.metadata
     };
   }
 

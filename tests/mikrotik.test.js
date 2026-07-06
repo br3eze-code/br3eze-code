@@ -9,7 +9,7 @@ describe('MikroTikManager', () => {
       host: '192.168.88.1',
       user: process.env.MIKROTIK_USER || '',
       password: process.env.MIKROTIK_PASS || '',
-      port: 8728,
+      port: 8728
     });
   });
 
@@ -35,13 +35,13 @@ describe('MikroTikManager', () => {
     expect(tools).toContain('ping');
   });
 
-  test('should emit events on connection', done => {
-    manager.once('connected', data => {
+  test('should emit events on connection', (done) => {
+    manager.once('connected', (data) => {
       expect(data.host).toBeDefined();
       expect(data.timestamp).toBeDefined();
       done();
     });
-
+    
     // Mock connection for test
     manager.state.isConnected = true;
     manager.emit('connected', { host: 'test', timestamp: new Date().toISOString() });
@@ -53,9 +53,9 @@ describe('testConnection', () => {
     const result = await testConnection({
       host: '192.168.1.1',
       user: 'invalid',
-      password: 'wrong',
+      password: 'wrong'
     });
-
+    
     expect(result.success).toBe(false);
     expect(result.message).toBeDefined();
   });

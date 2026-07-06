@@ -5,13 +5,13 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const dgram = require('dgram');
 
-module.exports = program => {
+module.exports = (program) => {
   program
     .command('doctor')
     .description('Health checks and quick fixes')
     .option('--fix', 'Auto-repair issues')
     .option('--deep', 'Deep system scan')
-    .action(async options => {
+    .action(async (options) => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
 
@@ -90,30 +90,29 @@ module.exports = program => {
 
       // Check 4: Logs Daemon (UDP 5001)
       s.start('Checking Logs Daemon...');
-      const checkLogsDaemon = () =>
-        new Promise(resolve => {
+      const checkLogsDaemon = () => new Promise((resolve) => {
+        try {
+          const isWin = process.platform === 'win32';
+          // Use netstat to check if port 5001 is being listened on
+          const cmd = isWin ? 'netstat -ano | findstr :5001' : 'lsof -i :5001';
+
+          // Use a try-catch for execSync in case the command itself fails or returns non-zero (grep failure)
+          let out = '';
           try {
-            const isWin = process.platform === 'win32';
-            // Use netstat to check if port 5001 is being listened on
-            const cmd = isWin ? 'netstat -ano | findstr :5001' : 'lsof -i :5001';
-
-            // Use a try-catch for execSync in case the command itself fails or returns non-zero (grep failure)
-            let out = '';
-            try {
-              out = execSync(cmd, { stdio: 'pipe' }).toString();
-            } catch (e) {
-              // If findstr/grep finds nothing, it might exit with code 1
-            }
-
-            if (out.includes('5001') && (out.includes('LISTENING') || out.includes('UDP'))) {
-              resolve({ status: 'ok', details: 'Active on port 5001' });
-            } else {
-              resolve({ status: 'warn', details: 'Daemon not detected' });
-            }
+            out = execSync(cmd, { stdio: 'pipe' }).toString();
           } catch (e) {
-            resolve({ status: 'warn', details: 'Detection failed' });
+            // If findstr/grep finds nothing, it might exit with code 1
           }
-        });
+
+          if (out.includes('5001') && (out.includes('LISTENING') || out.includes('UDP'))) {
+            resolve({ status: 'ok', details: 'Active on port 5001' });
+          } else {
+            resolve({ status: 'warn', details: 'Daemon not detected' });
+          }
+        } catch (e) {
+          resolve({ status: 'warn', details: 'Detection failed' });
+        }
+      });
 
       const logsStatus = await checkLogsDaemon();
       if (logsStatus.status === 'ok') {
@@ -137,9 +136,7 @@ module.exports = program => {
           s.stop(chalk.yellow('⚠ Gateway not running (stale PID)'));
           checks.push({ name: 'Gateway', status: 'warn', details: 'Stale process' });
           if (options.fix) {
-            try {
-              fs.unlinkSync(pidFile);
-            } catch (_) {}
+            try { fs.unlinkSync(pidFile); } catch (_) { }
             log.info(chalk.gray('Cleaned up stale PID file'));
           }
         }
@@ -158,7 +155,7 @@ module.exports = program => {
         if (aiProvider !== 'none' && config.ai?.key) {
           const provider = coordinator.createProvider(aiProvider, {
             apiKey: config.ai.key,
-            model: config.ai.model,
+            model: config.ai.model
           });
 
           if (provider) {
@@ -172,11 +169,7 @@ module.exports = program => {
                 s.stop(chalk.green(`✓ AI Engine online (${aiProvider})`));
                 checks.push({ name: 'AI Engine', status: 'ok', details: aiProvider });
               } else {
-                const isRateLimit =
-                  r.error &&
-                  (r.error.includes('429') ||
-                    r.error.toLowerCase().includes('too many requests') ||
-                    r.error.toLowerCase().includes('quota'));
+                const isRateLimit = r.error && (r.error.includes('429') || r.error.toLowerCase().includes('too many requests') || r.error.toLowerCase().includes('quota'));
                 if (isRateLimit) {
                   s.stop(chalk.yellow(`⚠ AI Rate Limited: ${r.error}`));
                   checks.push({ name: 'AI Engine', status: 'warn', details: 'Rate Limited' });
@@ -205,9 +198,7 @@ module.exports = program => {
       const channelFiles = fs.readdirSync(path.join(__dirname, '../../core/channels'));
       for (const file of channelFiles) {
         if (file.endsWith('Channel.js') && file !== 'BaseChannel.js') {
-          try {
-            require(path.join(__dirname, '../../core/channels/', file));
-          } catch (_) {}
+          try { require(path.join(__dirname, '../../core/channels/', file)); } catch (_) { }
         }
       }
 
@@ -219,19 +210,15 @@ module.exports = program => {
         const chanName = meta.name || type.charAt(0).toUpperCase() + type.slice(1);
         s.start(`Checking ${chanName} channel...`);
 
-        const chanConfig =
-          config[type] || (config.channels && config.channels.find(c => c.type === type)?.config);
+        const chanConfig = config[type] || (config.channels && config.channels.find(c => c.type === type)?.config);
 
-        if (
-          chanConfig?.enabled ||
-          (config.channels && config.channels.find(c => c.type === type))
-        ) {
+        if (chanConfig?.enabled || (config.channels && config.channels.find(c => c.type === type))) {
           let status = 'ok';
           let details = 'Configured';
 
           // Use Channel's own validation if available
           try {
-            const instance = new ChannelClass(chanConfig, { config });
+            const instance = new ChannelClass(chanConfig, { config: config });
             const v = await instance.validateConfig();
             if (!v.valid) {
               status = 'error';
@@ -276,12 +263,8 @@ module.exports = program => {
       const warnings = checks.filter(c => c.status === 'warn').length;
 
       const summaryLines = checks.map(check => {
-        const icon =
-          check.status === 'ok'
-            ? chalk.green('●')
-            : check.status === 'warn'
-              ? chalk.yellow('▲')
-              : chalk.red('■');
+        const icon = check.status === 'ok' ? chalk.green('●') :
+          check.status === 'warn' ? chalk.yellow('▲') : chalk.red('■');
         return `${icon} ${chalk.bold(check.name.padEnd(15))} ${chalk.gray(check.details || '')}`;
       });
 
@@ -303,7 +286,7 @@ module.exports = program => {
         const { getDatabase } = require('../../core/database');
         const db = await getDatabase();
         if (db) await db.close();
-      } catch (_) {}
+      } catch (_) { }
 
       // Force exit: channel checks (Telegram, WhatsApp etc.) create open handles
       // that prevent the event loop from draining naturally.
