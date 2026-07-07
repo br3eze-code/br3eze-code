@@ -12,7 +12,14 @@ const HealthMonitor = require('./HealthMonitor');
 const AgentOSOrchestrator = require('./orchestrator');
 const CircuitBreaker = require('../utils/CircuitBreaker');
 const { logger } = require('./logger');
-const MastercardA2AService = require('../../services/mastercardA2A');
+// Optional payment integration — never let it break core boot/tests. It
+// pulls in optional deps (mastercard-api-core) that may be absent in CI.
+let MastercardA2AService;
+try {
+  MastercardA2AService = require('../../services/mastercardA2A');
+} catch (e) {
+  MastercardA2AService = null;
+}
 
 class AgentOS extends EventEmitter {
   constructor(config = {}) {
@@ -40,7 +47,7 @@ class AgentOS extends EventEmitter {
 
     // Shared infrastructure (domain-agnostic)
     this.database = require('./database').getDatabase();
-    this.mastercard = new MastercardA2AService();
+    this.mastercard = MastercardA2AService ? new MastercardA2AService() : null;
     this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
     this.billing = new (require('./universal-billing'))({ database: this.database });
 

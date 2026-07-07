@@ -498,6 +498,47 @@ class WhatsAppChannel extends BaseChannel {
     return this.send(jid, text);
   }
 
+  /**
+   * WhatsApp deprecated real interactive buttons for unofficial (Baileys)
+   * clients, so we emulate them: send a numbered menu and match the user's
+   * reply (a number, or the button id/label) back to a button. Every user
+   * can respond regardless of whether their client renders buttons.
+   *
+   * @param {string} jid
+   * @param {{title:string, buttons:Array<{id,label}>, resultAction:string, footer?:string}} opts
+   */
+  async sendButtons(jid, { title, buttons, resultAction, footer } = {}) {
+    if (!Array.isArray(buttons) || buttons.length === 0) {
+      throw new Error('sendButtons requires a non-empty buttons array');
+    }
+    const lines = buttons.map((b, i) => `*${i + 1}.* ${b.label || b.id}`);
+    const text = `${title ? title + '\n\n' : ''}${lines.join('\n')}\n\n_Reply with a number${footer ? ' — ' + footer : ''}._`;
+    // Arm the reply matcher before sending so a fast reply isn't missed.
+    this.pendingInputs.set(jid, { action: 'button_reply', data: { buttons, resultAction } });
+    return this.send(jid, text);
+  }
+
+  /**
+   * Match a free-text reply to one of the offered buttons.
+   * Accepts: 1-based index, exact button id, or button label (case-insensitive).
+   * @returns the matched button object, or null.
+   */
+  _resolveButtonReply(reply, buttons) {
+    if (reply == null || !Array.isArray(buttons)) return null;
+    const r = String(reply).trim();
+    if (!r) return null;
+
+    if (/^\d+$/.test(r)) {
+      const idx = parseInt(r, 10) - 1;
+      return (idx >= 0 && idx < buttons.length) ? buttons[idx] : null;
+    }
+    const lower = r.toLowerCase();
+    return buttons.find(b =>
+      String(b.id).toLowerCase() === lower ||
+      String(b.label || '').toLowerCase() === lower
+    ) || null;
+  }
+
   // ── Handlers ───────────────────────────────────────────────────────────────
   async _handleStart(jid, msg) {
     const pushName = msg.pushName || 'there';
@@ -1035,6 +1076,23 @@ class WhatsAppChannel extends BaseChannel {
     } else if (action.startsWith('tool:')) {
       const toolName = action.split(':')[1];
       await this._handleTool(jid, msg, [null, toolName, text]);
+    } else if (action === 'button_reply') {
+      const choice = this._resolveButtonReply(text, data.buttons);
+      if (!choice) {
+        await this.send(jid, `❌ "${text}" didn't match an option. Send the number of your choice.`);
+        // Re-arm so the user can try again.
+        this.pendingInputs.set(jid, { action: 'button_reply', data });
+        return;
+      }
+      // Dispatch the selected button's id through the configured result action.
+      if (data.resultAction && data.resultAction.startsWith('tool:')) {
+        await this._handleTool(jid, msg, [null, data.resultAction.split(':')[1], choice.id]);
+      } else {
+        // Treat the button id as a command name (e.g. 'dashboard', 'voucher').
+        const handler = this.handlers.get(String(choice.id).toLowerCase());
+        if (handler) await this._rl(handler)(jid, msg, [choice.id]);
+        else this.emit('message', { text: choice.id, userId: jid, channel: 'whatsapp', raw: msg });
+      }
     }
   }
 
