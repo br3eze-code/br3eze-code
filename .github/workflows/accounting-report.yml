@@ -140,11 +140,19 @@ jobs:
         if: always()
         run: |
           FILE="reports/accounting/anomalies.json"
+          HIGH=0
           if [ -f "$FILE" ]; then
             HIGH=$(jq '[.[] | select(.severity == "high")] | length' "$FILE")
-            echo "high=$HIGH" >> $GITHUB_OUTPUT
-            [ "$HIGH" -gt 0 ] && jq '.[] | select(.severity == "high")' "$FILE"
+            if [ "$HIGH" -gt 0 ]; then
+              echo "⚠️  $HIGH high-severity anomalies detected:"
+              jq '.[] | select(.severity == "high")' "$FILE"
+            else
+              echo "✓ No high-severity anomalies."
+            fi
+          else
+            echo "✓ No anomalies file produced (clean run)."
           fi
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
 
       - name: Upload reports artifact
         if: always()
