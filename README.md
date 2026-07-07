@@ -57,16 +57,6 @@ Right-click → Kick   ──┘
 - Context-aware command suggestions and error recovery
 - AgentMemory for persistent session state
 
-### 💬 Multi-Channel Control
-| Channel | Status | Notes |
-|---------|--------|-------|
-| Telegram Bot | ✅ Production | Inline keyboards, button menus |
-| WhatsApp | ✅ Production | Baileys-powered, no Meta API needed |
-| WebSocket CLI | ✅ Production | Browser terminal experience |
-| REST API | ✅ Production | Programmatic/webhook access |
-| RouterOS Native | ✅ Production | On-device Sentinel agent (`.rsc`) |
-| Cordova App | ✅ Production | Mobile App (`ios , android`)|
-
 </td>
 <td width="50%">
 
@@ -207,11 +197,21 @@ tail -f logs/agentos.log
 - 📊 **Real-time Monitoring** — System stats, alerts, and financial reporting
 - 🔒 **Enterprise Security** — CVE-2026-1526 patched, rate-limited, audit trails
 
+### 💬 Multi-Channel Control
+| Channel | Status | Notes |
+|---------|--------|-------|
+| Telegram Bot | ✅ Production | Inline keyboards, button menus |
+| WhatsApp | ✅ Production | Baileys-powered, no Meta API needed |
+| WebSocket CLI | ✅ Production | Browser terminal experience |
+| REST API | ✅ Production | Programmatic/webhook access |
+| RouterOS Native | ✅ Production | On-device Sentinel agent (`.rsc`) |
+| Cordova App | ✅ Production | Mobile App (`ios , android`)|
+
 ## 🏗️ Architecture
 ```bash
 
 ┌─────────────────────────────────────────────────────────────┐
-│                    🤖 AgentOS Gateway                       │
+│                    🤖 AgentOS Gateway                      │
 │                  (WebSocket + HTTP API)                     │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
@@ -456,11 +456,11 @@ Apache 2.0 © 2026 Brighton Mzacana · br3eze.africa
 ---
 
 <p align="center">
-  <a href="https://github.com/br3eze-code/br3ezeclaw/stargazers">
-    <img src="https://img.shields.io/github/stars/br3eze-code/br3ezeclaw?style=social" alt="Stars">
+  <a href="https://github.com/br3eze-code/br3eze-code/stargazers">
+    <img src="https://img.shields.io/github/stars/br3eze-code/br3eze-code?style=social" alt="Stars">
   </a>
   <a href="https://github.com/br3eze-code/br3ezeclaw/network/members">
-    <img src="https://img.shields.io/github/forks/br3eze-code/br3ezeclaw?style=social" alt="Forks">
+    <img src="https://img.shields.io/github/forks/br3eze-code/br3eze-code?style=social" alt="Forks">
   </a>
 </p>
 <p align="center">
