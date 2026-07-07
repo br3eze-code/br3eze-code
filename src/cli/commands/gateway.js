@@ -44,7 +44,10 @@ module.exports = (program) => {
             }
 
             const config = getConfig();
-            const Port = options.port || config.gateway?.port || 19876;
+            // process.env.PORT is mandatory on Cloud Run / App Hosting — the
+            // platform injects it and the container MUST bind it or health
+            // checks fail (see apphosting.yaml). It wins over static config.
+            const Port = options.port || process.env.PORT || config.gateway?.port || 19876;
 
             // ── --daemon: spawn a detached background copy of this same command
             //    and exit. AGENTOS_DAEMON_CHILD guards against re-spawning when

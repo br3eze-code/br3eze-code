@@ -33,8 +33,11 @@ class Gateway extends EventEmitter {
       process.env.GATEWAY_TOKEN;
 
     this.config = {
-      port: config.port || config.gateway?.port || 19876,
-      host: config.host || config.gateway?.host || '127.0.0.1',
+      port: config.port || process.env.PORT || config.gateway?.port || 19876,
+      // Cloud Run / App Hosting inject PORT and route external traffic — the
+      // server must bind 0.0.0.0 there, not loopback (see apphosting.yaml's
+      // GATEWAY_HOST=0.0.0.0). Locally we keep the safer 127.0.0.1 default.
+      host: config.host || process.env.GATEWAY_HOST || config.gateway?.host || (process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
       token: resolvedToken,
       ...config
     };
@@ -120,6 +123,24 @@ class Gateway extends EventEmitter {
       res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
+        channels: Object.keys(this.channelManager.getStatus())
+      });
+    });
+
+    // ── Cloud Run / Kubernetes probes (see apphosting.yaml) ────────────────────
+    // startup: has the HTTP server bound? liveness: process responsive?
+    // readiness: ready to serve traffic (server listening).
+    this.app.get('/health/startup', (req, res) => {
+      const up = !!(this.server && this.server.listening);
+      res.status(up ? 200 : 503).json({ status: up ? 'started' : 'starting' });
+    });
+    this.app.get('/health/live', (req, res) => {
+      res.status(200).json({ status: 'alive', uptime: process.uptime() });
+    });
+    this.app.get('/health/ready', (req, res) => {
+      const ready = !!(this.server && this.server.listening);
+      res.status(ready ? 200 : 503).json({
+        status: ready ? 'ready' : 'not-ready',
         channels: Object.keys(this.channelManager.getStatus())
       });
     });

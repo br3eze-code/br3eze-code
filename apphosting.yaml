@@ -3,7 +3,7 @@
 # Project : br3eze-africa-312df
 # Region  : africa-south1 (Johannesburg)
 # Image   : ghcr.io/br3eze-code/br3eze-code:latest
-# Deploy  : gcloud run services replace hosting.yaml --region=africa-south1
+# Deploy  : gcloud run services replace apphosting.yaml --region=africa-south1
 ###############################################################################
 
 apiVersion: serving.knative.dev/v1
@@ -410,11 +410,11 @@ spec:
 ###############################################################################
 #
 # === PRE-DEPLOY VALIDATION ===
-# gcloud run services replace hosting.yaml --region=africa-south1 \
+# gcloud run services replace apphosting.yaml --region=africa-south1 \
 #   --project=br3eze-africa-312df --dry-run
 #
 # === DEPLOY ===
-# gcloud run services replace hosting.yaml --region=africa-south1 \
+# gcloud run services replace apphosting.yaml --region=africa-south1 \
 #   --project=br3eze-africa-312df
 #
 # === SECRETS SETUP (one-time per secret) ===
