@@ -396,6 +396,7 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/claim/, this._rl(this._handleClaim.bind(this)));
         this.bot.onText(/\/token/, this._rl(this._handleToken.bind(this)));
         this.bot.onText(/\/ask\s+(.+)/, this._rl(this._handleAsk.bind(this)));
+        this.bot.onText(/\/link(?:\s+(\S+))?/, this._rl(this._handleLink.bind(this)));
         this.bot.onText(/\/cli\s+(.+)/, this._rl(this._handleCli.bind(this)));
         this.bot.onText(/\/api\s+(.+)/, this._rl(this._handleApi.bind(this)));
         this.bot.onText(/\/tools/, this._rl(this._handleTools.bind(this)));
@@ -964,27 +965,50 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
+    async _handleLink(msg, match) {
+        const chatId = msg.chat.id;
+        const code = match && match[1];
+        if (!code) {
+            return this.bot.sendMessage(chatId,
+                '🔗 *Link your Power Connect account*\n\n1. Open the Power Connect app\n2. Go to *Settings → Link Chat Account*\n3. Send me the 6-digit code like this:\n`/link 123456`',
+                { parse_mode: 'Markdown' });
+        }
+        const { verifyLinkCode } = require('./link-verifier');
+        const result = await verifyLinkCode(code, 'telegram', String(chatId));
+        return this.bot.sendMessage(chatId, result.message, { parse_mode: 'Markdown' }).catch(() =>
+            this.bot.sendMessage(chatId, result.message));
+    }
+
     async _handleNaturalLanguage(msg) {
         const chatId = msg.chat.id;
         const text = msg.text;
 
-        // ── Email Identity Capture ──────────────────────────────────────────
-        // Detect email addresses in the message text to link channel to identity.
+        // ── Email Identity Hint ─────────────────────────────────────────────
+        // An email typed into chat is a HINT, never proof of ownership — the
+        // old auto-bind let anyone claim any account by typing its email.
+        // Store it on the chat-scoped record only and point the user at the
+        // verified /link flow (see link-verifier.js).
         const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
         const emails = text.match(emailRegex);
         if (emails && emails.length > 0) {
             const email = emails[0].toLowerCase();
             const { getDatabase } = require('../database');
             const db = await getDatabase();
-            
-            // Trigger an upsert that will link the email to this chatId/UID
+
             await db.upsertUser(String(chatId), {
-                email,
+                pendingEmail: email,
                 platform: 'telegram',
                 lastSeen: new Date().toISOString()
             }).catch(e => logger.warn(`[Telegram] Email capture sync failed: ${e.message}`));
-            
-            logger.info(`[Telegram] Captured email ${email} from ${chatId}`);
+
+            logger.info(`[Telegram] Captured email hint ${email} from ${chatId}`);
+            if (!this._linkHintSent) this._linkHintSent = new Set();
+            if (!this._linkHintSent.has(chatId)) {
+                this._linkHintSent.add(chatId);
+                this.bot.sendMessage(chatId,
+                    '🔐 To securely connect this chat to your Power Connect account, open the app → *Settings → Link Chat Account* and send me `/link <code>`.',
+                    { parse_mode: 'Markdown' }).catch(() => { });
+            }
         }
 
         // Pending reboot confirmation via free text
@@ -1005,13 +1029,21 @@ class TelegramChannel extends BaseChannel {
         this.bot.sendChatAction(chatId, 'typing').catch(() => { });
 
         try {
-            if (this.agent && typeof this.agent.processInteraction === 'function') {
+            // Primary path: AskEngine (3-tier keyword/rule/LLM dispatch — same
+            // engine as `agentos ask` and /api/v1/ask). gateway.js publishes it
+            // on global before the gateway starts. Set TELEGRAM_ENGINE=coordinator
+            // to fall back to the legacy AICoordinator path.
+            const askEngine = global.askEngine;
+            if (askEngine && process.env.TELEGRAM_ENGINE !== 'coordinator') {
+                const out = await askEngine.run(text);
+                await this._sendMarkdownSafe(chatId, this._formatAskResult(out));
+            } else if (this.agent && typeof this.agent.processInteraction === 'function') {
                 const result = await this.agent.processInteraction(
                     { text, userId: msg.from.id, username: msg.from.username },
                     { channel: 'telegram', channelId: chatId }
                 );
                 const reply = result?.result?.text || result?.text || JSON.stringify(result);
-                await this.bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+                await this._sendMarkdownSafe(chatId, reply);
             } else {
                 await this.bot.sendMessage(chatId,
                     `🤖 I received: "${text}"\n\nUse /menu for available commands.`
@@ -1022,6 +1054,26 @@ class TelegramChannel extends BaseChannel {
             await this.bot.sendMessage(chatId,
                 '⚠️ AI processing error. Use /menu for manual commands.'
             );
+        }
+    }
+
+    // AskEngine.run() → { tier, type, result, [data], [turns] }; result may be
+    // a string or a raw tool/rule object.
+    _formatAskResult(out) {
+        if (!out) return '⚠️ No response from AskEngine.';
+        const body = typeof out.result === 'string'
+            ? out.result
+            : '```json\n' + JSON.stringify(out.result, null, 2).slice(0, 3500) + '\n```';
+        return out.type === 'error' ? `❌ ${body}` : body;
+    }
+
+    // Telegram rejects messages with unbalanced Markdown entities (common in
+    // raw tool output) — retry as plain text rather than dropping the reply.
+    async _sendMarkdownSafe(chatId, text) {
+        try {
+            await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+        } catch (e) {
+            await this.bot.sendMessage(chatId, text);
         }
     }
 

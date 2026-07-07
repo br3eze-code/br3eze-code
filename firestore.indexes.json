@@ -33,16 +33,6 @@
             ]
         },
         {
-            "collectionGroup": "auth_logs",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "timestamp",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
             "collectionGroup": "usage_stats",
             "queryScope": "COLLECTION",
             "fields": [
@@ -68,6 +58,38 @@
                     "fieldPath": "expiresAt",
                     "order": "ASCENDING"
                 }
+            ]
+        },
+        {
+            "collectionGroup": "tickets",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "lastUpdate", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "transactions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "userId", "order": "ASCENDING" },
+                { "fieldPath": "timestamp", "order": "DESCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "vouchers",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "code", "order": "ASCENDING" },
+                { "fieldPath": "used", "order": "ASCENDING" }
+            ]
+        },
+        {
+            "collectionGroup": "procurementSchedule",
+            "queryScope": "COLLECTION",
+            "fields": [
+                { "fieldPath": "status", "order": "ASCENDING" },
+                { "fieldPath": "partnerId", "order": "ASCENDING" }
             ]
         }
     ],

@@ -1500,44 +1500,51 @@ async function boot() {
 
     // Create command handler
     const commandHandler = new CommandHandler(TOOLS, database, null);
+    global.commandHandler = commandHandler;
 
-    // Create HTTP server
-    const server = http.createServer(app);
+    // Only start the raw HTTP listener + WebSocket gateway when run as a
+    // standalone process (`node server.js`). When this module is instead
+    // required by the Cloud Functions wrapper (server/index.js), Cloud
+    // Functions manages its own listener and can't proxy a raw WebSocket
+    // server behind onRequest() -- all we need in that mode is `app` wired
+    // up with an initialized database + command handler.
+    if (require.main === module) {
+        // Create HTTP server
+        const server = http.createServer(app);
 
-    // Initialize WebSocket gateway
-    const gateway = new AgentOSGateway(server);
-    commandHandler.gateway = gateway;
+        // Initialize WebSocket gateway
+        const gateway = new AgentOSGateway(server);
+        commandHandler.gateway = gateway;
 
-    // Start server
-    server.listen(CONFIG.PORT, CONFIG.HOST, () => {
-        logger.info(`${BRAND.emoji} ${BRAND.name} v${BRAND.version}`);
-        logger.info(`Server running at http://${CONFIG.HOST}:${CONFIG.PORT}`);
-        logger.info(`WebSocket Gateway at ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
-        logger.info(`Health check: http://${CONFIG.HOST}:${CONFIG.PORT}/health`);
-    });
-
-    // Graceful shutdown
-    const shutdown = (signal) => {
-        logger.info(`${signal} received - shutting down...`);
-        gateway.wss.close();
-        server.close(() => {
-            logger.info('Server closed');
-            process.exit(0);
+        // Start server
+        server.listen(CONFIG.PORT, CONFIG.HOST, () => {
+            logger.info(`${BRAND.emoji} ${BRAND.name} v${BRAND.version}`);
+            logger.info(`Server running at http://${CONFIG.HOST}:${CONFIG.PORT}`);
+            logger.info(`WebSocket Gateway at ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
+            logger.info(`Health check: http://${CONFIG.HOST}:${CONFIG.PORT}/health`);
         });
-    };
 
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+        // Graceful shutdown
+        const shutdown = (signal) => {
+            logger.info(`${signal} received - shutting down...`);
+            gateway.wss.close();
+            server.close(() => {
+                logger.info('Server closed');
+                process.exit(0);
+            });
+        };
+
+        process.on('SIGTERM', () => shutdown('SIGTERM'));
+        process.on('SIGINT', () => shutdown('SIGINT'));
+    }
 }
 
 // Make commandHandler available globally for this module
 global.commandHandler = null;
 
-boot().then(() => {
-    global.commandHandler = new CommandHandler(TOOLS, database, null);
-}).catch(err => {
+boot().catch(err => {
     logger.error('Boot failed:', err);
-    process.exit(1);
+    if (require.main === module) process.exit(1);
 });
 
 module.exports = { app, TOOLS, database };

@@ -8,6 +8,15 @@ const { logger } = require('../logger');
 const { BaseChannel } = require('./BaseChannel');
 
 class WhatsAppChannel extends BaseChannel {
+  // Baileys-internal noise that's expected in normal group-chat operation
+  // (missing sender-key session, decrypt races, malformed newsletter payloads)
+  // and needs no application-layer action.
+  static BENIGN_BAILEYS_PATTERNS = [
+    'No session found to decrypt',
+    'Unexpected non-whitespace character after JSON',
+    'invalid mex newsletter',
+  ];
+
   static getMetadata() {
     return {
       name: 'WhatsApp',
@@ -145,14 +154,27 @@ class WhatsAppChannel extends BaseChannel {
       // Adapter for Baileys (pino) logger to AgentOS (winston) logger
       const createBaileysLogger = (parent) => {
         const isDebug = process.env.LOG_LEVEL === 'debug' || process.env.DEBUG?.includes('whatsapp') || process.env.WHATSAPP_DEBUG === 'true';
+        // Baileys logs these internally (auth-utils/messages-recv) even when the
+        // condition never throws up to our messages.upsert handler, so they must
+        // be filtered here too, not just in that catch block.
+        const isBenignNoise = (obj, msg) => {
+          const text = `${msg || ''} ${typeof obj === 'string' ? obj : obj?.err?.message || obj?.error?.message || ''}`;
+          return WhatsAppChannel.BENIGN_BAILEYS_PATTERNS.some(p => text.includes(p));
+        };
         return {
           level: isDebug ? 'debug' : 'warn',
           child: (bindings) => createBaileysLogger(parent.child(bindings)),
           trace: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj); },
           debug: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.debug(obj) : parent.debug(msg || '', obj); },
           info: (obj, msg) => { if (isDebug) typeof obj === 'string' ? parent.info(obj) : parent.info(msg || '', obj); },
-          warn: (obj, msg) => typeof obj === 'string' ? parent.warn(obj) : parent.warn(msg || '', obj),
-          error: (obj, msg) => typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
+          warn: (obj, msg) => {
+            if (isBenignNoise(obj, msg)) { if (isDebug) parent.debug(msg || '', obj); return; }
+            typeof obj === 'string' ? parent.warn(obj) : parent.warn(msg || '', obj);
+          },
+          error: (obj, msg) => {
+            if (isBenignNoise(obj, msg)) { if (isDebug) parent.debug(msg || '', obj); return; }
+            typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj);
+          },
           fatal: (obj, msg) => typeof obj === 'string' ? parent.error(obj) : parent.error(msg || '', obj),
         };
       };
@@ -244,11 +266,7 @@ class WhatsAppChannel extends BaseChannel {
             // These happen when the bot wasn't present when the sender key was distributed
             // and are Baileys-internal — no action needed from application layer.
             const msg_str = error?.message || '';
-            if (
-              msg_str.includes('No session found to decrypt') ||
-              msg_str.includes('Unexpected non-whitespace character after JSON') ||
-              msg_str.includes('invalid mex newsletter')
-            ) {
+            if (WhatsAppChannel.BENIGN_BAILEYS_PATTERNS.some(p => msg_str.includes(p))) {
               logger.debug(`WhatsApp: suppressed Baileys internal error: ${msg_str}`);
             } else {
               logger.error('WhatsApp message upsert handling error:', error);
@@ -366,6 +384,7 @@ class WhatsAppChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers.set('start', this._handleStart);
+    this.handlers.set('link', this._handleLink);
     this.handlers.set('menu', this._handleMenu);
     this.handlers.set('help', this._handleHelp);
     this.handlers.set('dashboard', this._handleDashboard);
@@ -434,7 +453,9 @@ class WhatsAppChannel extends BaseChannel {
 
     // Natural Language / Default Emit
     if (text.trim()) {
-      // ── Email Identity Capture ──────────────────────────────────────────
+      // ── Email Identity Hint ─────────────────────────────────────────────
+      // An email typed into chat is a HINT, never proof of ownership — bind
+      // only through the verified /link flow (link-verifier.js).
       const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
       const emails = text.match(emailRegex);
       if (emails && emails.length > 0) {
@@ -443,12 +464,17 @@ class WhatsAppChannel extends BaseChannel {
         const db = await getDatabase();
 
         await db.upsertUser(from, {
-          email,
+          pendingEmail: email,
           platform: 'whatsapp',
           lastSeen: new Date().toISOString()
         }).catch(e => logger.warn(`[WhatsApp] Email capture sync failed: ${e.message}`));
 
-        logger.info(`[WhatsApp] Captured email ${email} from ${from}`);
+        logger.info(`[WhatsApp] Captured email hint ${email} from ${from}`);
+        if (!this._linkHintSent) this._linkHintSent = new Set();
+        if (!this._linkHintSent.has(from)) {
+          this._linkHintSent.add(from);
+          this.send(from, '🔐 To securely connect this chat to your Power Connect account, open the app → *Settings → Link Chat Account* and send me: /link <code>').catch(() => { });
+        }
       }
 
       const wrappedNL = this._rl(async (userId, rawMsg) => {
@@ -477,6 +503,18 @@ class WhatsAppChannel extends BaseChannel {
     const pushName = msg.pushName || 'there';
     const text = `🤖 *AgentOS WhatsApp*\n\nWelcome, ${pushName}! I'm your network intelligence assistant.\n\nUse */menu* to see available commands or just ask me anything!`;
     await this.send(jid, text);
+  }
+
+  async _handleLink(jid, msg, args) {
+    const code = args && args[1];
+    if (!code) {
+      await this.send(jid,
+        '🔗 *Link your Power Connect account*\n\n1. Open the Power Connect app\n2. Go to *Settings → Link Chat Account*\n3. Send me the 6-digit code like this:\n/link 123456');
+      return;
+    }
+    const { verifyLinkCode } = require('./link-verifier');
+    const result = await verifyLinkCode(code, 'whatsapp', jid);
+    await this.send(jid, result.message);
   }
 
   async _handleMistakes(jid, msg) {

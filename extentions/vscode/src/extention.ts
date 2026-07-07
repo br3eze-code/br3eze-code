@@ -1,14 +1,16 @@
 import * as vscode from 'vscode';
 import { AgentOSAPI } from './api';
 import { SkillsProvider } from './skillsView';
-import { RecorderPanel } from './recorderPanel';
+import { RecorderPanel } from './recordPanel';
 
 let outputChannel: vscode.OutputChannel;
 let api: AgentOSAPI;
+let extensionUri: vscode.Uri;
 
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel("AgentOS");
   api = new AgentOSAPI(outputChannel);
+  extensionUri = context.extensionUri;
 
   context.subscriptions.push(
     vscode.commands.registerCommand('agentos.setConfig', () => api.setConfig()),
@@ -78,7 +80,7 @@ async function recordUi() {
   if (!url) return;
   const res = await api.call('/api/ui-record', { url });
   if (res?.recorder_code) {
-    RecorderPanel.createOrShow(context.extensionUri, res.recorder_code, url);
+    RecorderPanel.createOrShow(extensionUri, res.recorder_code, url);
   }
 }
 

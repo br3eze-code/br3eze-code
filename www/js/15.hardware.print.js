@@ -13,22 +13,41 @@ const HardwarePrinter = {
     },
 
     refreshPrinters() {
-        // Mocking available interfaces for now.
-        // In a real Cordova env, you would query Bluetooth/USB printers using a plugin.
         this.interfaces = [
             { id: 'none', name: 'Disable Printing' },
             { id: 'PRINTER_MAIN', name: 'Default Local Printer (Config)' }
         ];
-        
-        if (typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.printer) {
-            cordova.plugins.printer.check((available) => {
-                if(available) {
-                    this.interfaces.push({ id: 'SYSTEM', name: 'System Print Dialog' });
-                }
-                this.updateUI();
+
+        const finish = () => this.updateUI();
+
+        // Bluetooth Classic (SPP) paired printers via cordova-plugin-bluetooth-serial.
+        // Most cheap thermal receipt printers pair over classic Bluetooth/SPP, not
+        // BLE/GATT -- a BLE-only printer would need a separate plugin
+        // (e.g. cordova-plugin-ble-central). USB printers aren't supported here at
+        // all yet: no USB-serial Cordova plugin is installed in this project.
+        if (typeof bluetoothSerial !== 'undefined') {
+            bluetoothSerial.list((devices) => {
+                (devices || []).forEach(d => {
+                    this.interfaces.push({ id: `BT:${d.address}`, name: `🖨️ ${d.name || 'Unknown device'} (${d.address})` });
+                });
+                this._checkSystemPrint(finish);
+            }, (err) => {
+                console.warn('[Printer] Bluetooth paired-device list failed:', err);
+                this._checkSystemPrint(finish);
             });
         } else {
-            this.updateUI();
+            this._checkSystemPrint(finish);
+        }
+    },
+
+    _checkSystemPrint(done) {
+        if (typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.printer) {
+            cordova.plugins.printer.check((available) => {
+                if (available) this.interfaces.push({ id: 'SYSTEM', name: 'System Print Dialog' });
+                done();
+            });
+        } else {
+            done();
         }
     },
 
@@ -51,6 +70,10 @@ const HardwarePrinter = {
         }
 
         console.log(`[Printer] Routing print job to ${this.currentInterface}...`);
+
+        if (this.currentInterface.startsWith('BT:')) {
+            return this._printViaBluetooth(this.currentInterface.slice(3), contentHTML);
+        }
 
         if (this.currentInterface === 'SYSTEM' && typeof cordova !== 'undefined' && cordova.plugins && cordova.plugins.printer) {
             return new Promise((resolve) => {
@@ -77,6 +100,38 @@ const HardwarePrinter = {
             }
             return true;
         }
+    },
+
+    _htmlToReceiptText(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        return (div.textContent || div.innerText || '')
+            .split('\n').map(l => l.trim()).filter(Boolean).join('\n');
+    },
+
+    async _printViaBluetooth(address, contentHTML) {
+        if (typeof bluetoothSerial === 'undefined') {
+            if (typeof showToast === 'function') showToast('Bluetooth printer plugin unavailable.', 'error');
+            return false;
+        }
+        const text = this._htmlToReceiptText(contentHTML) + '\n\n\n';
+        return new Promise((resolve) => {
+            bluetoothSerial.connect(address, () => {
+                bluetoothSerial.write(text, () => {
+                    bluetoothSerial.disconnect();
+                    resolve(true);
+                }, (err) => {
+                    console.error('[Printer] Bluetooth write failed:', err);
+                    if (typeof showToast === 'function') showToast('Failed to send data to printer.', 'error');
+                    bluetoothSerial.disconnect();
+                    resolve(false);
+                });
+            }, (err) => {
+                console.error('[Printer] Bluetooth connect failed:', err);
+                if (typeof showToast === 'function') showToast('Could not connect to printer. Is it paired and powered on?', 'error');
+                resolve(false);
+            });
+        });
     },
 
     async testPrint() {

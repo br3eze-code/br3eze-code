@@ -10,11 +10,35 @@
         "source": "server"
     },
     "hosting": {
+        "predeploy": [
+            "node scripts/generate-env-www.js"
+        ],
         "public": "www",
         "ignore": [
             "firebase.json",
             "**/.*",
-            "**/node_modules/**"
+            "**/node_modules/**",
+            "**/*.php"
+        ],
+        "headers": [
+            {
+                "source": "**/*.@(html|js|css|json)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache"
+                    }
+                ]
+            },
+            {
+                "source": "**/*.@(png|jpg|jpeg|svg|gif|ico|webp|woff|woff2)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "public, max-age=86400"
+                    }
+                ]
+            }
         ],
         "rewrites": [
             {

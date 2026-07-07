@@ -1,0 +1,33 @@
+{
+  "name": "agentos-functions",
+  "description": "AgentOS WiFi Manager backend, deployed as a Firebase Cloud Function (see index.js) and runnable standalone (node server.js).",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "lint": "echo lint skipped"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.8.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "firebase-admin": "^13.7.0",
+    "firebase-functions": "^6.0.1",
+    "helmet": "^8.1.0",
+    "node-cache": "^5.1.2",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "qrcode": "^1.5.4",
+    "uuid": "^14.0.0",
+    "winston": "^3.19.0",
+    "ws": "^8.21.0"
+  }
+}

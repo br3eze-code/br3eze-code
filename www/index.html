@@ -5,12 +5,17 @@
         <meta charset="utf-8">
         <meta name="format-detection" content="telephone=no">
         <meta name="msapplication-tap-highlight" content="no">
-        <meta name="viewport" content="initial-1, width=device-width, viewport-fit=cover">
+        <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
         <meta name="color-scheme" content="light dark">
         <meta name="theme-color" content="#050505">
         <link rel="manifest" href="manifest.json">
         <link rel="icon" href="img/logo.png">
         <link rel="apple-touch-icon" href="img/logo.png">
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 
         <!-- Font Awesome -->
         <link rel="stylesheet"
@@ -57,10 +62,25 @@
 <div id="authScreen">
     <div class="auth-container">
         <div class="card auth-card" id="loginForm">
-            <div class="auth-header"><h2>Welcome Back!</h2><p>Login to access your hotspot</p></div>
+            <div class="auth-header">
+                <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+                <h2>Welcome Back!</h2><p>Login to access your hotspot</p>
+            </div>
             <form id="loginFormElement">
-                <div class="form-group"><label>Username</label><input type="text" placeholder="Username" id="loginIdentifier" required autocomplete="username"></div>
-                <div class="form-group"><label>Password</label><input type="password" placeholder="Password" id="loginPassword" required autocomplete="current-password"></div>
+                <div class="form-group">
+                    <label>Username, Phone or Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" placeholder="Username, phone, or email" id="loginIdentifier" required autocomplete="username">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-key"></i>
+                        <input type="password" placeholder="Password" id="loginPassword" required autocomplete="current-password">
+                    </div>
+                </div>
                 <button type="submit" class="btn btn-primary btn-block">🔐 Login </button>
             </form>
             <div class="auth-divider"><hr><span>or continue with</span><hr></div>
@@ -76,13 +96,35 @@
             <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
         </div>
         <div class="card auth-card hidden" id="signupForm">
-            <div class="auth-header"><h2>Create Account</h2><p>Join Power Hotspot today</p></div>
+            <div class="auth-header">
+                <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+                <h2>Create Account</h2><p>Join Power Hotspot today</p>
+            </div>
             <form id="signupFormElement">
-                <div class="form-group"><label>Full Name</label><input type="text" id="signupFullname" autocomplete="name" required></div>
-                <div class="form-group"><label>Username</label><input type="text" id="signupUsername" autocomplete="username" required></div>
-                <div class="form-group"><label>Email</label><input type="email" id="signupEmail" required autocomplete="email"></div>
-                <div class="form-group"><label>Password</label><input type="password" id="signupPassword" required autocomplete="new-password" minlength="6"></div>
-               <div class="form-group"><label>Confirm Password</label><input type="password" id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <div class="input-wrapper"><i class="fas fa-user-circle"></i><input type="text" id="signupFullname" autocomplete="name" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrapper"><i class="fas fa-user"></i><input type="text" id="signupUsername" autocomplete="username" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-wrapper"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" required autocomplete="email"></div>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <div class="input-wrapper"><i class="fas fa-phone"></i><input type="tel" id="signupPhoneNumber" autocomplete="tel"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper"><i class="fas fa-lock"></i><input type="password" id="signupPassword" required autocomplete="new-password" minlength="6"></div>
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="input-wrapper"><i class="fas fa-shield-alt"></i><input type="password" id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
+                </div>
                 <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
             </form>
             <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
@@ -202,6 +244,11 @@
         
         <section id="messages-section" class="dashboard-section hidden">
             <h1>Messages</h1><p class="text-medium">View your past and active support conversations.</p>
+            <div class="card" style="padding: 0; margin-bottom: 15px;">
+                <div class="modal-header" style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);"><h3 style="font-weight: 500; font-size: 1.1rem;">Conversations</h3></div>
+                <div style="padding: 10px 15px 0;"><input type="text" id="chatSearchInput" placeholder="Search conversations..." oninput="filterChats()" style="width: 100%;"></div>
+                <div id="chatsListContainer"><p class="text-medium" style="padding: 25px;">Loading conversations...</p></div>
+            </div>
             <div class="card" style="padding: 0; margin-bottom: 5px;">
                 <div class="modal-header" style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);"><h3 style="font-weight: 500; font-size: 1.1rem;">Support Tickets</h3><button class="btn btn-sm" onclick="openSubmitTicketModal();">+ New Ticket</button></div>
                 <div id="ticketListContainer"><p class="text-medium" style="padding: 25px;">Loading tickets...</p></div>
@@ -211,6 +258,30 @@
 
         <section id="settings-section" class="dashboard-section hidden">
             <h1>Settings</h1>
+
+            <div class="card" style="text-align:center;">
+                <div class="user-icon" id="profileAvatarLarge" style="width:72px;height:72px;font-size:1.8rem;margin:0 auto 10px;"></div>
+                <h3 id="profileDisplayName">--</h3>
+                <p class="text-medium" id="profileDisplayEmail">--</p>
+                <span id="profileRoleBadge" class="tag" style="margin-top:8px;display:inline-block;"></span>
+            </div>
+
+            <div class="card">
+                <h3>Link Chat Account</h3>
+                <p class="text-medium">Connect Telegram or WhatsApp to your account so the bot knows who you are. Codes expire after 10 minutes.</p>
+                <div id="linkCodeDisplay" class="hidden" style="text-align:center; margin: 12px 0;">
+                    <div id="linkCodeValue" style="font-size: 2rem; font-weight: 700; letter-spacing: 0.3em;"></div>
+                    <p class="text-medium" style="margin-top: 6px;">Send <code>/link <span id="linkCodeInline"></span></code> to the bot. Expires in <span id="linkCodeCountdown">10:00</span>.</p>
+                </div>
+                <button type="button" class="btn btn-primary" id="generateLinkCodeBtn" onclick="generateLinkCode()">🔗 Generate Link Code</button>
+            </div>
+
+            <div class="card">
+                <h3>App Permissions</h3>
+                <p class="text-medium">Manage what Power Connect can access. Tap to enable.</p>
+                <div id="permissionCenter"><p class="text-medium" style="padding:10px 0;">Loading…</p></div>
+            </div>
+
             <div class="card">
                 <h3>Profile</h3>
                 <form id="updateProfileForm">
@@ -223,12 +294,42 @@
                 </form>
             </div>
 
+            <div class="card">
+                <h3>Change Password</h3>
+                <form id="changePasswordForm">
+                    <div class="form-group"><label>Current Password</label><input type="password" id="currentPassword" required autocomplete="current-password"></div>
+                    <div class="form-group"><label>New Password</label><input type="password" id="newPassword" required minlength="6" autocomplete="new-password"></div>
+                    <div class="form-group"><label>Confirm New Password</label><input type="password" id="confirmNewPassword" required minlength="6" autocomplete="new-password"></div>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>App Permissions</h3>
+                <p class="text-medium">Control what this app can access on your device.</p>
+                <div id="permissionsList"></div>
+            </div>
+
+            <div id="backofficeLink" class="card hidden">
+                <h3>Backoffice</h3>
+                <p class="text-medium">User management, plans, vouchers, network and printer settings.</p>
+                <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('adminToolsContainer').scrollIntoView({behavior:'smooth'})"><i class="fas fa-toolbox"></i> Jump to Backoffice</button>
+            </div>
+
             <div id="adminToolsContainer" class="hidden">
                 <h2>Admin Tools</h2><p style="color: var(--color-danger-text);">⚠️ Caution: These actions affect all users and system settings.</p>
                 <div class="admin-section"><h3>User Management</h3><div id="userListContainer"></div></div>
                 <div class="admin-section"><h3>Plan Management</h3><button class="btn btn-sm" onclick="openAdminPlanModal()">+ Add New Plan</button><div id="planListAdminContainer"></div></div>
                 <div class="admin-section"><h3>Voucher Management</h3><button class="btn btn-sm" onclick="openGenerateVoucherModal()">+ Generate Voucher</button><div id="voucherListContainer"></div></div>
                 <div class="admin-section"><h3>System Network Settings</h3><div id="networkSettingsDisplay" style="margin-bottom: 1rem;"></div><button class="btn btn-sm" onclick="openEditNetworkModal()">Edit Network Settings</button></div>
+                <div class="admin-section">
+                    <h3>Hardware &amp; Printing</h3>
+                    <div class="form-group">
+                        <label id="printerInterfaceLabel">Receipt Printer Interface</label>
+                        <select id="globalPrinterInterface"></select>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="testPrinter()"><i class="fas fa-print"></i> Test Print</button>
+                </div>
             </div>
         </section>
     </main>
@@ -250,7 +351,13 @@
     <div class="modal-content" style="max-width: 450px;">
         <div class="modal-header"><h3>Share Credits</h3><button class="modal-close" onclick="closeModal('shareCreditModal')">×</button></div>
         <form id="shareCreditForm">
-            <div class="form-group"><label>Recipient Email</label><input type="email" id="shareRecipientEmail" required></div>
+            <div class="form-group">
+                <label>Recipient (Username, Email, or Phone)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="shareRecipientIdentifier" style="flex:1;" required>
+                    <button type="button" class="btn btn-sm" onclick="pickContactForShare()" title="Pick from Contacts"><i class="fas fa-address-book"></i></button>
+                </div>
+            </div>
             <div class="form-group"><label>Amount ($)</label><input type="number" step="0.01" id="shareAmount" required></div>
             <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('shareCreditModal')">Cancel</button><button type="submit" class="btn btn-primary">Send</button></div>
         </form>
@@ -293,6 +400,24 @@
             <div class="form-group"><label for="newTicketBody">Detailed Description</label><textarea id="newTicketBody" rows="5" required></textarea></div>
             <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('submitTicketModal')">Cancel</button><button type="submit" class="btn btn-primary">Submit Ticket</button></div>
         </form>
+    </div>
+</div>
+
+<!-- Wi-Fi Handoff Modal — suggests SSID/password to the OS via a scannable Wi-Fi QR -->
+<div class="modal" id="wifiSuggestModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header"><h3>📶 Connect to <span id="wifiSuggestSsid">Network</span></h3><button class="modal-close" onclick="closeModal('wifiSuggestModal')">×</button></div>
+        <p class="text-medium" style="margin-bottom:12px;">Point your phone's camera at this code — your phone will offer to join the network automatically.</p>
+        <div id="wifiQrContainer" style="display:flex;justify-content:center;background:#fff;padding:16px;border-radius:12px;margin-bottom:14px;"></div>
+        <div class="card" style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span class="text-medium">Network</span><strong id="wifiSuggestSsid2">--</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span class="text-medium">Password</span><strong id="wifiSuggestPass" style="font-family:monospace;">--</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="copyWifiPassword()">📋 Copy Password</button>
+            <button class="btn" style="flex:1;" id="wifiShareBtn" onclick="shareWifiCredentials()">🔗 Share</button>
+        </div>
+        <button class="btn btn-sm" style="width:100%;margin-top:8px;" onclick="openWifiSettingsHint()">Open Wi-Fi Settings</button>
     </div>
 </div>
 
@@ -350,6 +475,7 @@
                 </div>
             </div>
             <div class="form-group"><label>Device Limit</label><input type="number" id="adminPlanDevices" required></div>
+            <div class="form-group"><label>Data Limit (GB, 0 = unlimited)</label><input type="number" id="adminPlanDataLimit" min="0" step="0.1" value="0"></div>
             <div class="form-group">
                 <label>Plan Image</label>
                 <div class="image-preview-container">
@@ -396,6 +522,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="js/env.js"></script>
+<script src="js/03.notifications.js"></script>
 <script>
     // Cordova: only load in the real native WebView/file:// context -- avoids a
     // 404 (and the cordova.* undefined-global bugs it used to mask) when this
@@ -404,9 +532,17 @@
         const s = document.createElement('script');
         s.src = 'cordova.js';
         document.head.appendChild(s);
+    } else if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        // PWA: installable app shell with offline fallback (network-first, see sw.js)
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(e => console.warn('[sw] registration failed:', e));
+        });
     }
 </script>
+<script src="js/vendor-qrcode.js"></script>
+<script src="js/chat.js"></script>
 <script src="js/index.js"></script>
+<script src="js/15.hardware.print.js"></script>
 <script src="js/app.js"></script>
     </body>
 </html>

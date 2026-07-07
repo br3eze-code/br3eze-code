@@ -303,7 +303,11 @@ class MikroTikManager extends EventEmitter {
                 user: this.config.user,
                 password: this.config.password,
                 port: this.config.port,
-                timeout: this.config.timeout
+                // node-routeros' RouterOSAPI treats `timeout` as SECONDS (it does
+                // `this.timeout * 1000` before calling socket.setTimeout), while
+                // this.config.timeout is in milliseconds — convert here or the
+                // socket timeout silently becomes ~1000x longer than intended.
+                timeout: Math.ceil(this.config.timeout / 1000)
             });
 
             this.state.client = client;
@@ -342,8 +346,12 @@ class MikroTikManager extends EventEmitter {
             this.state.isConnected = false;
             this.state.lastError = error;
 
+            // node-routeros throws bare strings ('ALRDYCONNECTING') and
+            // RosException instances whose .message can be '' when the errno
+            // isn't in its message table — fall back so failures are never logged blank.
+            const reason = error?.message || error?.errno || error?.name || String(error) || 'Unknown error';
             const connError = new ConnectionError(
-                `Failed to connect to MikroTik: ${error.message}`,
+                `Failed to connect to MikroTik: ${reason}`,
                 error
             );
 
@@ -1857,7 +1865,9 @@ async function testConnection(config = null) {
         user: testConfig.user,
         password: testConfig.pass || testConfig.password,
         port: testConfig.port || 8728,
-        timeout: 10_000
+        // node-routeros' timeout is in seconds, not ms (see connect() below for detail);
+        // the manual safetyTimeout race below is what actually enforces the 10s bound.
+        timeout: 10
     });
 
     let conn = null;

@@ -1,73 +1,233 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    function isAdmin() {
-      return request.auth.token.admin == true;
+
+    // The app stores role on the user's own Firestore doc (users/{uid}.role),
+    // NOT as a Firebase Auth custom claim -- nothing in this codebase ever
+    // calls admin.auth().setCustomUserClaims(), so a claims-based isAdmin()
+    // check would always evaluate false. Read the actual field instead.
+    function myRole() {
+      return isAuthenticated()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
     }
-    
+
+    function isAdmin() {
+      return myRole() == 'admin';
+    }
+
+    function isPartner() {
+      return myRole() == 'partner';
+    }
+
+    // P2P credit transfers (Share Credit): a single client batch decreases
+    // the sender's credits and increases the recipient's by the same amount.
+    // getAfter() sees the batch's end state, so the recipient-side increase
+    // is only legal when the caller's own balance funds it atomically.
+    function creditsOnlyChange() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
+        && request.resource.data.credits is number;
+    }
+
+    // Sender side: may only ever lower their own balance, never below zero.
+    function isOwnCreditSpend(userId) {
+      return isOwner(userId) && creditsOnlyChange()
+        && request.resource.data.credits < resource.data.credits
+        && request.resource.data.credits >= 0;
+    }
+
+    // Recipient side: increase must exactly match the caller's own decrease
+    // in the same batch (which itself must satisfy isOwnCreditSpend).
+    function isFundedCreditReceive(userId) {
+      return !isOwner(userId) && creditsOnlyChange()
+        && request.resource.data.credits > resource.data.credits
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.credits
+           == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.credits
+              - (request.resource.data.credits - resource.data.credits);
+    }
+
+    // Login lookups: username:<name> / phone:<digits> doc-ids -> {email, uid}.
+    // Sign-in with a username or phone must resolve the email BEFORE the user
+    // is authenticated, so exact-key get is public. list stays closed so the
+    // collection is not enumerable; docs are written by the account owner.
+    match /lookups/{key} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      // Only the mapping's current owner may repoint it (prevents hijacking
+      // someone else's username/phone key).
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.uid == request.auth.uid);
+    }
+
+    // Chat-link codes: 6-digit doc ids written by the app while the user is
+    // signed in, consumed server-side by the AgentOS bot (Admin SDK bypasses
+    // rules). No client reads/updates — a code is proof of app-session
+    // ownership, nothing more.
+    match /linkCodes/{code} {
+      allow create: if isAuthenticated()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.used == false;
+      allow get: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow list, update, delete: if false;
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
       allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      // Users may update their own profile, but not their own role/credits
+      // (those are admin-controlled or moved via transactions/functions).
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (isOwner(userId) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'credits'])) ||
+        isOwnCreditSpend(userId) ||
+        isFundedCreditReceive(userId)
+      );
       allow delete: if isAdmin();
-      
-      // User subscriptions subcollection
-      match /subscriptions/{subscriptionId} {
-        allow read: if isAuthenticated() && isOwner(userId);
-        allow write: if isAdmin();
+    }
+
+    // Hotspot plans -- everyone signed in can browse, only admin manages them.
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Vouchers -- looked up by code (not doc id) during redemption, so any
+    // signed-in user needs read access; only the redeemer/admin can update
+    // (mark used), and only admin generates/deletes them.
+    match /vouchers/{voucherId} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdmin() ||
+        (resource.data.used == false && request.resource.data.usedBy == request.auth.uid));
+      allow create, delete: if isAdmin();
+    }
+
+    // Support tickets -- owner + admin.
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+
+      match /replies/{replyId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
       }
     }
-    
+
+    // Transactions (purchases, redemptions, P2P transfers). Users only ever
+    // see their own; both sides of a P2P transfer write their own record.
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Own records always; the sender may also write the recipient's
+      // transfer_in record when the same batch really credits them by
+      // exactly that amount (see isFundedCreditReceive).
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid ||
+        (request.resource.data.type == 'transfer_in'
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && getAfter(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.credits
+             == get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.credits
+                + request.resource.data.amount)
+      );
+      allow update, delete: if isAdmin();
+    }
+
+    // Partner-provided hotspot networks (ssid/password/commissionRate).
+    // Readable by any signed-in user (needed for the nearby-network suggestion
+    // feature); only the owning partner or admin may write.
+    match /partners/{partnerUid} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (isAdmin() || isOwner(partnerUid));
+    }
+
+    // Partner hotspot networks -- the app queries where('active', '==', true)
+    // for the nearby-network feature; partners manage their own entries.
+    match /partnerNetworks/{networkId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
+          (isAdmin() || request.resource.data.partnerId == request.auth.uid);
+      allow delete: if isAuthenticated() &&
+          (isAdmin() || resource.data.partnerId == request.auth.uid);
+    }
+
+    // App/network settings (hotspot SSID etc.) shown to logged-in users;
+    // only admin changes them.
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Partner connection usage logs -- any signed-in user's device may log a
+    // connection; only the partner they belong to (or admin) reads them.
+    match /usageLogs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+          (isAdmin() || resource.data.partnerId == request.auth.uid);
+      allow update, delete: if false;
+    }
+
+    // Partner commission payouts -- admin + the specific partner they belong to.
+    match /commission_ledger/{entryId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.partnerId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // Enterprise procurement schedule -- admin sees everything, a partner
+    // only sees rows assigned to them.
+    match /procurementSchedule/{scheduleId} {
+      allow read: if isAuthenticated() && (isAdmin() || (isPartner() && resource.data.partnerId == request.auth.uid));
+      allow write: if isAdmin();
+    }
+
     // Sessions collection
-match /sessions/{sessionId} {
-    allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-    allow create: if isAuthenticated();  // must be signed in to create session
-    allow update: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-    allow delete: if isAdmin();
-}
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() &&
+          (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();  // must be signed in to create session
+      allow update: if isAuthenticated() &&
+          (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
 
-match /auth_logs/{logId} {
-    allow read: if isAdmin();
-    allow create: if isAuthenticated();  // only authenticated callers write logs
-    allow update, delete: if false;
-}
+    match /auth_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();  // only authenticated callers write logs
+      allow update, delete: if false;
+    }
 
-match /hotspot_events/{eventId} {
-    allow read: if isAdmin();
-    allow create: if isAuthenticated();
-    allow update, delete: if false;
-}
+    match /hotspot_events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
 
-match /usage_stats/{statId} {
-    allow read: if isAuthenticated() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-    allow create: if isAuthenticated();
-    allow update, delete: if false;
-}
+    match /usage_stats/{statId} {
+      allow read: if isAuthenticated() &&
+          (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
 
-// Missing collections — add explicit deny
-match /vouchers/{voucherId} {
-    allow read, write: if isAdmin();
-}
+    match /wallets/{userId}/{document=**} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAdmin();
+    }
 
-match /wallets/{userId}/{document=**} {
-    allow read: if isAuthenticated() && isOwner(userId);
-    allow write: if isAdmin();
-}
-    
     // System configuration (admin only)
     match /config/{document} {
       allow read: if isAuthenticated();

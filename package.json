@@ -23,6 +23,7 @@
     "build:android": "cordova build android",
     "build:ios": "cordova build ios",
     "db:migrate": "node scripts/migrate-vouchers.js",
+    "env:www": "node scripts/generate-env-www.js",
     "build:check": "tsc --noEmit",
     "postinstall": "node scripts/postinstall.js",
     "preuninstall": "node scripts/preuninstall.js",
@@ -167,6 +168,7 @@
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "@types/uuid": "^9.0.7",
+    "@types/vscode": "^1.125.0",
     "@types/ws": "^8.5.10",
     "clean-css": "^5.3.3",
     "community-cordova-plugin-wifi-wizard": "^3.4.0",
@@ -203,7 +205,23 @@
       "android",
       "ios",
       "browser"
-    ]
+    ],
+    "plugins": {
+      "community-cordova-plugin-wifi-wizard": {},
+      "cordova-plugin-oauth": {},
+      "cordova-plugin-contacts": {},
+      "cordova-plugin-device": {},
+      "cordova-plugin-network-information": {},
+      "cordova-plugin-firebasex": {},
+      "cordova-plugin-local-notification": {},
+      "cordova-plugin-vibration": {},
+      "cordova-plugin-screen-orientation": {},
+      "cordova-plugin-camera": {},
+      "cordova-plugin-inappbrowser": {},
+      "cordova-sqlite-storage": {},
+      "cordova-plugin-android-permissions": {},
+      "cordova-plugin-bluetooth-serial": {}
+    }
   },
   "optionalDependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc.9",

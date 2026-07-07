@@ -30,7 +30,6 @@
 
     <platform name="android">
 
-        
         <preference name="android-minSdkVersion" value="26" />
         <preference name="android-compileSdkVersion" value="36" />
         <preference name="android-targetSdkVersion" value="36" />
@@ -104,15 +103,15 @@
 
         </config-file>
 
-        <icon density="mdpi" src="www/images/logo/logo.png" />
-        <icon density="hdpi" src="www/images/logo/logo.png" />
-        <icon density="xhdpi" src="www/images/logo/logo.png" />
-        <icon density="xxhdpi" src="www/images/logo/logo.png" />
-        <icon density="xxxhdpi" src="www/images/logo/logo.png" />
+        <icon density="mdpi" src="www/img/logo.png" />
+        <icon density="hdpi" src="www/img/logo.png" />
+        <icon density="xhdpi" src="www/img/logo.png" />
+        <icon density="xxhdpi" src="www/img/logo.png" />
+        <icon density="xxxhdpi" src="www/img/logo.png" />
 
         <resource-file src="www/res/android/my-color.xml" target="app/src/main/res/values/my-colors.xml" />
 
-        <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/images/logo/logo.png" />
+        <preference name="AndroidWindowSplashScreenAnimatedIcon" value="www/img/logo.png" />
         <preference name="AndroidWindowSplashScreenBackground" value="#FFFFFF" />
         <preference name="AndroidPersistentFileLocation" value="Compatibility" />
         <preference name="AndroidLaunchMode" value="singleTask" />
@@ -128,7 +127,7 @@
         </platform>
 
             <!-- NETWORK TOOLS -->
-        <plugin name="cordova-plugin-wifiwizard2" spec="^3.4.0" />
+        <plugin name="community-cordova-plugin-wifi-wizard" spec="^3.4.0" />
     <plugin name="cordova-plugin-oauth" />
     <plugin name="cordova-plugin-contacts" />
   <!-- CORE PLUGINS -->
@@ -141,6 +140,8 @@
         <plugin name="cordova-plugin-camera" spec="^8.0.0" />
         <plugin name="cordova-plugin-inappbrowser" spec="^6.0.0" />
         <plugin name="cordova-sqlite-storage" spec="^7.0.0" />
+        <plugin name="cordova-plugin-android-permissions" spec="^1.1.5" />
+        <plugin name="cordova-plugin-bluetooth-serial" spec="^0.4.7" />
 
     <feature name="AICorePlugin">
         <param name="android-package" value="com.powerconnect.www.AICorePlugin" />

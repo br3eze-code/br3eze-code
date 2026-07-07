@@ -56,7 +56,7 @@ class BaseDomain {
         description: tool.description || tool.name,
         parameters:  tool.parameters  || {},
         risk:        tool.risk        || 'low',
-        execute:     (ctx, params) => tool.execute(params, ctx),
+        execute:     (_ctx, params) => this._executeTool(tool, params),
       };
     }
     return out;
@@ -68,9 +68,13 @@ class BaseDomain {
    */
   async execute(ctx = {}) {
     const { tool, params } = ctx;
-    const skill = this.tools.find((t) => t.name === tool || t.name === `${this.name}.${tool}`);
+    const skill = this.tools.find((t) => t.name === tool || `${this.name}.${t.name}` === tool);
     if (!skill) throw new Error(`Domain "${this.name}": tool not found — "${tool}"`);
-    return skill.execute(params, ctx);
+    return this._executeTool(skill, params);
+  }
+
+  _executeTool(tool, params) {
+    return Array.isArray(params) ? tool.execute(...params) : tool.execute(params);
   }
 
   /**

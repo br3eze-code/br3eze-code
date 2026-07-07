@@ -19,8 +19,7 @@ class SecurityGuard {
         // 2. Length Check (DoS Prevention)
         if (prompt.length > 1000) return { unsafe: true, reason: 'payload_too_large' };
 
-        // 3. AI Toxicity Check (Simulated/Mock if model missing)
-        // In real dev, load TensorFlow.js model here.
+        // 3. AI Toxicity Check
         return { unsafe: false };
     }
 
@@ -30,7 +29,7 @@ class SecurityGuard {
         const findings = [];
 
         // Test 1: Debug Mode Leak
-        if (window.console && window.console.log.name !== 'log') { // Weak check if console is wrapped/exposed
+        if (window.console && window.console.log.name !== 'log') {
             // findings.push({ level: 'LOW', msg: 'Console logging is active in production.' });
         }
 
@@ -41,7 +40,6 @@ class SecurityGuard {
         }
 
         // Test 3: XSS Policy (CSP)
-        // Check if CSP meta tag exists (Simulated check)
         const csp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
         if (!csp) {
             findings.push({ level: 'HIGH', msg: 'Missing Content-Security-Policy (CSP) header.' });

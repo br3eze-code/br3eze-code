@@ -138,3 +138,9 @@ router-backup/
 *.swp
 *.swo
 *~
+# Generated from .env (scripts/generate-env-www.js) — contains API keys
+www/js/env.js
+
+# Runtime SQLite databases
+server/agentos.db
+*.db

@@ -62,6 +62,8 @@
     "coverage/",
     "data/",
     "platforms/",
+    "plugins/",
+    "custom-plugins/",
     "www/lib/",
     "*.min.js"
   ]

@@ -8,82 +8,200 @@
 /* ==================== MIKROTIK TCP HELPER ==================== */
 const MikroTikHelper = (() => {
     const DEFAULT_PORT = 8728;
-    // Helper to interface with Chrome Sockets (Cordova/Chrome App)
-    // Legacy support for direct TCP comms
-    async function connect(routerIP, routerPort = DEFAULT_PORT) {
+
+    // ── Low-level TCP helpers ──────────────────────────────────────
+    function tcpCreate() {
         return new Promise((resolve, reject) => {
             if (!window.chrome?.sockets?.tcp) return reject('TCP plugin not available');
-            chrome.sockets.tcp.create({}, (createInfo) => {
-                const socketId = createInfo.socketId;
-                chrome.sockets.tcp.connect(socketId, routerIP, routerPort, (result) => {
-                    if (result < 0) return reject('TCP connection failed');
-                    resolve(socketId);
-                });
-            });
+            chrome.sockets.tcp.create({}, info => resolve(info.socketId));
         });
     }
 
-    async function rawSend(socketId, command) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(command + '\n');
+    function tcpConnect(socketId, ip, port) {
         return new Promise((resolve, reject) => {
-            chrome.sockets.tcp.send(socketId, data.buffer, (sendInfo) => {
-                if (sendInfo.resultCode < 0) return reject('Send failed');
-                resolve(sendInfo);
-            });
+            chrome.sockets.tcp.connect(socketId, ip, port, result =>
+                result < 0 ? reject(`TCP connect failed (${result})`) : resolve()
+            );
         });
     }
 
+    function tcpSend(socketId, buffer) {
+        return new Promise((resolve, reject) => {
+            chrome.sockets.tcp.send(socketId, buffer, info =>
+                info.resultCode < 0 ? reject('Send failed') : resolve()
+            );
+        });
+    }
+
+    /** Read one complete RouterOS API response (accumulates until !done or !trap) */
+    function tcpRead(socketId, timeoutMs = 5000) {
+        return new Promise((resolve) => {
+            let chunks = [];
+            const timer = setTimeout(() => {
+                chrome.sockets.tcp.onReceive.removeListener(handler);
+                resolve(chunks.join(''));
+            }, timeoutMs);
+
+            function handler(info) {
+                if (info.socketId !== socketId) return;
+                const text = new TextDecoder().decode(info.data);
+                chunks.push(text);
+                if (text.includes('!done') || text.includes('!trap') || text.includes('!fatal')) {
+                    clearTimeout(timer);
+                    chrome.sockets.tcp.onReceive.removeListener(handler);
+                    resolve(chunks.join(''));
+                }
+            }
+            chrome.sockets.tcp.onReceive.addListener(handler);
+        });
+    }
+
+    // ── RouterOS API binary sentence encoder ──────────────────────
+    function encodeWord(word) {
+        const encoded = new TextEncoder().encode(word);
+        const len = encoded.length;
+        let prefix;
+        if (len < 0x80)        prefix = new Uint8Array([len]);
+        else if (len < 0x4000) prefix = new Uint8Array([(len >> 8) | 0x80, len & 0xFF]);
+        else                   prefix = new Uint8Array([(len >> 16) | 0xC0, (len >> 8) & 0xFF, len & 0xFF]);
+        const out = new Uint8Array(prefix.length + encoded.length);
+        out.set(prefix); out.set(encoded, prefix.length);
+        return out;
+    }
+
+    function encodeSentence(words) {
+        const parts = words.map(encodeWord);
+        const total = parts.reduce((s, p) => s + p.length, 0) + 1; // +1 for null terminator
+        const buf = new Uint8Array(total);
+        let offset = 0;
+        for (const p of parts) { buf.set(p, offset); offset += p.length; }
+        buf[offset] = 0; // end of sentence
+        return buf.buffer;
+    }
+
+    // ── MD5 via SubtleCrypto for RouterOS challenge-response login ─
+    async function md5Hex(data) {
+        const buf = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+        const hash = await crypto.subtle.digest('MD5', buf);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function hexToBytes(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+        return bytes;
+    }
+
+    // ── RouterOS API Login (MD5 challenge-response) ────────────────
+    async function apiLogin(socketId, username, password) {
+        // Step 1: request challenge
+        await tcpSend(socketId, encodeSentence(['/login']));
+        const resp1 = await tcpRead(socketId);
+
+        const match = resp1.match(/=ret=([0-9a-fA-F]+)/);
+        if (!match) throw new Error('[MikroTik] No login challenge received');
+        const challenge = match[1];
+
+        // Step 2: MD5(0x00 + password_bytes + challenge_bytes)
+        const passBytes      = new TextEncoder().encode(password);
+        const challengeBytes = hexToBytes(challenge);
+        const toHash = new Uint8Array(1 + passBytes.length + challengeBytes.length);
+        toHash[0] = 0x00;
+        toHash.set(passBytes, 1);
+        toHash.set(challengeBytes, 1 + passBytes.length);
+        const hashedPass = await md5Hex(toHash);
+
+        // Step 3: authenticate
+        await tcpSend(socketId, encodeSentence([
+            '/login',
+            `=name=${username}`,
+            `=response=00${hashedPass}`
+        ]));
+        const resp2 = await tcpRead(socketId);
+
+        if (resp2.includes('!trap') || resp2.includes('!fatal')) {
+            throw new Error('[MikroTik] Authentication failed — check credentials');
+        }
+        console.log('[MikroTik] Authenticated successfully');
+    }
+
+    async function openSession(routerIP, username = 'admin', password = '') {
+        const socketId = await tcpCreate();
+        await tcpConnect(socketId, routerIP, DEFAULT_PORT);
+        await apiLogin(socketId, username, password);
+        return socketId;
+    }
+
+    // ── Public command dispatcher ──────────────────────────────────
     async function sendCommand(action, args) {
         const [targetIP, ...cmdArgs] = args;
+        if (!targetIP) throw new Error('[MikroTik] No Router IP provided');
 
-        let routerIP = targetIP;
-        if (!routerIP) throw new Error("No Router IP");
+        // Pull credentials from OfflineOrchestrator state
+        const st   = window.OfflineOrchestrator?.getState?.() || {};
+        const user = st.mikrotikUser || 'admin';
+        const pass = st.mikrotikPass || '';
 
+        let socketId;
         try {
-            const sid = await connect(routerIP);
-            let cmd = '';
+            socketId = await openSession(targetIP, user, pass);
+            let sentence = null;
 
-            // Hotspot User Management
+            // ── Hotspot User Management ──
             if (action === 'addUser') {
-                cmd = `/ip/hotspot/user/add name=${cmdArgs[0]} password=${cmdArgs[1]} profile=${cmdArgs[2]}`;
+                sentence = ['/ip/hotspot/user/add',
+                    `=name=${cmdArgs[0]}`, `=password=${cmdArgs[1]}`, `=profile=${cmdArgs[2]}`];
             } else if (action === 'removeUser') {
-                cmd = `/ip/hotspot/user/remove [find name=${cmdArgs[0]}]`;
+                sentence = ['/ip/hotspot/user/remove', `=.id=[find name=${cmdArgs[0]}]`];
             }
 
-            // IP-IP Tunnel Management (for Mesh)
+            // ── IP-IP Tunnel Management ──
             else if (action === 'addTunnel') {
                 const [tunnelName, localAddress, remoteAddress] = cmdArgs;
-                cmd = `/interface/ipip/add name=${tunnelName} local-address=${localAddress} remote-address=${remoteAddress}`;
+                sentence = ['/interface/ipip/add',
+                    `=name=${tunnelName}`, `=local-address=${localAddress}`, `=remote-address=${remoteAddress}`];
             } else if (action === 'removeTunnel') {
-                const [tunnelName] = cmdArgs;
-                cmd = `/interface/ipip/remove [find name=${tunnelName}]`;
+                sentence = ['/interface/ipip/remove', `=.id=[find name=${cmdArgs[0]}]`];
             } else if (action === 'enableTunnel') {
-                const [tunnelName] = cmdArgs;
-                cmd = `/interface/ipip/enable [find name=${tunnelName}]`;
+                sentence = ['/interface/enable', `=.id=[find name=${cmdArgs[0]}]`];
             }
 
-            // IP Address Assignment for Tunnels
+            // ── IP Address / Route Management ──
             else if (action === 'addTunnelIP') {
-                const [tunnelName, ipAddress, network] = cmdArgs;
-                cmd = `/ip/address/add address=${ipAddress}/${network} interface=${tunnelName}`;
-            }
-
-            // Route Management for Mesh
-            else if (action === 'addRoute') {
-                const [dstAddress, gateway] = cmdArgs;
-                cmd = `/ip/route/add dst-address=${dstAddress} gateway=${gateway}`;
+                const [tunnelName, ipAddress, prefix] = cmdArgs;
+                sentence = ['/ip/address/add', `=address=${ipAddress}/${prefix}`, `=interface=${tunnelName}`];
+            } else if (action === 'addRoute') {
+                sentence = ['/ip/route/add', `=dst-address=${cmdArgs[0]}`, `=gateway=${cmdArgs[1]}`];
             } else if (action === 'removeRoute') {
-                const [dstAddress] = cmdArgs;
-                cmd = `/ip/route/remove [find dst-address=${dstAddress}]`;
+                sentence = ['/ip/route/remove', `=.id=[find dst-address=${cmdArgs[0]}]`];
             }
 
-            if (cmd) await rawSend(sid, cmd);
+            // ── Real per-user traffic query (replaces VBB random numbers) ──
+            else if (action === 'getUsageBytes') {
+                const targetUser = cmdArgs[0];
+                await tcpSend(socketId, encodeSentence(
+                    ['/ip/hotspot/active/print', `?user=${targetUser}`]
+                ));
+                const resp = await tcpRead(socketId);
+                const bytesIn  = parseInt((resp.match(/=bytes-in=(\d+)/)  || [])[1] || '0');
+                const bytesOut = parseInt((resp.match(/=bytes-out=(\d+)/) || [])[1] || '0');
+                return { bytesIn, bytesOut, totalMB: (bytesIn + bytesOut) / (1024 * 1024) };
+            }
 
-            chrome.sockets.tcp.close(sid);
+            if (sentence) {
+                await tcpSend(socketId, encodeSentence(sentence));
+                const resp = await tcpRead(socketId);
+                if (resp.includes('!trap')) console.warn(`[MikroTik] ${action} trap:`, resp);
+                else console.log(`[MikroTik] ${action} OK`);
+            }
+
         } catch (e) {
-            console.error(`MikroTik ${action} failed:`, e);
+            console.error(`[MikroTik] ${action} failed:`, e);
             throw e;
+        } finally {
+            if (socketId !== undefined) {
+                try { chrome.sockets.tcp.close(socketId); } catch (_) {}
+            }
         }
     }
 
@@ -173,14 +291,44 @@ const OfflineOrchestrator = (() => {
                         });
 
                         await batch.commit();
+
+                        // Sync to MikroTik Hardware
+                        try {
+                            const userSnap = await db.collection('users').doc(op.uid).get();
+                            if (userSnap.exists) {
+                                const userData = userSnap.data();
+                                await window.RouterBridge.createUser(
+                                    userData.username || op.uid,
+                                    userData.hotspotPass || userData.uid || op.uid,
+                                    op.planId
+                                );
+                                console.log(`[MikroTik] Synced plan purchase for ${userData.username}`);
+                                
+                                // Attempt instant auto-login now that plan is provisioned
+                                window.RouterBridge.autoLogin(
+                                    userData.username || op.uid,
+                                    userData.hotspotPass || userData.uid || op.uid
+                                ).catch(()=>{});
+                            }
+                        } catch (e) {
+                            console.warn("[MikroTik] Hardware sync failed for purchase", e);
+                        }
                         break;
 
                     case 'SIGNUP':
                         await db.collection('users').doc(op.data.id).set(op.data);
-                        break;
-
-                    case 'VOUCHER':
-                        // Handled by generic Voucher logic usually, but here just in case
+                        
+                        // Sync to MikroTik Hardware
+                        try {
+                            await window.RouterBridge.createUser(
+                                op.data.username || op.data.id,
+                                op.data.hotspotPass || op.data.uid || op.data.id,
+                                'default'
+                            );
+                            console.log(`[MikroTik] Synced signup for ${op.data.username}`);
+                        } catch (e) {
+                            console.warn("[MikroTik] Hardware sync failed for signup", e);
+                        }
                         break;
                 }
 
@@ -199,31 +347,64 @@ const OfflineOrchestrator = (() => {
 
         if (remainingOps.length === 0) showToast('Sync Complete', 'success');
     }
-    function detectNetworkMode() {
+    async function detectNetworkMode() {
         // Set default MikroTik Gateway for Mesh/Tunnel logic
         state.gatewayIP = '192.168.88.1';
+        state.mikrotikUser = 'admin';
+        state.mikrotikPass = '';
 
-        // Use NetworkTools to identify gateway if available
-        if (typeof WifiWizard2 !== 'undefined') {
+        try {
+            if (typeof DataStore !== 'undefined') {
+                const uid = window.currentUser ? window.currentUser.id : null;
+                const netCfg = await DataStore.getNetworkSettings(uid).catch(() => null);
+                if (netCfg && netCfg.mikrotikIp) {
+                    state.gatewayIP = netCfg.mikrotikIp;
+                    state.mikrotikUser = netCfg.mikrotikUser || 'admin';
+                    state.mikrotikPass = netCfg.mikrotikPass || '';
+                    console.log(`[OfflineOrchestrator] MikroTik hardware link loaded: ${state.gatewayIP}`);
+                }
+            }
+            
+            // Connect and detect API mode (REST v7+ or TCP v6 fallback)
+            if (window.RouterBridge) {
+                try {
+                    const result = await window.RouterBridge.connect({
+                        host: state.gatewayIP,
+                        username: state.mikrotikUser,
+                        password: state.mikrotikPass
+                    });
+                    state.mikrotikApiMode = result.mode;
+                    console.log(`[OfflineOrchestrator] MikroTik API Mode detected: ${state.mikrotikApiMode}`);
+                } catch (bridgeErr) {
+                    console.warn('[OfflineOrchestrator] RouterBridge connect failed:', bridgeErr);
+                }
+            }
+        } catch (e) {
+            console.warn("Could not fetch explicit MikroTik settings, falling back to auto-detect.");
+        }
+
+        // Use NetworkTools to identify gateway if available and not explicitly set
+        if (typeof WifiWizard2 !== 'undefined' && state.gatewayIP === '192.168.88.1') {
             WifiWizard2.getWifiRouterIP().then(ip => {
-                if (ip && ip !== '0.0.0.0') state.gatewayIP = ip;
+                if (ip) {
+                    state.gatewayIP = ip;
+                    console.log(`[OfflineOrchestrator] Dynamic Gateway IP Discovered: ${ip}`);
+                }
             }).catch(() => { });
         }
+
+        // Initialize Local Storage Mesh cache
+        const raw = localStorage.getItem('mesh_cache');
     }
 
-    function queueOperation(op) {
-        state.pendingOperations.push(op);
-        savePendingOperations();
+    // Pause/resume hooks for background mode integration
+    function pause() {
+        console.log('[OfflineOrchestrator] Paused (background mode).');
     }
 
-    function savePendingOperations() { localStorage.setItem('pending_ops', JSON.stringify(state.pendingOperations)); }
-    function loadPendingOperations() { try { const s = localStorage.getItem('pending_ops'); if (s) state.pendingOperations = JSON.parse(s); } catch (e) { } }
-
-    async function syncPendingOperations() {
-        if (!navigator.onLine) return;
-        console.log(`[Offline] Syncing ${state.pendingOperations.length} operations...`);
-        state.pendingOperations = [];
-        savePendingOperations();
+    function resume() {
+        console.log('[OfflineOrchestrator] Resumed (foreground).');
+        if (navigator.onLine) syncPendingOperations();
     }
 
     // --- PUBLIC ACTIONS ---
@@ -284,7 +465,7 @@ const OfflineOrchestrator = (() => {
     async function removeMeshTunnel(peerIP) {
         const tunnelName = `mesh-${peerIP.replace(/\./g, '-')}`;
         try {
-            await MikroTikHelper.sendCommand('removeTunnel', [tunnelName]);
+            await MikroTikHelper.sendCommand('removeTunnel', [state.gatewayIP, tunnelName]);
             console.log(`[Tunnel] Removed ${tunnelName}`);
         } catch (e) {
             console.warn('[Tunnel] Removal command failed:', e);
@@ -298,6 +479,8 @@ const OfflineOrchestrator = (() => {
         createMeshTunnel,
         removeMeshTunnel,
         syncPendingOperations,
+        pause,
+        resume,
         getState() { return state; }
     };
 })();
@@ -306,18 +489,28 @@ const OfflineOrchestrator = (() => {
 const VoucherEngine = {
     async redeem(qrString) {
         try {
-            const data = JSON.parse(qrString);
-
-            if (window.showToast) showToast(`Voucher Valid! ${data.amt || 'N/A'} MB`, 'success');
-
-            if (window.currentUser) {
-                OfflineOrchestrator.queueOperation({ type: 'VOUCHER', data, ts: Date.now() });
+            let code = qrString;
+            try {
+                const data = JSON.parse(qrString);
+                if (data.code) code = data.code;
+            } catch (e) {
+                // Not JSON, assume raw string is the code
             }
 
-            if (window.NetworkTools) window.NetworkTools.initialize();
+            if (!window.currentUser) {
+                if (window.showToast) showToast('Please log in first', 'error');
+                return;
+            }
 
+            if (typeof redeemVoucherLogic === 'function') {
+                const value = await redeemVoucherLogic(code);
+                if (window.showToast) showToast(`Voucher Valid! Added $${value}`, 'success');
+            } else {
+                throw new Error("redeemVoucherLogic not found");
+            }
         } catch (e) {
-            if (window.showToast) showToast('Invalid Voucher', 'error');
+            console.error(e);
+            if (window.showToast) showToast(e.message || 'Invalid Voucher', 'error');
         }
     }
 };

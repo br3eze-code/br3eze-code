@@ -4,7 +4,7 @@
  * Structured Logger with Winston
  * @module core/logger
  */
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
@@ -16,7 +16,7 @@ const util = require('util');
 const asyncLocalStorage = new AsyncLocalStorage();
 
 const correlationIdMiddleware = (req, res, next) => {
-  const id = req.headers['x-correlation-id'] || uuidv4();
+  const id = req.headers['x-correlation-id'] || randomUUID();
   req.correlationId = id;
   res.setHeader('x-correlation-id', id);
 
@@ -178,4 +178,4 @@ module.exports = {
   correlationIdMiddleware,
   asyncLocalStorage
 };
-
+
