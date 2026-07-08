@@ -73,6 +73,7 @@ const Shop = {
         document.getElementById('prodDesc').value = p ? (p.description || '') : '';
         document.getElementById('prodCategory').value = p ? p.category : 'tshirt';
         document.getElementById('prodPrice').value = p ? p.price : '';
+        document.getElementById('prodCompare').value = p && p.compareAtPrice ? p.compareAtPrice : '';
         document.getElementById('prodStock').value = p ? (p.stock || 0) : '';
         document.getElementById('prodSizes').value = p && Array.isArray(p.sizes) ? p.sizes.join(',') : '';
         document.getElementById('prodImage').value = p ? (p.imageUrl || '') : '';
@@ -89,6 +90,7 @@ const Shop = {
             description: document.getElementById('prodDesc').value.trim(),
             category: document.getElementById('prodCategory').value,
             price: parseFloat(document.getElementById('prodPrice').value) || 0,
+            compareAtPrice: parseFloat(document.getElementById('prodCompare').value) || 0,
             stock: parseInt(document.getElementById('prodStock').value, 10) || 0,
             sizes: document.getElementById('prodSizes').value.split(',').map(s => s.trim()).filter(Boolean),
             imageUrl: document.getElementById('prodImage').value.trim(),
@@ -231,14 +233,19 @@ const Shop = {
             const sizes = Array.isArray(p.sizes) && p.sizes.length
                 ? `<select class="shop-size" id="size_${p.id}">${p.sizes.map(s => `<option>${escapeHtml(String(s))}</option>`).join('')}</select>`
                 : '';
+            // Sale pricing: a compareAtPrice above the price shows a strikethrough
+            // "was" and a SALE badge (fusertech-style).
+            const onSale = p.compareAtPrice && Number(p.compareAtPrice) > Number(p.price);
+            const wasHtml = onSale ? `<span class="shop-was">$${Number(p.compareAtPrice).toFixed(2)}</span>` : '';
+            const saleBadge = onSale && !out ? '<span class="shop-sale-badge">SALE</span>' : '';
             return `
             <div class="shop-card ${out ? 'out' : ''}">
-                <div class="shop-card-img">${img}${out ? '<span class="shop-badge">Sold out</span>' : ''}</div>
+                <div class="shop-card-img">${img}${out ? '<span class="shop-badge">Sold out</span>' : saleBadge}</div>
                 <div class="shop-card-body">
                     <span class="shop-card-cat">${escapeHtml((p.category || '').toUpperCase())}</span>
                     <h3 class="shop-card-name">${escapeHtml(p.name)}</h3>
                     <div class="shop-card-foot">
-                        <span class="shop-card-price">$${Number(p.price).toFixed(2)}</span>
+                        <span>${wasHtml}<span class="shop-card-price">$${Number(p.price).toFixed(2)}</span></span>
                         ${sizes}
                     </div>
                     <button class="btn btn-primary btn-block shop-add" ${out ? 'disabled' : ''}

@@ -1968,3 +1968,36 @@ select:focus-visible {
 .skel-line { display: block; height: 12px; margin: 8px 0; }
 .skel-btn { height: 40px; margin-top: 14px; border-radius: 8px; }
 @keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* ==========================================================================
+   SHOP — fusertech-inspired e-commerce accents (blue primary, red prices)
+   Scoped to the shop so the rest of the Power Connect app stays on-brand.
+   ========================================================================== */
+#shop-section {
+  --fu-blue: #1f4fd6;      /* royal blue primary */
+  --fu-blue-deep: #002e9a;
+  --fu-red: #fe1717;       /* price / sale red */
+}
+/* Prices in red, like fusertech */
+#shop-section .shop-card-price { color: var(--fu-red); }
+#shop-section .shop-was { color: var(--color-text-medium); text-decoration: line-through; font-size: 0.9rem; margin-right: 6px; font-variant-numeric: tabular-nums; }
+/* Active category chip → blue */
+#shop-section .chip.active { background: var(--fu-blue); border-color: var(--fu-blue); color: #fff; }
+/* Search: blue round button on the right, fusertech style */
+.shop-search { display: flex; align-items: center; }
+.shop-search input { border-radius: 999px; padding-right: 52px; }
+.shop-search .shop-search-btn {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--fu-blue); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.shop-search i.fa-search { display: none; } /* replaced by the button icon */
+/* SALE badge (blue circle, red text accent) */
+.shop-sale-badge {
+  position: absolute; top: 10px; right: 10px; background: var(--fu-red); color: #fff;
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; padding: 4px 9px; border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(254,23,23,0.4);
+}
+/* Add-to-cart uses the blue primary in the shop */
+#shop-section .shop-add.btn-primary { background: var(--fu-blue); color: #fff; }
+#shop-section .shop-add.btn-primary:hover { background: var(--fu-blue-deep); opacity: 1; }

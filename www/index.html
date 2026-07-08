@@ -255,8 +255,8 @@
 
             <div class="shop-controls">
                 <div class="shop-search">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="shopSearch" placeholder="Search products…" oninput="Shop.onSearch(this.value)" autocomplete="off">
+                    <input type="text" id="shopSearch" placeholder="Search for products…" oninput="Shop.onSearch(this.value)" autocomplete="off">
+                    <button class="shop-search-btn" type="button" onclick="Shop.onSearch(document.getElementById('shopSearch').value)" aria-label="Search"><i class="fas fa-search"></i></button>
                 </div>
                 <div class="shop-filters" id="shopFilters">
                     <button class="chip active" data-cat="all" onclick="Shop.onFilter('all')">All</button>
@@ -289,6 +289,7 @@
                         <div class="form-group"><label>Category</label><select id="prodCategory"><option value="tshirt">T-Shirt</option><option value="cap">Cap</option><option value="shoes">Shoes</option></select></div>
                         <div class="form-group"><label>Price ($)</label><input type="number" id="prodPrice" step="0.01" min="0" required></div>
                     </div>
+                    <div class="form-group"><label>Compare-at Price ($, optional — shows a SALE badge)</label><input type="number" id="prodCompare" step="0.01" min="0"></div>
                     <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
                         <div class="form-group"><label>Stock (units)</label><input type="number" id="prodStock" min="0" step="1" required></div>
                         <div class="form-group"><label>Sizes (comma-sep)</label><input type="text" id="prodSizes" placeholder="S,M,L,XL"></div>
