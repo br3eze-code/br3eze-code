@@ -2004,32 +2004,29 @@ async function updatePlans() {
 
     container.innerHTML = plans.map(plan => {
         const imageBlock = plan.imageUrl
-            ? `<img src="${plan.imageUrl}" alt="${plan.name}" class="plan-image">`
-            : `<div class="plan-image-placeholder"><i class="fas fa-wifi"></i></div>`;
+            ? `<img src="${plan.imageUrl}" alt="${plan.name}" loading="lazy">`
+            : `<span class="shop-card-emoji"><i class="fas fa-wifi"></i></span>`;
 
         const isNonBilling = currentUser.role === 'admin' || currentUser.role === 'family';
+        const duration = `${plan.durationValue || plan.durationDays} ${plan.durationUnit || 'DAY'}${(plan.durationValue || plan.durationDays) > 1 ? 'S' : ''}`;
+        const data = plan.dataLimit > 0 ? `${plan.dataLimit} GB` : 'Unlimited';
 
-        // Disable button only if a plan is active. Admin/Family can sempre see enabled but different text
-        let btnText = isNonBilling ? `Activate (Free)` : `Purchase ($${plan.price.toFixed(2)})`;
-        let btnDisabled = active && !isNonBilling;
-        let btnLabel = (active && isNonBilling) ? 'Plan Active' : (active ? 'Active plan still running' : btnText);
+        const btnText = isNonBilling ? 'Activate (Free)' : 'Purchase';
+        const btnDisabled = active && !isNonBilling;
+        const btnLabel = (active && isNonBilling) ? 'Plan Active' : (active ? 'Plan running' : btnText);
 
-        const btn = `<button class="btn btn-primary btn-block" ${btnDisabled ? 'disabled' : ''} onclick="purchasePlan('${plan.id}')">${btnLabel}</button>`;
+        // Same structure/classes as the shop product card.
         return `
-              <div class="card plan-card">
-                <div class="plan-content-wrapper">
-                    <div class="plan-image-container">${imageBlock}</div>
-                    <h3>${plan.name}</h3>
-                    <p class="text-medium">${plan.description}</p>
-                    <div class="price">$${plan.price.toFixed(2)}</div>
-                    <ul>
-                        <li><i class="fas fa-check"></i> ${plan.deviceLimit} device${plan.deviceLimit > 1 ? 's' : ''}</li>
-                        <li><i class="fas fa-check"></i> ${plan.durationValue || plan.durationDays} ${plan.durationUnit || 'day'}${plan.durationValue > 1 ? 's' : ''} access</li>
-                        <li><i class="fas fa-check"></i> ${plan.dataLimit > 0 ? plan.dataLimit + ' GB high-speed data' : 'Unlimited data access'}</li>
-                    </ul>
-                </div>
-                <div class="plan-button-wrapper">
-                    ${btn}
+            <div class="shop-card">
+                <div class="shop-card-img">${imageBlock}${active ? '<span class="shop-badge" style="background:var(--color-success);">Active</span>' : ''}</div>
+                <div class="shop-card-body">
+                    <span class="shop-card-cat">${duration.toUpperCase()} · ${data}</span>
+                    <h3 class="shop-card-name">${plan.name}</h3>
+                    <p class="text-medium" style="font-size:0.82rem;">${plan.deviceLimit} device${plan.deviceLimit > 1 ? 's' : ''} · ${plan.description || 'Hotspot access'}</p>
+                    <div class="shop-card-foot">
+                        <span class="shop-card-price">$${plan.price.toFixed(2)}</span>
+                    </div>
+                    <button class="btn btn-primary btn-block shop-add" ${btnDisabled ? 'disabled' : ''} onclick="purchasePlan('${plan.id}')">${btnLabel}</button>
                 </div>
             </div>`;
     }).join('');
@@ -4463,10 +4460,13 @@ function maybePromptLocationPermission() {
         if (document.getElementById('locPermBanner') || document.getElementById('notifPermBanner')) return;
         const banner = document.createElement('div');
         banner.id = 'locPermBanner';
-        banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9000;background:var(--color-sidebar,#121212);border:1px solid var(--color-border,#333);border-radius:10px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:92vw;';
+        // left/right + margin:auto (NOT left:50%+translate — a fixed element
+        // shrink-wraps against the 50% offset and can never exceed half the
+        // viewport, which crushed the text). Bottom clears the mobile nav bar.
+        banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));margin:0 auto;width:max-content;max-width:calc(100vw - 32px);z-index:9000;background:var(--color-sidebar,#121212);border:1px solid var(--color-border,#333);border-radius:12px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);';
         banner.innerHTML = `
             <span style="font-size:1.3rem;">📍</span>
-            <span style="font-size:0.9rem;">Share your location to find nearby hotspots.</span>
+            <span style="font-size:0.9rem;flex:1;min-width:140px;">Share your location to find nearby hotspots.</span>
             <button class="btn btn-primary btn-sm" onclick="requestWebLocation()">Allow</button>
             <button class="btn btn-sm" onclick="localStorage.setItem('loc_prompt_dismissed','1');document.getElementById('locPermBanner').remove();">✕</button>`;
         document.body.appendChild(banner);
@@ -4489,10 +4489,11 @@ function maybePromptNotificationPermission() {
 
     const banner = document.createElement('div');
     banner.id = 'notifPermBanner';
-    banner.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9000;background:var(--color-sidebar,#121212);border:1px solid var(--color-border,#333);border-radius:10px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);max-width:92vw;';
+    // Same fixed-position pattern as locPermBanner (see comment there).
+    banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(76px + env(safe-area-inset-bottom,0px));margin:0 auto;width:max-content;max-width:calc(100vw - 32px);z-index:9000;background:var(--color-sidebar,#121212);border:1px solid var(--color-border,#333);border-radius:12px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;box-shadow:0 4px 24px rgba(0,0,0,0.5);';
     banner.innerHTML = `
         <span style="font-size:1.3rem;">🔔</span>
-        <span style="font-size:0.9rem;">Get alerts for plan expiry and received credits.</span>
+        <span style="font-size:0.9rem;flex:1;min-width:140px;">Get alerts for plan expiry and received credits.</span>
         <button class="btn btn-primary btn-sm" onclick="requestWebNotifications()">Enable</button>
         <button class="btn btn-sm" onclick="localStorage.setItem('notif_prompt_dismissed','1');document.getElementById('notifPermBanner').remove();">✕</button>`;
     document.body.appendChild(banner);
