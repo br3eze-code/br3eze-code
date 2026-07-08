@@ -82,6 +82,37 @@ service cloud.firestore {
       allow list, update, delete: if false;
     }
 
+    // ── Shop: products, orders, invoices ──────────────────────────────────────
+    // Products are admin-managed; any signed-in user may read them, and may
+    // decrement ONLY `stock` (never below 0) as part of a checkout — same
+    // atomic-spend pattern as credit transfers, so a buyer can't oversell or
+    // touch price/name.
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
+        && request.resource.data.stock is int
+        && request.resource.data.stock < resource.data.stock
+        && request.resource.data.stock >= 0
+      );
+    }
+
+    // Shop orders — a buyer creates and reads only their own; admin manages all.
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // Invoices — created by the buyer at checkout, read by owner/admin, immutable.
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated() && (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());

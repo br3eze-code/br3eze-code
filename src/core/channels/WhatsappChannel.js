@@ -385,6 +385,10 @@ class WhatsAppChannel extends BaseChannel {
   _registerHandlers() {
     this.handlers.set('start', this._handleStart);
     this.handlers.set('link', this._handleLink);
+    this.handlers.set('shop', this._handleShop);
+    this.handlers.set('buy', this._handleBuy);
+    this.handlers.set('cart', this._handleCart);
+    this.handlers.set('checkout', this._handleCheckout);
     this.handlers.set('menu', this._handleMenu);
     this.handlers.set('help', this._handleHelp);
     this.handlers.set('dashboard', this._handleDashboard);
@@ -556,6 +560,88 @@ class WhatsAppChannel extends BaseChannel {
     const { verifyLinkCode } = require('./link-verifier');
     const result = await verifyLinkCode(code, 'whatsapp', jid);
     await this.send(jid, result.message);
+  }
+
+  // ── Shop: browse, cart, and CLOSE a sale from the chat ─────────────────────
+  async _linkedUid(jid) {
+    try {
+      const { getDatabase } = require('../database');
+      const db = await getDatabase();
+      const u = await db.getUserByChannel('whatsapp', jid);
+      return u ? { uid: u.uid || u.id, user: u } : null;
+    } catch { return null; }
+  }
+
+  async _handleShop(jid, msg, args) {
+    const shop = require('../shop');
+    const category = args && args[1];
+    try {
+      const products = await shop.listProducts({ category });
+      if (!products.length) return this.send(jid, '🛍️ No products available right now.');
+      const lines = products.map(p => {
+        const stock = (p.stock || 0) > 0 ? `${p.stock} in stock` : '❌ sold out';
+        const sizes = Array.isArray(p.sizes) && p.sizes.length ? ` · sizes: ${p.sizes.join('/')}` : '';
+        return `*${p.name}* — $${Number(p.price).toFixed(2)}\n  \`${p.id}\` · ${stock}${sizes}`;
+      });
+      await this.send(jid, `🛍️ *Power Connect Shop*\n\n${lines.join('\n\n')}\n\n_Add to cart:_ \`buy <id> [size]\`\n_View cart:_ \`cart\`  ·  _Checkout:_ \`checkout\``);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  async _handleBuy(jid, msg, args) {
+    const shop = require('../shop');
+    const productId = args && args[1];
+    const size = args && args[2];
+    if (!productId) return this.send(jid, 'Usage: `buy <product-id> [size]`\nSend `shop` to see product ids.');
+    try {
+      const { product, cart } = await shop.addToCart('whatsapp', jid, productId, { size });
+      const total = shop.subtotal(cart);
+      await this.send(jid, `✅ Added *${product.name}*${size ? ` (${size})` : ''} to your cart.\nCart total: $${total.toFixed(2)} (${cart.reduce((n, i) => n + i.qty, 0)} item(s))\n\nSend \`checkout\` to complete your order.`);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  async _handleCart(jid, msg) {
+    const shop = require('../shop');
+    try {
+      const cart = await shop.getCart('whatsapp', jid);
+      if (!cart.length) return this.send(jid, '🛒 Your cart is empty. Send `shop` to browse.');
+      const lines = cart.map(i => `• ${i.name}${i.size ? ` (${i.size})` : ''} ×${i.qty} — $${(i.price * i.qty).toFixed(2)}`);
+      const sub = shop.subtotal(cart);
+      await this.send(jid, `🛒 *Your Cart*\n\n${lines.join('\n')}\n\nSubtotal: $${sub.toFixed(2)}\nShipping: $${shop.SHIPPING_FLAT.toFixed(2)}\n*Total: $${(sub + shop.SHIPPING_FLAT).toFixed(2)}*\n\nSend \`checkout\` to place your order.`);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  async _handleCheckout(jid, msg, args) {
+    const shop = require('../shop');
+    try {
+      const cart = await shop.getCart('whatsapp', jid);
+      if (!cart.length) return this.send(jid, '🛒 Your cart is empty. Send `shop` to browse.');
+
+      // Address: rest of the message ("Name, Phone, Street, City, Country") or,
+      // if the chat is linked and we have it, the account's stored details.
+      const raw = (args && args.slice(1).join(' ')) || '';
+      const linked = await this._linkedUid(jid);
+      let address;
+      if (raw.includes(',')) {
+        const [name, phone, street, city, country] = raw.split(',').map(s => s.trim());
+        address = { name, phone, street, city, country: country || 'South Africa' };
+      } else if (linked && linked.user.address && linked.user.fullname) {
+        const u = linked.user;
+        address = { name: u.fullname, phone: u.phoneNumber || '', street: u.address, city: u.city || '', country: u.country || 'South Africa' };
+      } else {
+        return this.send(jid, '📦 To check out, send your delivery details as:\n`checkout Name, Phone, Street, City, Country`');
+      }
+
+      // Pay with balance if linked & funded, else cash on delivery.
+      let payMethod = 'cod';
+      if (linked) {
+        const sub = shop.subtotal(cart);
+        const total = sub + shop.SHIPPING_FLAT;
+        if ((linked.user.credits || 0) >= total) payMethod = 'credits';
+      }
+      const r = await shop.checkout('whatsapp', jid, { uid: linked ? linked.uid : null, address, payMethod });
+      const paidLine = r.payMethod === 'credits' ? `Paid $${r.total.toFixed(2)} from your balance.` : `Total $${r.total.toFixed(2)} — *cash on delivery*.`;
+      await this.send(jid, `🎉 *Order confirmed!*\nOrder: *${r.invoiceNumber}*\n${paidLine}\n\nWe'll ship to ${address.city}. Thank you! 📦`);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
   }
 
   async _handleMistakes(jid, msg) {

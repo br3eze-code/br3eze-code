@@ -1813,6 +1813,7 @@ function showSection(sectionId) {
         case 'messages': renderMessagesSection(); break;
         case 'orders': updateTransactionHistory(); break;
         case 'subscriptions': updatePlans(); break;
+        case 'shop': if (window.Shop) Shop.render(); break;
         case 'settings': populateUserSettings(); break;
         case 'admin-stats': renderAdminStats(); break;
         case 'partner-networks': renderPartnerNetworks(); break;

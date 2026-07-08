@@ -140,6 +140,7 @@
         <ul>
             <li onclick="showSection('home')" class="active" data-section="home"><i class="fas fa-home"></i> <span class="nav-text">Home</span></li>
             <li id="sidebarPlansLink" onclick="showSection('subscriptions')" data-section="subscriptions"><i class="fas fa-box"></i> <span class="nav-text">Plans</span></li>
+            <li onclick="showSection('shop')" data-section="shop"><i class="fas fa-store"></i> <span class="nav-text">Shop</span></li>
             <li onclick="showSection('orders')" data-section="orders"><i class="fas fa-history"></i> <span class="nav-text">Orders</span></li>
             <li onclick="showSection('messages')" data-section="messages"><i class="fas fa-envelope"></i> <span class="nav-text">Messages</span></li>
             <li onclick="showSection('settings')" data-section="settings"><i class="fas fa-cog"></i> <span class="nav-text">Settings</span></li>
@@ -241,6 +242,69 @@
             <div class="grid grid-3" id="plansList"></div>
         </section>
         
+        <section id="shop-section" class="dashboard-section hidden">
+            <div class="shop-hero">
+                <span class="shop-eyebrow">POWER CONNECT MERCH</span>
+                <h1 class="shop-title">Gear that moves with you.</h1>
+                <p class="text-medium">Branded tees, caps & kicks. Pay with your balance — delivered to your door.</p>
+            </div>
+
+            <div class="shop-controls">
+                <div class="shop-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="shopSearch" placeholder="Search products…" oninput="Shop.onSearch(this.value)" autocomplete="off">
+                </div>
+                <div class="shop-filters" id="shopFilters">
+                    <button class="chip active" data-cat="all" onclick="Shop.onFilter('all')">All</button>
+                    <button class="chip" data-cat="tshirt" onclick="Shop.onFilter('tshirt')">👕 T-Shirts</button>
+                    <button class="chip" data-cat="cap" onclick="Shop.onFilter('cap')">🧢 Caps</button>
+                    <button class="chip" data-cat="shoes" onclick="Shop.onFilter('shoes')">👟 Shoes</button>
+                    <button class="chip" data-cat="orders" onclick="Shop.showMyOrders()"><i class="fas fa-box-open"></i> My Orders</button>
+                </div>
+            </div>
+
+            <div id="shopAdminBar" class="hidden" style="margin-bottom:16px;">
+                <button class="btn" onclick="Shop.openProductEditor()"><i class="fas fa-plus"></i> Add Product</button>
+                <button class="btn" onclick="Shop.renderInventory()"><i class="fas fa-boxes-stacked"></i> Manage Inventory</button>
+                <button class="btn" onclick="Shop.showAllOrders()"><i class="fas fa-receipt"></i> All Orders</button>
+            </div>
+            <div id="shopGrid" class="shop-grid"><p class="text-medium" style="padding:24px;">Loading products…</p></div>
+            <div id="shopOrders" class="hidden"></div>
+            <div id="shopInventory" class="hidden"></div>
+        </section>
+
+        <!-- Product editor (admin) -->
+        <div class="modal" id="productEditorModal">
+            <div class="modal-content" style="max-width:480px;">
+                <div class="modal-header"><h3 id="productEditorTitle">Add Product</h3><button class="modal-close" onclick="closeModal('productEditorModal')">×</button></div>
+                <form id="productForm" onsubmit="event.preventDefault(); Shop.saveProduct();">
+                    <input type="hidden" id="prodId">
+                    <div class="form-group"><label>Name</label><input type="text" id="prodName" required></div>
+                    <div class="form-group"><label>Description</label><input type="text" id="prodDesc"></div>
+                    <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>Category</label><select id="prodCategory"><option value="tshirt">T-Shirt</option><option value="cap">Cap</option><option value="shoes">Shoes</option></select></div>
+                        <div class="form-group"><label>Price ($)</label><input type="number" id="prodPrice" step="0.01" min="0" required></div>
+                    </div>
+                    <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>Stock (units)</label><input type="number" id="prodStock" min="0" step="1" required></div>
+                        <div class="form-group"><label>Sizes (comma-sep)</label><input type="text" id="prodSizes" placeholder="S,M,L,XL"></div>
+                    </div>
+                    <div class="form-group"><label>Image URL (optional)</label><input type="url" id="prodImage"></div>
+                    <label class="checkout-toggle"><input type="checkbox" id="prodActive" checked> Active (visible in shop)</label>
+                    <div class="modal-actions" style="margin-top:12px;">
+                        <button type="button" class="btn btn-danger hidden" id="prodDeleteBtn" onclick="Shop.deleteProduct()">Delete</button>
+                        <button type="submit" class="btn btn-primary">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Floating cart button -->
+        <button id="cartFab" class="cart-fab hidden" onclick="Shop.openCart()">
+            <i class="fas fa-shopping-bag"></i>
+            <span class="cart-fab-count" id="cartCount">0</span>
+        </button>
+
         <section id="orders-section" class="dashboard-section hidden">
             <h1>Transaction History</h1><p class="text-medium">Review all your credit movements (purchases, sharing, redemptions).</p>
             <div class="card" style="padding: 0;"><div id="transactionHistoryContainer"><p class="text-medium" style="padding: 25px;">Loading transaction history...</p></div></div>
@@ -425,6 +489,54 @@
     </div>
 </div>
 
+<!-- Shopping Cart Modal -->
+<div class="modal" id="cartModal">
+    <div class="modal-content" style="max-width:460px;">
+        <div class="modal-header"><h3>🛍️ Your Cart</h3><button class="modal-close" onclick="closeModal('cartModal')">×</button></div>
+        <div id="cartItems"></div>
+        <div class="cart-summary" id="cartSummary"></div>
+        <button class="btn btn-primary btn-block" id="cartCheckoutBtn" onclick="Shop.openCheckout()" style="margin-top:12px;">Checkout</button>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal" id="checkoutModal">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header"><h3>Checkout</h3><button class="modal-close" onclick="closeModal('checkoutModal')">×</button></div>
+        <form id="checkoutForm" onsubmit="event.preventDefault(); Shop.placeOrder();">
+            <div id="checkoutSummary" class="card" style="margin-bottom:16px;"></div>
+
+            <h4 class="checkout-heading">Shipping Address</h4>
+            <div class="form-group"><label>Full Name</label><input type="text" id="shipName" required></div>
+            <div class="form-group"><label>Phone</label><input type="tel" id="shipPhone" required></div>
+            <div class="form-group"><label>Street Address</label><input type="text" id="shipStreet" required></div>
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label>City</label><input type="text" id="shipCity" required></div>
+                <div class="form-group"><label>Postal Code</label><input type="text" id="shipZip"></div>
+            </div>
+            <div class="form-group"><label>Country</label><input type="text" id="shipCountry" value="South Africa" required></div>
+
+            <label class="checkout-toggle"><input type="checkbox" id="billingSame" checked onchange="Shop.toggleBilling(this.checked)"> Billing address same as shipping</label>
+            <div id="billingFields" class="hidden">
+                <h4 class="checkout-heading">Billing Address</h4>
+                <div class="form-group"><label>Street Address</label><input type="text" id="billStreet"></div>
+                <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                    <div class="form-group"><label>City</label><input type="text" id="billCity"></div>
+                    <div class="form-group"><label>Postal Code</label><input type="text" id="billZip"></div>
+                </div>
+            </div>
+
+            <h4 class="checkout-heading">Payment Method</h4>
+            <div class="pay-options" id="payOptions">
+                <label class="pay-option"><input type="radio" name="payMethod" value="credits" checked onchange="Shop.onPayMethod('credits')"> <span>💳 Pay with Balance <small id="payBalanceHint" class="text-medium"></small></span></label>
+                <label class="pay-option"><input type="radio" name="payMethod" value="cod" onchange="Shop.onPayMethod('cod')"> <span>💵 Cash on Delivery</span></label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="placeOrderBtn" style="margin-top:16px;">Place Order</button>
+        </form>
+    </div>
+</div>
+
 <!-- Chat Modal with Emoji Support -->
 <div class="modal" id="chatBoxModal">
     <div class="modal-content" style="height: cover;max-width:850px;">
@@ -544,6 +656,7 @@
     }
 </script>
 <script src="js/vendor-qrcode.js"></script>
+<script src="js/shop.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/index.js"></script>
 <script src="js/15.hardware.print.js"></script>

@@ -84,6 +84,18 @@ function _listCUPSPrinters() {
  */
 function _listDevPrinters() {
     const results = [];
+    // macOS names serial devices /dev/cu.usbserial-XXXX / /dev/tty.usbmodemXXXX
+    // (non-numbered), so enumerate /dev and match by prefix.
+    if (process.platform === 'darwin') {
+        try {
+            for (const name of fs.readdirSync('/dev')) {
+                if (/^(cu|tty)\.(usb|serial)/i.test(name)) {
+                    const devPath = `/dev/${name}`;
+                    try { fs.accessSync(devPath, fs.constants.W_OK); results.push({ id: `dev:${devPath}`, name: devPath, type: 'dev', bus: 'macOS serial' }); } catch (_) {}
+                }
+            }
+        } catch (_) {}
+    }
     const patterns = ['/dev/usb/lp', '/dev/ttyUSB', '/dev/ttyACM'];
     for (const prefix of patterns) {
         for (let i = 0; i < 8; i++) {
@@ -114,6 +126,7 @@ async function listAvailableInterfaces() {
     const interfaces = [];
     const isWin = process.platform === 'win32';
     const isLinux = process.platform === 'linux';
+    const isMac = process.platform === 'darwin';
 
     if (isWin) {
         // Windows Spooler printers
@@ -143,7 +156,9 @@ async function listAvailableInterfaces() {
         });
     }
 
-    if (isLinux) {
+    // macOS shares the CUPS + /dev POSIX printer stack with Linux (lpstat/lpr,
+    // /dev/tty.usbserial*), so run the same discovery there.
+    if (isLinux || isMac) {
         _listCUPSPrinters().forEach(p => interfaces.push(p));
         _listDevPrinters().forEach(p => interfaces.push(p));
     }
@@ -169,6 +184,7 @@ function discoverPrinterPort(preferredType = 'any', retries = 1) {
 
     const isWin = process.platform === 'win32';
     const isLinux = process.platform === 'linux';
+    const isMac = process.platform === 'darwin';
     let attempts = 0;
 
     while (attempts <= retries) {
@@ -195,8 +211,8 @@ function discoverPrinterPort(preferredType = 'any', retries = 1) {
             }
         }
 
-        if (isLinux) {
-            // 1. Try CUPS first
+        if (isLinux || isMac) {
+            // 1. Try CUPS first (available on both Linux and macOS)
             const cups = _listCUPSPrinters();
             if (cups.length > 0) {
                 const iface = cups[0].id;

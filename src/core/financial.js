@@ -129,13 +129,61 @@ class FinancialController {
         return this.database.getAuditLog(limit);
     }
 
-    async generateInvoice(data) {
-        logger.info('FinancialController: generating invoice', data);
-        return { 
-            id: `INV-${Date.now()}`, 
-            status: 'generated',
-            timestamp: new Date().toISOString()
+    /**
+     * Build a real, itemised invoice from an order/line-item payload and
+     * persist it when a database is available.
+     *
+     * @param {object} data
+     * @param {string} [data.userId]
+     * @param {string} [data.orderId]
+     * @param {Array<{description,qty,unitPrice}>} [data.lineItems]
+     * @param {string} [data.currency='USD']
+     * @param {number} [data.shipping=0]
+     * @param {number} [data.taxRate=0]  fractional, e.g. 0.15
+     * @param {object} [data.billingAddress]
+     */
+    async generateInvoice(data = {}) {
+        const currency = (data.currency || 'USD').toUpperCase();
+        const items = (data.lineItems || []).map((li) => {
+            const qty = Number(li.qty) || 1;
+            const unitPrice = Number(li.unitPrice ?? li.price) || 0;
+            return {
+                description: li.description || li.name || 'Item',
+                qty,
+                unitPrice: +unitPrice.toFixed(2),
+                amount: +(qty * unitPrice).toFixed(2),
+            };
+        });
+
+        const subtotal = +items.reduce((s, li) => s + li.amount, 0).toFixed(2);
+        const shipping = +(Number(data.shipping) || 0).toFixed(2);
+        const tax = +(subtotal * (Number(data.taxRate) || 0)).toFixed(2);
+        const total = +(subtotal + shipping + tax).toFixed(2);
+
+        const invoice = {
+            id: `INV-${Date.now().toString(36).toUpperCase()}`,
+            number: data.number || `INV-${Date.now().toString(36).toUpperCase()}`,
+            userId: data.userId || null,
+            orderId: data.orderId || null,
+            lineItems: items,
+            subtotal,
+            shipping,
+            tax,
+            total,
+            currency,
+            billingAddress: data.billingAddress || null,
+            status: data.status || (total > 0 ? 'unpaid' : 'paid'),
+            createdAt: new Date().toISOString(),
         };
+
+        logger.info(`FinancialController: invoice ${invoice.id} — ${items.length} item(s), ${currency} ${total}`);
+
+        // Persist when a database is wired (best-effort; never blocks the caller).
+        if (this.database && typeof this.database.saveInvoice === 'function') {
+            try { await this.database.saveInvoice(invoice); }
+            catch (e) { logger.warn(`Invoice persistence failed: ${e.message}`); }
+        }
+        return invoice;
     }
 }
 

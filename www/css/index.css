@@ -1075,19 +1075,8 @@ textarea.form-control:focus {
 .input-wrapper input {
   padding-left: 38px;
 }
-.qr-btn {
-  position: absolute;
-  right: 8px;
-  background: transparent;
-  border: none;
-  color: var(--color-text-medium);
-  cursor: pointer;
-  padding: 6px;
-  font-size: 1rem;
-}
-.qr-btn:hover {
-  color: var(--color-text-light);
-}
+/* (in-field action buttons — QR scan / show password — live in the
+   design-refinements section at the bottom as .input-action) */
 
 /* --- Toast Notification Styles --- */
 .toast {
@@ -1592,6 +1581,7 @@ textarea.form-control:focus {
   .bot-avatar, .user-avatar {
       width: 28px;
       height: 28px;
+  }
 }
 
 /* ==========================================================================
@@ -1719,4 +1709,203 @@ select:focus-visible {
   30% { opacity: 1; }
   100% { opacity: 0; transform: translateY(-90px) scale(1.1); }
 }
+
+/* 9. Login screen (login.html) — captive-portal sign-in, mobile-first.
+   8-pt spacing, 16px card radius, soft brand glow behind the logo, 48px
+   inputs (16px font stops iOS auto-zoom), and explicit loading / error /
+   one-tap-prefilled states. */
+#authScreen {
+  min-height: 100dvh;
+  height: auto;
+  padding: 24px 16px;
+  padding-bottom: max(24px, var(--safe-bottom));
 }
+.auth-card {
+  border-radius: 16px;
+  padding: 32px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 55%),
+    var(--color-panel);
+}
+.auth-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  /* soft glow tinted to the page's dark-red vignette, not gray */
+  box-shadow: 0 0 48px rgba(255, 90, 70, 0.28);
+}
+.auth-header h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
+.auth-header p { font-size: 0.9rem; margin-bottom: 24px; }
+.auth-card .form-group { margin-bottom: 16px; }
+.auth-card .form-group label { margin-bottom: 8px; font-size: 0.85rem; }
+.auth-card .input-wrapper input {
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 1rem;
+  padding-left: 40px;
+}
+.auth-card .input-wrapper input.has-action { padding-right: 52px; }
+/* Trailing in-field action (QR scan, show/hide password) — full 44pt target */
+.input-action {
+  position: absolute;
+  right: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--color-text-medium);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.input-action:hover { color: var(--color-text-light); }
+.auth-card .btn-block { margin-top: 24px; border-radius: 12px; }
+.auth-divider { margin: 24px 0 16px; }
+.google-btn { min-height: 48px; border-radius: 12px; }
+.auth-toggle { margin-top: 24px; padding: 8px 0; }
+#qr-reader {
+  margin: 0 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+/* Inline error state (kept separate from the transient toast) */
+#error-message:not(:empty) {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-danger);
+  background: rgba(128, 48, 48, 0.22);
+  color: var(--color-danger-text);
+  font-size: 0.9rem;
+  text-align: left;
+}
+/* Submitting: spinner inside the CTA (.btn is inline-flex with gap) */
+.btn.is-loading { pointer-events: none; opacity: 0.85; }
+.btn.is-loading::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+/* Credentials arrived via a one-tap link — pulse the CTA so the single
+   remaining action is unmissable */
+.auth-card.is-prefilled #login-submit-btn {
+  animation: cta-pulse 1.5s ease-out 3;
+}
+@keyframes cta-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35); }
+  100% { box-shadow: 0 0 0 14px rgba(255, 255, 255, 0); }
+}
+/* ==========================================================================
+   SHOP — branded merch (Starlink-inspired: dark, bold, image-forward)
+   ========================================================================== */
+.shop-hero { margin-bottom: 24px; }
+.shop-eyebrow {
+  font-size: 0.72rem; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--color-info-text); font-weight: 700;
+}
+.shop-title {
+  font-size: 2.4rem; font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.02em; margin: 8px 0 6px;
+}
+.shop-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.shop-search { position: relative; }
+.shop-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-text-medium); }
+.shop-search input {
+  width: 100%; padding: 12px 14px 12px 40px; border-radius: 10px;
+  background: var(--color-panel); border: 1px solid var(--color-border);
+  color: var(--color-text-light); font-size: 0.95rem;
+}
+.shop-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.chip {
+  flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  background: var(--color-panel); border: 1px solid var(--color-border);
+  color: var(--color-text-medium); font-size: 0.85rem; font-weight: 600;
+  min-height: 40px; white-space: nowrap; transition: all 0.15s;
+}
+.chip.active { background: var(--color-text-light); color: var(--color-background); border-color: var(--color-text-light); }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+@media (max-width: 768px) { .shop-grid { grid-template-columns: 1fr 1fr; gap: 12px; } }
+.shop-card {
+  background: var(--color-panel); border: 1px solid var(--color-border);
+  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.shop-card:hover { transform: translateY(-3px); border-color: var(--color-text-medium); }
+.shop-card.out { opacity: 0.6; }
+.shop-card-img {
+  position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(85,170,255,0.10), #0d0d0d 70%);
+}
+.shop-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.shop-card-emoji { font-size: 3.5rem; }
+.shop-badge {
+  position: absolute; top: 10px; left: 10px; background: var(--color-danger);
+  color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+}
+.shop-card-body { padding: 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.shop-card-cat { font-size: 0.66rem; letter-spacing: 0.14em; color: var(--color-text-medium); font-weight: 700; }
+.shop-card-name { font-size: 1rem; font-weight: 700; line-height: 1.2; }
+.shop-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
+.shop-card-price { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.shop-size { padding: 6px 8px; border-radius: 6px; background: var(--color-sidebar); border: 1px solid var(--color-border); color: var(--color-text-light); font-size: 0.8rem; min-height: 36px; }
+.shop-add { margin-top: 6px; }
+.shop-empty { text-align: center; padding: 48px 16px; color: var(--color-text-medium); }
+.shop-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: 0.5; }
+
+/* Floating cart button */
+.cart-fab {
+  position: fixed; right: 20px; bottom: 84px; z-index: 1500;
+  width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+  background: var(--color-text-light); color: var(--color-background); font-size: 1.25rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+}
+.cart-fab-count {
+  position: absolute; top: -4px; right: -4px; background: var(--color-danger); color: #fff;
+  font-size: 0.72rem; font-weight: 700; min-width: 20px; height: 20px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; padding: 0 5px;
+}
+
+/* Cart rows */
+.cart-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.cart-thumb { width: 44px; height: 44px; border-radius: 8px; background: var(--color-sidebar); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; overflow: hidden; flex: 0 0 auto; }
+.cart-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cart-row-info { flex: 1; min-width: 0; }
+.cart-row-name { font-weight: 600; font-size: 0.9rem; }
+.cart-row-price { color: var(--color-text-medium); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.cart-qty { display: flex; align-items: center; gap: 8px; }
+.cart-qty button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-sidebar); color: var(--color-text-light); cursor: pointer; font-size: 1rem; }
+.cart-qty span { min-width: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.cart-remove { background: none; border: none; color: var(--color-text-medium); cursor: pointer; font-size: 0.9rem; padding: 4px; }
+.cart-summary { margin-top: 14px; }
+.cart-line { display: flex; justify-content: space-between; padding: 6px 0; font-variant-numeric: tabular-nums; }
+.cart-total { border-top: 1px solid var(--color-border); margin-top: 6px; padding-top: 10px; font-weight: 800; font-size: 1.1rem; }
+
+/* Checkout */
+.checkout-heading { font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-medium); margin: 18px 0 10px; }
+.checkout-toggle { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 0.9rem; cursor: pointer; }
+.checkout-toggle input { width: auto; min-height: auto; }
+.pay-options { display: flex; flex-direction: column; gap: 8px; }
+.pay-option { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: 10px; cursor: pointer; }
+.pay-option input { width: auto; min-height: auto; }
+.pay-option input:checked ~ span { color: var(--color-text-light); }
+
+/* Order cards */
+.order-card { padding: 16px; }
+.order-head { display: flex; justify-content: space-between; align-items: center; }
+.order-status { font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; text-transform: capitalize; }
+.status-paid { background: rgba(32,80,32,0.5); color: var(--color-success-text); }
+.status-pending-payment { background: rgba(128,96,32,0.4); color: #ffcc66; }
+.status-shipped, .status-delivered { background: rgba(32,48,96,0.5); color: var(--color-info-text); }
+.order-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-variant-numeric: tabular-nums; }
