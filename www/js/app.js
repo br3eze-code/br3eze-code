@@ -2193,6 +2193,34 @@ async function redeemVoucherLogic(code) {
     return voucher.value;
 }
 
+/* Peak-moment celebration (mobile-app-ui-design skill: success states should
+   feel rewarding). Full-screen checkmark + amount + sparkles, tap/auto dismiss. */
+window.showSuccessCelebration = function ({ title = 'Success!', amount = null, subtitle = '' } = {}) {
+    document.getElementById('celebrateOverlay')?.remove();
+    const el = document.createElement('div');
+    el.className = 'celebrate-overlay';
+    el.id = 'celebrateOverlay';
+    const amountHtml = amount != null ? `<div class="celebrate-amount">+$${Number(amount).toFixed(2)}</div>` : '';
+    el.innerHTML = `
+        <div class="celebrate-check"><i class="fas fa-check"></i></div>
+        <div class="celebrate-title">${window.escapeHtml(title)}</div>
+        ${amountHtml}
+        ${subtitle ? `<div class="celebrate-sub">${window.escapeHtml(subtitle)}</div>` : ''}`;
+    ['✨', '🎉', '⭐', '✨', '🎊'].forEach((s, i) => {
+        const sp = document.createElement('div');
+        sp.className = 'celebrate-spark';
+        sp.textContent = s;
+        sp.style.left = (28 + i * 12) + '%';
+        sp.style.top = '40%';
+        sp.style.animationDelay = (i * 0.08) + 's';
+        el.appendChild(sp);
+    });
+    document.body.appendChild(el);
+    const dismiss = () => el.remove();
+    el.addEventListener('click', dismiss);
+    setTimeout(dismiss, 2600);
+};
+
 /*  =====  VOUCHERS UI  =====  */
 function openRedeemVoucher() {
     document.getElementById('redeemVoucherForm').reset();
@@ -2265,9 +2293,14 @@ async function redeemVoucher(event) {
         setTimeout(async () => {
             overlay.remove();
             closeModal('redeemVoucherModal');
-            showToast(`Redeemed $${voucher.value.toFixed(2)}!`, 'success');
             await refreshCurrentUser(); // Fetch fresh credits
             updateUI();
+            // Peak moment — celebrate the top-up (the "notice/reward" moment).
+            showSuccessCelebration({
+                title: 'Voucher Redeemed!',
+                amount: voucher.value,
+                subtitle: 'Your balance is topped up. Enjoy your connection! 🚀'
+            });
         }, 1500);
 
     } catch (e) {
