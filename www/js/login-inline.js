@@ -65,8 +65,45 @@ document.getElementById('loginFormElement').addEventListener('submit', (e) => {
         showToast('Enter your username or voucher code.', 'error');
         return;
     }
+    const btn = document.getElementById('login-submit-btn');
+    btn.classList.add('is-loading');
+    btn.textContent = 'Connecting…';
     submitHotspotLogin(identifier, password);
 });
+
+// ── Password visibility toggle ────────────────────────────────────────────
+function togglePasswordVisibility() {
+    const input = document.getElementById('loginPassword');
+    const btn = document.getElementById('togglePasswordBtn');
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+    btn.title = show ? 'Hide password' : 'Show password';
+    btn.setAttribute('aria-label', btn.title);
+}
+
+// ── One-tap links: prefill credentials passed in the URL, e.g.
+//    /login?username=admin&password=admin123 (MikroTik-style handoff or a
+//    shared sign-in link), then scrub them from the address bar so they
+//    don't linger in browser history. Login is NOT auto-submitted — the
+//    user confirms with the (highlighted) connect button.
+(function prefillFromQuery() {
+    const params = new URLSearchParams(location.search);
+    const username = params.get('username') || params.get('user');
+    const password = params.get('password') || params.get('pass');
+    if (!username && !password) return;
+
+    if (username) document.getElementById('loginIdentifier').value = username;
+    if (password) document.getElementById('loginPassword').value = password;
+    if (username) {
+        document.getElementById('login-submit-btn').textContent = `Connect as ${username}`;
+        document.getElementById('loginForm').classList.add('is-prefilled');
+    }
+
+    ['username', 'user', 'password', 'pass'].forEach((k) => params.delete(k));
+    const qs = params.toString();
+    history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+})();
 
 // ── Optional Br3eze Africa account (email/password + Google) ────────────
 document.getElementById('signupFormElement').addEventListener('submit', async (e) => {

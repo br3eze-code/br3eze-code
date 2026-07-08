@@ -45,6 +45,23 @@ service cloud.firestore {
         && request.resource.data.credits >= 0;
     }
 
+    // Plan purchase (client-side batch in app.js purchasePlan): the owner may
+    // append exactly ONE subscription entry while decreasing credits by
+    // exactly that plan's price as stored in /plans — so a buyer can't
+    // underpay or grant themselves a plan for free. Zero-price activations
+    // (admin/family) don't change credits, so they fall under the plain
+    // owner-update rule instead.
+    function isPlanPurchase(userId) {
+      return isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits', 'subscriptions'])
+        && request.resource.data.credits is number
+        && request.resource.data.credits >= 0
+        && 'subscriptions' in resource.data
+        && request.resource.data.subscriptions.size() == resource.data.subscriptions.size() + 1
+        && resource.data.credits - request.resource.data.credits
+           == get(/databases/$(database)/documents/plans/$(request.resource.data.subscriptions[resource.data.subscriptions.size()].planId)).data.price;
+    }
+
     // Recipient side: increase must exactly match the caller's own decrease
     // in the same batch (which itself must satisfy isOwnCreditSpend).
     function isFundedCreditReceive(userId) {
@@ -124,7 +141,8 @@ service cloud.firestore {
         (isOwner(userId) &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'credits'])) ||
         isOwnCreditSpend(userId) ||
-        isFundedCreditReceive(userId)
+        isFundedCreditReceive(userId) ||
+        isPlanPurchase(userId)
       );
       allow delete: if isAdmin();
     }

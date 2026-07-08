@@ -44,6 +44,14 @@
             {
                 "source": "/api/**",
                 "function": "api"
+            },
+            {
+                "source": "/login",
+                "destination": "/login.html"
+            },
+            {
+                "source": "/l",
+                "destination": "/login.html"
             }
         ]
     }

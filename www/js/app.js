@@ -2076,7 +2076,11 @@ async function purchasePlan(planId) {
                 planId: plan.id,
                 planName: plan.name,
                 price: plan.price,
-                purchasedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                // Timestamp.now(), NOT FieldValue.serverTimestamp() — sentinel
+                // values are illegal inside arrayUnion() and made every
+                // purchase throw "Purchase failed: … arrayUnion() called with
+                // invalid data".
+                purchasedAt: firebase.firestore.Timestamp.now(),
                 expiresAt: firebase.firestore.Timestamp.fromDate(expires),
                 deviceLimit: plan.deviceLimit || 1,
                 dataLimit: plan.dataLimit || 0,
