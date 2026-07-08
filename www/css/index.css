@@ -1593,4 +1593,60 @@ textarea.form-control:focus {
       width: 28px;
       height: 28px;
 }
+
+/* ==========================================================================
+   DESIGN REFINEMENTS — mobile-app-ui-design skill
+   Applied 2026-07-08: tap targets, tabular numerals, 8-pt spacing, soft
+   tinted shadows, accessible focus. Scoped overrides, later = wins.
+   ========================================================================== */
+
+/* 1. Tap targets — every interactive control ≥44×44pt (skill: "all tap
+   targets at least 44×44pt"). */
+.btn { min-height: 44px; }
+.btn-sm { min-height: 40px; }
+input, select, textarea { min-height: 44px; }
+.sidebar li { min-height: 48px; }
+
+/* 2. Numbers use tabular figures so digits align and don't jitter as values
+   change (skill: "monospace variants for large numbers — prices, stats"). */
+.stat-value,
+.plan-card .price,
+#dropdownFullname,
+[id*="alance"], [id*="redit"], [id*="rice"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+/* 3. 8-point grid — replace off-grid 20/5px rhythm on stat cards (skill:
+   "all spacing divisible by 8 or 4"). */
+.stat-card { padding: 24px 16px; gap: 4px; }
+.stat-icon { margin-bottom: 8px; }
+.stat-value { margin-bottom: 4px; line-height: 1.1; }
+
+/* 4. Soft, tinted shadows for depth without heaviness (skill: "always use
+   soft shadows — never harsh; match shadow color to the background"). */
+.card, .stat-card, .plan-card, .auth-card {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+.btn-primary {
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* 5. Accessible keyboard focus on all interactive elements (web-design
+   guidelines: visible focus, never remove outlines without a replacement). */
+.btn:focus-visible,
+.sidebar li:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-info-text);
+  outline-offset: 2px;
+}
+
+/* 6. Respect reduced-motion preference. */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 }
