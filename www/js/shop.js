@@ -40,8 +40,25 @@ const Shop = {
         // Admins get the inventory toolbar.
         const isAdmin = currentUser && currentUser.role === 'admin';
         document.getElementById('shopAdminBar')?.classList.toggle('hidden', !isAdmin);
-        if (!this._loaded) await this.loadProducts();
+        if (!this._loaded) { this._skeleton(); await this.loadProducts(); }
         this.renderGrid();
+    },
+
+    // Animated placeholder cards so the first (~1-2s cold Firestore) load reads
+    // as loading, not broken.
+    _skeleton() {
+        const grid = document.getElementById('shopGrid');
+        if (!grid) return;
+        grid.innerHTML = Array.from({ length: 4 }).map(() => `
+            <div class="shop-card shop-skel">
+                <div class="shop-card-img skel-box"></div>
+                <div class="shop-card-body">
+                    <span class="skel-line" style="width:40%"></span>
+                    <span class="skel-line" style="width:80%"></span>
+                    <span class="skel-line" style="width:55%"></span>
+                    <span class="skel-line skel-btn"></span>
+                </div>
+            </div>`).join('');
     },
 
     // ── Admin: inventory management ───────────────────────────────────────
@@ -246,11 +263,16 @@ const Shop = {
     },
 
     _updateFab() {
+        const n = this.count();
         const fab = document.getElementById('cartFab');
         const badge = document.getElementById('cartCount');
-        const n = this.count();
         if (badge) badge.textContent = n;
         if (fab) fab.classList.toggle('hidden', n === 0);
+        // Navbar cart — shows count and only appears once something is in the cart.
+        const navCart = document.getElementById('navCart');
+        const navBadge = document.getElementById('navCartCount');
+        if (navBadge) navBadge.textContent = n;
+        if (navCart) navCart.classList.toggle('hidden', n === 0);
     },
 
     // ── Cart modal ────────────────────────────────────────────────────────
@@ -454,3 +476,8 @@ const Shop = {
     },
 };
 window.Shop = Shop;
+
+// Reflect a persisted cart in the navbar as soon as the app loads.
+document.addEventListener('DOMContentLoaded', () => {
+    try { Shop._loadCart(); Shop._updateFab(); } catch (e) { /* deps not ready */ }
+});

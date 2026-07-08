@@ -37,6 +37,10 @@
         <span class="logo">POWER CONNECT</span>
     </div>
     <div class="header-right">
+        <button class="nav-cart hidden" id="navCart" onclick="Shop.openCart()" aria-label="Cart">
+            <i class="fas fa-shopping-bag"></i>
+            <span class="nav-cart-count" id="navCartCount">0</span>
+        </button>
         <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
     </div>
 
@@ -489,13 +493,17 @@
     </div>
 </div>
 
-<!-- Shopping Cart Modal -->
-<div class="modal" id="cartModal">
-    <div class="modal-content" style="max-width:460px;">
+<!-- Shopping Cart — slide-in drawer -->
+<div class="cart-drawer" id="cartModal" onclick="if(event.target===this)closeModal('cartModal')">
+    <div class="cart-drawer-panel">
         <div class="modal-header"><h3>🛍️ Your Cart</h3><button class="modal-close" onclick="closeModal('cartModal')">×</button></div>
-        <div id="cartItems"></div>
-        <div class="cart-summary" id="cartSummary"></div>
-        <button class="btn btn-primary btn-block" id="cartCheckoutBtn" onclick="Shop.openCheckout()" style="margin-top:12px;">Checkout</button>
+        <div class="cart-drawer-body">
+            <div id="cartItems"></div>
+        </div>
+        <div class="cart-drawer-foot">
+            <div class="cart-summary" id="cartSummary"></div>
+            <button class="btn btn-primary btn-block" id="cartCheckoutBtn" onclick="Shop.openCheckout()" style="margin-top:12px;">Checkout</button>
+        </div>
     </div>
 </div>
 

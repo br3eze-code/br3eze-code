@@ -1818,6 +1818,9 @@ select:focus-visible {
   font-size: 2.4rem; font-weight: 800; line-height: 1.05;
   letter-spacing: -0.02em; margin: 8px 0 6px;
 }
+@media (max-width: 480px) {
+  .shop-title { font-size: 1.75rem; }
+}
 .shop-controls { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .shop-search { position: relative; }
 .shop-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-text-medium); }
@@ -1827,6 +1830,10 @@ select:focus-visible {
   color: var(--color-text-light); font-size: 0.95rem;
 }
 .shop-filters { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+/* On phones wrap the chips instead of hiding "My Orders" off-screen */
+@media (max-width: 768px) {
+  .shop-filters { flex-wrap: wrap; overflow-x: visible; }
+}
 .chip {
   flex: 0 0 auto; padding: 8px 16px; border-radius: 999px; cursor: pointer;
   background: var(--color-panel); border: 1px solid var(--color-border);
@@ -1858,8 +1865,13 @@ select:focus-visible {
 .shop-card-cat { font-size: 0.66rem; letter-spacing: 0.14em; color: var(--color-text-medium); font-weight: 700; }
 .shop-card-name { font-size: 1rem; font-weight: 700; line-height: 1.2; }
 .shop-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
-.shop-card-price { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.shop-size { padding: 6px 8px; border-radius: 6px; background: var(--color-sidebar); border: 1px solid var(--color-border); color: var(--color-text-light); font-size: 0.8rem; min-height: 36px; }
+.shop-card-price { flex-shrink: 0; font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.shop-size { min-width: 0; padding: 6px 8px; border-radius: 6px; background: var(--color-sidebar); border: 1px solid var(--color-border); color: var(--color-text-light); font-size: 0.8rem; min-height: 36px; }
+/* Narrow 2-up cards can't fit price + size side by side — stack them */
+@media (max-width: 600px) {
+  .shop-card-foot { flex-direction: column; align-items: stretch; gap: 6px; }
+  .shop-size { width: 100%; }
+}
 .shop-add { margin-top: 6px; }
 .shop-empty { text-align: center; padding: 48px 16px; color: var(--color-text-medium); }
 .shop-empty i { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: 0.5; }
@@ -1909,3 +1921,50 @@ select:focus-visible {
 .status-pending-payment { background: rgba(128,96,32,0.4); color: #ffcc66; }
 .status-shipped, .status-delivered { background: rgba(32,48,96,0.5); color: var(--color-info-text); }
 .order-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-variant-numeric: tabular-nums; }
+
+/* ── Navbar cart button ── */
+.nav-cart {
+  position: relative; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--color-panel); border: 1px solid var(--color-border);
+  color: var(--color-text-light); cursor: pointer; margin-right: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  transition: transform 0.15s, background 0.15s;
+}
+.nav-cart:hover { background: var(--color-active); }
+.nav-cart:active { transform: scale(0.92); }
+.nav-cart-count {
+  position: absolute; top: -4px; right: -4px; background: var(--color-danger);
+  color: #fff; font-size: 0.68rem; font-weight: 700; min-width: 18px; height: 18px;
+  border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px;
+}
+
+/* ── Cart slide-in drawer ── */
+.cart-drawer {
+  position: fixed; inset: 0; z-index: 11000; background: rgba(0,0,0,0.5);
+  opacity: 0; visibility: hidden; transition: opacity 0.25s, visibility 0.25s;
+}
+.cart-drawer.active { opacity: 1; visibility: visible; }
+.cart-drawer-panel {
+  position: absolute; top: 0; right: 0; height: 100%;
+  width: min(420px, 90vw); background: var(--color-panel);
+  border-left: 1px solid var(--color-border);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.22,0.61,0.36,1);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.5);
+  padding: 20px; padding-top: max(20px, var(--safe-top));
+}
+.cart-drawer.active .cart-drawer-panel { transform: translateX(0); }
+.cart-drawer-body { flex: 1; overflow-y: auto; margin: 8px 0; }
+.cart-drawer-foot { border-top: 1px solid var(--color-border); padding-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .cart-drawer-panel { transition: none; } }
+
+/* ── Shop skeleton loader ── */
+.shop-skel { pointer-events: none; }
+.skel-box, .skel-line {
+  background: linear-gradient(90deg, var(--color-sidebar) 25%, var(--color-active) 37%, var(--color-sidebar) 63%);
+  background-size: 400% 100%; animation: skel 1.4s ease infinite; border-radius: 6px;
+}
+.skel-box { width: 100%; aspect-ratio: 1/1; }
+.skel-line { display: block; height: 12px; margin: 8px 0; }
+.skel-btn { height: 40px; margin-top: 14px; border-radius: 8px; }
+@keyframes skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
