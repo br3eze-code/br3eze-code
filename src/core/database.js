@@ -366,7 +366,7 @@ class Database {
             const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
             if (row) {
                 const { SQLiteDB } = require('./sqlite-db');
-                return SQLiteDB.fromDB(row);
+                return SQLiteDB.rowToPlan(row);
             }
         }
 
@@ -380,7 +380,7 @@ class Database {
                 const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(hashedId);
                 if (row) {
                     const { SQLiteDB } = require('./sqlite-db');
-                    return SQLiteDB.fromDB(row);
+                    return SQLiteDB.rowToPlan(row);
                 }
             }
         }
@@ -427,7 +427,7 @@ class Database {
             rows = this.sqlite.prepare('SELECT * FROM plans').all();
         }
         const { SQLiteDB } = require('./sqlite-db');
-        return rows.map(r => SQLiteDB.fromDB(r));
+        return rows.map(r => SQLiteDB.rowToPlan(r));
     }
 
     async createPlan(planId, data) {
@@ -470,7 +470,7 @@ class Database {
             const row = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
             if (!row) return null;
             const { SQLiteDB } = require('./sqlite-db');
-            return SQLiteDB.fromDB(row);
+            return SQLiteDB.rowToVoucher(row);
         }
 
     async createVoucher(code, data = {}) {
@@ -654,7 +654,7 @@ class Database {
 
                         // Update User
                         let user = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
-                        if (user) user = SQLiteDB.fromDB(user);
+                        if (user) user = SQLiteDB.rowToUser(user);
 
                         const vouchersUsed = [...(user?.vouchersUsed || []), code];
                         this.sqlite.prepare('UPDATE users SET credits = ?, lastSeen = ?, vouchersUsed = ?, platform = COALESCE(?, platform), deviceModel = COALESCE(?, deviceModel), lastIP = COALESCE(?, lastIP) WHERE uid = ?')
@@ -807,7 +807,7 @@ class Database {
         if (this.sqlite) {
             const { SQLiteDB } = require('./sqlite-db');
             const row = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
-            return row ? SQLiteDB.fromDB(row) : null;
+            return row ? SQLiteDB.rowToUser(row) : null;
         }
         const u = this._users.get(id);
         return u ? { id, ...u } : null;
@@ -846,8 +846,27 @@ class Database {
                     createdAt: now,
                     lastSeen: now,
                 };
-                if (this.db) await this.db.collection('users').doc(id).set(doc, { merge: true });
-                else { this._users.set(id, doc); this._saveLocal('users'); }
+                if (this.db) {
+                    await this.db.collection('users').doc(id).set(doc, { merge: true });
+                } else if (this.sqlite) {
+                    // SQLite fallback: persist to the users table (previously this
+                    // branch only wrote the in-memory _users map, so getUser —
+                    // which reads SQLite — never found freshly-created users).
+                    const { SQLiteDB } = require('./sqlite-db');
+                    this.sqlite.prepare(`
+                        INSERT OR REPLACE INTO users
+                        (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, vouchersUsed, createdAt, lastSeen)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `).run(
+                        doc.uid, doc.username, doc.fullname, doc.email, doc.phoneNumber, doc.address,
+                        doc.platform, doc.deviceModel, doc.lastIP, doc.role, doc.credits,
+                        SQLiteDB.toDB(doc.subscriptions), SQLiteDB.toDB(doc.pendingNotification),
+                        SQLiteDB.toDB(data.channels || {}), SQLiteDB.toDB(data.vouchersUsed || []),
+                        doc.createdAt, doc.lastSeen
+                    );
+                } else {
+                    this._users.set(id, doc); this._saveLocal('users');
+                }
                 return doc;
             }
 
