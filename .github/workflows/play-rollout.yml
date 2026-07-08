@@ -24,8 +24,25 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: Check signing config
+    runs-on: ubuntu-latest
+    outputs:
+      signing: ${{ steps.check.outputs.signing }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "signing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ℹ️  Android signing secrets (ANDROID_KEYSTORE_BASE64 etc.) not configured — skipping the Play rollout. Not a failure."
+            echo "signing=false" >> "$GITHUB_OUTPUT"
+          fi
+
   cordova-build:
     name: Cordova Build & Sign → ${{ github.event.inputs.track || 'internal' }}
+    needs: gate
+    if: needs.gate.outputs.signing == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
 

@@ -113,7 +113,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Packages
+        # Non-blocking: a publish failure (version already exists, registry
+        # auth, transient) must not fail the release — the GitHub Release above
+        # is the source of truth.
         if: steps.bump.outputs.bumped == 'true'
+        continue-on-error: true
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
