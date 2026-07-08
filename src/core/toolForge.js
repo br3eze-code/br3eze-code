@@ -81,7 +81,7 @@ class VMSandbox {
       // Without these, even basic operations like filter(Boolean), new Map(),
       // Array.from(), parseInt(), etc. silently fail or return wrong results.
       JSON, Math, Date, Promise,
-      parseInt, parseFloat, isNaN, isFinite, isFinite,
+      parseInt, parseFloat, isNaN, isFinite,
       encodeURIComponent, decodeURIComponent,
       // Type constructors and built-in classes
       Boolean, Number, String, Array, Object, Symbol, BigInt,

@@ -3,7 +3,7 @@
  * Handles user authentication, token verification, and user management
  */
 
-const { auth, db } = require('../config/firebase');
+const { admin, auth, db } = require('../config/firebase');
 const logger = require('../utils/logger');
 const { generateMikrotikUsername } = require('../utils/crypto');
 

@@ -4,7 +4,7 @@
  */
 
 const NodeCache = require('node-cache');
-const { db } = require('../config/firebase');
+const { admin, db } = require('../config/firebase');
 const logger = require('../utils/logger');
 const { generateSessionId } = require('../utils/helpers');
 

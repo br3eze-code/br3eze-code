@@ -16,7 +16,8 @@ module.exports = (program) => {
   // ── Resolve skill (lazy, exits on bad config) ─────────────────────────────
   const getSkill = () => {
     if (!fs.existsSync(CONFIG_PATH)) {
-      log.error('No configuration found — run: agentos onboard');
+      // Module-scope helper — clack's `log` is only imported inside actions.
+      console.error('No configuration found — run: agentos onboard');
       process.exit(1);
     }
     const DahuaSkill = require('../../skills/dahua/index.js');

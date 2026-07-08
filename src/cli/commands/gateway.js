@@ -402,7 +402,7 @@ module.exports = (program) => {
         .command('gateway:stop')
         .description('Stop running gateway')
         .action(async () => {
-            const { intro, outro, spinner: clackSpinner, cancel } = await import('@clack/prompts');
+            const { intro, outro, spinner: clackSpinner, cancel, log } = await import('@clack/prompts');
             const { STATE_PATH } = global.AGENTOS;
             const pidFile = path.join(STATE_PATH, 'gateway.pid');
 

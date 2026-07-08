@@ -1,4 +1,6 @@
 // src/tools/base.js
+const { z } = require('zod');
+
 class BaseTool {
   constructor(config) {
     this.name = config.name;

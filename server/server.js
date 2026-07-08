@@ -583,6 +583,8 @@ class NetworkDiscoveryService {
 
     // HTTP check with timeout
     httpCheck(ip, port, timeout = 2000) {
+        const http = require('http');
+        const https = require('https');
         return new Promise((resolve) => {
             const httpModule = port === 443 ? https : http;
             const options = {
@@ -1110,7 +1112,7 @@ class AgentOSGateway {
             case 'tool.list':
                 this._send(ws, {
                     type: 'tool.list',
-                    tools: commandHandler.getAvailableTools()
+                    tools: global.commandHandler.getAvailableTools()
                 });
                 break;
 
@@ -1231,7 +1233,7 @@ class AgentOSGateway {
         }
 
         // Also execute locally
-        commandHandler.execute(command, params || [], client.nodeId || clientId)
+        global.commandHandler.execute(command, params || [], client.nodeId || clientId)
             .then(result => {
                 this._send(ws, {
                     type: 'command.result',
@@ -1277,13 +1279,13 @@ class AgentOSGateway {
     }
 
     async _handleToolInvoke(clientId, ws, msg) {
-        const rateCheck = commandHandler.checkRateLimit(clientId);
+        const rateCheck = global.commandHandler.checkRateLimit(clientId);
         if (!rateCheck.allowed) {
             return this._send(ws, { type: 'error', id: msg.id, error: rateCheck.reason });
         }
 
         try {
-            const result = await commandHandler.execute(msg.tool, msg.params || [], clientId);
+            const result = await global.commandHandler.execute(msg.tool, msg.params || [], clientId);
             this._send(ws, {
                 type: 'tool.result',
                 id: msg.id,
@@ -1398,7 +1400,7 @@ app.post('/api/auth/login', (req, res) => {
 app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, res) => {
     const { tool, params = [] } = req.body;
     try {
-        const result = await commandHandler.execute(tool, params, req.body._actor || 'api');
+        const result = await global.commandHandler.execute(tool, params, req.body._actor || 'api');
         res.json({ success: true, result });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
@@ -1406,7 +1408,7 @@ app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, r
 });
 
 app.get('/api/tools', authMiddleware, (req, res) => {
-    res.json({ tools: commandHandler.getAvailableTools() });
+    res.json({ tools: global.commandHandler.getAvailableTools() });
 });
 
 app.get('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
@@ -1449,7 +1451,7 @@ app.get('/api/audit', authMiddleware, (req, res) => {
 
 app.get('/api/router/status', authMiddleware, async (req, res) => {
     try {
-        const result = await commandHandler.execute('router.status');
+        const result = await global.commandHandler.execute('router.status');
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1514,7 +1516,7 @@ async function boot() {
 
         // Initialize WebSocket gateway
         const gateway = new AgentOSGateway(server);
-        commandHandler.gateway = gateway;
+        global.commandHandler.gateway = gateway;
 
         // Start server
         server.listen(CONFIG.PORT, CONFIG.HOST, () => {

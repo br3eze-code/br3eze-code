@@ -660,7 +660,7 @@ class Gateway extends EventEmitter {
         if (global.database) {
           await global.database.createVoucher(code, {
             planId: plan,
-            planName: planObj.name || planId,
+            planName: planObj.name || plan,
             durationUnit: planObj.durationUnit || null,
             durationValue: planObj.durationValue || null,
             deviceLimit: planObj.deviceLimit || 1,

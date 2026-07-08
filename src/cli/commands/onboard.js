@@ -905,7 +905,7 @@ module.exports = (program) => {
           log.success(`Using ${keyName} from environment`);
           aiKey = envKey;
         } else {
-          const { key } = await prompt({ type: 'password', name: 'key', message: `${meta.name} API Key:` });
+          const { key } = await prompt({ type: 'password', name: 'key', message: `${aiProvider} API Key:` });
           aiKey = key;
         }
 
