@@ -1,0 +1,21 @@
+# Browser / hybrid-app frontend — different globals (window, document, cordova,
+# firebase, WifiWizard2). Linting it with the Node config floods with no-undef.
+www/
+platforms/
+plugins/
+
+# Build output & generated / vendored bundles
+dist/
+build/
+coverage/
+**/*.min.js
+www/js/vendor-qrcode.js
+
+# Editor extensions (their own tsconfig/lint)
+extentions/
+extensions/
+vscode-extension/
+
+# Native scripts, deps
+node_modules/
+*.rsc
