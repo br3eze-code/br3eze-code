@@ -16,6 +16,8 @@ module.exports = (program) => {
     .description('Show system status')
     .alias('s')
     .option('--json', 'Output as JSON')
+    .option('--no-router', 'Skip the MikroTik router check (instant status)')
+    .option('--router-timeout <ms>', 'Router connect timeout in ms', '4000')
     .action(async (options) => {
       const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const { BRAND, CONFIG_PATH, STATE_PATH } = global.AGENTOS;
@@ -77,31 +79,42 @@ module.exports = (program) => {
         } catch { /* ignore */ }
 
         // ── MikroTik ─────────────────────────────────────────────
-        const s = spinner();
-        s.start('Connecting to router…');
-        let mikrotik;
-        try {
-          const { getMikroTikClient } = require('../../core/mikrotik');
-          mikrotik = await getMikroTikClient();
-          await mikrotik.connect();
-          const stats = await mikrotik.getSystemStats();
-          s.stop('Router telemetry collected');
-          statusData.router = {
-            status:  'connected',
-            cpu:     `${stats['cpu-load'] || 0}%`,
-            memory:  `${stats['memory-usage-percent'] || 0}%`,
-            uptime:  stats['uptime'] || 'unknown',
-            version: stats['version'] || 'unknown',
-          };
-        } catch (e) {
-          s.stop(`Router unreachable: ${e.message}`);
-          statusData.router = { status: 'disconnected', error: e.message };
-        } finally {
-          if (mikrotik) {
-            try {
-              const p = mikrotik.disconnect();
-              if (p && p.catch) p.catch(() => {});
-            } catch (e) {}
+        // Read-only status must never hang on an unreachable router, so the
+        // connect is bounded by --router-timeout and can be skipped entirely
+        // with --no-router.
+        if (options.router === false) {
+          statusData.router = { status: 'skipped' };
+        } else {
+          const s = spinner();
+          s.start('Connecting to router…');
+          let mikrotik;
+          const timeoutMs = Math.max(500, parseInt(options.routerTimeout, 10) || 4000);
+          try {
+            const { getMikroTikClient } = require('../../core/mikrotik');
+            mikrotik = await getMikroTikClient();
+            const stats = await Promise.race([
+              (async () => { await mikrotik.connect(); return mikrotik.getSystemStats(); })(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error(`timed out after ${timeoutMs}ms`)), timeoutMs)),
+            ]);
+            s.stop('Router telemetry collected');
+            statusData.router = {
+              status:  'connected',
+              cpu:     `${stats['cpu-load'] || 0}%`,
+              memory:  `${stats['memory-usage-percent'] || 0}%`,
+              uptime:  stats['uptime'] || 'unknown',
+              version: stats['version'] || 'unknown',
+            };
+          } catch (e) {
+            s.stop(`Router unreachable: ${e.message}`);
+            statusData.router = { status: 'disconnected', error: e.message };
+          } finally {
+            if (mikrotik) {
+              try {
+                const p = mikrotik.disconnect();
+                if (p && p.catch) p.catch(() => {});
+              } catch (e) {}
+            }
           }
         }
 
@@ -150,9 +163,12 @@ function renderStatus(data, brand, { intro, outro, note }) {
     ? `running (PID: ${data.gateway.pid})`
     : data.gateway.status;
 
-  const routerLine = data.router.status === 'connected'
-    ? `connected  CPU: ${data.router.cpu}  Memory: ${data.router.memory}`
-    : `disconnected${data.router.error ? '  — ' + data.router.error : ''}`;
+  const routerLine =
+    data.router.status === 'connected'
+      ? `connected  CPU: ${data.router.cpu}  Memory: ${data.router.memory}`
+      : data.router.status === 'skipped'
+        ? 'skipped (--no-router)'
+        : `disconnected${data.router.error ? '  — ' + data.router.error : ''}`;
 
   const channels = [];
   if (data.channels?.telegram) channels.push('Telegram');
