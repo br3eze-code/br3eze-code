@@ -902,6 +902,11 @@ class Database {
                     const snap = await this.db.collection('users').where('username', '==', username).limit(1).get();
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
+                if (this.sqlite) {
+                    const { SQLiteDB } = require('./sqlite-db');
+                    const row = this.sqlite.prepare('SELECT * FROM users WHERE username = ? LIMIT 1').get(username);
+                    return row ? SQLiteDB.rowToUser(row) : null;
+                }
                 return Array.from(this._users.values()).find(u => u.username === username) || null;
             }
 
@@ -911,6 +916,11 @@ class Database {
                     const snap = await this.db.collection('users').where('phoneNumber', '==', phone).limit(1).get();
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
+                if (this.sqlite) {
+                    const { SQLiteDB } = require('./sqlite-db');
+                    const row = this.sqlite.prepare('SELECT * FROM users WHERE phoneNumber = ? LIMIT 1').get(phone);
+                    return row ? SQLiteDB.rowToUser(row) : null;
+                }
                 return Array.from(this._users.values()).find(u => u.phoneNumber === phone) || null;
             }
 
@@ -919,6 +929,11 @@ class Database {
                 if (this.db) {
                     const snap = await this.db.collection('users').where('email', '==', email).limit(1).get();
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+                }
+                if (this.sqlite) {
+                    const { SQLiteDB } = require('./sqlite-db');
+                    const row = this.sqlite.prepare('SELECT * FROM users WHERE email = ? LIMIT 1').get(email);
+                    return row ? SQLiteDB.rowToUser(row) : null;
                 }
                 return Array.from(this._users.values()).find(u => u.email === email) || null;
             }
@@ -932,6 +947,13 @@ class Database {
                         .get();
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
+                if (this.sqlite) {
+                    // json_extract gives an EXACT match on the channel's value —
+                    // avoids LIKE substring false-positives (e.g. '111' vs '1112223').
+                    const { SQLiteDB } = require('./sqlite-db');
+                    const row = this.sqlite.prepare("SELECT * FROM users WHERE json_extract(channels, '$.' || ?) = ? LIMIT 1").get(channel, String(channelId));
+                    return row ? SQLiteDB.rowToUser(row) : null;
+                }
                 return Array.from(this._users.values()).find(u => u.channels && u.channels[channel] === String(channelId)) || null;
             }
 
@@ -940,6 +962,13 @@ class Database {
                 const update = { [`channels.${channel}`]: String(channelId) };
                 if (this.db) {
                     await this.db.collection('users').doc(String(userId)).update(update);
+                } else if (this.sqlite) {
+                    const user = await this.getUser(String(userId));
+                    if (!user) return false;
+                    const channels = { ...(user.channels || {}), [channel]: String(channelId) };
+                    const { SQLiteDB } = require('./sqlite-db');
+                    this.sqlite.prepare('UPDATE users SET channels = ? WHERE uid = ?')
+                        .run(SQLiteDB.toDB(channels), String(userId));
                 } else {
                     const u = this._users.get(String(userId));
                     if (!u) return false;
