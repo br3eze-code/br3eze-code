@@ -5,13 +5,14 @@
  * or drop a directory containing SKILL.md (+ optional index.js exporting a
  * skill) and load it with loadSkillsFrom() — no runtime-core changes needed.
  */
-'use strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createRequire } from 'node:module';
 
-const fs = require('fs');
-const path = require('path');
+const require = createRequire(import.meta.url);
 
 /** Define a tool: a named, schema-described function. */
-function defineTool({ name, description = '', parameters, handler }) {
+export function defineTool({ name, description = '', parameters, handler }) {
     if (!name || typeof handler !== 'function') throw new Error('defineTool requires { name, handler }');
     return { name, description, parameters: parameters || { type: 'object', properties: {} }, handler };
 }
@@ -25,7 +26,7 @@ function defineTool({ name, description = '', parameters, handler }) {
  * @param {Function} [def.match]    (input) => { tool, args } | null  — fast path
  * @param {string} [def.persona]    text appended to the system prompt
  */
-function defineSkill(def) {
+export function defineSkill(def) {
     if (!def || !def.name) throw new Error('defineSkill requires { name }');
     return {
         name: def.name,
@@ -42,7 +43,7 @@ function defineSkill(def) {
  *   - SKILL.md whose front-matter/first heading provides name + description.
  * Code skills win; a SKILL.md-only directory becomes a persona-only skill.
  */
-function loadSkillsFrom(dir) {
+export function loadSkillsFrom(dir) {
     const skills = [];
     if (!fs.existsSync(dir)) return skills;
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -79,5 +80,3 @@ function _parseSkillMd(text, fallbackName) {
     }
     return { name, description, persona: text.slice(0, 2000) };
 }
-
-module.exports = { defineTool, defineSkill, loadSkillsFrom };

@@ -16,11 +16,10 @@
  * returning `{ tool, args }` (call a tool) or `{ text }` (prose reply). Absent
  * an llm, only the fast paths work and everything else returns guidance.
  */
-'use strict';
 
-const { Registry } = require('./registry');
+import { Registry } from './registry.js';
 
-class Runtime {
+export class Runtime {
     constructor({ llm = null, persona = '', logger = null } = {}) {
         this.registry = new Registry();
         this.llm = llm;
@@ -105,6 +104,4 @@ class Runtime {
     }
 }
 
-function createRuntime(opts = {}) { return new Runtime(opts); }
-
-module.exports = { Runtime, createRuntime };
+export function createRuntime(opts = {}) { return new Runtime(opts); }

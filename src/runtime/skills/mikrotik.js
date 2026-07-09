@@ -7,11 +7,11 @@
  *
  *     rt.use(createMikrotikSkill(mikrotikClient));
  */
-'use strict';
 
-const { defineSkill, defineTool } = require('../skill');
 
-function createMikrotikSkill(mikrotik) {
+import { defineSkill, defineTool } from '../skill.js';
+
+export function createMikrotikSkill(mikrotik) {
     if (!mikrotik) throw new Error('createMikrotikSkill requires a mikrotik client');
 
     const tools = [
@@ -58,4 +58,3 @@ function createMikrotikSkill(mikrotik) {
     });
 }
 
-module.exports = { createMikrotikSkill };

@@ -11,9 +11,8 @@
  * schema; a skill groups tools and may expose fast-path matchers so common
  * requests skip the LLM.
  */
-'use strict';
 
-class Registry {
+export class Registry {
     constructor() {
         this.tools = new Map();     // name -> tool
         this.skills = new Map();    // name -> skill
@@ -81,5 +80,3 @@ class Registry {
         }));
     }
 }
-
-module.exports = { Registry };

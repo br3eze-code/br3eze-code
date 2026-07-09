@@ -1,13 +1,25 @@
 'use strict';
 /**
- * Domain-agnostic runtime: skills compose onto a network-unaware core, and the
- * MikroTik network domain is proven to be just one plugin among arbitrary ones.
+ * Domain-agnostic runtime (ESM subpackage): skills compose onto a
+ * network-unaware core, and the MikroTik network domain is proven to be just
+ * one plugin among arbitrary ones. The runtime is ESM, so it's loaded via
+ * dynamic import (jest runs with --experimental-vm-modules).
  */
 
 const fs = require('fs');
 const path = require('path');
-const { createRuntime, defineSkill, defineTool } = require('../../src/runtime');
-const { createMikrotikSkill } = require('../../src/runtime/skills/mikrotik');
+const { pathToFileURL } = require('url');
+
+const RT_DIR = path.join(__dirname, '../../src/runtime');
+const importRuntime = () => import(pathToFileURL(path.join(RT_DIR, 'index.js')).href);
+const importMikrotik = () => import(pathToFileURL(path.join(RT_DIR, 'skills/mikrotik.js')).href);
+
+let createRuntime, defineSkill, defineTool, createMikrotikSkill;
+
+beforeAll(async () => {
+    ({ createRuntime, defineSkill, defineTool } = await importRuntime());
+    ({ createMikrotikSkill } = await importMikrotik());
+});
 
 function build() {
     const echo = defineSkill({
@@ -36,7 +48,7 @@ function build() {
     return rt;
 }
 
-describe('domain-agnostic runtime', () => {
+describe('domain-agnostic runtime (ESM)', () => {
     test('composes arbitrary skills + network-as-plugin', () => {
         const rt = build();
         expect(rt.registry.listSkills()).toHaveLength(3);
@@ -45,16 +57,16 @@ describe('domain-agnostic runtime', () => {
 
     test('tier-1 fast path for arbitrary and network skills', async () => {
         const rt = build();
-        expect((await rt.run('say hello world'))).toMatchObject({ tier: 1, result: 'echo: hello world' });
+        expect(await rt.run('say hello world')).toMatchObject({ tier: 1, result: 'echo: hello world' });
         expect((await rt.run('who')).result.count).toBe(2);
         expect((await rt.run('kick alice')).result).toEqual({ kicked: 'alice' });
     });
 
     test('tier-3 LLM routing to registered tools', async () => {
         const rt = build();
-        expect((await rt.run('please add 2 and 3'))).toMatchObject({ tier: 3, result: 5 });
+        expect(await rt.run('please add 2 and 3')).toMatchObject({ tier: 3, result: 5 });
         expect((await rt.run('router status')).result['cpu-load']).toBe(7);
-        expect((await rt.run('hello there'))).toMatchObject({ type: 'chat' });
+        expect(await rt.run('hello there')).toMatchObject({ type: 'chat' });
     });
 
     test('unknown tool and empty input degrade gracefully', async () => {
@@ -63,12 +75,11 @@ describe('domain-agnostic runtime', () => {
         expect((await rt.run('do something')).type).toBe('fallback');
     });
 
-    test('runtime core has no domain coupling (only requires ./registry)', () => {
-        const core = fs.readFileSync(path.join(__dirname, '../../src/runtime/runtime.js'), 'utf8');
-        const reg = fs.readFileSync(path.join(__dirname, '../../src/runtime/registry.js'), 'utf8');
-        const requires = (core.match(/require\(['"][^'"]+['"]\)/g) || []);
-        expect(requires).toEqual(["require('./registry')"]);
-        // strip comments, then assert no domain identifiers in actual code
+    test('runtime core has no domain coupling (only imports ./registry)', () => {
+        const core = fs.readFileSync(path.join(RT_DIR, 'runtime.js'), 'utf8');
+        const reg = fs.readFileSync(path.join(RT_DIR, 'registry.js'), 'utf8');
+        const imports = (core.match(/from ['"][^'"]+['"]/g) || []);
+        expect(imports).toEqual(["from './registry.js'"]);
         const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
         expect(/mikrotik|hotspot|\brouter\b|voucher|firebase/i.test(strip(core) + strip(reg))).toBe(false);
     });

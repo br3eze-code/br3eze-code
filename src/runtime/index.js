@@ -17,15 +17,6 @@
  */
 'use strict';
 
-const { Runtime, createRuntime } = require('./runtime');
-const { Registry } = require('./registry');
-const { defineSkill, defineTool, loadSkillsFrom } = require('./skill');
-
-module.exports = {
-    createRuntime,
-    Runtime,
-    Registry,
-    defineSkill,
-    defineTool,
-    loadSkillsFrom,
-};
+export { Runtime, createRuntime } from './runtime.js';
+export { Registry } from './registry.js';
+export { defineSkill, defineTool, loadSkillsFrom } from './skill.js';
