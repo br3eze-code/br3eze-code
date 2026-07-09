@@ -288,6 +288,22 @@ module.exports = (program) => {
 
                 await gateway.start();
 
+                // ── Heartbeat agent — proactive owner briefings (OpenClaw-style)
+                // Notify-only; enabled via HEARTBEAT_ENABLED=true.
+                try {
+                    const { HeartbeatAgent } = require('../../core/heartbeat');
+                    const heartbeat = new HeartbeatAgent({
+                        engine: askEngine,
+                        channelManager: gateway.channelManager,
+                        database: global.database,
+                        mikrotik,
+                    });
+                    heartbeat.start();
+                    global.heartbeat = heartbeat;
+                } catch (err) {
+                    logger.warn(`Heartbeat agent not started: ${err.message}`);
+                }
+
                 // Save PID
                 fs.writeFileSync(pidFile, process.pid.toString());
 
