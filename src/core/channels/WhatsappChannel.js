@@ -389,6 +389,9 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set('buy', this._handleBuy);
     this.handlers.set('cart', this._handleCart);
     this.handlers.set('checkout', this._handleCheckout);
+    this.handlers.set('plans', this._handlePlans);
+    this.handlers.set('plan', this._handleBuyPlan);
+    this.handlers.set('store', this._handleStore);
     this.handlers.set('menu', this._handleMenu);
     this.handlers.set('help', this._handleHelp);
     this.handlers.set('dashboard', this._handleDashboard);
@@ -642,6 +645,40 @@ class WhatsAppChannel extends BaseChannel {
       const paidLine = r.payMethod === 'credits' ? `Paid $${r.total.toFixed(2)} from your balance.` : `Total $${r.total.toFixed(2)} — *cash on delivery*.`;
       await this.send(jid, `🎉 *Order confirmed!*\nOrder: *${r.invoiceNumber}*\n${paidLine}\n\nWe'll ship to ${address.city}. Thank you! 📦`);
     } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  // ── Plans: sell + activate a hotspot plan in-chat ──────────────────────────
+  async _handlePlans(jid) {
+    const ps = require('../plans-sales');
+    try {
+      const plans = await ps.listPlans();
+      if (!plans.length) return this.send(jid, '📶 No plans available right now.');
+      const lines = plans.map(p => {
+        const dur = `${p.durationValue || p.durationDays} ${p.durationUnit || 'day'}${(p.durationValue || p.durationDays) > 1 ? 's' : ''}`;
+        const data = p.dataLimit > 0 ? `${p.dataLimit}GB` : 'Unlimited';
+        return `*${p.name}* — $${Number(p.price).toFixed(2)}\n  \`${p.id}\` · ${dur} · ${data} · ${p.deviceLimit || 1} device(s)`;
+      });
+      await this.send(jid, `📶 *Power Connect Plans*\n\n${lines.join('\n\n')}\n\n_Buy & activate:_ \`plan <id>\`\n(Link your account with /link to pay from your balance.)`);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  async _handleBuyPlan(jid, msg, args) {
+    const ps = require('../plans-sales');
+    const planId = args && args[1];
+    if (!planId) return this.send(jid, 'Usage: `plan <plan-id>`\nSend `plans` to see the plan ids.');
+    const linked = await this._linkedUid(jid);
+    if (!linked) return this.send(jid, '🔐 Link your account first: open the app → Settings → Link Chat Account, then send `/link <code>`.');
+    try {
+      const r = await ps.buyPlan(linked.uid, planId);
+      const paidLine = r.paid ? `Paid $${r.price.toFixed(2)} from your balance.` : 'Activated (no charge).';
+      const access = r.provisioned ? '\nYour hotspot access is live now. 🚀' : '\nConnect to the hotspot to get online.';
+      await this.send(jid, `🎉 *${r.planName} activated!*\n${paidLine}\nExpires ${new Date(r.expiresAt).toLocaleString()}.${access}`);
+    } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
+  }
+
+  // Unified storefront — br3eze sells BOTH plans and merch.
+  async _handleStore(jid) {
+    await this.send(jid, `🛒 *Br3eze Store*\n\nI can set you up with two things:\n\n📶 *Internet Plans* — send \`plans\`\n👕 *Merch* (tees, caps, kicks) — send \`shop\`\n\nThen \`plan <id>\` to activate a plan, or \`buy <id> [size]\` → \`checkout\` for merch.`);
   }
 
   async _handleMistakes(jid, msg) {
