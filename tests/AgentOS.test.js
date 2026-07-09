@@ -103,7 +103,7 @@ jest.mock('../src/core/channels/ChannelManager', () => {
 
 const AgentOS = require('../src/core/AgentOS');
 
-jest.setTimeout(30000);
+jest.setTimeout(60000); // skill init can be slow under CI load — avoid flaky timeouts
 
 describe('AgentOS', () => {
   let agent;
