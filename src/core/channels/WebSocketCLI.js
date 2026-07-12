@@ -6,7 +6,6 @@ import { getMikroTikClient } from '../mikrotik.js';
 import { getDatabase } from '../database.js';
 import { generate as voucherCode } from '../voucher.js';
 import { DEFAULT_PLANS } from '../database.js';
-import dateUtils from '../../utils/date.js';
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -251,6 +250,7 @@ class WebSocketCLI {
             const mikrotik = getMikroTikClient();
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                const { default: dateUtils } = await import('../../utils/date.js');
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
                 dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
             const loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;

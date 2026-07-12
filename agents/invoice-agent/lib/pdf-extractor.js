@@ -204,4 +204,5 @@ function _extractLineItems(text) {
     return items;
 }
 
+export { extractPDF, parseInvoiceFields };
 export default { extractPDF, parseInvoiceFields };

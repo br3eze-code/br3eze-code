@@ -5,7 +5,6 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from './logger.js';
 import { STATE_PATH, getConfig, BRAND, saveConfig } from './config.js';
-import { PrintBroker } from './print-broker.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Port discovery cache
@@ -606,6 +605,7 @@ async function testPrinterConnection(printerConfig = {}) {
  */
 async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
     try {
+        const { PrintBroker } = await import('./print-broker.js');
         const broker = PrintBroker.getInstance();
         if (broker.getMobileClientStatus().count > 0) {
             return await broker.print(voucherData, { preferMobile: true });

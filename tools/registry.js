@@ -6,11 +6,11 @@
 // ─── LOAD TOOL GROUPS ─────────────────────────────────
 
 // Each group module exports named functions
-import mikrotik from './mikrotik/index.js.js';
-import telegram from './telegram/index.js.js';
-import db from './db/index.js.js';
-import payments from './payments/index.js.js';
-import system from './system/index.js.js';
+import mikrotik from './mikrotik/index.js';
+import telegram from './telegram/index.js';
+import db from './db/index.js';
+import payments from './payments/index.js';
+import system from './system/index.js';
 
 // ─── PREFIX HELPER ────────────────────────────────────
 /**

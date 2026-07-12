@@ -11,7 +11,6 @@ import shop from '../shop.js';
 import ps from '../plans-sales.js';
 import { getConfig } from '../config.js';
 import voucherAgent from '../voucher.js';
-import dateUtils from '../../utils/date.js';
 import QRCode from 'qrcode';
 import { printVoucher } from '../printer.js';
 const chalk = _chalk.default || _chalk;
@@ -854,6 +853,7 @@ class WhatsAppChannel extends BaseChannel {
     const code = voucherAgent.generate(planId);
 
     const mt = this.agent?.mikrotik || global.mikrotik;
+    const { default: dateUtils } = await import('../../utils/date.js');
     const expiresAt = planObj.durationValue && planObj.durationUnit ?
       dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
     const loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;

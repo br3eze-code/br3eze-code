@@ -6,7 +6,6 @@ import pc from 'picocolors';
 import clack from '@clack/prompts';
 import { fmtBytes } from './utils.js';
 import { DEFAULT_PLANS } from './database.js';
-import dateUtils from '../utils/date.js';
 import { printVoucher } from './printer.js';
 
 /**
@@ -329,6 +328,7 @@ class AgentOSCLI {
         const ok = await this._nav(`Generate voucher for plan: ${pc.cyan(planObj.name || plan)}?`);
         if (!ok) { this._info('Cancelled.'); return; }
 
+        const { default: dateUtils } = await import('../utils/date.js');
         const expiresAt = planObj.durationValue && planObj.durationUnit
             ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
         const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;

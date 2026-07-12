@@ -10,7 +10,6 @@
 import express from 'express';
 import crypto from 'crypto';
 import { DEFAULT_PLANS } from '../../core/database.js';
-import dateUtils from '../../utils/date.js';
 import QRCode from 'qrcode';
 const router  = express.Router();
 import { getManager } from '../../core/mikrotik.js';
@@ -195,6 +194,7 @@ router.post('/vouchers', async (req, res) => {
     const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
     const mt    = global.mikrotik;
 
+    const { default: dateUtils } = await import('../../utils/date.js');
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;
@@ -265,6 +265,7 @@ router.post('/vouchers/pay', async (req, res) => {
     const { plan, amount, method } = req.body;
     if (!plan || !amount) return res.status(400).json({ ok: false, error: 'plan and amount required' });
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+    const { default: dateUtils } = await import('../../utils/date.js');
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;

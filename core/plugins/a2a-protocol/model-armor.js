@@ -182,4 +182,5 @@ class ModelArmor {
     }
 }
 
+export { ModelArmor };
 export default { ModelArmor };

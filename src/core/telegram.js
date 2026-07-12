@@ -18,7 +18,6 @@ import { PermissionMode } from './permissions.js';
 import AskEngine from './ask-engine.js';
 import crypto from 'crypto';
 import { DEFAULT_PLANS } from './database.js';
-import dateUtils from '../utils/date.js';
 import { printVoucher } from './printer.js';
 import { admin } from './firebase.js';
 const RATE_LIMIT_MAX = 30;
@@ -537,6 +536,7 @@ class AgentOSBot {
             const mikrotik = getMikroTikClient();
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                const { default: dateUtils } = await import('../utils/date.js');
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
                 dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
             const loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;

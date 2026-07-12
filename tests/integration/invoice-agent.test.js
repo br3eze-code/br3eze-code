@@ -9,7 +9,7 @@ jest.mock('../../agents/invoice-agent/lib/pdf-extractor.js', () => ({
     parseInvoiceFields: jest.requireActual('../../agents/invoice-agent/lib/pdf-extractor.js').parseInvoiceFields
 }));
 
-const processInvoice = require('../../agents/invoice-agent/handlers/processInvoice.js');
+const { default: processInvoice } = require('../../agents/invoice-agent/handlers/processInvoice.js');
 
 class Br3ezeTestHarness {
     constructor() {

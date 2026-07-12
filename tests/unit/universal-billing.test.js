@@ -13,7 +13,7 @@ jest.mock('../../src/core/logger', () => ({
 }));
 
 const { logger } = require('../../src/core/logger');
-const UniversalBilling = require('../../src/core/universal-billing');
+const { default: UniversalBilling } = require('../../src/core/universal-billing.js');
 
 // ── Shared factory helpers ────────────────────────────────────────────────────
 

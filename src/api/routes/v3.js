@@ -10,7 +10,6 @@
 import express from 'express';
 import crypto from 'crypto';
 import { DEFAULT_PLANS } from '../../core/database.js';
-import dateUtils from '../../utils/date.js';
 const router  = express.Router();
 import { logger } from '../../core/logger.js';
 
@@ -53,6 +52,7 @@ router.post('/bulk/vouchers', async (req, res) => {
     const n = Math.min(Math.max(parseInt(count) || 1, 1), 100);
 
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+    const { default: dateUtils } = await import('../../utils/date.js');
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;

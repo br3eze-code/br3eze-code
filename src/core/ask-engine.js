@@ -12,7 +12,6 @@ import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
 import crypto from 'crypto';
 import { DEFAULT_PLANS } from './database.js';
-import dateUtils from '../utils/date.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -375,6 +374,7 @@ class AskEngine {
 
 
                 const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                    const { default: dateUtils } = await import('../utils/date.js');
                 const expiresAt = planObj.durationValue && planObj.durationUnit ?
                     dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
