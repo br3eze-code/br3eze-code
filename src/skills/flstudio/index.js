@@ -826,7 +826,6 @@ case 'flstudio.browse': {
 case 'flstudio.script': {
   this.logger.info(`FL SCRIPT ${args.action} ${args.name}`, { user: ctx.userId })
   const fs = fs_promises
-  const path = path
 
   const scriptPath = `${this.workspace}/fl_scripts`
   await fs.mkdir(scriptPath, { recursive: true })

@@ -7,11 +7,8 @@ import path from 'path';
  * For Br3eze Africa WiFi Voucher Payments
  */
 
-const crypto = crypto;
-const fs = fs;
-const path = path;
 import axios from 'axios';
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 class MastercardA2AService {
     constructor() {

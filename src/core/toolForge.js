@@ -2,10 +2,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
 import perf_hooks from 'perf_hooks';
-const crypto = crypto;
 import vm from 'vm';
-const fs = fs;
-const path = path;
 import { EventEmitter } from 'events';
 import { logger } from './logger.js';
 

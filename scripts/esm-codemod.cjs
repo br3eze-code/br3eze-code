@@ -29,13 +29,17 @@ if (TARGET_DIRS.length === 0) {
 const SKIP_DIRS = new Set(['node_modules', 'www', '.git', 'dist', 'build', 'platforms']);
 const report = { converted: [], skipped: [], flagged: [] };
 
-function walk(dir) {
+const INCLUDE_TESTS = process.env.ESM_CODEMOD_INCLUDE_TESTS === '1';
+
+function walk(target) {
+  const stat = fs.statSync(target);
+  if (stat.isFile()) return [target];
   const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(target, { withFileTypes: true })) {
     if (SKIP_DIRS.has(entry.name)) continue;
-    const full = path.join(dir, entry.name);
+    const full = path.join(target, entry.name);
     if (entry.isDirectory()) out.push(...walk(full));
-    else if (entry.isFile() && entry.name.endsWith('.js') && !entry.name.endsWith('.test.js')) out.push(full);
+    else if (entry.isFile() && entry.name.endsWith('.js') && (INCLUDE_TESTS || !entry.name.endsWith('.test.js'))) out.push(full);
   }
   return out;
 }

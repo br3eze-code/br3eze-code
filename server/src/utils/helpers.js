@@ -2,7 +2,7 @@
  * Helper utilities
  */
 
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Format bytes to human readable string

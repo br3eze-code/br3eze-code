@@ -1,6 +1,4 @@
-'use strict';
-
-const GoogleWorkspaceDomain = require('../../../src/domains/google-workspace');
+import GoogleWorkspaceDomain from '../../../src/domains/google-workspace/index.js';
 
 describe('GoogleWorkspaceDomain', () => {
   let domain;

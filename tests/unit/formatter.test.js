@@ -1,6 +1,4 @@
-'use strict';
-
-const { formatBytes, formatUptime } = require('../../src/utils/formatters');
+import { formatBytes, formatUptime } from '../../src/utils/formatters.js';
 
 // ── formatBytes ───────────────────────────────────────────────────────────────
 

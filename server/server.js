@@ -1,8 +1,14 @@
-const __dirname = require('path').dirname(require('url').fileURLToPath(import.meta.url));
+#!/usr/bin/env node
+import { fileURLToPath } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
-#!/usr/bin/env node
+import Database from 'better-sqlite3';
+import https from 'https';
+import net from 'net';
+import { db, admin } from './src/config/firebase.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // ============================================================
 // AgentOS WiFi Manager - Node.js Backend
 // Version: 2026.5.0
@@ -17,8 +23,6 @@ import WebSocket from 'ws';
 import winston from 'winston';
 import helmet from 'helmet';
 import cors from 'cors';
-const crypto = crypto;
-const path = path;
 import QRCode from 'qrcode';
 
 // ============================================================
@@ -95,7 +99,6 @@ class DatabaseService {
 
     async initialize() {
         try {
-            import Database from 'better-sqlite3';
             this.db = new Database('agentos.db');
 
             // Create tables
@@ -557,8 +560,6 @@ class NetworkDiscoveryService {
 
     // Check if IP is a MikroTik router
     async checkMikrotik(ip, ports) {
-        import http from 'http';
-        import https from 'https';
 
         for (const port of ports) {
             try {
@@ -586,8 +587,6 @@ class NetworkDiscoveryService {
 
     // HTTP check with timeout
     httpCheck(ip, port, timeout = 2000) {
-        import http from 'http';
-        import https from 'https';
         return new Promise((resolve) => {
             const httpModule = port === 443 ? https : http;
             const options = {
@@ -670,7 +669,6 @@ class NetworkDiscoveryService {
 
     // Ping host (TCP method since ICMP requires admin)
     async pingHost(ip, timeout = 2000) {
-        import net from 'net';
 
         return new Promise((resolve) => {
             const start = Date.now();
@@ -707,7 +705,6 @@ class NetworkDiscoveryService {
     }
 
     async checkPort(ip, port, timeout) {
-        import net from 'net';
         return new Promise((resolve) => {
             const socket = new net.Socket();
             socket.setTimeout(timeout);
@@ -1495,7 +1492,6 @@ app.post('/api/checkout/verify', async (req, res) => {
     const sessionId = (req.body && req.body.session_id) || req.query.session_id;
     if (!sessionId) return res.status(400).json({ error: 'session_id required' });
     try {
-        import { db, admin } from './src/config/firebase.js';
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
         const r = await _stripeAxios.get(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, { auth: { username: SK, password: '' } });
         const s = r.data;
@@ -1561,7 +1557,6 @@ app.use((err, req, res, next) => {
 
 async function boot() {
     // Ensure logs directory exists
-    const fs = fs;
     if (!fs.existsSync('logs')) {
         fs.mkdirSync('logs', { recursive: true });
     }

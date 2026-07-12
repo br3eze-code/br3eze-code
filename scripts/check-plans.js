@@ -1,8 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 const admin = require('firebase-admin');
-const fs = fs;
-const path = path;
 import 'dotenv/config';
 async function check() {
     if (!admin.apps.length) {

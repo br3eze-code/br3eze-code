@@ -5,7 +5,8 @@
 
 'use strict';
 
-import { getManager: getMikroTikManager } from '../../core/mikrotik.js';
+import { getManager as getMikroTikManager } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
 
 module.exports = (program) => {
   program
@@ -31,7 +32,6 @@ module.exports = (program) => {
             mikrotik.getAllHotspotUsers(),
             mikrotik.getInterfaces(),
             (async () => {
-              import { getDatabase } from '../../core/database.js';
               const db = await getDatabase();
               return db.getStats();
             })()

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
+import Database from 'better-sqlite3';
 /**
  * SessionManager — SQLite-backed session lifecycle
  * ─────────────────────────────────────────────────────────────────
@@ -12,8 +13,6 @@ import path from 'path';
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path   = path;
-const crypto = crypto;
 import { EventEmitter } from 'events';
 
 const STATE_MACHINE = {
@@ -36,8 +35,6 @@ class SessionManager extends EventEmitter {
 
   _initDB() {
     try {
-      import Database from 'better-sqlite3';
-      const fs = fs;
       fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
       this._db = new Database(this._dbPath);
       this._db.exec(`

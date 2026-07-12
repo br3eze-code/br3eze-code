@@ -1,6 +1,5 @@
-const __filename = require('url').fileURLToPath(import.meta.url);
-const __dirname = require('path').dirname(__filename);
 import { fileURLToPath } from 'url';
+import FormData from 'form-data';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { PythonShell } from 'python-shell';
@@ -410,7 +409,6 @@ case 'blender.review.post':
   
   if (args.platform === 'frameio') {
     // Requires FRAMEIO_TOKEN in env + frameio skill or direct API
-    import FormData from 'form-data';
     const form = new FormData()
     form.append('file', mediaBuf, path.basename(mediaPath))
     form.append('name', args.version_name)

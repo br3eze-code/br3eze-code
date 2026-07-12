@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import { logger } from './logger.js';
 
 class SecurityManager {
   constructor() {
@@ -79,7 +80,6 @@ class SecurityManager {
 
   // Audit logging middleware
   auditMiddleware(req, res, next) {
-    import { logger } from './logger.js';
     const start = Date.now();
 
     res.on('finish', () => {

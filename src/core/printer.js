@@ -1,11 +1,11 @@
-import { printer as ThermalPrinter } from 'node-thermal-printer';
-import { types as PrinterTypes } from 'node-thermal-printer';
+import { printer as ThermalPrinter, types as PrinterTypes } from 'node-thermal-printer';
 import QRCode from 'qrcode';
 import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logger.js';
-import { STATE_PATH } from './config.js';
+import { STATE_PATH, getConfig, BRAND, saveConfig } from './config.js';
+import { PrintBroker } from './print-broker.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Port discovery cache
@@ -286,7 +286,6 @@ function _writeToDevNode(buffer, devPath) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function _printVoucherDirect(voucherData, printerId = 'PRINTER_MAIN', _triedInterfaces = []) {
-    import { getConfig } from './config.js';
     const config = getConfig();
 
     if (!voucherData?.username) {
@@ -350,7 +349,6 @@ async function _printVoucherDirect(voucherData, printerId = 'PRINTER_MAIN', _tri
         const printer = new ThermalPrinter(printerConfig);
 
         // ── Build receipt ────────────────────────────────────────────────────
-        import { BRAND } from './config.js';
         printer.alignCenter();
         printer.setTextSize(1, 1);
         printer.bold(true);
@@ -608,7 +606,6 @@ async function testPrinterConnection(printerConfig = {}) {
  */
 async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
     try {
-        import { PrintBroker } from './print-broker.js';
         const broker = PrintBroker.getInstance();
         if (broker.getMobileClientStatus().count > 0) {
             return await broker.print(voucherData, { preferMobile: true });
@@ -618,7 +615,6 @@ async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
 }
 
 function getPrinterStatus() {
-    import { getConfig } from './config.js';
     const config = getConfig();
     const iface = config.printer?.interface || 'auto';
     const isLinux = process.platform === 'linux';
@@ -638,7 +634,6 @@ function getPrinterStatus() {
 }
 
 function setPrinterModel(model) {
-    import { getConfig, saveConfig } from './config.js';
     const config = getConfig();
     config.printer = config.printer || {};
     config.printer.model = model;

@@ -16,6 +16,11 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
 
 import AskEngine from './ask-engine.js';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from './database.js';
+import dateUtils from '../utils/date.js';
+import { printVoucher } from './printer.js';
+import { admin } from './firebase.js';
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW = 60_000;
 const ALERT_COOLDOWN = 300_000;
@@ -527,10 +532,7 @@ class AgentOSBot {
     async createVoucher(chatId, plan, duration = '') {
         try {
             const db = await getDatabase();
-            import crypto from 'crypto';
             const code = `AGENT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-            import { DEFAULT_PLANS } from './database.js';
-            import dateUtils from '../utils/date.js';
             
             const mikrotik = getMikroTikClient();
             
@@ -573,7 +575,6 @@ class AgentOSBot {
 
             // Auto-print voucher
             try {
-                import { printVoucher } from './printer.js';
                 printVoucher({
                     username: code,
                     password: code,
@@ -820,7 +821,6 @@ class AgentOSBot {
                 let warnings = [];
 
                 if (user.uid) {
-                    import { admin } from './firebase.js';
                     if (admin && admin.auth) {
                         try {
                             const authRec = await admin.auth().getUser(user.uid);

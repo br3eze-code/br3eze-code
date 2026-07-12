@@ -566,7 +566,6 @@ JSON: {"groove_score":0.82,"syncopation":0.4,"microtiming":"laid_back","entrainm
     }
 case 'music.expectation': {
   this.logger.info(`MUSIC EXPECTATION ${args.metric}`, { user: ctx.userId })
-  import { Note } from 'tonal';
 
   // Simplified surprisal: -log2(p) using corpus probabilities
   const probs = { 'C': 0.2, 'G': 0.15, 'F': 0.12, 'D': 0.08, 'A': 0.07, 'E': 0.06, 'B': 0.05 }
@@ -658,7 +657,6 @@ JSON: {
 }
 case 'music.tuning': {
   this.logger.info(`MUSIC TUNING ${args.system} ${args.root}`, { user: ctx.userId })
-  import { Note, Interval } from 'tonal';
 
   const systems = {
     '12tet': { notes: 12, ratios: Array(12).fill(0).map((_, i) => Math.pow(2, i/12)), name: '12-Tone Equal' },
@@ -1060,7 +1058,7 @@ case 'music.melodyne': {
 }
           case 'music.audio_analyze': {
   this.logger.info(`MUSIC AUDIO_ANALYZE ${args.file}`, { user: ctx.userId })
-  import mm from 'music-metadata';
+  const mm = (await import('music-metadata')).default;
   const fs = fs_promises
   
   try {

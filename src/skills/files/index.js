@@ -1,11 +1,10 @@
 import fs from 'fs';
-import fs_promises from 'fs/promises';
+import fsp from 'fs/promises';
 import path from 'path';
 import { BaseSkill } from '../base.js';
 import axios from 'axios';
 import { google } from 'googleapis';
-const fs = fs_promises
-const path = path
+import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 class FileStorageSkill extends BaseSkill {
   static id = 'files'
@@ -137,7 +136,7 @@ class FileStorageSkill extends BaseSkill {
     }
 
     if (args.action === 'upload') {
-      const data = await fs.readFile(args.file)
+      const data = await fsp.readFile(args.file)
       const name = args.name || path.basename(args.file)
       const uploadPath = args.folder === '/'? `/root:/${name}:/content` : `/root:${args.folder}/${name}:/content`
       const res = await axios.put(`${base}${uploadPath}`, data, { headers })
@@ -147,7 +146,7 @@ class FileStorageSkill extends BaseSkill {
     if (args.action === 'download') {
       const res = await axios.get(`${base}/items/${args.file}/content`, { headers, responseType: 'arraybuffer' })
       const localPath = `${this.workspace}/${args.name || 'download'}`
-      await fs.writeFile(localPath, res.data)
+      await fsp.writeFile(localPath, res.data)
       return { action: 'download', path: localPath, size: res.data.length }
     }
 
@@ -230,7 +229,7 @@ class FileStorageSkill extends BaseSkill {
     
     if (args.service === 'onedrive' || args.service === 'both') {
       // Upload local workspace files matching pattern
-      const files = await fs.readdir(this.workspace)
+      const files = await fsp.readdir(this.workspace)
       const matches = files.filter(f => args.pattern === '*' || f.match(args.pattern.replace('*', '.*')))
       for (const f of matches) {
         const res = await this._onedrive({
@@ -244,7 +243,7 @@ class FileStorageSkill extends BaseSkill {
     }
 
     if (args.service === 'gdrive' || args.service === 'both') {
-      const files = await fs.readdir(this.workspace)
+      const files = await fsp.readdir(this.workspace)
       const matches = files.filter(f => args.pattern === '*' || f.match(args.pattern.replace('*', '.*')))
       for (const f of matches) {
         const res = await this._gdrive({
@@ -261,7 +260,6 @@ class FileStorageSkill extends BaseSkill {
 
   async _bucket(args, ctx) {
     // S3-compatible: use AWS SDK or MinIO
-    import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
     const s3 = new S3Client({
       region: this.config.s3_region || 'us-east-1',
       credentials: {
@@ -272,7 +270,7 @@ class FileStorageSkill extends BaseSkill {
     })
 
     if (args.action === 'upload') {
-      const data = await fs.readFile(args.file)
+      const data = await fsp.readFile(args.file)
       await s3.send(new PutObjectCommand({ Bucket: args.bucket, Key: args.key, Body: data }))
       return { action: 'upload', bucket: args.bucket, key: args.key }
     }
@@ -280,7 +278,7 @@ class FileStorageSkill extends BaseSkill {
     if (args.action === 'download') {
       const res = await s3.send(new GetObjectCommand({ Bucket: args.bucket, Key: args.key }))
       const localPath = `${this.workspace}/${path.basename(args.key)}`
-      await fs.writeFile(localPath, res.Body)
+      await fsp.writeFile(localPath, res.Body)
       return { action: 'download', path: localPath }
     }
 

@@ -1,6 +1,9 @@
 // src/core/channels/DiscordChannel.js
 import { BaseChannel } from './BaseChannel.js';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
+import { getChatRegistry } from '../chat-registry.js';
+import { getDatabase } from '../database.js';
+import H from './HandlerLibrary.js';
 
 class DiscordChannel extends BaseChannel {
   static getMetadata() {
@@ -52,7 +55,6 @@ class DiscordChannel extends BaseChannel {
       const from = message.channelId;
 
       // Register active chat for broadcasts
-      import { getChatRegistry } from '../chat-registry.js';
       getChatRegistry().register('discord', from);
 
       // Command Dispatcher
@@ -92,7 +94,6 @@ class DiscordChannel extends BaseChannel {
           return this.send(jid, '🚫 *Unauthorized.* Your ID is not in the allowed list.');
         }
 
-        import { getDatabase } from '../database.js';
         const db = await getDatabase();
         
         await db.upsertUser(jid, {
@@ -113,7 +114,6 @@ class DiscordChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    import H from './HandlerLibrary.js';
 
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);

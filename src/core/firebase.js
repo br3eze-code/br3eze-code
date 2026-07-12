@@ -6,6 +6,8 @@
 import admin from 'firebase-admin';
 import { logger } from './logger.js';
 import { getConfig } from './config.js';
+import path from 'path';
+import fs from 'fs';
 
 let firebaseApp = null;
 let db = null;
@@ -16,8 +18,6 @@ function initializeFirebase() {
   }
 
   try {
-    import path from 'path';
-    import fs from 'fs';
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
     
     if (serviceAccountPath) {

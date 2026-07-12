@@ -10,6 +10,9 @@ import path from 'path';
 
 import qrcode from 'qrcode-terminal';
 import { getConfig } from '../../core/config.js';
+import { getDatabase } from '../../core/database.js';
+import voucherAgent from '../../core/voucher.js';
+import WhatsAppChannel from '../../core/channels/WhatsappChannel.js';
 
 module.exports = (program) => {
   program
@@ -75,7 +78,6 @@ module.exports = (program) => {
 
         s.start('Connecting to database…');
         try {
-          import { getDatabase } from '../../core/database.js';
           const db    = await getDatabase();
           const stats = await db.getStats();
           s.stop('Database reachable');
@@ -87,7 +89,6 @@ module.exports = (program) => {
 
         s.start('Dry-run voucher generation…');
         try {
-          import voucherAgent from '../../core/voucher.js';
           const sample = voucherAgent.generate('default');
           s.stop(`Sample: ${sample}`);
           checks.push({ name: 'Generator', ok: true, detail: `sample → ${sample}` });
@@ -110,7 +111,6 @@ module.exports = (program) => {
       intro('📱 WhatsApp QR Pairing');
       log.info(`Auth folder: ${authDir}`);
 
-      import WhatsAppChannel from '../../core/channels/WhatsappChannel.js';
       const stubAgent = {};
 
       waConfig.authStateFolder = authDir;

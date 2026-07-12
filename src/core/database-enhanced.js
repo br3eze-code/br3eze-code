@@ -1,6 +1,8 @@
 // src/core/database-enhanced.js
 import admin from 'firebase-admin';
 import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
 
 class EnhancedDatabase {
   constructor() {
@@ -146,8 +148,6 @@ class EnhancedDatabase {
 
   _persistLocal() {
     // Persist to disk for offline recovery
-    import fs from 'fs';
-    import path from 'path';
     const file = path.join(process.cwd(), 'data', 'vouchers-backup.json');
     
     try {

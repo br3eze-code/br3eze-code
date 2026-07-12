@@ -1,4 +1,5 @@
 import promClient from 'prom-client';
+import { costTracker } from './cost-tracker.js';
 
 const registry = new promClient.Registry();
 
@@ -46,7 +47,6 @@ class Metrics {
   }
 
   snapshot() {
-    import { costTracker } from './cost-tracker.js';
     return {
       uptime: Math.floor((Date.now() - this.startedAt) / 1000),
       requests: this.requests,

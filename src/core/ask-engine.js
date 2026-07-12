@@ -10,6 +10,9 @@
 
 import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from './database.js';
+import dateUtils from '../utils/date.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -138,7 +141,6 @@ const TOOL_MAP = {
 // ── Voucher code generator (matches main.js voucherCode()) ───────────────────
 
 function voucherCode() {
-    import crypto from 'crypto';
     const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
     return `STAR-${part()}-${part()}`;
 }
@@ -371,8 +373,6 @@ class AskEngine {
                 const plan = genMatch[1];
                 const code = voucherCode();
 
-                import { DEFAULT_PLANS } from './database.js';
-                import dateUtils from '../utils/date.js';
 
                 const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
                 const expiresAt = planObj.durationValue && planObj.durationUnit ?

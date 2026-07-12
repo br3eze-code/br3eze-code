@@ -10,6 +10,15 @@ import path from 'path';
 import http from 'http';
 
 import { logger } from '../../core/logger.js';
+import { getManager as getMikroTik } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import { getConfig } from '../../core/config.js';
+import FinancialService from '../../core/financial.js';
+import UniversalBilling from '../../core/universal-billing.js';
+import DiscoveryService from '../../core/discovery.js';
+import MemoryManager from '../../core/memory/MemoryManager.js';
+import AskEngine from '../../core/ask-engine.js';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
 
 function postJSON({ host, port, token }, body) {
     return new Promise((resolve, reject) => {
@@ -57,15 +66,6 @@ function gatewayIsRunning(stateDir) {
 
 /** Standalone, gateway-less one-shot AskEngine — used when no gateway is running. */
 async function runStandalone(prompt, { stream }) {
-    import { getManager: getMikroTik } from '../../core/mikrotik.js';
-    import { getDatabase } from '../../core/database.js';
-    import { getConfig } from '../../core/config.js';
-    import FinancialService from '../../core/financial.js';
-    import UniversalBilling from '../../core/universal-billing.js';
-    import DiscoveryService from '../../core/discovery.js';
-    import MemoryManager from '../../core/memory/MemoryManager.js';
-    import AskEngine from '../../core/ask-engine.js';
-    import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
 
     const config = getConfig();
     const mikrotik = getMikroTik();

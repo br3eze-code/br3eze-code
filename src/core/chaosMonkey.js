@@ -1,6 +1,5 @@
-const __filename = require('url').fileURLToPath(import.meta.url);
-const __dirname = require('path').dirname(__filename);
 import { fileURLToPath } from 'url';
+import net from 'net';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 /**
@@ -42,7 +41,7 @@ const __dirname = path.dirname(__filename);
 
 import { RouterOSClient } from 'routeros-client';
 import { EventEmitter } from 'events';
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 
@@ -287,7 +286,6 @@ const NetworkingChaos = {
   ghostAPI: async function(rosCfg, opts = {}) {
     const count = opts.count ?? 3;
     return _exec('Networking', 'ghostAPI', async (chaos_id) => {
-      import net from 'net';
       const host = rosCfg.host || process.env.ROS_HOST;
       const port = rosCfg.port || 8728;
 

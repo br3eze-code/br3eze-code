@@ -5,6 +5,8 @@
 import { BaseProvider } from './BaseProvider.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '../../logger.js';
+import { OllamaProvider } from './OllamaProvider.js';
+import { GeminiProvider } from './GeminiProvider.js';
 
 class GemmaProvider extends BaseProvider {
     static getMetadata() {
@@ -26,10 +28,8 @@ class GemmaProvider extends BaseProvider {
 
     async validateKey() {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             return new OllamaProvider().validateKey();
         }
-        import { GeminiProvider } from './GeminiProvider.js';
         return new GeminiProvider({ apiKey: this.apiKey }).validateKey();
     }
 
@@ -44,7 +44,6 @@ class GemmaProvider extends BaseProvider {
 
     async generate(messages, tools = []) {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.generate(messages, tools);
         }
@@ -80,11 +79,9 @@ class GemmaProvider extends BaseProvider {
 
     async embed(input) {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.embed(input);
         }
-        import { GeminiProvider } from './GeminiProvider.js';
         const gemini = new GeminiProvider({ apiKey: this.apiKey });
         return gemini.embed(input);
     }

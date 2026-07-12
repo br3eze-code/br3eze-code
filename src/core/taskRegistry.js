@@ -2,7 +2,7 @@
  * TaskRegistry — in-memory sub-agent task lifecycle management
  */
 
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import EventEmitter from 'events';
 
 // ── Task Status enum ──────────────────────────────────────────────────────────

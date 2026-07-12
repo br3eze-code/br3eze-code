@@ -5,6 +5,9 @@ import crypto from 'crypto';
 import pc from 'picocolors';
 import clack from '@clack/prompts';
 import { fmtBytes } from './utils.js';
+import { DEFAULT_PLANS } from './database.js';
+import dateUtils from '../utils/date.js';
+import { printVoucher } from './printer.js';
 
 /**
  * AgentOSCLI — Interactive REPL powered by @clack/prompts + picocolors
@@ -319,8 +322,6 @@ class AgentOSCLI {
 
     async cmdVoucher([plan]) {
         if (!plan) { this._warn('Usage: voucher <plan>'); return; }
-        import { DEFAULT_PLANS } from './database.js';
-        import dateUtils from '../utils/date.js';
 
         const code = (this.config?.VOUCHER_PREFIX || 'STAR-') + crypto.randomBytes(3).toString('hex').toUpperCase();
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
@@ -349,7 +350,6 @@ class AgentOSCLI {
         s.stop(pc.green('✔ Voucher created'));
 
         // ── Print receipt ─────────────────────────────────────────────────────
-        import { printVoucher } from './printer.js';
         await printVoucher({ username: code, password: code, profile: plan, loginUrl })
             .then(r => {
                 if (r.success) console.log(pc.dim(`  🖨  Printed via ${r.interface}`));

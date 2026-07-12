@@ -1,6 +1,4 @@
-'use strict';
-
-const BaseDomain = require('../../../src/domains/BaseDomain');
+import BaseDomain from '../../../src/domains/BaseDomain.js';
 
 describe('BaseDomain', () => {
   let domain;

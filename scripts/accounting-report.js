@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import admin from 'firebase-admin';
 'use strict';
 /**
  * AgentOS Accounting Report Generator
@@ -33,7 +34,6 @@ const vlog = (...a) => VERBOSE && console.log('[accounting:verbose]', ...a);
 let db = null;
 async function initFirebase() {
   try {
-    import admin from 'firebase-admin';
     if (admin.apps.length === 0) {
       const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
       if (credPath && fs.existsSync(credPath)) {

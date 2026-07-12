@@ -1,5 +1,6 @@
 ﻿import { printVoucher } from '../src/core/printer.js';
 import { logger } from '../src/core/logger.js';
+import { discoverBluetoothPrinterPort } from '../src/core/printer.js';
 
 // Override config locally for the test if arguments are provided
 const mockConfig = {
@@ -27,7 +28,6 @@ async function runTest() {
 
     console.log('\n[2] Bluetooth Auto-Discovery:');
     try {
-        import { discoverBluetoothPrinterPort } from '../src/core/printer.js';
         const btPort = discoverBluetoothPrinterPort();
         if (btPort) {
             console.log(`✅ Discovered BT Printer on: ${btPort}`);

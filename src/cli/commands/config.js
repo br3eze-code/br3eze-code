@@ -4,6 +4,7 @@
 // ==========================================
 
 import _chalk from 'chalk';
+import { spawn } from 'child_process';
 const chalk  = _chalk.default || _chalk;
 import fs from 'fs';
 
@@ -78,7 +79,6 @@ module.exports = (program) => {
             const { CONFIG_PATH } = global.AGENTOS;
             const editor = process.env.EDITOR || 'nano';
 
-            import { spawn } from 'child_process';
             spawn(editor, [CONFIG_PATH], { stdio: 'inherit' });
         });
 

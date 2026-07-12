@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 // src/middleware/AuthMiddleware.js
 class AuthMiddleware {
   constructor(agent) {
@@ -16,7 +17,6 @@ class AuthMiddleware {
   }
 
   verifyToken(token) {
-    import jwt from 'jsonwebtoken';
     return jwt.verify(token, process.env.JWT_SECRET);
   }
 

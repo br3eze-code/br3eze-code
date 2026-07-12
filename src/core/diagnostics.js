@@ -2,7 +2,7 @@
  * Diagnostics — GatewayDiagnostics + MissionControlSnapshot + readiness checks
  */
 
-import { getManager: getMikroTikManager } from './mikrotik.js';
+import { getManager as getMikroTikManager } from './mikrotik.js';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { listSessions } from './sessionStore.js';

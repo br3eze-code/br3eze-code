@@ -1,6 +1,9 @@
 // src/domains/ai/index.js
 import BaseDomain from '../BaseDomain.js';
 import { ClaudeProvider } from '../../providers/claude.js';
+import { OpenAIProvider } from '../../providers/openai.js';
+import GeminiProvider from '../../providers/gemini.js';
+import { OllamaProvider } from '../../providers/ollama.js';
 
 class AIDomain extends BaseDomain {
   constructor() {
@@ -12,9 +15,6 @@ class AIDomain extends BaseDomain {
       description: 'Check status and validity of configured AI providers',
       execute: async () => {
         const providers = [];
-        import { OpenAIProvider } from '../../providers/openai.js';
-        import GeminiProvider from '../../providers/gemini.js';
-        import { OllamaProvider } from '../../providers/ollama.js';
 
         // Helper to check provider
         const checkProvider = async (name, ProviderClass, envKey) => {
@@ -48,15 +48,12 @@ class AIDomain extends BaseDomain {
            const claude = new ClaudeProvider();
            return await claude.validateKey();
         } else if (p === 'openai') {
-           import { OpenAIProvider } from '../../providers/openai.js';
            const openai = new OpenAIProvider();
            return await openai.validateKey();
         } else if (p === 'gemini') {
-           import GeminiProvider from '../../providers/gemini.js';
            const gemini = new GeminiProvider();
            return await gemini.validateKey();
         } else if (p === 'ollama') {
-           import { OllamaProvider } from '../../providers/ollama.js';
            const ollama = new OllamaProvider();
            return await ollama.validateKey();
         }

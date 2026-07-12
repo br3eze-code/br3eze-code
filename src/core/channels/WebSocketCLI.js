@@ -4,7 +4,9 @@ import { logger } from '../logger.js';
 import { getConfig } from '../config.js';
 import { getMikroTikClient } from '../mikrotik.js';
 import { getDatabase } from '../database.js';
-import { generate: voucherCode } from '../voucher.js';
+import { generate as voucherCode } from '../voucher.js';
+import { DEFAULT_PLANS } from '../database.js';
+import dateUtils from '../../utils/date.js';
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -247,8 +249,6 @@ class WebSocketCLI {
             const code = voucherCode();
             const db = await getDatabase();
             const mikrotik = getMikroTikClient();
-            import { DEFAULT_PLANS } from '../database.js';
-            import dateUtils from '../../utils/date.js';
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
             const expiresAt = planObj.durationValue && planObj.durationUnit ?

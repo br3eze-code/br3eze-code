@@ -5,7 +5,7 @@
  * rather than spawning a CLI subprocess.
  */
 
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';

@@ -2,6 +2,7 @@
   "name": "@br3eze-code/br3eze-code",
   "version": "2026.7.17",
   "description": "AgentOS — Network Intelligence Operating System for MikroTik via AI",
+  "type": "module",
   "main": "src/core/gateway.js",
   "bin": {
     "agentos": "bin/agentos.js",

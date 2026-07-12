@@ -8,8 +8,6 @@ import dgram from 'dgram';
  */
 const { randomUUID } = crypto;
 import winston from 'winston';
-const path = path;
-const fs = fs;
 import { AsyncLocalStorage } from 'async_hooks';
 import { A } from './constants.js';
 import util from 'util';

@@ -1,6 +1,8 @@
 import { BaseSkill } from '../base.js';
 import franc from 'franc';
 import nlp from 'compromise';
+import { execSync } from 'child_process';
+import deepl from 'deepl-node';
 
 class LanguageSkill extends BaseSkill {
   static id = 'language'
@@ -432,7 +434,6 @@ Text:\n${args.text}`
           }
 case 'language.syntax': {
   this.logger.info(`LANGUAGE SYNTAX ${args.format}`, { user: ctx.userId })
-  import nlp from 'compromise';
   const doc = nlp(args.text)
 
   const result = { text: args.text, lang: args.lang }
@@ -501,7 +502,6 @@ Text:\n${args.text}`
 }
     case 'language.prosody': {
   this.logger.info(`LANGUAGE PROSODY ${args.mode}: ${args.text.slice(0, 40)}`, { user: ctx.userId })
-  import nlp from 'compromise';
   const doc = nlp(args.text)
   const terms = doc.terms().json()
 
@@ -510,7 +510,6 @@ Text:\n${args.text}`
   if (args.mode === 'stress' || args.mode === 'all') {
     // Syllables + stress via espeak if available
     try {
-      import { execSync } from 'child_process';
       const ipa = execSync(`espeak-ng -v ${args.lang} -q -x --ipa "${args.text.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim()
       const stress_marks = [...ipa.matchAll(/[ˈˌ]/g)].map((m, i) => ({ position: m.index, type: m[0] === 'ˈ'? 'primary' : 'secondary' }))
       result.stress = { ipa, marks: stress_marks, pattern: ipa.replace(/[^ˈˌ]/g, '').split('').join('-') }
@@ -604,7 +603,6 @@ JSON: {
   this.logger.info(`LANGUAGE IPA ${args.lang}: ${args.text.slice(0, 30)}`, { user: ctx.userId })
   // Use eSpeak NG if available, else LLM
   try {
-    import { execSync } from 'child_process';
     const escaped = args.text.replace(/"/g, '\\"')
     const voice = args.lang.replace('-', '_') // en-us -> en_us
     let cmd = `espeak-ng -v ${voice} -q -x --ipa "${escaped}"`
@@ -629,7 +627,6 @@ JSON: {
   }
 case 'language.phonetics': {
   this.logger.info(`LANGUAGE PHONETICS ${args.word}`, { user: ctx.userId })
-  import nlp from 'compromise';
   const doc = nlp(args.word)
   const term = doc.terms().json()[0] || {}
 
@@ -639,7 +636,6 @@ case 'language.phonetics': {
   // Try espeak for stress pattern
   let stress = null, phonemes = null
   try {
-    import { execSync } from 'child_process';
     const ipa = execSync(`espeak-ng -v en -q -x --ipa "${args.word}"`, { encoding: 'utf8' }).trim()
     stress = (ipa.match(/ˈ/g) || []).length? 'primary' : 'none'
     if (ipa.includes('ˌ')) stress = 'secondary'
@@ -809,7 +805,6 @@ case 'language.rhymes': {
 
           // Use DeepL if key available, else LLM fallback
           if (this.deeplKey) {
-            import deepl from 'deepl-node';
             const translator = new deepl.Translator(this.deeplKey)
             const res = await translator.translateText(args.text, args.source || null, args.target, { formality: args.formality })
             return { source: res.detectedSourceLang, target: args.target, text: res.text }

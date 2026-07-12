@@ -2,7 +2,7 @@
  * AgentEngine
  */
 
-import { v4: uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import EventEmitter from 'events';
 import { TranscriptStore } from './transcript.js';
 import { saveSession, loadSession } from './sessionStore.js';

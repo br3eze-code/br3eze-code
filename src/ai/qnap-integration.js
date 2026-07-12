@@ -1,5 +1,6 @@
 // src/ai/qnap-integration.js
 import { logger } from '../core/logger.js';
+import crypto from 'crypto';
 
 /**
  * Q-NAP (Quantum Neural Acceleration Processor)
@@ -15,7 +16,6 @@ class QNAPProcessor {
 
   async initialize() {
     // Initialize quantum-random seed
-    import crypto from 'crypto';
     const seed = crypto.randomBytes(64);
     
     // Fill manifold with quantum-inspired distribution

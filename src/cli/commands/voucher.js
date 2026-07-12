@@ -8,6 +8,8 @@
 import fs from 'fs';
 import QRCode from 'qrcode';
 import { getDatabase } from '../../core/database.js';
+import voucherAgent from '../../core/voucher.js';
+import { printVoucher } from '../../core/printer.js';
 
 // ── Plan definitions (mirrors 36.js CONFIG.VOUCHER_PLANS) ────────────────────
 const PLAN_DEFS = {
@@ -65,7 +67,6 @@ module.exports = (program) => {
 
       try {
         const db = await getDatabase();
-        import voucherAgent from '../../core/voucher.js';
         const created = [];
 
         for (let i = 0; i < qty; i++) {
@@ -79,7 +80,6 @@ module.exports = (program) => {
 
           // Auto-print voucher
           try {
-            import { printVoucher } from '../../core/printer.js';
             const loginUrl = `http://${config.mikrotik?.ip || config.adapters?.mikrotik?.host}/login.html?code=${code}`;
             printVoucher({
               username: code,
@@ -220,7 +220,6 @@ module.exports = (program) => {
       // Generation dry-run
       s.start('Dry-run voucher generation…');
       try {
-        import voucherAgent from '../../core/voucher.js';
         const sample = voucherAgent.generate('default');
         s.stop(`Sample: ${sample}`);
         checks.push({ name: 'Generator', status: 'ok', details: `sample → ${sample}` });

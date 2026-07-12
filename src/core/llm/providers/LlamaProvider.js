@@ -4,6 +4,9 @@
 
 import { BaseProvider } from './BaseProvider.js';
 import { logger } from '../../logger.js';
+import { OllamaProvider } from './OllamaProvider.js';
+import { GroqProvider } from './GroqProvider.js';
+import { OpenAIProvider } from './OpenAIProvider.js';
 
 class LlamaProvider extends BaseProvider {
     static getMetadata() {
@@ -25,21 +28,17 @@ class LlamaProvider extends BaseProvider {
     async initialize() {}
     async validateKey() {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             return new OllamaProvider().validateKey();
         }
-        import { GroqProvider } from './GroqProvider.js';
         return new GroqProvider({ apiKey: this.apiKey }).validateKey();
     }
 
     async generate(messages, tools = []) {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.generate(messages, tools);
         }
 
-        import { OpenAIProvider } from './OpenAIProvider.js';
         const baseURL = process.env.GROQ_API_KEY ? 'https://api.groq.com/openai/v1' : 'https://api.together.xyz/v1';
         const remote = new OpenAIProvider({ 
             apiKey: this.apiKey, 
@@ -51,11 +50,9 @@ class LlamaProvider extends BaseProvider {
 
     async embed(input) {
         if (this.isLocal) {
-            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.embed(input);
         }
-        import { OpenAIProvider } from './OpenAIProvider.js';
         const baseURL = 'https://api.together.xyz/v1';
         const remote = new OpenAIProvider({ apiKey: this.apiKey, baseURL });
         return remote.embed(input);

@@ -1,4 +1,6 @@
 import { EventEmitter } from 'events';
+import { exec } from 'child_process';
+import util from 'util';
 // src/plugins/adapters/docker-adapter.js
 import BaseAdapter from '../base-adapter.js';
 import Docker from 'dockerode';
@@ -63,8 +65,6 @@ class DockerAdapter extends BaseAdapter {
 
   async composeUp(projectName, params) {
     // Integration with docker-compose
-    import { exec } from 'child_process';
-    import util from 'util';
     const execAsync = util.promisify(exec);
     
     const { stdout } = await execAsync(

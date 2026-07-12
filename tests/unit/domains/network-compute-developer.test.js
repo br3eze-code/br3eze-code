@@ -1,8 +1,6 @@
-'use strict';
-
-const NetworkDomain = require('../../../src/domains/network');
-const ComputeDomain = require('../../../src/domains/compute');
-const DeveloperDomain = require('../../../src/domains/developer');
+import NetworkDomain from '../../../src/domains/network/index.js';
+import ComputeDomain from '../../../src/domains/compute/index.js';
+import DeveloperDomain from '../../../src/domains/developer/index.js';
 
 describe('NetworkDomain', () => {
   let domain;

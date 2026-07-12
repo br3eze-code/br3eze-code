@@ -1,6 +1,4 @@
-'use strict';
-
-const MikroTikDomain = require('../../../src/domains/mikrotik');
+import MikroTikDomain from '../../../src/domains/mikrotik/index.js';
 
 describe('MikroTikDomain', () => {
   let domain;

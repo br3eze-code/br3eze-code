@@ -1,5 +1,8 @@
 ﻿import { BaseDriver } from '../base.js';
 import { logger } from '../../core/logger.js';
+import printer from '../../core/printer.js';
+import voucherManager from '../../core/voucher.js';
+import printerService from '../../core/printer.js';
 
 class AgentOSCoreDriver extends BaseDriver {
   static id = 'agentos';
@@ -65,7 +68,6 @@ class AgentOSCoreDriver extends BaseDriver {
         return { success: true, message: 'Broadcast sent to all active channels' };
 
       case 'agentos.printer.test':
-        import printer from '../../core/printer.js';
         const testData = args.text || 'AgentOS Thermal Printer Test Page\n' + new Date().toLocaleString();
         try {
           await printer.printVoucher({
@@ -80,8 +82,6 @@ class AgentOSCoreDriver extends BaseDriver {
         }
 
       case 'agentos.voucher.create':
-        import voucherManager from '../../core/voucher.js';
-        import printerService from '../../core/printer.js';
 
         try {
           // 1. Generate the voucher (handles DB and MikroTik sync)

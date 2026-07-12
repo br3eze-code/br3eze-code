@@ -4,6 +4,7 @@
  */
 import EventEmitter from 'events';
 import { logger } from './logger.js';
+import { getManager } from './mikrotik.js';
 
 class NodeRegistry extends EventEmitter {
     constructor() {
@@ -26,7 +27,6 @@ class NodeRegistry extends EventEmitter {
         }
 
         // Lazy-require to avoid circular deps at startup
-        import { getManager } from './mikrotik.js';
         const node = getManager({ host: ip, port, username: user, password: pass });
         this._nodes.set(name, node);
         logger.info(`NodeRegistry: registered "${name}" (${ip}:${port})`);

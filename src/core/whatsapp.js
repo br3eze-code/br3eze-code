@@ -3,7 +3,7 @@
  * @module core/whatsapp
  */
 
-import { default: makeWASocket, DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import { logger } from './logger.js';
 import { getConfig } from './config.js';
 import path from 'path';

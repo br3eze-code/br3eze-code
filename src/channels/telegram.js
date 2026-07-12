@@ -4,6 +4,7 @@ import https from 'https';
 import EventEmitter from 'events';
 import security from '../core/security.js';
 import { logger } from '../core/logger.js';
+import { getManager } from '../core/mikrotik.js';
 
 class TelegramChannel extends EventEmitter {
   constructor(token, askEngine, options = {}) {
@@ -141,7 +142,6 @@ class TelegramChannel extends EventEmitter {
     const chatId = msg.chat.id;
     
     try {
-      import { getManager } from '../core/mikrotik.js';
       const mt = getManager();
       
       const activeUsers = await mt.getActiveUsers();
@@ -281,7 +281,6 @@ class TelegramChannel extends EventEmitter {
 
   async _sendDashboard(chatId) {
     try {
-      import { getManager } from '../core/mikrotik.js';
       const mt = getManager();
       const stats = await mt.getSystemStats();
       

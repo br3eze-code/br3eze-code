@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { metrics } from './metrics.js';
 import { logger } from './logger.js';
 import { ConversationSession } from './conversation-session.js';
+import crypto from 'crypto';
 
 /**
  * AgentOS Routes — migrated from ss35.js §16
@@ -17,7 +18,6 @@ function createRouter(deps) {
         const token = auth.split(' ')[1];
 
         // Use timingSafeEqual to prevent timing attacks
-        import crypto from 'crypto';
         const secret = Buffer.from(config.GATEWAY.TOKEN);
         const provided = Buffer.from(token);
 

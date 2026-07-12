@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { NodeSSH } from 'node-ssh';
 
 class OSAdapter {
     async connect() { throw new Error('Not implemented'); }
@@ -28,7 +29,6 @@ class LinuxSSHAdapter extends OSAdapter {
 
     async connect() {
         try {
-            import { NodeSSH } from 'node-ssh';
             this.ssh = new NodeSSH();
             await this.ssh.connect({
                 host: this.host,

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { initializeFirebase } from '../src/core/firebase.js';
+import admin from 'firebase-admin';
 
 async function debugUsers() {
   console.log('--- Debugging Users and Firebase Auth ---');
@@ -11,7 +12,6 @@ async function debugUsers() {
   }
 
   try {
-    import admin from 'firebase-admin';
     const auth = admin.auth();
 
     console.log('\nFetching users from Firestore...');

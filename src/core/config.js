@@ -1,8 +1,6 @@
 import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
-const fs = fs;
-const path = path;
 const os = require('os');import 'dotenv/config';
 function getPkgVersion() {
     try {

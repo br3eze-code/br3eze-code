@@ -7,13 +7,13 @@
 import os from 'os';
 import chalk from 'chalk';
 import { logger } from '../logger.js';
+import { getDatabase } from '../database.js';
 
 const HandlerLibrary = {
   /**
    * /dashboard
    */
   async handleDashboard(channel, jid) {
-    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const stats = await db.getStats();
     const uptime = Math.floor(process.uptime());
@@ -131,7 +131,6 @@ const HandlerLibrary = {
     const qty = parseInt(args[2]);
     if (isNaN(qty) || qty < 1 || qty > 50) return channel.send(jid, '❌ *Quantity must be between 1 and 50.*');
 
-    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const mt = global.mikrotik;
     const codes = [];
@@ -164,7 +163,6 @@ const HandlerLibrary = {
     if (args.length < 2) return channel.send(jid, '📝 *Usage:* `/voucher <plan_name>`');
     
     const plan = args[1];
-    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const mt = global.mikrotik;
 
