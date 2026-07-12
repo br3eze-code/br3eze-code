@@ -1,4 +1,3 @@
-'use strict';
 /**
  * adapters/openclaw/meta.js
  *
@@ -10,6 +9,7 @@
  *   const makeMeta = require('./adapters/openclaw/meta');
  *   const manifest = makeMeta(kernelInstance);
  */
+import pkg from '../../package.json' with { type: 'json' };
 
 /**
  * @param {import('../../src/core/agentKernel')} kernelInstance  Live AgentKernel
@@ -42,12 +42,11 @@ function agentOSAdapter(kernelInstance) {
   return {
     id:          process.env.AGENTOS_AGENT_ID || 'agentos',
     name:        process.env.AGENTOS_AGENT_NAME || 'AgentOS',
-    version:     require('../../package.json').version,
+    version:     pkg.version,
     description: 'Domain-agnostic AI agent with multi-channel, multi-skill support',
     author:      'AgentOS',
     skills,
   };
 }
 
-module.exports         = agentOSAdapter;
-module.exports.default = agentOSAdapter;
+export default agentOSAdapter;

@@ -1,5 +1,5 @@
-const BaseDomain = require('../BaseDomain');
-const crypto = require('crypto');
+import BaseDomain from '../BaseDomain.js';
+import crypto from 'crypto';
 
 class GeneralDomain extends BaseDomain {
   constructor() {
@@ -40,4 +40,4 @@ class GeneralDomain extends BaseDomain {
   }
 }
 
-module.exports = GeneralDomain;
+export default GeneralDomain;

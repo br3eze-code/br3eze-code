@@ -5,8 +5,8 @@
 
 'use strict';
 
-const GoogleWorkspaceSkill = require('../../skills/google-workspace');
-const { getGateway } = require('../../core/gateway-engine');
+import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
+import { getGateway } from '../../core/gateway-engine.js';
 
 module.exports = (program) => {
   const googleCmd = program

@@ -1,11 +1,9 @@
-'use strict';
-
-const express = require('express');
-const Joi = require('joi');
-const QRCode = require('qrcode');
-const { metrics } = require('./metrics');
-const { logger } = require('./logger');
-const { ConversationSession } = require('./conversation-session');
+import express from 'express';
+import Joi from 'joi';
+import QRCode from 'qrcode';
+import { metrics } from './metrics.js';
+import { logger } from './logger.js';
+import { ConversationSession } from './conversation-session.js';
 
 /**
  * AgentOS Routes — migrated from ss35.js §16
@@ -19,7 +17,7 @@ function createRouter(deps) {
         const token = auth.split(' ')[1];
 
         // Use timingSafeEqual to prevent timing attacks
-        const crypto = require('crypto');
+        import crypto from 'crypto';
         const secret = Buffer.from(config.GATEWAY.TOKEN);
         const provided = Buffer.from(token);
 
@@ -221,4 +219,4 @@ function createRouter(deps) {
     return router;
 }
 
-module.exports = { createRouter };
+export { createRouter };

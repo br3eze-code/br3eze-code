@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { initializeFirebase } = require('../src/core/firebase');
+import 'dotenv/config';
+import { initializeFirebase } from '../src/core/firebase.js';
 
 async function reconcileUsers() {
   console.log('--- Reconciling Users: Firestore <-> Firebase Auth ---');
@@ -11,7 +11,7 @@ async function reconcileUsers() {
   }
 
   try {
-    const admin = require('firebase-admin');
+    import admin from 'firebase-admin';
     const auth = admin.auth();
 
     console.log('\nFetching all Firebase Auth users...');

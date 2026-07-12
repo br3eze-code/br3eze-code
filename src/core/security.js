@@ -1,8 +1,8 @@
 // src/core/security.js
-const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
-const hpp = require('hpp');
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import hpp from 'hpp';
 
 class SecurityManager {
   constructor() {
@@ -79,7 +79,7 @@ class SecurityManager {
 
   // Audit logging middleware
   auditMiddleware(req, res, next) {
-    const { logger } = require('./logger');
+    import { logger } from './logger.js';
     const start = Date.now();
 
     res.on('finish', () => {

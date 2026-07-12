@@ -1,5 +1,5 @@
 // src/core/channels/USSDChannel.js
-const { BaseChannel } = require('./BaseChannel');
+import { BaseChannel } from './BaseChannel.js';
 
 class USSDChannel extends BaseChannel {
     static getMetadata() {
@@ -37,7 +37,7 @@ class USSDChannel extends BaseChannel {
           return this.send(phoneNumber, 'END Unauthorized user.', { sessionId });
         }
 
-        const { getDatabase } = require('../database');
+        import { getDatabase } from '../database.js';
         const db = await getDatabase();
 
         await db.upsertUser(phoneNumber, {
@@ -66,7 +66,7 @@ class USSDChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    const H = require('./HandlerLibrary');
+    import H from './HandlerLibrary.js';
 
     this.handlers.set('start', this._handleStart.bind(this));
     this.handlers.set('menu', this._handleMenu.bind(this));
@@ -86,7 +86,7 @@ class USSDChannel extends BaseChannel {
   }
 
   async handleIncomingUSSD(sessionId, phoneNumber, text, rawData = {}) {
-    const { getChatRegistry } = require('../chat-registry');
+    import { getChatRegistry } from '../chat-registry.js';
     getChatRegistry().register('ussd', phoneNumber);
 
     // Track session state
@@ -180,4 +180,4 @@ class USSDChannel extends BaseChannel {
 
 BaseChannel.register('ussd', USSDChannel);
 
-module.exports = USSDChannel;
+export default USSDChannel;

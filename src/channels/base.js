@@ -3,7 +3,7 @@
 
  */
 
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 class BaseChannel extends EventEmitter {
   constructor(options = {}) {
@@ -65,5 +65,5 @@ class BaseChannel extends EventEmitter {
   }
 }
 
-module.exports = { BaseChannel };
+export { BaseChannel };
 

@@ -10,8 +10,8 @@
  *     --mode daily --out reports/accounting [--verbose]
  */
 
-const fs   = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -33,7 +33,7 @@ const vlog = (...a) => VERBOSE && console.log('[accounting:verbose]', ...a);
 let db = null;
 async function initFirebase() {
   try {
-    const admin = require('firebase-admin');
+    import admin from 'firebase-admin';
     if (admin.apps.length === 0) {
       const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
       if (credPath && fs.existsSync(credPath)) {

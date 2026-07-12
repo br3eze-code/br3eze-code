@@ -1,11 +1,11 @@
 // NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
 // inside initialize(), never at the top level via require().
-const path = require('path');
-const fs = require('fs');
-const _chalk = require('chalk');
+import path from 'path';
+import fs from 'fs';
+import _chalk from 'chalk';
 const chalk = _chalk.default || _chalk;
-const { logger } = require('../logger');
-const { BaseChannel } = require('./BaseChannel');
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
 
 class WhatsAppChannel extends BaseChannel {
   // Baileys-internal noise that's expected in normal group-chat operation
@@ -199,7 +199,7 @@ class WhatsAppChannel extends BaseChannel {
           this.qrCode = qr;
           this.emit('qr', qr);
 
-          const qrcode = require('qrcode-terminal');
+          import qrcode from 'qrcode-terminal';
 
           if (global.startupSpinner && global.startupSpinner.isSpinning) {
             // Temporarily stop spinner to show QR cleanly
@@ -355,7 +355,7 @@ class WhatsAppChannel extends BaseChannel {
 
       try {
         // ── Auto-register/Sync User ──────────────────────────────────
-        const { getDatabase } = require('../database');
+        import { getDatabase } from '../database.js';
         const db = await getDatabase();
 
         const pushName = msg.pushName || '';
@@ -433,7 +433,7 @@ class WhatsAppChannel extends BaseChannel {
       message.message?.listResponseMessage?.singleSelectReply?.selectedRowId || '';
 
     // Register active chat for broadcasts
-    const { getChatRegistry } = require('../chat-registry');
+    import { getChatRegistry } from '../chat-registry.js';
     getChatRegistry().register('whatsapp', from);
 
     // Command Dispatcher
@@ -467,7 +467,7 @@ class WhatsAppChannel extends BaseChannel {
       const emails = text.match(emailRegex);
       if (emails && emails.length > 0) {
         const email = emails[0].toLowerCase();
-        const { getDatabase } = require('../database');
+        import { getDatabase } from '../database.js';
         const db = await getDatabase();
 
         await db.upsertUser(from, {
@@ -560,7 +560,7 @@ class WhatsAppChannel extends BaseChannel {
         '🔗 *Link your Power Connect account*\n\n1. Open the Power Connect app\n2. Go to *Settings → Link Chat Account*\n3. Send me the 6-digit code like this:\n/link 123456');
       return;
     }
-    const { verifyLinkCode } = require('./link-verifier');
+    import { verifyLinkCode } from './link-verifier.js';
     const result = await verifyLinkCode(code, 'whatsapp', jid);
     await this.send(jid, result.message);
   }
@@ -568,7 +568,7 @@ class WhatsAppChannel extends BaseChannel {
   // ── Shop: browse, cart, and CLOSE a sale from the chat ─────────────────────
   async _linkedUid(jid) {
     try {
-      const { getDatabase } = require('../database');
+      import { getDatabase } from '../database.js';
       const db = await getDatabase();
       const u = await db.getUserByChannel('whatsapp', jid);
       return u ? { uid: u.uid || u.id, user: u } : null;
@@ -576,7 +576,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleShop(jid, msg, args) {
-    const shop = require('../shop');
+    import shop from '../shop.js';
     const category = args && args[1];
     try {
       const products = await shop.listProducts({ category });
@@ -591,7 +591,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleBuy(jid, msg, args) {
-    const shop = require('../shop');
+    import shop from '../shop.js';
     const productId = args && args[1];
     const size = args && args[2];
     if (!productId) return this.send(jid, 'Usage: `buy <product-id> [size]`\nSend `shop` to see product ids.');
@@ -603,7 +603,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleCart(jid, msg) {
-    const shop = require('../shop');
+    import shop from '../shop.js';
     try {
       const cart = await shop.getCart('whatsapp', jid);
       if (!cart.length) return this.send(jid, '🛒 Your cart is empty. Send `shop` to browse.');
@@ -614,7 +614,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleCheckout(jid, msg, args) {
-    const shop = require('../shop');
+    import shop from '../shop.js';
     try {
       const cart = await shop.getCart('whatsapp', jid);
       if (!cart.length) return this.send(jid, '🛒 Your cart is empty. Send `shop` to browse.');
@@ -649,7 +649,7 @@ class WhatsAppChannel extends BaseChannel {
 
   // ── Plans: sell + activate a hotspot plan in-chat ──────────────────────────
   async _handlePlans(jid) {
-    const ps = require('../plans-sales');
+    import ps from '../plans-sales.js';
     try {
       const plans = await ps.listPlans();
       if (!plans.length) return this.send(jid, '📶 No plans available right now.');
@@ -663,7 +663,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleBuyPlan(jid, msg, args) {
-    const ps = require('../plans-sales');
+    import ps from '../plans-sales.js';
     const planId = args && args[1];
     if (!planId) return this.send(jid, 'Usage: `plan <plan-id>`\nSend `plans` to see the plan ids.');
     const linked = await this._linkedUid(jid);
@@ -711,7 +711,7 @@ class WhatsAppChannel extends BaseChannel {
 
   async _handleDashboard(jid, msg, opts = {}) {
     const context = { userId: jid, channel: 'whatsapp' };
-    const { getDatabase } = require('../database');
+    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const mt = this.agent?.mikrotik || global.mikrotik;
 
@@ -785,7 +785,7 @@ class WhatsAppChannel extends BaseChannel {
 
   async _handleVoucher(jid, msg, args) {
     const planId = args[1];
-    const { getDatabase } = require('../database');
+    import { getDatabase } from '../database.js';
     const db = await getDatabase();
 
     const user = await db.getUser(jid);
@@ -800,7 +800,7 @@ class WhatsAppChannel extends BaseChannel {
     try {
       let plans = await db.getPlans(true);
       if (!plans.length) {
-        const { getConfig } = require('../config');
+        import { getConfig } from '../config.js';
         const cfg = getConfig();
         plans = Array.isArray(cfg.plans) ? cfg.plans.filter(p => p.active !== false) : [];
       }
@@ -837,7 +837,7 @@ class WhatsAppChannel extends BaseChannel {
    * Core voucher creation logic (ported/enhanced from Telegram)
    */
   async _createVoucher(jid, planId) {
-    const { getDatabase } = require('../database');
+    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const user = await db.getUser(jid);
     const isAdmin = user?.role === 'admin' || user?.role === 'reseller';
@@ -856,11 +856,11 @@ class WhatsAppChannel extends BaseChannel {
 
     await this.send(jid, `🎫 Generating *${planObj.name || planId}* voucher...`);
 
-    const voucherAgent = require('../voucher');
+    import voucherAgent from '../voucher.js';
     const code = voucherAgent.generate(planId);
 
     const mt = this.agent?.mikrotik || global.mikrotik;
-    const dateUtils = require('../../utils/date');
+    import dateUtils from '../../utils/date.js';
     const expiresAt = planObj.durationValue && planObj.durationUnit ?
       dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
     const loginUrl = `http://${mt?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
@@ -919,7 +919,7 @@ class WhatsAppChannel extends BaseChannel {
     }
 
     // Generate QR
-    const QRCode = require('qrcode');
+    import QRCode from 'qrcode';
     const qrBuf = await QRCode.toBuffer(loginUrl);
 
     await this.sendMedia(jid, qrBuf, 'image/png',
@@ -932,7 +932,7 @@ class WhatsAppChannel extends BaseChannel {
 
     // Trigger printing if thermal printer is configured
     try {
-      const { printVoucher } = require('../printer');
+      import { printVoucher } from '../printer.js';
       await printVoucher({
         username: code,
         password: code,
@@ -1067,7 +1067,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleWallet(jid) {
-    const { getDatabase } = require('../database');
+    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const wallet = await db.getWallet(jid);
     const balance = wallet.balance || 0;
@@ -1092,7 +1092,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleClaim(jid) {
-    const { getDatabase } = require('../database');
+    import { getDatabase } from '../database.js';
     const db = await getDatabase();
     const user = await db.getUser(jid);
 
@@ -1281,7 +1281,7 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async broadcast(message) {
-    const { getChatRegistry } = require('../chat-registry');
+    import { getChatRegistry } from '../chat-registry.js';
     const chats = getChatRegistry().getChats('whatsapp');
     const content = typeof message === 'string' ? { text: message } : message;
 
@@ -1318,4 +1318,4 @@ class WhatsAppChannel extends BaseChannel {
 }
 
 BaseChannel.register('whatsapp', WhatsAppChannel);
-module.exports = WhatsAppChannel;
+export default WhatsAppChannel;

@@ -1,4 +1,3 @@
-'use strict';
 /**
  * AgentOS Plugin SDK
  * The ONLY surface plugins are allowed to import from core.

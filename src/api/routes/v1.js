@@ -7,11 +7,11 @@
 
 'use strict';
 
-const express = require('express');
+import express from 'express';
 const router  = express.Router();
-const { getManager }  = require('../../core/mikrotik');
-const { getDatabase } = require('../../core/database');
-const { logger }      = require('../../core/logger');
+import { getManager } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import { logger } from '../../core/logger.js';
 
 // ── Request logging ───────────────────────────────────────────────────────────
 router.use((req, res, next) => {
@@ -184,9 +184,9 @@ router.get('/vouchers', async (req, res) => {
 router.post('/vouchers', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const crypto = require('crypto');
-    const { DEFAULT_PLANS } = require('../../core/database');
-    const dateUtils = require('../../utils/date');
+    import crypto from 'crypto';
+    import { DEFAULT_PLANS } from '../../core/database.js';
+    import dateUtils from '../../utils/date.js';
 
     const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
     const code  = `STAR-${part()}-${part()}`;
@@ -236,7 +236,7 @@ router.get('/vouchers/:code', async (req, res) => {
 
 router.get('/vouchers/:code/qr', async (req, res) => {
   try {
-    const QRCode = require('qrcode');
+    import QRCode from 'qrcode';
     if (!global.database) return notReady(res, 'Database');
     const v = await global.database.getVoucher(req.params.code);
     if (!v) return res.status(404).json({ ok: false, error: 'Voucher not found' });
@@ -264,9 +264,9 @@ router.post('/vouchers/pay', async (req, res) => {
   try {
     const { plan, amount, method } = req.body;
     if (!plan || !amount) return res.status(400).json({ ok: false, error: 'plan and amount required' });
-    const crypto = require('crypto');
-    const { DEFAULT_PLANS } = require('../../core/database');
-    const dateUtils = require('../../utils/date');
+    import crypto from 'crypto';
+    import { DEFAULT_PLANS } from '../../core/database.js';
+    import dateUtils from '../../utils/date.js';
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
@@ -296,7 +296,7 @@ router.post('/vouchers/pay', async (req, res) => {
 // ── Plans ─────────────────────────────────────────────────────────────────────
 router.get('/plans', (req, res) => {
   try {
-    const { DEFAULT_PLANS } = require('../../core/database');
+    import { DEFAULT_PLANS } from '../../core/database.js';
     ok(res, DEFAULT_PLANS);
   } catch (e) { err(res, e); }
 });
@@ -420,4 +420,4 @@ function _mikrotikDuration(p) {
 
 function _mb(bytes) { return `${Math.round(bytes / 1024 / 1024)}MB`; }
 
-module.exports = router;
+export default router;

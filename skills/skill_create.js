@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'fs/promises';
+import path from 'path';
 
 const skill_create = {
   name: "skill_create",
@@ -36,8 +36,8 @@ const skill_create = {
 
     if (template === 'routeros_file') {
       finalCode = `
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
 
 const ${name} = {
   name: "${name}",
@@ -81,8 +81,8 @@ module.exports = { ${name} };
 
     if (template === 'fleet_shard') {
       finalCode = `
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
 
 const ${name} = {
   name: "${name}",
@@ -128,8 +128,8 @@ module.exports = { ${name} };
 
     if (template === 'hotspot_bundle') {
       finalCode = `
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
 
 const ${name} = {
   name: "${name}",
@@ -211,4 +211,4 @@ module.exports = { ${name} };
   }
 };
 
-module.exports = { skill_create };
+export { skill_create };

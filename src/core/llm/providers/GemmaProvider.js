@@ -1,11 +1,10 @@
-'use strict';
 /**
  * Gemma LLM Provider (Google Open Models)
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../../logger.js';
 
 class GemmaProvider extends BaseProvider {
     static getMetadata() {
@@ -27,10 +26,10 @@ class GemmaProvider extends BaseProvider {
 
     async validateKey() {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             return new OllamaProvider().validateKey();
         }
-        const { GeminiProvider } = require('./GeminiProvider');
+        import { GeminiProvider } from './GeminiProvider.js';
         return new GeminiProvider({ apiKey: this.apiKey }).validateKey();
     }
 
@@ -45,7 +44,7 @@ class GemmaProvider extends BaseProvider {
 
     async generate(messages, tools = []) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.generate(messages, tools);
         }
@@ -81,11 +80,11 @@ class GemmaProvider extends BaseProvider {
 
     async embed(input) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.embed(input);
         }
-        const { GeminiProvider } = require('./GeminiProvider');
+        import { GeminiProvider } from './GeminiProvider.js';
         const gemini = new GeminiProvider({ apiKey: this.apiKey });
         return gemini.embed(input);
     }
@@ -93,4 +92,4 @@ class GemmaProvider extends BaseProvider {
 
 BaseProvider.register('gemma', GemmaProvider);
 BaseProvider.register('google-gemma', GemmaProvider);
-module.exports = { GemmaProvider };
+export { GemmaProvider };

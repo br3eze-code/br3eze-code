@@ -1,8 +1,8 @@
-const { EventEmitter } = require('events');
+import { EventEmitter } from 'events';
 // src/plugins/adapters/docker-adapter.js
-const BaseAdapter = require('../base-adapter');
-const Docker = require('dockerode');
-const { Resource } = require('../../core/resource-model');
+import BaseAdapter from '../base-adapter.js';
+import Docker from 'dockerode';
+import { Resource } from '../../core/resource-model.js';
 
 class DockerAdapter extends BaseAdapter {
   constructor(config) {
@@ -63,8 +63,8 @@ class DockerAdapter extends BaseAdapter {
 
   async composeUp(projectName, params) {
     // Integration with docker-compose
-    const { exec } = require('child_process');
-    const util = require('util');
+    import { exec } from 'child_process';
+    import util from 'util';
     const execAsync = util.promisify(exec);
     
     const { stdout } = await execAsync(
@@ -78,4 +78,4 @@ class DockerAdapter extends BaseAdapter {
   // ... other Docker methods
 }
 
-module.exports = DockerAdapter;
+export default DockerAdapter;

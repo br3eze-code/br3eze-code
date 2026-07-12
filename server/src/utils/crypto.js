@@ -2,8 +2,8 @@
  * Cryptographic utilities for secure credential generation
  */
 
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const SALT_ROUNDS = 12;
 

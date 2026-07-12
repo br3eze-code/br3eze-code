@@ -1,4 +1,3 @@
-'use strict';
 /**
  * processInvoice handler — full invoice processing pipeline
  *
@@ -11,8 +10,8 @@
  * Signature:  (parameters, session, senderSPIFFE, a2aAdapter)
  */
 
-const { extractPDF, parseInvoiceFields } = require('../lib/pdf-extractor');
-const { AIOrchestrator } = require('../../../src/core/ai-orchestrator');
+import { extractPDF, parseInvoiceFields } from '../lib/pdf-extractor.js';
+import { AIOrchestrator } from '../../../src/core/ai-orchestrator.js';
 
 const GEMINI_PLANNER_SPIFFE = 'spiffe://google.adk/agent/gemini-planner';
 

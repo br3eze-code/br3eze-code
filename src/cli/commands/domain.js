@@ -3,7 +3,7 @@
  * Domain management commands
  */
 
-const _chalk = require('chalk');
+import _chalk from 'chalk';
 const chalk  = _chalk.default || _chalk;
 
 module.exports = (program) => {

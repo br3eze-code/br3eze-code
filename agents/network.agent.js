@@ -1,4 +1,3 @@
-'use strict';
 // agents/network.agent.js
 // AgentOS - Network Intelligence Agent (MikroTik / ISP control)
 
@@ -71,4 +70,4 @@ Handles MikroTik router operations including:
     }
 };
 
-module.exports = { networkAgent };
+export { networkAgent };

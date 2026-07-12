@@ -3,8 +3,8 @@
  * Universal AI Coordinator 
  */
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { QNAPProcessor } = require('./qnap-integration');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { QNAPProcessor } from './qnap-integration.js';
 
 class UniversalAICoordinator {
   constructor(config = {}) {
@@ -262,4 +262,4 @@ Available resources: ${this.registry ? this.registry.listAdapters().join(', ') :
   }
 }
 
-module.exports = UniversalAICoordinator;
+export default UniversalAICoordinator;

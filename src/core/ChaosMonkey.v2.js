@@ -7,12 +7,12 @@
 
 'use strict';
 
-const { RouterOSClient } = require('routeros-client');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs').promises;
-const path = require('path');
-const EventEmitter = require('events');
-const crypto = require('crypto');
+import { RouterOSClient } from 'routeros-client';
+import { v4: uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
+import EventEmitter from 'events';
+import crypto from 'crypto';
 
 // Domain registry
 const CHAOS_DOMAINS = {

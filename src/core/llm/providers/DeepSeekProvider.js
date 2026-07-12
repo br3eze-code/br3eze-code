@@ -1,10 +1,9 @@
-'use strict';
 /**
  * DeepSeek LLM Provider
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
 
 class DeepSeekProvider extends BaseProvider {
     static getMetadata() {
@@ -121,4 +120,4 @@ class DeepSeekProvider extends BaseProvider {
 }
 
 BaseProvider.register('deepseek', DeepSeekProvider);
-module.exports = { DeepSeekProvider };
+export { DeepSeekProvider };

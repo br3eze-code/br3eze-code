@@ -7,7 +7,7 @@
 
 'use strict';
 
-const coreLogger = require('../core/logger');
+import coreLogger from '../core/logger.js';
 
 // Named re-exports used in the wild: { Logger }, { logger }, default
 module.exports = {

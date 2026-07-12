@@ -1,6 +1,6 @@
 // src/domains/files/index.js
-const BaseDomain = require('../BaseDomain');
-const { logger } = require('../../core/logger');
+import BaseDomain from '../BaseDomain.js';
+import { logger } from '../../core/logger.js';
 
 class FilesDomain extends BaseDomain {
   constructor() {
@@ -36,4 +36,4 @@ class FilesDomain extends BaseDomain {
   }
 }
 
-module.exports = FilesDomain;
+export default FilesDomain;

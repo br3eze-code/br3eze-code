@@ -1,4 +1,6 @@
-'use strict';
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
 /**
  * SessionManager — SQLite-backed session lifecycle
  * ─────────────────────────────────────────────────────────────────
@@ -10,9 +12,9 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path   = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
+const path   = path;
+const crypto = crypto;
+import { EventEmitter } from 'events';
 
 const STATE_MACHINE = {
   initializing: ['running', 'failed'],
@@ -34,9 +36,9 @@ class SessionManager extends EventEmitter {
 
   _initDB() {
     try {
-      const Database = require('better-sqlite3');
-      const fs = require('fs');
-      require('fs').mkdirSync(path.dirname(this._dbPath), { recursive: true });
+      import Database from 'better-sqlite3';
+      const fs = fs;
+      fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
       this._db = new Database(this._dbPath);
       this._db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -63,7 +65,7 @@ class SessionManager extends EventEmitter {
     const base = process.env.MEMORY_BASE_PATH || '/tmp/sessions';
     const dir  = path.join(base, id);
     try {
-      require('fs').mkdirSync(dir, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true });
     } catch (_) { /* /tmp may not be writable in all envs */ }
     return { id, path: dir, domain: config.domain };
   }
@@ -162,4 +164,4 @@ class SessionManager extends EventEmitter {
   }
 }
 
-module.exports = SessionManager;
+export default SessionManager;

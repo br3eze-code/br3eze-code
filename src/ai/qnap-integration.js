@@ -1,5 +1,5 @@
 // src/ai/qnap-integration.js
-const { logger } = require('../core/logger');
+import { logger } from '../core/logger.js';
 
 /**
  * Q-NAP (Quantum Neural Acceleration Processor)
@@ -15,7 +15,7 @@ class QNAPProcessor {
 
   async initialize() {
     // Initialize quantum-random seed
-    const crypto = require('crypto');
+    import crypto from 'crypto';
     const seed = crypto.randomBytes(64);
     
     // Fill manifold with quantum-inspired distribution
@@ -266,4 +266,4 @@ class QNAPProcessor {
   }
 }
 
-module.exports = { QNAPProcessor };
+export { QNAPProcessor };

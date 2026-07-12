@@ -1,4 +1,3 @@
-'use strict';
 /**
  * AskEngine — Tiered ReAct intelligence engine
  * Ported from main.js §8
@@ -9,8 +8,8 @@
  * Tier 4: Fallback message
  */
 
-const { logger } = require('./logger');
-const { costTracker } = require('./cost-tracker');
+import { logger } from './logger.js';
+import { costTracker } from './cost-tracker.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -139,7 +138,7 @@ const TOOL_MAP = {
 // ── Voucher code generator (matches main.js voucherCode()) ───────────────────
 
 function voucherCode() {
-    const crypto = require('crypto');
+    import crypto from 'crypto';
     const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
     return `STAR-${part()}-${part()}`;
 }
@@ -372,8 +371,8 @@ class AskEngine {
                 const plan = genMatch[1];
                 const code = voucherCode();
 
-                const { DEFAULT_PLANS } = require('./database');
-                const dateUtils = require('../utils/date');
+                import { DEFAULT_PLANS } from './database.js';
+                import dateUtils from '../utils/date.js';
 
                 const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
                 const expiresAt = planObj.durationValue && planObj.durationUnit ?
@@ -564,4 +563,4 @@ class AskEngine {
     }
 }
 
-module.exports = AskEngine;
+export default AskEngine;

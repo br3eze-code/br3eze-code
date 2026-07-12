@@ -1,4 +1,4 @@
-const eventBus = require('../core/eventBus');
+import eventBus from '../core/eventBus.js';
 
 class SessionAgent {
     constructor() {

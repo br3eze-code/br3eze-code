@@ -1,14 +1,17 @@
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
 /**
  * Mastercard A2A (Account-to-Account) Payment Service
  * Integrates with Mastercard Send API and Cross-Border Services
  * For Br3eze Africa WiFi Voucher Payments
  */
 
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
+const crypto = crypto;
+const fs = fs;
+const path = path;
+import axios from 'axios';
+import { v4: uuidv4 } from 'uuid';
 
 class MastercardA2AService {
     constructor() {
@@ -447,15 +450,15 @@ class MastercardA2AService {
         // Webhook secret not configured — reject to be safe
         return false;
     }
-    const expected = require('crypto')
+    const expected = crypto
         .createHmac('sha256', secret)
         .update(rawBody)
         .digest('hex');
     const provided = Buffer.from(signature);
     const computed = Buffer.from(expected);
     if (provided.length !== computed.length) return false;
-    return require('crypto').timingSafeEqual(provided, computed);
+    return crypto.timingSafeEqual(provided, computed);
 }
 }
 
-module.exports = MastercardA2AService;
+export default MastercardA2AService;

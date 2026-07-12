@@ -1,6 +1,6 @@
 // src/services/vouchers.js
 
-const db = require('../storage/db');
+import db from '../storage/db.js';
 
 class VoucherService {
 

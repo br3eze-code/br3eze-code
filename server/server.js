@@ -1,3 +1,7 @@
+const __dirname = require('path').dirname(require('url').fileURLToPath(import.meta.url));
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
 #!/usr/bin/env node
 // ============================================================
 // AgentOS WiFi Manager - Node.js Backend
@@ -6,17 +10,16 @@
 // ============================================================
 
 'use strict';
-
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const winston = require('winston');
-const helmet = require('helmet');
-const cors = require('cors');
-const crypto = require('crypto');
-const path = require('path');
-const QRCode = require('qrcode');
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import winston from 'winston';
+import helmet from 'helmet';
+import cors from 'cors';
+const crypto = crypto;
+const path = path;
+import QRCode from 'qrcode';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -92,7 +95,7 @@ class DatabaseService {
 
     async initialize() {
         try {
-            const Database = require('better-sqlite3');
+            import Database from 'better-sqlite3';
             this.db = new Database('agentos.db');
 
             // Create tables
@@ -554,8 +557,8 @@ class NetworkDiscoveryService {
 
     // Check if IP is a MikroTik router
     async checkMikrotik(ip, ports) {
-        const http = require('http');
-        const https = require('https');
+        import http from 'http';
+        import https from 'https';
 
         for (const port of ports) {
             try {
@@ -583,8 +586,8 @@ class NetworkDiscoveryService {
 
     // HTTP check with timeout
     httpCheck(ip, port, timeout = 2000) {
-        const http = require('http');
-        const https = require('https');
+        import http from 'http';
+        import https from 'https';
         return new Promise((resolve) => {
             const httpModule = port === 443 ? https : http;
             const options = {
@@ -667,7 +670,7 @@ class NetworkDiscoveryService {
 
     // Ping host (TCP method since ICMP requires admin)
     async pingHost(ip, timeout = 2000) {
-        const net = require('net');
+        import net from 'net';
 
         return new Promise((resolve) => {
             const start = Date.now();
@@ -704,7 +707,7 @@ class NetworkDiscoveryService {
     }
 
     async checkPort(ip, port, timeout) {
-        const net = require('net');
+        import net from 'net';
         return new Promise((resolve) => {
             const socket = new net.Socket();
             socket.setTimeout(timeout);
@@ -1454,7 +1457,7 @@ app.get('/api/audit', authMiddleware, (req, res) => {
 // Topping up the internal balance makes card payment work for BOTH plans and
 // merch, since everything is bought with credits. Stripe REST via axios so no
 // extra dependency is needed.
-const _stripeAxios = require('axios');
+import _stripeAxios from 'axios';
 function _stripeForm(flat) {
     const p = new URLSearchParams();
     for (const k in flat) p.append(k, flat[k]);
@@ -1492,7 +1495,7 @@ app.post('/api/checkout/verify', async (req, res) => {
     const sessionId = (req.body && req.body.session_id) || req.query.session_id;
     if (!sessionId) return res.status(400).json({ error: 'session_id required' });
     try {
-        const { db, admin } = require('./src/config/firebase');
+        import { db, admin } from './src/config/firebase.js';
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
         const r = await _stripeAxios.get(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, { auth: { username: SK, password: '' } });
         const s = r.data;
@@ -1558,7 +1561,7 @@ app.use((err, req, res, next) => {
 
 async function boot() {
     // Ensure logs directory exists
-    const fs = require('fs');
+    const fs = fs;
     if (!fs.existsSync('logs')) {
         fs.mkdirSync('logs', { recursive: true });
     }
@@ -1615,4 +1618,4 @@ boot().catch(err => {
     if (require.main === module) process.exit(1);
 });
 
-module.exports = { app, TOOLS, database };
+export { app, TOOLS, database };

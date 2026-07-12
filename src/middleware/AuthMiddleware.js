@@ -16,7 +16,7 @@ class AuthMiddleware {
   }
 
   verifyToken(token) {
-    const jwt = require('jsonwebtoken');
+    import jwt from 'jsonwebtoken';
     return jwt.verify(token, process.env.JWT_SECRET);
   }
 
@@ -25,4 +25,4 @@ class AuthMiddleware {
     return permissions.includes(requiredPermission) || permissions.includes('admin');
   }
 }
-module.exports = { AuthMiddleware };
+export { AuthMiddleware };

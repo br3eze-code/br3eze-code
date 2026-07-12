@@ -1,10 +1,9 @@
-'use strict';
 /**
  * Llama LLM Provider (Meta Open Models)
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
 
 class LlamaProvider extends BaseProvider {
     static getMetadata() {
@@ -26,21 +25,21 @@ class LlamaProvider extends BaseProvider {
     async initialize() {}
     async validateKey() {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             return new OllamaProvider().validateKey();
         }
-        const { GroqProvider } = require('./GroqProvider');
+        import { GroqProvider } from './GroqProvider.js';
         return new GroqProvider({ apiKey: this.apiKey }).validateKey();
     }
 
     async generate(messages, tools = []) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.generate(messages, tools);
         }
 
-        const { OpenAIProvider } = require('./OpenAIProvider');
+        import { OpenAIProvider } from './OpenAIProvider.js';
         const baseURL = process.env.GROQ_API_KEY ? 'https://api.groq.com/openai/v1' : 'https://api.together.xyz/v1';
         const remote = new OpenAIProvider({ 
             apiKey: this.apiKey, 
@@ -52,11 +51,11 @@ class LlamaProvider extends BaseProvider {
 
     async embed(input) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
+            import { OllamaProvider } from './OllamaProvider.js';
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.embed(input);
         }
-        const { OpenAIProvider } = require('./OpenAIProvider');
+        import { OpenAIProvider } from './OpenAIProvider.js';
         const baseURL = 'https://api.together.xyz/v1';
         const remote = new OpenAIProvider({ apiKey: this.apiKey, baseURL });
         return remote.embed(input);
@@ -66,4 +65,4 @@ class LlamaProvider extends BaseProvider {
 BaseProvider.register('llama', LlamaProvider);
 BaseProvider.register('meta', LlamaProvider);
 BaseProvider.register('meta-llama', LlamaProvider);
-module.exports = { LlamaProvider };
+export { LlamaProvider };

@@ -3,9 +3,9 @@
 // Configuration management
 // ==========================================
 
-const _chalk = require('chalk');
+import _chalk from 'chalk';
 const chalk  = _chalk.default || _chalk;
-const fs = require('fs');
+import fs from 'fs';
 
 module.exports = (program) => {
     const config = program
@@ -78,7 +78,7 @@ module.exports = (program) => {
             const { CONFIG_PATH } = global.AGENTOS;
             const editor = process.env.EDITOR || 'nano';
 
-            const { spawn } = require('child_process');
+            import { spawn } from 'child_process';
             spawn(editor, [CONFIG_PATH], { stdio: 'inherit' });
         });
 

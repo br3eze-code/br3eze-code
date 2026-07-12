@@ -1,5 +1,5 @@
-﻿const { printVoucher } = require('../src/core/printer');
-const { logger } = require('../src/core/logger');
+﻿import { printVoucher } from '../src/core/printer.js';
+import { logger } from '../src/core/logger.js';
 
 // Override config locally for the test if arguments are provided
 const mockConfig = {
@@ -11,7 +11,7 @@ const mockConfig = {
 };
 
 // Mocking the getConfig temporarily to use our arguments
-const configModule = require('../src/core/config');
+import configModule from '../src/core/config.js';
 const originalGetConfig = configModule.getConfig;
 configModule.getConfig = () => ({ ...originalGetConfig(), printer: mockConfig.printer });
 
@@ -27,7 +27,7 @@ async function runTest() {
 
     console.log('\n[2] Bluetooth Auto-Discovery:');
     try {
-        const { discoverBluetoothPrinterPort } = require('../src/core/printer');
+        import { discoverBluetoothPrinterPort } from '../src/core/printer.js';
         const btPort = discoverBluetoothPrinterPort();
         if (btPort) {
             console.log(`✅ Discovered BT Printer on: ${btPort}`);

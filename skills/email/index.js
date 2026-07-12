@@ -1,5 +1,5 @@
 // skills/email/index.js
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 class EmailSkill {
   constructor() {
@@ -80,7 +80,7 @@ class EmailSkill {
         break;
         
       case 'aws-ses':
-        const aws = require('@aws-sdk/client-ses');
+        import aws from '@aws-sdk/client-ses';
         const ses = new aws.SES({
           region: config.region,
           credentials: {

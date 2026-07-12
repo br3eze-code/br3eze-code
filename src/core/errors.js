@@ -1,5 +1,3 @@
-'use strict';
-
 const ErrorCodes = {
   // Connection errors (1000-1099)
   CONNECTION_REFUSED: 1001,
@@ -40,6 +38,6 @@ class AgentOSError extends Error {
   }
 }
 
-module.exports = { ErrorCodes, AgentOSError };
+export { ErrorCodes, AgentOSError };
 
 

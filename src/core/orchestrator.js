@@ -1,9 +1,8 @@
-'use strict';
 /**
  * AgentOSOrchestrator — migrated from ss35.js §15
  * Manages provisioning, system monitoring, device detection, and CRON tasks.
  */
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
 class AgentOSOrchestrator {
     constructor(mikrotik, db, gateway, bot) {
@@ -162,4 +161,4 @@ class AgentOSOrchestrator {
     }
 }
 
-module.exports = AgentOSOrchestrator;
+export default AgentOSOrchestrator;

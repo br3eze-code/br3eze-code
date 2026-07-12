@@ -1,6 +1,4 @@
-'use strict';
-
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 /**
  * Common utilities for AgentOS

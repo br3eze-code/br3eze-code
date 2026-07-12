@@ -1,6 +1,6 @@
-const fs = require('fs/promises');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs/promises';
+import path from 'path';
+import { execSync } from 'child_process';
 
 const SAFE_DIRS = ['./skills', './agents', './knowledge'];
 const FORBIDDEN = ['/system', '/etc', 'package.json', 'node_modules', '.env', 'server/gateway.js'];
@@ -56,4 +56,4 @@ const self_edit = {
   }
 };
 
-module.exports = { self_edit };
+export { self_edit };

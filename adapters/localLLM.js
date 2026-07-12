@@ -1,7 +1,5 @@
-'use strict';
-
-const axios           = require('axios');
-const { BaseAdapter } = require('./base.adapter');
+import axios from 'axios';
+import { BaseAdapter } from './base.adapter.js';
 
 class LocalLLMAdapter extends BaseAdapter {
     constructor(endpoint = 'http://localhost:19876') {
@@ -19,4 +17,4 @@ class LocalLLMAdapter extends BaseAdapter {
     }
 }
 
-module.exports = LocalLLMAdapter;
+export default LocalLLMAdapter;

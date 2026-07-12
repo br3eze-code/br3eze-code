@@ -1,6 +1,6 @@
 // src/domains/ai/index.js
-const BaseDomain = require('../BaseDomain');
-const { ClaudeProvider } = require('../../providers/claude');
+import BaseDomain from '../BaseDomain.js';
+import { ClaudeProvider } from '../../providers/claude.js';
 
 class AIDomain extends BaseDomain {
   constructor() {
@@ -12,9 +12,9 @@ class AIDomain extends BaseDomain {
       description: 'Check status and validity of configured AI providers',
       execute: async () => {
         const providers = [];
-        const { OpenAIProvider } = require('../../providers/openai');
-        const GeminiProvider = require('../../providers/gemini');
-        const { OllamaProvider } = require('../../providers/ollama');
+        import { OpenAIProvider } from '../../providers/openai.js';
+        import GeminiProvider from '../../providers/gemini.js';
+        import { OllamaProvider } from '../../providers/ollama.js';
 
         // Helper to check provider
         const checkProvider = async (name, ProviderClass, envKey) => {
@@ -48,15 +48,15 @@ class AIDomain extends BaseDomain {
            const claude = new ClaudeProvider();
            return await claude.validateKey();
         } else if (p === 'openai') {
-           const { OpenAIProvider } = require('../../providers/openai');
+           import { OpenAIProvider } from '../../providers/openai.js';
            const openai = new OpenAIProvider();
            return await openai.validateKey();
         } else if (p === 'gemini') {
-           const GeminiProvider = require('../../providers/gemini');
+           import GeminiProvider from '../../providers/gemini.js';
            const gemini = new GeminiProvider();
            return await gemini.validateKey();
         } else if (p === 'ollama') {
-           const { OllamaProvider } = require('../../providers/ollama');
+           import { OllamaProvider } from '../../providers/ollama.js';
            const ollama = new OllamaProvider();
            return await ollama.validateKey();
         }
@@ -66,4 +66,4 @@ class AIDomain extends BaseDomain {
   }
 }
 
-module.exports = AIDomain;
+export default AIDomain;

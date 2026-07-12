@@ -19,7 +19,7 @@
  */
 'use strict';
 
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
 const DEFAULT_INTERVAL = 30 * 60 * 1000;
 
@@ -152,4 +152,4 @@ class HeartbeatAgent {
     }
 }
 
-module.exports = { HeartbeatAgent, parseQuietHours, inQuietHours, deriveSignals };
+export { HeartbeatAgent, parseQuietHours, inQuietHours, deriveSignals };

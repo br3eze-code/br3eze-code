@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
 
 const hotspot_brand = {
   name: "hotspot_brand",
@@ -96,4 +96,4 @@ const hotspot_brand = {
   }
 };
 
-module.exports = { hotspot_brand };
+export { hotspot_brand };

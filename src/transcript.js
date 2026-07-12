@@ -1,4 +1,3 @@
-'use strict';
 // src/transcript.js — lightweight conversation transcript store
 // General-purpose: works for any agent, not domain-specific
 class TranscriptStore {
@@ -16,4 +15,4 @@ class TranscriptStore {
   clear() { this._entries = []; return this; }
   get length() { return this._entries.length; }
 }
-module.exports = { TranscriptStore };
+export { TranscriptStore };

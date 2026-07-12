@@ -1,9 +1,8 @@
-'use strict';
 /**
  * OperationProgressTracker — step-by-step progress for long-running ops
  */
 
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
 

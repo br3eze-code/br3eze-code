@@ -1,5 +1,3 @@
-'use strict';
-
 const formatBytes = (bytes, decimals = 2) => {
   if (bytes === 0) return '0 B';
   const k     = 1024;
@@ -23,5 +21,5 @@ const formatUptime = (uptime) => {
   return parts.join(' ') || '0s';
 };
 
-module.exports = { formatBytes, formatUptime };
+export { formatBytes, formatUptime };
 

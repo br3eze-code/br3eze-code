@@ -1,8 +1,11 @@
-const { BaseSkill } = require('../base.js')
-const axios = require('axios')
-const { google } = require('googleapis')
-const fs = require('fs/promises')
-const path = require('path')
+import fs from 'fs';
+import fs_promises from 'fs/promises';
+import path from 'path';
+import { BaseSkill } from '../base.js';
+import axios from 'axios';
+import { google } from 'googleapis';
+const fs = fs_promises
+const path = path
 
 class FileStorageSkill extends BaseSkill {
   static id = 'files'
@@ -186,7 +189,7 @@ class FileStorageSkill extends BaseSkill {
     }
 
     if (args.action === 'upload') {
-      const media = { mimeType: args.mime_type, body: require('fs').createReadStream(args.file) }
+      const media = { mimeType: args.mime_type, body: fs.createReadStream(args.file) }
       const fileMetadata = { name: args.name || path.basename(args.file), parents: args.folder_id? [args.folder_id] : [] }
       const res = await this.gdrive.files.create({ requestBody: fileMetadata, media, fields: 'id,name,webViewLink' })
       return { action: 'upload', name: res.data.name, id: res.data.id, url: res.data.webViewLink }
@@ -195,7 +198,7 @@ class FileStorageSkill extends BaseSkill {
     if (args.action === 'download') {
       const res = await this.gdrive.files.get({ fileId: args.file, alt: 'media' }, { responseType: 'stream' })
       const localPath = `${this.workspace}/${args.name || 'download'}`
-      const dest = require('fs').createWriteStream(localPath)
+      const dest = fs.createWriteStream(localPath)
       await new Promise((resolve, reject) => {
         res.data.pipe(dest).on('finish', resolve).on('error', reject)
       })
@@ -258,7 +261,7 @@ class FileStorageSkill extends BaseSkill {
 
   async _bucket(args, ctx) {
     // S3-compatible: use AWS SDK or MinIO
-    const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3')
+    import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
     const s3 = new S3Client({
       region: this.config.s3_region || 'us-east-1',
       credentials: {
@@ -292,4 +295,4 @@ class FileStorageSkill extends BaseSkill {
   }
 }
 
-module.exports = FileStorageSkill
+export default FileStorageSkill;

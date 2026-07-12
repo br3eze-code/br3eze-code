@@ -6,11 +6,11 @@
 // ─── LOAD TOOL GROUPS ─────────────────────────────────
 
 // Each group module exports named functions
-const mikrotik = require('./mikrotik/index.js');
-const telegram  = require('./telegram/index.js');
-const db        = require('./db/index.js');
-const payments  = require('./payments/index.js');
-const system    = require('./system/index.js');
+import mikrotik from './mikrotik/index.js.js';
+import telegram from './telegram/index.js.js';
+import db from './db/index.js.js';
+import payments from './payments/index.js.js';
+import system from './system/index.js.js';
 
 // ─── PREFIX HELPER ────────────────────────────────────
 /**
@@ -34,4 +34,4 @@ const tools = {
     ...prefix('system',   system)
 };
 
-module.exports = { tools };
+export { tools };

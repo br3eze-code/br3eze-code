@@ -63,4 +63,4 @@ class MemoryAdapter {
   }
 }
 
-module.exports = MemoryAdapter;
+export default MemoryAdapter;

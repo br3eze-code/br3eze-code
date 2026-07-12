@@ -2,7 +2,7 @@
  * Helper utilities
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4: uuidv4 } from 'uuid';
 
 /**
  * Format bytes to human readable string

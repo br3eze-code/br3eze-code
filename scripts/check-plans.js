@@ -1,10 +1,9 @@
-'use strict';
-
+import fs from 'fs';
+import path from 'path';
 const admin = require('firebase-admin');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
-
+const fs = fs;
+const path = path;
+import 'dotenv/config';
 async function check() {
     if (!admin.apps.length) {
         const saPath = process.env.FIREBASE_SERVICE_ACCOUNT || './serviceAccountKey.json';

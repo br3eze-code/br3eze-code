@@ -3,9 +3,9 @@
  * Handles user authentication, token verification, and user management
  */
 
-const { admin, auth, db } = require('../config/firebase');
-const logger = require('../utils/logger');
-const { generateMikrotikUsername } = require('../utils/crypto');
+import { admin, auth, db } from '../config/firebase.js';
+import logger from '../utils/logger.js';
+import { generateMikrotikUsername } from '../utils/crypto.js';
 
 class FirebaseAuthService {
     /**

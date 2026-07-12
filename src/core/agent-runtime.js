@@ -4,7 +4,7 @@
  * Implements the OpenClaw execution loop
  */
 
-const { Logger } = require('../utils/logger');
+import { Logger } from '../utils/logger.js';
 
 class AgentRuntime {
   constructor(options) {
@@ -239,5 +239,5 @@ Be concise and helpful. If a tool execution fails, explain the error to the user
   }
 }
 
-module.exports = { AgentRuntime };
+export { AgentRuntime };
 

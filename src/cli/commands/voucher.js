@@ -5,9 +5,9 @@
 
 'use strict';
 
-const fs   = require('fs');
-const QRCode = require('qrcode');
-const { getDatabase } = require('../../core/database');
+import fs from 'fs';
+import QRCode from 'qrcode';
+import { getDatabase } from '../../core/database.js';
 
 // ── Plan definitions (mirrors 36.js CONFIG.VOUCHER_PLANS) ────────────────────
 const PLAN_DEFS = {
@@ -65,7 +65,7 @@ module.exports = (program) => {
 
       try {
         const db = await getDatabase();
-        const voucherAgent = require('../../core/voucher');
+        import voucherAgent from '../../core/voucher.js';
         const created = [];
 
         for (let i = 0; i < qty; i++) {
@@ -79,7 +79,7 @@ module.exports = (program) => {
 
           // Auto-print voucher
           try {
-            const { printVoucher } = require('../../core/printer');
+            import { printVoucher } from '../../core/printer.js';
             const loginUrl = `http://${config.mikrotik?.ip || config.adapters?.mikrotik?.host}/login.html?code=${code}`;
             printVoucher({
               username: code,
@@ -220,7 +220,7 @@ module.exports = (program) => {
       // Generation dry-run
       s.start('Dry-run voucher generation…');
       try {
-        const voucherAgent = require('../../core/voucher');
+        import voucherAgent from '../../core/voucher.js';
         const sample = voucherAgent.generate('default');
         s.stop(`Sample: ${sample}`);
         checks.push({ name: 'Generator', status: 'ok', details: `sample → ${sample}` });

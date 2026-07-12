@@ -1,6 +1,6 @@
-const { EC2Client, DescribeInstancesCommand, RebootInstancesCommand } = require('@aws-sdk/client-ec2')
-const { S3Client, ListBucketsCommand } = require('@aws-sdk/client-s3')
-const { BaseSkill } = require('../base.js')
+import { EC2Client, DescribeInstancesCommand, RebootInstancesCommand } from '@aws-sdk/client-ec2';
+import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
+import { BaseSkill } from '../base.js';
 
 class AWSSkill extends BaseSkill {
   static id = 'aws'
@@ -108,4 +108,4 @@ class AWSSkill extends BaseSkill {
   }
 }
 
-module.exports = AWSSkill
+export default AWSSkill;

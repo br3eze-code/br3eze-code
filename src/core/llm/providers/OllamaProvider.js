@@ -1,11 +1,10 @@
-'use strict';
 /**
  * Ollama LLM Provider (Local)
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
-const crypto = require('crypto');
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
+import crypto from 'crypto';
 
 class OllamaProvider extends BaseProvider {
     static getMetadata() {
@@ -160,4 +159,4 @@ class OllamaProvider extends BaseProvider {
 
 BaseProvider.register('ollama', OllamaProvider);
 BaseProvider.register('local', OllamaProvider);
-module.exports = { OllamaProvider };
+export { OllamaProvider };

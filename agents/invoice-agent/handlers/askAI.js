@@ -1,4 +1,3 @@
-'use strict';
 /**
  * askAI handler — routes a natural language query to Gemini Enterprise
  *
@@ -6,7 +5,7 @@
  * Injected args: (parameters, session, senderSPIFFE, a2aAdapter)
  */
 
-const { AIOrchestrator } = require('../../../src/core/ai-orchestrator');
+import { AIOrchestrator } from '../../../src/core/ai-orchestrator.js';
 
 // Singleton orchestrator — initialized once per process
 let _orchestrator = null;

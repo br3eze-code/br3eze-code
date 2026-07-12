@@ -1,5 +1,5 @@
-const eventBus = require('../core/eventBus');
-const mikrotik = require('./mikrotik.agent');
+import eventBus from '../core/eventBus.js';
+import mikrotik from './mikrotik.agent.js';
 
 class MonitorAgent {
     constructor() {

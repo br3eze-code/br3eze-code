@@ -2,7 +2,7 @@
  * Request Validation Middleware
  */
 
-const { validationResult, body, param, query } = require('express-validator');
+import { validationResult, body, param, query } from 'express-validator';
 
 const requestValidator = (req, res, next) => {
     // Sanitize common fields

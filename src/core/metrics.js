@@ -1,6 +1,4 @@
-'use strict';
-
-const promClient = require('prom-client');
+import promClient from 'prom-client';
 
 const registry = new promClient.Registry();
 
@@ -48,7 +46,7 @@ class Metrics {
   }
 
   snapshot() {
-    const { costTracker } = require('./cost-tracker');
+    import { costTracker } from './cost-tracker.js';
     return {
       uptime: Math.floor((Date.now() - this.startedAt) / 1000),
       requests: this.requests,
@@ -72,6 +70,6 @@ class Metrics {
 
 const metrics = new Metrics();
 
-module.exports = { Metrics, metrics, registry, mikrotikCommands, activeConnections, metricsMiddleware };
+export { Metrics, metrics, registry, mikrotikCommands, activeConnections, metricsMiddleware };
 
 

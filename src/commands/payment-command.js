@@ -1,7 +1,7 @@
 // src/commands/payment-commands.js
 // Telegram bot commands for payments
 
-const paymentService = require('../payments');
+import paymentService from '../payments/index.js';
 
 module.exports = function setupPaymentCommands(bot, paymentSvc) {
   

@@ -1,7 +1,7 @@
 // src/interfaces/api.js
-const express = require('express');
-const config = require('../core/config');
-const mikrotik = require('../agents/mikrotik.agent');
+import express from 'express';
+import config from '../core/config.js';
+import mikrotik from '../agents/mikrotik.agent.js';
 const router = express.Router();
 
 router.get('/health', (req, res) => {
@@ -123,7 +123,7 @@ app.post('/user', auth, async (req, res) => {
     res.json({ status: 'created' });
 });
 
-module.exports = app;
+export default app;
 
 module.exports = (agent) => {
 

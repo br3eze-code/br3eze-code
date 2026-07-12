@@ -11,8 +11,8 @@
  */
 'use strict';
 
-const { getDatabase } = require('./database');
-const { logger } = require('./logger');
+import { getDatabase } from './database.js';
+import { logger } from './logger.js';
 
 async function _fs() {
     const db = await getDatabase();
@@ -100,4 +100,4 @@ async function buyPlan(uid, planRef) {
     return { planName: plan.name, price, expiresAt, paid: result.paid, provisioned };
 }
 
-module.exports = { listPlans, getPlan, buyPlan };
+export { listPlans, getPlan, buyPlan };

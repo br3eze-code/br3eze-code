@@ -1,8 +1,7 @@
-'use strict';
 // tools/mikrotik/createUser.js
 // MikroTik Hotspot User Creation Tool
 
-const { getManager } = require("../../src/core/mikrotik");
+import { getManager } from '../../src/core/mikrotik.js';
 const getRouterConnection = () => getManager();
 
 /**
@@ -47,4 +46,4 @@ async function createUser({ name, password, profile = "default", context }) {
         throw new Error("MikroTik createUser failed: " + err.message);
     }
 }
-module.exports = { createUser };
+export { createUser };

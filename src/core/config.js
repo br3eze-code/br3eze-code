@@ -1,8 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-require('dotenv').config();
-
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+const fs = fs;
+const path = path;
+const os = require('os');import 'dotenv/config';
 function getPkgVersion() {
     try {
         return require('../../package.json').version;
@@ -66,7 +67,7 @@ const DEFAULT_CONFIG = {
         port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
         host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',
         token: process.env.AGENTOS_GATEWAY_TOKEN
-            || require('crypto').randomBytes(32).toString('hex')
+            || crypto.randomBytes(32).toString('hex')
     },
     server: {
         port: 3000,

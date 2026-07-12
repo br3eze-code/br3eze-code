@@ -5,10 +5,10 @@
 
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
-const { getDatabase } = require('../../core/database');
-const { costTracker } = require('../../core/cost-tracker');
+import fs from 'fs';
+import path from 'path';
+import { getDatabase } from '../../core/database.js';
+import { costTracker } from '../../core/cost-tracker.js';
 
 module.exports = (program) => {
   program
@@ -90,7 +90,7 @@ module.exports = (program) => {
           let mikrotik;
           const timeoutMs = Math.max(500, parseInt(options.routerTimeout, 10) || 4000);
           try {
-            const { getMikroTikClient } = require('../../core/mikrotik');
+            import { getMikroTikClient } from '../../core/mikrotik.js';
             mikrotik = await getMikroTikClient();
             const stats = await Promise.race([
               (async () => { await mikrotik.connect(); return mikrotik.getSystemStats(); })(),

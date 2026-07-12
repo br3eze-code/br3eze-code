@@ -1,4 +1,3 @@
-'use strict';
 // tools/telegram/sendMessage.js
 // Telegram Messaging Tool
 
@@ -43,4 +42,4 @@ async function sendMessage({ chatId, message, parseMode = "HTML" }) {
         throw new Error("telegram.sendMessage failed: " + err.message);
     }
 }
-module.exports = { sendMessage };
+export { sendMessage };

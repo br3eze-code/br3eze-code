@@ -2,10 +2,10 @@
  * Billing Agent - Manages WiFi billing sessions, usage tracking, and payments
  */
 
-const UsageTracker = require('./UsageTracker');
-const RateCalculator = require('./RateCalculator');
-const SessionManager = require('./SessionManager');
-const EventEmitter = require('events');
+import UsageTracker from './UsageTracker.js';
+import RateCalculator from './RateCalculator.js';
+import SessionManager from './SessionManager.js';
+import EventEmitter from 'events';
 
 class BillingAgent extends EventEmitter {
   constructor(config = {}) {
@@ -309,4 +309,4 @@ class BillingAgent extends EventEmitter {
   }
 }
 
-module.exports = BillingAgent;
+export default BillingAgent;

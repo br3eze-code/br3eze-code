@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { getManager: getMikroTikManager } = require('../../core/mikrotik');
+import { getManager: getMikroTikManager } from '../../core/mikrotik.js';
 
 module.exports = (program) => {
   program
@@ -31,7 +31,7 @@ module.exports = (program) => {
             mikrotik.getAllHotspotUsers(),
             mikrotik.getInterfaces(),
             (async () => {
-              const { getDatabase } = require('../../core/database');
+              import { getDatabase } from '../../core/database.js';
               const db = await getDatabase();
               return db.getStats();
             })()

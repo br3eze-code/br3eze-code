@@ -1,12 +1,10 @@
-'use strict';
-
-const WebSocket = require('ws');
-const QRCode = require('qrcode');
-const { logger } = require('../logger');
-const { getConfig } = require('../config');
-const { getMikroTikClient } = require('../mikrotik');
-const { getDatabase } = require('../database');
-const { generate: voucherCode } = require('../voucher');
+import WebSocket from 'ws';
+import QRCode from 'qrcode';
+import { logger } from '../logger.js';
+import { getConfig } from '../config.js';
+import { getMikroTikClient } from '../mikrotik.js';
+import { getDatabase } from '../database.js';
+import { generate: voucherCode } from '../voucher.js';
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -249,8 +247,8 @@ class WebSocketCLI {
             const code = voucherCode();
             const db = await getDatabase();
             const mikrotik = getMikroTikClient();
-            const { DEFAULT_PLANS } = require('../database');
-            const dateUtils = require('../../utils/date');
+            import { DEFAULT_PLANS } from '../database.js';
+            import dateUtils from '../../utils/date.js';
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
@@ -537,4 +535,4 @@ class WebSocketCLI {
     destroy() { this.buffer = ''; this.isProcessing = false; this.pendingConfirm = null; }
 }
 
-module.exports = WebSocketCLI;
+export default WebSocketCLI;

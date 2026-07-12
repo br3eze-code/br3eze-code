@@ -1,9 +1,9 @@
-const axios = require('axios')
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const path = require('path')
-const fs = require('fs/promises')
-const { BaseSkill } = require('../base.js')
+import axios from 'axios';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs/promises';
+import { BaseSkill } from '../base.js';
 
 const execAsync = promisify(exec)
 
@@ -927,4 +927,4 @@ unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
   }
 }
 
-module.exports = UnrealSkill
+export default UnrealSkill;

@@ -1,6 +1,6 @@
-const readline = require('readline');
-const { logger } = require('../logger');
-const { BaseChannel } = require('./BaseChannel');
+import readline from 'readline';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
 
 class CLIChannel extends BaseChannel {
     static getMetadata() {
@@ -81,4 +81,4 @@ class CLIChannel extends BaseChannel {
 
 BaseChannel.register('cli', CLIChannel);
 
-module.exports = CLIChannel;
+export default CLIChannel;

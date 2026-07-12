@@ -1,7 +1,6 @@
-'use strict';
-const fs   = require('fs');
-const path = require('path');
-const { logger } = require('../../src/core/logger');
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../../src/core/logger.js';
 
 // ── Path helpers ──────────────────────────────────────────────────────────────
 

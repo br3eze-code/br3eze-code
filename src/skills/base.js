@@ -23,4 +23,4 @@ class BaseSkill {
   }
 }
 
-module.exports = { BaseSkill, BaseDriver: BaseSkill }
+export { BaseSkill, BaseSkill as BaseDriver };

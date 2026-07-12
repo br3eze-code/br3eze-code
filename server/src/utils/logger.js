@@ -1,6 +1,11 @@
-const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
+const __filename = require('url').fileURLToPath(import.meta.url);
+const __dirname = require('path').dirname(__filename);
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import winston from 'winston';
+import path from 'path';
+import fs from 'fs';
 
 // Ensure logs directory exists
 const logsDir = path.join(__dirname, '../../logs');
@@ -54,4 +59,4 @@ logger.stream = {
     }
 };
 
-module.exports = logger;
+export default logger;

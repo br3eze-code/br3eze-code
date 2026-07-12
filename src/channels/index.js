@@ -1,4 +1,3 @@
-'use strict';
 /**
  * src/channels/index.js
  *
@@ -8,18 +7,18 @@
  */
 
 // Re-export the canonical channel system
-const { BaseChannel } = require('../core/channels/BaseChannel');
-const ChannelManager  = require('../core/channels/ChannelManager');
+import { BaseChannel } from '../core/channels/BaseChannel.js';
+import ChannelManager from '../core/channels/ChannelManager.js';
 
 // Force-load built-in channel adapters (self-register via BaseChannel.register)
-const CLIChannel       = require('../core/channels/CLIChannel');
-const TelegramChannel  = require('../core/channels/TelegramChannel');
-const WhatsappChannel  = require('../core/channels/WhatsappChannel');
-const DiscordChannel   = require('../core/channels/DiscordChannel');
-const SlackChannel     = require('../core/channels/SlackChannel');
-const EmailChannel     = require('../core/channels/EmailChannel');
-const SMSChannel       = require('../core/channels/SMSChannel');
-const WebSocketChannel = require('../core/channels/WebSocketChannel');
+import CLIChannel from '../core/channels/CLIChannel.js';
+import TelegramChannel from '../core/channels/TelegramChannel.js';
+import WhatsappChannel from '../core/channels/WhatsappChannel.js';
+import DiscordChannel from '../core/channels/DiscordChannel.js';
+import SlackChannel from '../core/channels/SlackChannel.js';
+import EmailChannel from '../core/channels/EmailChannel.js';
+import SMSChannel from '../core/channels/SMSChannel.js';
+import WebSocketChannel from '../core/channels/WebSocketChannel.js';
 
 module.exports = {
   BaseChannel,

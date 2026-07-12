@@ -1,9 +1,8 @@
-'use strict';
 // system/logger.js
 // AgentOS Logging Core
 
-const fs = require("fs");
-const path = require("path");
+import fs from 'fs';
+import path from 'path';
 
 const LOG_DIR = path.join(process.cwd(), "logs");
 
@@ -115,4 +114,4 @@ const logger = {
         return "";
     }
 };
-module.exports = { logger };
+export { logger };

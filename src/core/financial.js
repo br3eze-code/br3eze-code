@@ -1,9 +1,8 @@
-'use strict';
 /**
  * FinancialController — AgentOS revenue reporting and transaction auditing
  * Aligned with 36.js (monolith) functions.
  */
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
 const PRICING = {
     '1Hour': 0.50,
@@ -187,4 +186,4 @@ class FinancialController {
     }
 }
 
-module.exports = FinancialController;
+export default FinancialController;

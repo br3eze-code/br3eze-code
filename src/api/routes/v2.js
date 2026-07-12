@@ -7,9 +7,9 @@
 
 'use strict';
 
-const express = require('express');
+import express from 'express';
 const router  = express.Router();
-const { logger } = require('../../core/logger');
+import { logger } from '../../core/logger.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ok       = (res, data, meta = {}) => res.json({ ok: true, ...meta, data });
@@ -442,4 +442,4 @@ async function _vouchersByDay(days = 7) {
   } catch { return []; }
 }
 
-module.exports = router;
+export default router;

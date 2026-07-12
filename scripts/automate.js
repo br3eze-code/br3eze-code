@@ -1,8 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const http = require('http');
-const https = require('https');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import http from 'http';
+import https from 'https';
 
 // Configuration
 const CONFIG = {

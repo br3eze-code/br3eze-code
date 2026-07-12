@@ -10,21 +10,21 @@
  * @see src/core/gateway-engine.js
  */
 
-const EventEmitter = require('events');
-const express = require('express');
-const { WebSocketServer } = require('ws');
-const helmet = require('helmet');
-const path = require('path');
-const fs = require('fs').promises;
+import EventEmitter from 'events';
+import express from 'express';
+import { WebSocketServer } from 'ws';
+import helmet from 'helmet';
+import path from 'path';
+import { promises as fs } from 'fs';
 
-const { AgentRuntime } = require('./agent-runtime');
-const { ToolRegistry } = require('./tool-registry');
-const { SessionManager } = require('./session-manager');
-const { MemoryStore } = require('./memory-store');
-const { ProviderManager } = require('./provider-manager');
-const { SafetyEnvelope } = require('./safety-envelope');
-const { Heartbeat } = require('./heartbeat');
-const { Logger } = require('../utils/logger');
+import { AgentRuntime } from './agent-runtime.js';
+import { ToolRegistry } from './tool-registry.js';
+import { SessionManager } from './session-manager.js';
+import { MemoryStore } from './memory-store.js';
+import { ProviderManager } from './provider-manager.js';
+import { SafetyEnvelope } from './safety-envelope.js';
+import { Heartbeat } from './heartbeat.js';
+import { Logger } from '../utils/logger.js';
 
 class Gateway extends EventEmitter {
   constructor(options = {}) {
@@ -315,7 +315,7 @@ class Gateway extends EventEmitter {
   }
 }
 
-module.exports = { Gateway };
+export { Gateway };
 
 /**
  * startGateway — convenience wrapper used by the CLI command.
@@ -327,4 +327,4 @@ async function startGateway(config = {}) {
   return gw;
 }
 
-module.exports = { Gateway, startGateway };
+export { Gateway, startGateway };

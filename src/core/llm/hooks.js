@@ -1,10 +1,9 @@
-'use strict';
 /**
  * Hook Registry — Lifecycle hooks for tool execution
  * Ported from 36.js §4.5
  */
 
-const { logger } = require('../logger');
+import { logger } from '../logger.js';
 
 class HookRegistry {
     constructor() {
@@ -74,4 +73,4 @@ class HookRegistry {
     }
 }
 
-module.exports = HookRegistry;
+export default HookRegistry;

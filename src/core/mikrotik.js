@@ -4,12 +4,12 @@
  * @version 2026.04.14
  */
 // ── Imports ───────────────────────────────────────────────────────────────────
-const { RouterOSClient } = require('routeros-client');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const NodeCache = require('node-cache');
-const Joi = require('joi');
-const EventEmitter = require('events');
+import { RouterOSClient } from 'routeros-client';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import NodeCache from 'node-cache';
+import Joi from 'joi';
+import EventEmitter from 'events';
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 const toolSchemas = {
@@ -480,7 +480,7 @@ class MikroTikManager extends EventEmitter {
 
     async _syncState() {
         try {
-            const { getDatabase } = require('./database');
+            import { getDatabase } from './database.js';
             const db = await getDatabase();
             if (db) {
                 // Fetch latest health before syncing
@@ -648,7 +648,7 @@ class MikroTikManager extends EventEmitter {
         let plan = null;
 
         try {
-            const { getDatabase } = require('./database');
+            import { getDatabase } from './database.js';
             const db = await getDatabase();
             if (db) plan = await db.getPlan(profile);
         } catch (err) {
@@ -753,7 +753,7 @@ class MikroTikManager extends EventEmitter {
 
         // ── Sync hotspot metadata back to database ────────────────────────────
         try {
-            const { getDatabase } = require('./database');
+            import { getDatabase } from './database.js';
             const db = await getDatabase();
             if (db) {
                 // Build the metadata doc at outer scope so both branches can use it
@@ -1740,7 +1740,7 @@ class MikroTikManager extends EventEmitter {
         this._ensureConnected();
         
         try {
-            const { getDatabase } = require('./database');
+            import { getDatabase } from './database.js';
             const db = await getDatabase();
             if (!db) throw new Error('Database not available for cleanup');
 

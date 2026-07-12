@@ -1,5 +1,5 @@
-const { NodePowerShell } = require('node-powershell')
-const { BaseSkill } = require('../base.js')
+import { NodePowerShell } from 'node-powershell';
+import { BaseSkill } from '../base.js';
 
 class WindowsSkill extends BaseSkill {
   static id = 'windows'
@@ -180,4 +180,4 @@ class WindowsSkill extends BaseSkill {
   }
 }
 
-module.exports = WindowsSkill
+export default WindowsSkill;

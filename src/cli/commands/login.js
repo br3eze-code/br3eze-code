@@ -1,4 +1,3 @@
-'use strict';
 // ==========================================
 // AGENTOS LOGIN / LOGOUT / WHOAMI
 // GitHub OAuth Device Flow — no redirect URI, no local web server.
@@ -10,9 +9,9 @@
 // even before the gateway/DB is set up.
 // ==========================================
 
-const fs = require('fs');
-const path = require('path');
-const { EncryptionVault } = require('../../core/vault');
+import fs from 'fs';
+import path from 'path';
+import { EncryptionVault } from '../../core/vault.js';
 
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const TOKEN_URL = 'https://github.com/login/oauth/access_token';
@@ -311,4 +310,4 @@ module.exports = (program) => {
         });
 };
 
-module.exports._internal = { readCredentials, writeCredentials, credentialsPath, deviceFlowLogin, decodeFirebaseToken, firebaseLogin };
+export const _internal = { readCredentials, writeCredentials, credentialsPath, deviceFlowLogin, decodeFirebaseToken, firebaseLogin };

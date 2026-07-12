@@ -1,6 +1,4 @@
-'use strict';
-
-const { logger } = require('../src/core/logger');
+import { logger } from '../src/core/logger.js';
 
 class WiFiManager {
     constructor() {
@@ -45,4 +43,4 @@ class WiFiManager {
     }
 }
 
-module.exports = WiFiManager;
+export default WiFiManager;

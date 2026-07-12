@@ -55,4 +55,4 @@ class PesaPalPolling {
   }
 }
 
-module.exports = PesaPalPolling;
+export default PesaPalPolling;

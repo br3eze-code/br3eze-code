@@ -3,19 +3,19 @@
  * Handles all authentication endpoints
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const passport = require('passport');
-const { body, validationResult } = require('express-validator');
-const firebaseAuthService = require('../services/firebaseAuth');
-const mikrotikService = require('../services/mikrotikAPI');
-const sessionManager = require('../services/sessionManager');
-const logger = require('../utils/logger');
-const { generateSecurePassword, generateMikrotikUsername } = require('../utils/crypto');
-const { sanitizeMacAddress } = require('../utils/helpers');
+import passport from 'passport';
+import { body, validationResult } from 'express-validator';
+import firebaseAuthService from '../services/firebaseAuth.js';
+import mikrotikService from '../services/mikrotikAPI.js';
+import sessionManager from '../services/sessionManager.js';
+import logger from '../utils/logger.js';
+import { generateSecurePassword, generateMikrotikUsername } from '../utils/crypto.js';
+import { sanitizeMacAddress } from '../utils/helpers.js';
 
 // Google OAuth Strategy Setup
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
@@ -699,4 +699,4 @@ function generateErrorPage(message) {
   `;
 }
 
-module.exports = router;
+export default router;

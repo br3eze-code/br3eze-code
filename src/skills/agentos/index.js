@@ -1,5 +1,5 @@
-﻿const { BaseDriver } = require('../base.js');
-const { logger } = require('../../core/logger');
+﻿import { BaseDriver } from '../base.js';
+import { logger } from '../../core/logger.js';
 
 class AgentOSCoreDriver extends BaseDriver {
   static id = 'agentos';
@@ -65,7 +65,7 @@ class AgentOSCoreDriver extends BaseDriver {
         return { success: true, message: 'Broadcast sent to all active channels' };
 
       case 'agentos.printer.test':
-        const printer = require('../../core/printer');
+        import printer from '../../core/printer.js';
         const testData = args.text || 'AgentOS Thermal Printer Test Page\n' + new Date().toLocaleString();
         try {
           await printer.printVoucher({
@@ -80,8 +80,8 @@ class AgentOSCoreDriver extends BaseDriver {
         }
 
       case 'agentos.voucher.create':
-        const voucherManager = require('../../core/voucher');
-        const printerService = require('../../core/printer');
+        import voucherManager from '../../core/voucher.js';
+        import printerService from '../../core/printer.js';
 
         try {
           // 1. Generate the voucher (handles DB and MikroTik sync)
@@ -120,4 +120,4 @@ class AgentOSCoreDriver extends BaseDriver {
   }
 }
 
-module.exports = AgentOSCoreDriver;
+export default AgentOSCoreDriver;
