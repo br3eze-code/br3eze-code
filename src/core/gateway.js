@@ -315,7 +315,6 @@ class Gateway extends EventEmitter {
   }
 }
 
-export { Gateway };
 
 /**
  * startGateway — convenience wrapper used by the CLI command.

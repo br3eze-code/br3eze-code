@@ -385,4 +385,4 @@ class SessionManager {
     }
 }
 
-module.exports = new SessionManager();
+export default new SessionManager();

@@ -1,9 +1,8 @@
-const __filename = require('url').fileURLToPath(import.meta.url);
-const __dirname = require('path').dirname(__filename);
+#!/usr/bin/env node
 import { fileURLToPath } from 'url';
+import path from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-#!/usr/bin/env node
 /**
  * Generates www/js/env.js from the repo-root .env file.
  *
@@ -19,7 +18,6 @@ const __dirname = path.dirname(__filename);
 'use strict';
 
 import fs from 'fs';
-import path from 'path';
 
 const ROOT = path.join(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');

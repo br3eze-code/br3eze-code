@@ -181,7 +181,8 @@ function createProgressTracker(template, onProgress = null) {
     return new OperationProgressTracker(template, onProgress);
 }
 
-module.exports = {
+export { createProgressTracker, buildMikrotikProvisionTemplate, buildVoucherBatchTemplate };
+export default {
     OperationProgressTracker, StepStatus,
     createProgressTracker,
     buildMikrotikProvisionTemplate,

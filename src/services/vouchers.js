@@ -37,4 +37,4 @@ class VoucherService {
     }
 }
 
-module.exports = new VoucherService();
+export default new VoucherService();

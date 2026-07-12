@@ -22,7 +22,7 @@
 
 const chalk = require('chalk');
 
-module.exports = (program) => {
+export default (program) => {
   // ── MikroTik / Hotspot users ───────────────────────────────────────────
   const users = program
     .command('users')

@@ -117,4 +117,4 @@ class WorkspaceManager {
   }
 }
 
-module.exports = { Workspace, WorkspaceManager };
+export default { Workspace, WorkspaceManager };

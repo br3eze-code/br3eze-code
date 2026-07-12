@@ -14,7 +14,7 @@ import { getDatabase } from '../../core/database.js';
 import voucherAgent from '../../core/voucher.js';
 import WhatsAppChannel from '../../core/channels/WhatsappChannel.js';
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('wacli')
     .description('WhatsApp CLI — QR pairing, auth status, and diagnostics')

@@ -33,7 +33,7 @@ function makeDb(vouchersMap = mkVouchers()) {
 
 describe('VoucherAgent.generate', () => {
     let voucher;
-    beforeEach(() => { jest.resetModules(); voucher = require('../../src/core/voucher'); });
+    beforeEach(() => { jest.resetModules(); voucher = require('../../src/core/voucher.js').default; });
 
     test('returns a STAR-prefixed string', () => {
         const code = voucher.generate('1day');
@@ -67,7 +67,7 @@ describe('VoucherAgent.generate', () => {
     });
 
     test('emits voucher.created with code and plan', () => {
-        const eventBus = require('../../src/core/eventBus');
+        const eventBus = require('../../src/core/eventBus.js').default;
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
         const code = voucher.generate('1day');

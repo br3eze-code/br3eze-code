@@ -8,7 +8,7 @@ import { getDatabase } from '../../core/database.js';
 'use strict';
 
 
-module.exports = (program) => {
+export default (program) => {
   const network = program
     .command('network')
     .description('Network diagnostics and RouterOS tools')

@@ -328,6 +328,6 @@ class TaskScheduler extends EventEmitter {
   }
 }
 
-module.exports = TaskScheduler;
+export default TaskScheduler;
 module.exports.computeInitialNextRun = computeInitialNextRun;
 module.exports.computeNextRun = computeNextRun;

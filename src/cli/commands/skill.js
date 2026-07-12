@@ -9,7 +9,7 @@ import SkillRegistry from '../../core/SkillRegistry.js';
 const chalk  = _chalk.default || _chalk;
 import path from 'path';
 
-module.exports = (program) => {
+export default (program) => {
   const skill = program
     .command('skill')
     .description('Manage and execute agent skills');

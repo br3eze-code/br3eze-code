@@ -260,4 +260,4 @@ class GossipNode {
     }
 }
 
-module.exports = GossipNode;
+export default GossipNode;

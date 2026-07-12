@@ -44,7 +44,7 @@ async function getOrchestrator(a2aAdapter) {
  * @param {string}  senderSPIFFE
  * @param {object}  a2aAdapter   - A2AProtocolAdapter instance
  */
-module.exports = async function askAI(parameters, session, senderSPIFFE, a2aAdapter) {
+export default async function askAI(parameters, session, senderSPIFFE, a2aAdapter) {
     const { query, context = {} } = parameters;
 
     if (!query || typeof query !== 'string') {

@@ -173,7 +173,8 @@ logger.cyber = logger.cyber.bind(logger);
 logger.fatal = logger.fatal.bind(logger);
 logger.trace = logger.trace.bind(logger);
 
-module.exports = {
+export { logger, correlationIdMiddleware, asyncLocalStorage };
+export default {
   logger,
   correlationIdMiddleware,
   asyncLocalStorage

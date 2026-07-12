@@ -156,7 +156,8 @@ function clearCache(key) {
     }
 }
 
-module.exports = {
+export { resolvePath, ensureDirectory, writeFile, readFile, appendJson, readRaw, writeRaw, appendRaw, deleteFile, fileExists, listDirectory, getFileStats, setCache, getCache, clearCache };
+export default {
     resolvePath, 
     ensureDirectory,
     writeFile, 

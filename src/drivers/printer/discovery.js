@@ -108,7 +108,8 @@ function listDevPrinters() {
   return results;
 }
 
-module.exports = {
+export { listSerialPortsFromRegistry, comPortToInterface, listCUPSPrinters, listDevPrinters };
+export default {
   listSerialPortsFromRegistry,
   comPortToInterface,
   listCUPSPrinters,

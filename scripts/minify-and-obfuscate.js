@@ -44,7 +44,7 @@ function walkJsFiles(dir, onFile) {
     }
 }
 
-module.exports = function (context) {
+export default function (context) {
     let JavaScriptObfuscator;
     try {
         JavaScriptObfuscator = require('javascript-obfuscator');

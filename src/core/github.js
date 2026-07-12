@@ -124,4 +124,4 @@ class GitHubIntegration {
     }
 }
 
-module.exports = GitHubIntegration;
+export default GitHubIntegration;

@@ -161,4 +161,4 @@ class EnhancedDatabase {
   }
 }
 
-module.exports = new EnhancedDatabase();
+export default new EnhancedDatabase();

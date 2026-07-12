@@ -9,7 +9,7 @@ import fs from 'fs';
 import { CONFIG_PATH } from '../../core/config.js';
 import DahuaSkill from '../../skills/dahua/index.js';
 
-module.exports = (program) => {
+export default (program) => {
   const dahua = program
     .command('dahua')
     .description('Manage Dahua cameras');

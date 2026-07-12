@@ -476,10 +476,10 @@ class CalendarSkill {
 }
 
 // Export both the skill and adapters for testing
-module.exports = new CalendarSkill();
-export const CalendarSkill = CalendarSkill;
-export const GoogleCalendarAdapter = GoogleCalendarAdapter;
-export const OutlookCalendarAdapter = OutlookCalendarAdapter;
-export const LocalCalendarAdapter = LocalCalendarAdapter;
-export const BaseCalendarAdapter = BaseCalendarAdapter;
+export default new CalendarSkill();
+export { CalendarSkill };
+export { GoogleCalendarAdapter };
+export { OutlookCalendarAdapter };
+export { LocalCalendarAdapter };
+export { BaseCalendarAdapter };
 

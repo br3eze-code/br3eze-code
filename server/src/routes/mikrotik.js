@@ -496,4 +496,4 @@ router.post('/batch-users', [
     }
 });
 
-module.exports = router;
+export default router;

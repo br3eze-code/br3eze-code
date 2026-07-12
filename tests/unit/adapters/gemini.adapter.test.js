@@ -2,7 +2,7 @@
 
 jest.mock('axios');
 const axios = require('axios');
-const GeminiAdapter = require('../../../adapters/gemini.adapter');
+const { default: GeminiAdapter } = require('../../../adapters/gemini.adapter.js');
 
 describe('GeminiAdapter', () => {
   let adapter;

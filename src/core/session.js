@@ -25,4 +25,4 @@ class SessionAgent {
     }
 }
 
-module.exports = new SessionAgent();
+export default new SessionAgent();

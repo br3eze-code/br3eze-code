@@ -146,7 +146,8 @@ class OAuthVault {
 
 // Export singleton instances
 const encVault = new EncryptionVault();
-module.exports = {
+export { EncryptionVault, OAuthVault };
+export default {
     EncryptionVault,
     OAuthVault,
     vault: encVault

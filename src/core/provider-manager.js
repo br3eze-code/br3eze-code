@@ -157,5 +157,5 @@ class ProviderManager {
   }
 }
 
-module.exports = { ProviderManager };
+export default { ProviderManager };
 

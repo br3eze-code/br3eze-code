@@ -209,4 +209,4 @@ class ChannelManager extends EventEmitter {
 // Static field assigned after class definition (Babel class-properties plugin not required)
 ChannelManager.adapters = new Map();
 
-module.exports = ChannelManager;
+export default ChannelManager;

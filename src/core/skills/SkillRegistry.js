@@ -144,4 +144,4 @@ class SkillRegistry {
   }
 }
 
-module.exports = SkillRegistry;
+export default SkillRegistry;

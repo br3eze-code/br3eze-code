@@ -113,4 +113,4 @@ class SecurityManager {
   }
 }
 
-module.exports = new SecurityManager();
+export default new SecurityManager();

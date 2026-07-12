@@ -136,6 +136,5 @@ class ToolRegistry {
 // ── Singleton default export (backward compat with tool-registry.js consumers)
 const _singleton = new ToolRegistry();
 
-module.exports                = _singleton;       // default: singleton instance
-export const ToolRegistry = ToolRegistry;     // named: class for tests / DI;
-export const default = _singleton;       // ESM interop;
+export default _singleton;       // default: singleton instance
+export { ToolRegistry };     // named: class for tests / DI

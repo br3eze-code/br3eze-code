@@ -159,7 +159,7 @@ async function firebaseLogin({ log, note }) {
     };
 }
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('login')
         .description('Log in to AgentOS via GitHub or Firebase OAuth')

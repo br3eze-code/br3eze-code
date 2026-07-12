@@ -19,7 +19,7 @@ const PLAN_DEFS = {
   '30Day': { label: '30 Days',  price: 80.00, duration: '30d' },
 };
 
-module.exports = (program) => {
+export default (program) => {
   const voucher = program
     .command('voucher')
     .description('Manage access vouchers')

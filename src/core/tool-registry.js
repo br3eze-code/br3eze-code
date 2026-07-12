@@ -5,4 +5,4 @@
  * This module is kept for backward compatibility.
  * All implementation has been merged into ToolRegistry.js.
  */
-module.exports = require('./ToolRegistry');
+export default require('./ToolRegistry');

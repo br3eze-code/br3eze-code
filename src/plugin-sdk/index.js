@@ -74,7 +74,8 @@ const snapshot = () => ({
   skills:    listSkills(),
 });
 
-module.exports = {
+export { snapshot };
+export default {
   registerDomain, getDomain, hasDomain, listDomains,
   registerChannel, getChannel, listChannels,
   registerProvider, getProvider, listProviders, hasProvider,

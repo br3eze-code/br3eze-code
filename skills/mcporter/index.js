@@ -101,4 +101,4 @@ class McPorterSkill {
   }
 }
 
-module.exports = new McPorterSkill();
+export default new McPorterSkill();

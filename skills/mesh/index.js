@@ -61,4 +61,4 @@ class MeshSkill {
   }
 }
 
-module.exports = new MeshSkill();
+export default new MeshSkill();

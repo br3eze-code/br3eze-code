@@ -5,7 +5,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const dgram = require('dgram');
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('doctor')
     .description('Health checks and quick fixes')

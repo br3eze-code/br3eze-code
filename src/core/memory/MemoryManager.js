@@ -77,4 +77,4 @@ class MemoryManager {
   }
 }
 
-module.exports = MemoryManager;
+export default MemoryManager;

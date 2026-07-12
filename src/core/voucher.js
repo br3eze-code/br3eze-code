@@ -124,4 +124,4 @@ class VoucherAgent {
     }
 }
 
-module.exports = new VoucherAgent();
+export default new VoucherAgent();

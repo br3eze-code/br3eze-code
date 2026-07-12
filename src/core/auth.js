@@ -29,4 +29,4 @@ async function authorize({ userId, tool, args, routerId }) {
   return { status: 'ok' };
 }
 
-module.exports = { AuthError, authorize, getUserSandbox, UserSandbox };
+export default { AuthError, authorize, getUserSandbox, UserSandbox };

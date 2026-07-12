@@ -106,4 +106,4 @@ class GCPSkill extends BaseSkill {
   }
 }
 
-module.exports = GCPSkill
+export default GCPSkill

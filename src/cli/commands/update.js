@@ -2,7 +2,7 @@
 
 const { execSync } = require('child_process');
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('update')
         .description('Update AgentOS to the latest version')

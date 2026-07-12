@@ -866,4 +866,4 @@ _readConfigFile() {
 }
 } // end class UniversalBilling
 
-module.exports = UniversalBilling;
+export default UniversalBilling;

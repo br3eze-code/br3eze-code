@@ -1444,4 +1444,4 @@ Structure: Executive Summary, Key Findings, Analysis, Conclusion, References.`
   }
 }
 
-module.exports = ResearchSkill
+export default ResearchSkill

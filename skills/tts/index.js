@@ -322,4 +322,4 @@ $synth.Dispose();
   }
 }
 
-module.exports = new TTSSkill();
+export default new TTSSkill();

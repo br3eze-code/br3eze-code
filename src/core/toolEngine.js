@@ -88,4 +88,4 @@ class ToolEngine extends EventEmitter {
     }
 }
 
-module.exports = new ToolEngine();
+export default new ToolEngine();

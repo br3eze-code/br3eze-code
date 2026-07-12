@@ -122,7 +122,8 @@ const verifyWebhookSignature = (payload, signature, secret) => {
     );
 };
 
-module.exports = {
+export { generateSecurePassword, generateSessionToken, hashPassword, verifyPassword, generateMikrotikUsername, encrypt, decrypt, generateWebhookSignature, verifyWebhookSignature };
+export default {
     generateSecurePassword,
     generateSessionToken,
     hashPassword,

@@ -33,4 +33,4 @@ class MonitorAgent {
     }
 }
 
-module.exports = new MonitorAgent();
+export default new MonitorAgent();

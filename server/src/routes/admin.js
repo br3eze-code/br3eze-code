@@ -360,4 +360,4 @@ function getPlanRateLimit(planId) {
     return limits[planId] || limits['basic'];
 }
 
-module.exports = router;
+export default router;

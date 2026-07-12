@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 
-module.exports = function (context) {
+export default function (context) {
     const argv = (context.opts.options && context.opts.options.argv) || [];
     const isRelease = !!(context.opts.options && context.opts.options.release) || argv.includes('--release');
     if (!isRelease) return; // debug build, nothing to enforce

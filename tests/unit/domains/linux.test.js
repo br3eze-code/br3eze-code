@@ -19,7 +19,7 @@ jest.mock('child_process', () => {
 });
 
 const { exec } = require('child_process');
-const LinuxDomain = require('../../../src/domains/linux');
+const { default: LinuxDomain } = require('../../../src/domains/linux/index.js');
 
 describe('LinuxDomain', () => {
   let domain;

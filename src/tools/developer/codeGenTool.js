@@ -28,4 +28,4 @@ const codeGenTool = {
   }
 };
 
-module.exports = codeGenTool;
+export default codeGenTool;

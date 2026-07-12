@@ -40,4 +40,4 @@ const router_health = {
   }
 };
 
-module.exports = { router_health };
+export default { router_health };

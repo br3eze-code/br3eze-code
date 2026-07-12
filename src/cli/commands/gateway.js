@@ -23,7 +23,7 @@ const clackProxy = {
     select: async () => ''
 };
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('gateway')
         .description('Run, inspect, and query the WebSocket Gateway')

@@ -293,4 +293,4 @@ class AgentHarness extends EventEmitter {
   }
 }
 
-module.exports = { AgentHarness };
+export default { AgentHarness };

@@ -97,4 +97,4 @@ class PluginRegistry {
   }
 }
 
-module.exports = new PluginRegistry();
+export default new PluginRegistry();

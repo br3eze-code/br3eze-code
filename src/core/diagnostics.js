@@ -229,7 +229,8 @@ async function handleSnapshot(req, res) {
     }
 }
 
-module.exports = {
+export { DiagnosticHealth, buildGatewayDiagnostics, buildMissionControlSnapshot, isSystemReady, isMissionReady, isRouterReady, handleHealthFull, handleSnapshot };
+export default {
     DiagnosticHealth,
     buildGatewayDiagnostics,
     buildMissionControlSnapshot,

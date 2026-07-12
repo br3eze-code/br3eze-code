@@ -1893,7 +1893,8 @@ async function testConnection(config = null) {
 }
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-module.exports = {
+export { MikroTikManager, MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager, testConnection };
+export default {
     // Classes
     MikroTikManager,
     MikroTikPool,

@@ -112,4 +112,4 @@ class NodeRegistry extends EventEmitter {
 }
 
 // Singleton
-module.exports = new NodeRegistry();
+export default new NodeRegistry();

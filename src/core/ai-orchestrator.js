@@ -311,4 +311,4 @@ const DEFAULT_SAFETY_SETTINGS = [
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
 ];
 
-module.exports = { AIOrchestrator };
+export default { AIOrchestrator };

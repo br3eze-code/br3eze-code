@@ -355,4 +355,4 @@ class FirebaseAuthService {
     }
 }
 
-module.exports = new FirebaseAuthService();
+export default new FirebaseAuthService();

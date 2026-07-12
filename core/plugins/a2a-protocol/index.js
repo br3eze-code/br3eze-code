@@ -92,4 +92,4 @@ class A2APlugin extends EventEmitter {
     }
 }
 
-module.exports = new A2APlugin();
+export default new A2APlugin();

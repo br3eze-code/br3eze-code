@@ -219,4 +219,4 @@ class AgentKernel extends EventEmitter {
   }
 }
 
-module.exports = AgentKernel;
+export default AgentKernel;

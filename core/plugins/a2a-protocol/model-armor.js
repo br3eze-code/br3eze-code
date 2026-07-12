@@ -182,4 +182,4 @@ class ModelArmor {
     }
 }
 
-module.exports = { ModelArmor };
+export default { ModelArmor };

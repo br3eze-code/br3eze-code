@@ -46,7 +46,8 @@ const validate = (validations) => {
     };
 };
 
-module.exports = {
+export { requestValidator, validate, body, param, query };
+export default {
     requestValidator,
     validate,
     body,

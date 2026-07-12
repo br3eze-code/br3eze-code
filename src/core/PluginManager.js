@@ -73,4 +73,4 @@ class AnalyticsPlugin {
   }
 }
 
-module.exports = { PluginManager, AnalyticsPlugin };
+export default { PluginManager, AnalyticsPlugin };

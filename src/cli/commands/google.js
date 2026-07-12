@@ -8,7 +8,7 @@
 import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
 import { getGateway } from '../../core/gateway-engine.js';
 
-module.exports = (program) => {
+export default (program) => {
   const googleCmd = program
     .command('google')
     .description('Google Workspace integration tools');

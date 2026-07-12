@@ -49,4 +49,4 @@ function loadAllDomains(config = {}) {
   }
 }
 
-module.exports = loadAllDomains;
+export default loadAllDomains;

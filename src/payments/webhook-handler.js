@@ -86,7 +86,8 @@ function setupWebhookRoutes(app, gateway, callbacks) {
   });
 }
 
-module.exports = {
+export { createWebhookHandler, setupWebhookRoutes };
+export default {
   createWebhookHandler,
   setupWebhookRoutes
 };

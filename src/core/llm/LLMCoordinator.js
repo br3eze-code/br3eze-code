@@ -143,4 +143,4 @@ class LLMCoordinator {
     }
 }
 
-module.exports = LLMCoordinator;
+export default LLMCoordinator;

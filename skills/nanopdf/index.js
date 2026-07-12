@@ -438,4 +438,4 @@ class NanoPDFSkill {
   }
 }
 
-module.exports = new NanoPDFSkill();
+export default new NanoPDFSkill();

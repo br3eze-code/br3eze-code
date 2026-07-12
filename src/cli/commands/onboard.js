@@ -378,7 +378,7 @@ async function collectPaymentConfig(existing = {}) {
   return { provider, currency: currency.trim().toUpperCase(), credentials, configured: true };
 }
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('onboard')
     .description('Interactive domain-agnostic setup wizard')

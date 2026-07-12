@@ -151,4 +151,4 @@ class FinanceSkill {
   }
 }
 
-module.exports = new FinanceSkill();
+export default new FinanceSkill();

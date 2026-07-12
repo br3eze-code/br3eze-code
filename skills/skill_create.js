@@ -75,7 +75,7 @@ const ${name} = {
   }
 };
 
-module.exports = { ${name} };
+export default { ${name} };
 `;
     }
 
@@ -122,7 +122,7 @@ const ${name} = {
   }
 };
 
-module.exports = { ${name} };
+export default { ${name} };
 `;
     }
 
@@ -191,7 +191,7 @@ const ${name} = {
   }
 };
 
-module.exports = { ${name} };
+export default { ${name} };
 `;
     }
 

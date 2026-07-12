@@ -8,7 +8,7 @@ import { spawn } from 'child_process';
 const chalk  = _chalk.default || _chalk;
 import fs from 'fs';
 
-module.exports = (program) => {
+export default (program) => {
     const config = program
         .command('config')
         .description('Manage configuration');

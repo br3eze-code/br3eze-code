@@ -95,7 +95,8 @@ function validateAll(schema, data) {
   return true;
 }
 
-module.exports = {
+export { validators, validate, validateAll };
+export default {
   validators,
   validate,
   validateAll

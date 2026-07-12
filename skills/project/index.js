@@ -177,4 +177,4 @@ class ProjectSkill {
   }
 }
 
-module.exports = new ProjectSkill();
+export default new ProjectSkill();

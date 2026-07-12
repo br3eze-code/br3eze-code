@@ -528,6 +528,6 @@ getStatus() {
   }
 }
 
-module.exports = AgentOS;
+export default AgentOS;
 
 module.exports.AgentOSBot = AgentOS;

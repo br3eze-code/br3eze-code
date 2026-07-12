@@ -10,7 +10,7 @@ jest.mock('@anthropic-ai/sdk', () => {
 });
 
 const Anthropic = require('@anthropic-ai/sdk');
-const ClaudeAdapter = require('../../../adapters/claude.adapter');
+const { default: ClaudeAdapter } = require('../../../adapters/claude.adapter.js');
 
 describe('ClaudeAdapter', () => {
   let adapter;

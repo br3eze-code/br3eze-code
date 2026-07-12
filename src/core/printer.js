@@ -677,7 +677,8 @@ async function printRaw(buffer, printerConfig = {}) {
     return { success: true };
 }
 
-module.exports = {
+export { printVoucher, _printVoucherDirect, discoverBluetoothPrinterPort, discoverPrinterPort, testPrinterConnection, printRaw, getPrinterStatus, setPrinterModel, printTestPage, listAvailableInterfaces, _listCUPSPrinters, _listDevPrinters };
+export default {
     printVoucher,
     _printVoucherDirect,
     discoverBluetoothPrinterPort,

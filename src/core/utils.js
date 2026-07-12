@@ -27,7 +27,8 @@ function truncate(s, max = 3500) {
     return s.length > max ? s.slice(0, max) + '\n…(truncated)' : s;
 }
 
-module.exports = {
+export { sleep, uid, fmtBytes, fmtUptime, truncate };
+export default {
     sleep,
     uid,
     fmtBytes,

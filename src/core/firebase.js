@@ -130,7 +130,8 @@ async function createAuthUser(identifier, opts = {}) {
   }
 }
 
-module.exports = {
+export { initializeFirebase, getFirestore, getFirebaseApp, getAuth, createAuthUser, admin };
+export default {
   initializeFirebase,
   getFirestore,
   getFirebaseApp,

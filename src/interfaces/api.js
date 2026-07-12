@@ -123,9 +123,9 @@ app.post('/user', auth, async (req, res) => {
     res.json({ status: 'created' });
 });
 
-export default app;
+export { app };
 
-module.exports = (agent) => {
+export default (agent) => {
 
     router.post('/execute', async (req, res) => {
         try {

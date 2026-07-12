@@ -171,4 +171,4 @@ class VoucherSkill {
   }
 }
 
-module.exports = new VoucherSkill();
+export default new VoucherSkill();

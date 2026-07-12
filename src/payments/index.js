@@ -11,7 +11,8 @@ import setupPesaPalRoutes from './routes/pesapal-webhooks.js';
 import setupPesaPalCommands from './commands/pesapal-commands.js';
 
 
-module.exports = {
+export { PaymentGateway, PaymentService, webhookHandler, PesaPalIntegration, PesaPalProvider, setupPesaPalRoutes, setupPesaPalCommands };
+export default {
   PaymentGateway,
   PaymentService,
   webhookHandler,

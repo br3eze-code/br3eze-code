@@ -166,7 +166,8 @@ class ConversationSession {
     }
 }
 
-module.exports = {
+export { MessageRole, ContentBlock, ConversationSession };
+export default {
     MessageRole,
     ContentBlock,
     ConversationSession

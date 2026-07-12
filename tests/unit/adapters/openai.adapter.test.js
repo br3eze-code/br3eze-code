@@ -11,7 +11,7 @@ jest.mock('openai', () => {
 });
 
 const OpenAI = require('openai');
-const OpenAIAdapter = require('../../../adapters/openai.adapter');
+const { default: OpenAIAdapter } = require('../../../adapters/openai.adapter.js');
 
 describe('OpenAIAdapter', () => {
   let adapter;

@@ -23,7 +23,7 @@ jest.mock('../../../src/providers/ollama', () => ({
 
 const { ClaudeProvider } = require('../../../src/providers/claude');
 const { OpenAIProvider } = require('../../../src/providers/openai');
-const AIDomain = require('../../../src/domains/ai');
+const { default: AIDomain } = require('../../../src/domains/ai/index.js');
 
 describe('AIDomain', () => {
   let domain;

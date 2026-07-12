@@ -1039,7 +1039,8 @@ if (require.main === module && process.argv[2] === 'wizard') {
     runWizard().catch(console.error);
 }
 
-module.exports = {
+export { templateRsc, onboardRouter, onboardFleet, provisionAgents, generateSetupScript, generateMissionControl, runWizard };
+export default {
     templateRsc,
     onboardRouter,
     onboardFleet,

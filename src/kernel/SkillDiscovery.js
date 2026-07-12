@@ -291,4 +291,4 @@ class SkillDiscovery {
   }
 }
 
-module.exports = { SkillDiscovery, SkillDiscoveryError };
+export default { SkillDiscovery, SkillDiscoveryError };

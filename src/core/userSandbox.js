@@ -326,4 +326,4 @@ function getUserSandbox(opts) {
   return _instance;
 }
 
-module.exports = { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
+export default { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };

@@ -106,4 +106,4 @@ class AgentMemory {
 }
 
 // Singleton
-module.exports = new AgentMemory();
+export default new AgentMemory();

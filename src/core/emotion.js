@@ -84,4 +84,4 @@ class EmotionEngine {
     getState() { return { ...this.state }; }
 }
 
-module.exports = new EmotionEngine();
+export default new EmotionEngine();

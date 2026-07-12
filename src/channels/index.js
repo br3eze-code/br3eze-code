@@ -20,7 +20,8 @@ import EmailChannel from '../core/channels/EmailChannel.js';
 import SMSChannel from '../core/channels/SMSChannel.js';
 import WebSocketChannel from '../core/channels/WebSocketChannel.js';
 
-module.exports = {
+export { BaseChannel, ChannelManager, CLIChannel, TelegramChannel, WhatsappChannel, DiscordChannel, SlackChannel, EmailChannel, SMSChannel, WebSocketChannel };
+export default {
   BaseChannel,
   ChannelManager,
   CLIChannel,

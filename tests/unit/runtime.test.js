@@ -1,4 +1,4 @@
-const __dirname = require('path').dirname(require('url').fileURLToPath(import.meta.url));
+'use strict';
 /**
  * Domain-agnostic runtime (ESM subpackage): skills compose onto a
  * network-unaware core, and the MikroTik network domain is proven to be just
@@ -6,9 +6,9 @@ const __dirname = require('path').dirname(require('url').fileURLToPath(import.me
  * dynamic import (jest runs with --experimental-vm-modules).
  */
 
-import fs from 'fs';
-import path from 'path';
-import { pathToFileURL } from 'url';
+const fs = require('fs');
+const path = require('path');
+const { pathToFileURL } = require('url');
 
 const RT_DIR = path.join(__dirname, '../../src/runtime');
 const importRuntime = () => import(pathToFileURL(path.join(RT_DIR, 'index.js')).href);

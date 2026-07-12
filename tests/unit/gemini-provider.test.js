@@ -6,7 +6,7 @@ jest.mock('@google/generative-ai', () => ({
   })),
 }));
 
-const GeminiProvider = require('../../src/providers/gemini');
+const { default: GeminiProvider } = require('../../src/providers/gemini.js');
 
 function makeTool(name, overrides = {}) {
   return {

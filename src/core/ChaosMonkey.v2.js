@@ -1151,7 +1151,8 @@ class ChaosMonkey extends EventEmitter {
   }
 }
 
-module.exports = {
+export { ChaosMonkey, CHAOS_DOMAINS, SEVERITY };
+export default {
   ChaosMonkey,
   CHAOS_DOMAINS,
   SEVERITY,

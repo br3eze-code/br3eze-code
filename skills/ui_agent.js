@@ -126,4 +126,4 @@ const ui_agent = {
   }
 };
 
-module.exports = { ui_agent };
+export default { ui_agent };

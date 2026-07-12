@@ -295,7 +295,8 @@ function getConfig() {
     return loaded;
 }
 
-module.exports = {
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };
+export default {
     BRAND,
     PROFILE_DIR,
     CONFIG_PATH,

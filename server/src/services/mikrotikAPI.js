@@ -566,4 +566,4 @@ class MikroTikAPI {
     }
 }
 
-module.exports = new MikroTikAPI();
+export default new MikroTikAPI();

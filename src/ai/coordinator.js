@@ -448,4 +448,4 @@ When managing CCTV, target devices by their deviceId.`;
   }
 }
 
-module.exports = AICoordinator;
+export default AICoordinator;

@@ -113,4 +113,4 @@ class EmailSkill {
   }
 }
 
-module.exports = new EmailSkill();
+export default new EmailSkill();

@@ -204,4 +204,4 @@ class MikroTikSkill {
   }
 }
 
-module.exports = new MikroTikSkill();
+export default new MikroTikSkill();

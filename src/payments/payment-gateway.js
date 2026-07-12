@@ -1018,7 +1018,8 @@ class GooglePayProvider {
   }
 }
 
-module.exports = {
+export { PaymentGateway, StripeProvider, EcoCashProvider, NetOneProvider, PayNowProvider, ApplePayProvider, GooglePayProvider };
+export default {
   PaymentGateway,
   StripeProvider,
   EcoCashProvider,

@@ -11,7 +11,7 @@ import { getDatabase } from '../../core/database.js';
 import { costTracker } from '../../core/cost-tracker.js';
 import { getMikroTikClient } from '../../core/mikrotik.js';
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('status')
     .description('Show system status')

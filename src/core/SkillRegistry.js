@@ -317,4 +317,4 @@ class SkillRegistry extends EventEmitter {
   }
 }
 
-module.exports = SkillRegistry;
+export default SkillRegistry;

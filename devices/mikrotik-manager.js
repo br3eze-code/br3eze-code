@@ -42,4 +42,4 @@ class MikroTikManager {
     }
 }
 
-module.exports = MikroTikManager;
+export default MikroTikManager;

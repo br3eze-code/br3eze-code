@@ -882,4 +882,4 @@ async function startGateway(config) {
   return await gateway.start();
 }
 
-module.exports = { Gateway, startGateway };
+export default { Gateway, startGateway };

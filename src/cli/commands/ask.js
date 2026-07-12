@@ -137,7 +137,7 @@ function startRepl(dispatch, { json }) {
     });
 }
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('ask [prompt...]')
         .description('Ask AgentOS a question or give it a command. Omit the prompt to start an interactive session.')

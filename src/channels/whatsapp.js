@@ -135,6 +135,6 @@ class WhatsAppChannel extends BaseChannel {
   }
 }
 
-module.exports = { WhatsAppChannel };
+export default { WhatsAppChannel };
 
 

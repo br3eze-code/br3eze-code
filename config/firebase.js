@@ -75,4 +75,4 @@ const firebaseProxy = {
   init,
 };
 
-module.exports = firebaseProxy;
+export default firebaseProxy;
