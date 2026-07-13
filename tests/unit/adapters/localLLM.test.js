@@ -1,8 +1,13 @@
 'use strict';
 
-jest.mock('axios');
-const axios = require('axios');
-const { default: LocalLLMAdapter } = require('../../../adapters/localLLM.js');
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('axios', () => ({
+  default: { post: jest.fn() },
+}));
+
+const { default: axios } = await import('axios');
+const { default: LocalLLMAdapter } = await import('../../../adapters/localLLM.js');
 
 describe('LocalLLMAdapter', () => {
   test('defaults to the standard local gateway endpoint when none is given', () => {

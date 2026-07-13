@@ -6,9 +6,12 @@
  * dynamic import (jest runs with --experimental-vm-modules).
  */
 
-const fs = require('fs');
-const path = require('path');
-const { pathToFileURL } = require('url');
+import fs from 'fs';
+import path from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const RT_DIR = path.join(__dirname, '../../src/runtime');
 const importRuntime = () => import(pathToFileURL(path.join(RT_DIR, 'index.js')).href);

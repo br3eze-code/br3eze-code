@@ -1,22 +1,26 @@
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const EventEmitter = require('events');
-const SkillRegistry = require('./SkillRegistry');
-const ChannelManager = require('./channels/ChannelManager');
-const MemoryManager = require('./memory/MemoryManager');
-const LLMCoordinator = require('./llm/LLMCoordinator');
-const WorkflowEngine = require('./WorkflowEngine');
-const TelemetryCollector = require('./TelemetryCollector');
-const HealthMonitor = require('./HealthMonitor');
-const AgentOSOrchestrator = require('./orchestrator');
-const CircuitBreaker = require('../utils/CircuitBreaker');
-const { logger } = require('./logger');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import EventEmitter from 'events';
+import SkillRegistry from './SkillRegistry.js';
+import ChannelManager from './channels/ChannelManager.js';
+import MemoryManager from './memory/MemoryManager.js';
+import LLMCoordinator from './llm/LLMCoordinator.js';
+import WorkflowEngine from './WorkflowEngine.js';
+import TelemetryCollector from './TelemetryCollector.js';
+import HealthMonitor from './HealthMonitor.js';
+import AgentOSOrchestrator from './orchestrator.js';
+import CircuitBreaker from '../utils/CircuitBreaker.js';
+import { logger } from './logger.js';
+import { getDatabase } from './database.js';
+import FinancialController from './financial.js';
+import UniversalBilling from './universal-billing.js';
+import DiscoveryService from './discovery.js';
 // Optional payment integration — never let it break core boot/tests. It
 // pulls in optional deps (mastercard-api-core) that may be absent in CI.
 let MastercardA2AService;
 try {
-  MastercardA2AService = require('../../services/mastercardA2A');
+  MastercardA2AService = require('../../services/mastercardA2A.js').default;
 } catch (e) {
   MastercardA2AService = null;
 }
@@ -46,10 +50,10 @@ class AgentOS extends EventEmitter {
     this._domainPlugins = new Map();
 
     // Shared infrastructure (domain-agnostic)
-    this.database = require('./database').getDatabase();
+    this.database = getDatabase();
     this.mastercard = MastercardA2AService ? new MastercardA2AService() : null;
-    this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
-    this.billing = new (require('./universal-billing'))({ database: this.database });
+    this.financial = new FinancialController({ database: this.database, mastercard: this.mastercard });
+    this.billing = new UniversalBilling({ database: this.database });
 
     // Load MikroTik as an optional domain plugin (graceful if not configured)
     this._loadDomainPlugin('mikrotik');
@@ -62,7 +66,7 @@ class AgentOS extends EventEmitter {
 
     // Discovery and orchestrator are domain-agnostic; they operate on the plugin map
     try {
-      this.discovery = new (require('./discovery'))({ pluginMap: this._domainPlugins });
+      this.discovery = new DiscoveryService({ pluginMap: this._domainPlugins });
     } catch (_) {
       this.discovery = null;
     }
@@ -530,4 +534,4 @@ getStatus() {
 
 export default AgentOS;
 
-module.exports.AgentOSBot = AgentOS;
+export { AgentOS as AgentOSBot };

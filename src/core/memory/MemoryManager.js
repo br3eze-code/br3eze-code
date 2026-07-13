@@ -7,13 +7,13 @@ class MemoryManager {
   createAdapter(type) {
     switch (type) {
       case 'memory':
-        return new (require('./adapters/MemoryAdapter'))();
+        return new (require('./adapters/MemoryAdapter.js').default)();
       case 'firebase':
-        return new (require('./adapters/FirebaseAdapter'))();
+        return new (require('./adapters/FirebaseAdapter.js').default)();
       case 'redis':
-        return new (require('./adapters/RedisAdapter'))();
+        return new (require('./adapters/RedisAdapter.js').default)();
       case 'sqlite':
-        return new (require('./adapters/SQLiteAdapter'))();
+        return new (require('./adapters/SQLiteAdapter.js').default)();
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }

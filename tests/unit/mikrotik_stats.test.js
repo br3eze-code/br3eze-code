@@ -1,10 +1,10 @@
 'use strict';
 
-const EventEmitter = require('events');
+import { jest } from '@jest/globals';
+import EventEmitter from 'events';
 
 // Mock the routeros-client
-jest.mock('routeros-client', () => {
-    const EventEmitter = require('events');
+jest.unstable_mockModule('routeros-client', () => {
     return {
         RouterOSClient: class extends EventEmitter {
             constructor() { 
@@ -54,7 +54,7 @@ jest.mock('routeros-client', () => {
     };
 });
 
-jest.mock('../../src/core/logger', () => ({ 
+jest.unstable_mockModule('../../src/core/logger.js', () => ({ 
     logger: { 
         info: jest.fn(), 
         warn: jest.fn(), 
@@ -64,11 +64,18 @@ jest.mock('../../src/core/logger', () => ({
     } 
 }));
 
-jest.mock('../../src/core/config', () => ({ 
+jest.unstable_mockModule('../../src/core/config.js', () => ({ 
+    BRAND: 'AgentOS',
+    PROFILE_DIR: '/tmp/agentos-test',
+    CONFIG_PATH: '/tmp/agentos-test/config.json',
+    STATE_PATH: '/tmp/agentos-test/state',
+    DEFAULT_CONFIG: {},
+    loadConfig: () => ({}),
+    saveConfig: () => {},
     getConfig: () => ({ mikrotik: {} }) 
 }));
 
-const { MikroTikManager } = require('../../src/core/mikrotik');
+const { MikroTikManager } = await import('../../src/core/mikrotik.js');
 
 describe('MikroTikManager — getUserStats', () => {
     let manager;

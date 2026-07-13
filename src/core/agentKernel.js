@@ -18,7 +18,7 @@
 const EventEmitter = require('events');
 const crypto       = require('crypto');
 const path         = require('path');
-const sdk          = require('../plugin-sdk');
+const sdk          = require('../plugin-sdk/index.js').default;
 
 let _logger;
 function log(level, ...a) {

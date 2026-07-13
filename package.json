@@ -60,7 +60,6 @@
   ],
   "author": "MZACANA / Br3eze Africa",
   "license": "Apache-2.0",
-  "type": "commonjs",
   "engines": {
     "node": ">=22.0.0"
   },

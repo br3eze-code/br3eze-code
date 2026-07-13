@@ -1,10 +1,12 @@
 import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
-const os = require('os');import 'dotenv/config';
+import os from 'os';
+import 'dotenv/config';
+import pkg from '../../package.json' with { type: 'json' };
 function getPkgVersion() {
     try {
-        return require('../../package.json').version;
+        return pkg.version;
     } catch (_) {
         return '0.0.0';
     }

@@ -52,7 +52,7 @@ describe('Integration — TaskRegistry + EventBus', () => {
         jest.resetModules();
         jest.mock('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
         ({ TaskRegistry, TaskStatus } = require('../../src/core/taskRegistry'));
-        eventBus = require('../../src/core/eventBus');
+        eventBus = require('../../src/core/eventBus.js').default;
     });
 
     afterEach(() => {
@@ -254,8 +254,8 @@ describe('Integration — VoucherAgent + EventBus', () => {
     beforeEach(() => { jest.resetModules(); });
 
     test('generate → redeem emits events in correct order', () => {
-        const eventBus = require('../../src/core/eventBus');
-        const voucher  = require('../../src/core/voucher');
+        const eventBus = require('../../src/core/eventBus.js').default;
+        const voucher  = require('../../src/core/voucher.js').default;
         const events   = [];
 
         eventBus.on('voucher.created',  e => events.push({ type: 'created',  code: e.code }));
@@ -272,8 +272,8 @@ describe('Integration — VoucherAgent + EventBus', () => {
     });
 
     test('multiple vouchers emit independent events', () => {
-        const eventBus = require('../../src/core/eventBus');
-        const voucher  = require('../../src/core/voucher');
+        const eventBus = require('../../src/core/eventBus.js').default;
+        const voucher  = require('../../src/core/voucher.js').default;
         const codes    = [];
 
         eventBus.on('voucher.created', e => codes.push(e.code));

@@ -1,12 +1,14 @@
 'use strict';
 
-jest.mock('@google/generative-ai', () => ({
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('@google/generative-ai', () => ({
   GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
     getGenerativeModel: jest.fn().mockReturnValue({}),
   })),
 }));
 
-const { default: GeminiProvider } = require('../../src/providers/gemini.js');
+const { default: GeminiProvider } = await import('../../src/providers/gemini.js');
 
 function makeTool(name, overrides = {}) {
   return {

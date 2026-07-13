@@ -1,22 +1,23 @@
 'use strict';
+import { jest } from '@jest/globals';
 
 // ── EventBus ──────────────────────────────────────────────────────────────────
 
 describe('EventBus', () => {
     let eventBus;
 
-    beforeEach(() => {
-        // Fresh require each test to avoid cross-test listener leaks
+    beforeEach(async () => {
+        // Fresh import each test to avoid cross-test listener leaks
         jest.resetModules();
-        eventBus = require('../../src/core/eventBus.js').default;
+        ({ default: eventBus } = await import('../../src/core/eventBus.js'));
     });
 
     afterEach(() => {
         eventBus.removeAllListeners();
     });
 
-    test('is an EventEmitter', () => {
-        const { EventEmitter } = require('events');
+    test('is an EventEmitter', async () => {
+        const { EventEmitter } = await import('events');
         expect(eventBus).toBeInstanceOf(EventEmitter);
     });
 
@@ -62,10 +63,12 @@ describe('EventBus', () => {
 
 describe('VoucherAgent — generate', () => {
     let voucher;
+    let eventBus;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         jest.resetModules();
-        voucher = require('../../src/core/voucher.js').default;
+        ({ default: voucher } = await import('../../src/core/voucher.js'));
+        ({ default: eventBus } = await import('../../src/core/eventBus.js'));
     });
 
     test('generates a code for each valid plan', () => {
@@ -107,7 +110,6 @@ describe('VoucherAgent — generate', () => {
     });
 
     test('emits voucher.created event', () => {
-        const eventBus = require('../../src/core/eventBus.js').default;
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
         voucher.generate();
@@ -120,14 +122,15 @@ describe('VoucherAgent — generate', () => {
 
 describe('VoucherAgent — redeem', () => {
     let voucher;
+    let eventBus;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         jest.resetModules();
-        voucher = require('../../src/core/voucher.js').default;
+        ({ default: voucher } = await import('../../src/core/voucher.js'));
+        ({ default: eventBus } = await import('../../src/core/eventBus.js'));
     });
 
     test('emits voucher.redeemed event', () => {
-        const eventBus = require('../../src/core/eventBus.js').default;
         const handler = jest.fn();
         eventBus.on('voucher.redeemed', handler);
         voucher.redeem('STAR-1DAYS-1234', 'user123');
