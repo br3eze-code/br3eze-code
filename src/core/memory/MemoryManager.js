@@ -1,25 +1,33 @@
 // src/core/memory/MemoryManager.js
 class MemoryManager {
   constructor(adapter = 'memory') {
-    this.adapter = this.createAdapter(adapter);
+    this._adapterType = adapter;
+    this.adapter = null;
   }
 
-  createAdapter(type) {
+  async createAdapter(type) {
+    let AdapterClass;
     switch (type) {
       case 'memory':
-        return new (require('./adapters/MemoryAdapter.js').default)();
+        AdapterClass = (await import('./adapters/MemoryAdapter.js')).default;
+        break;
       case 'firebase':
-        return new (require('./adapters/FirebaseAdapter.js').default)();
+        AdapterClass = (await import('./adapters/FirebaseAdapter.js')).default;
+        break;
       case 'redis':
-        return new (require('./adapters/RedisAdapter.js').default)();
+        AdapterClass = (await import('./adapters/RedisAdapter.js')).default;
+        break;
       case 'sqlite':
-        return new (require('./adapters/SQLiteAdapter.js').default)();
+        AdapterClass = (await import('./adapters/SQLiteAdapter.js')).default;
+        break;
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }
+    return new AdapterClass();
   }
 
   async initialize() {
+    this.adapter = await this.createAdapter(this._adapterType);
     return this.adapter.initialize();
   }
 

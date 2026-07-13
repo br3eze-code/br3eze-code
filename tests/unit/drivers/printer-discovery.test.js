@@ -1,16 +1,27 @@
 'use strict';
 
-jest.mock('child_process');
-jest.mock('fs');
+import { jest } from '@jest/globals';
+import realFs from 'fs';
 
-const { execSync } = require('child_process');
-const fs = require('fs');
+jest.unstable_mockModule('child_process', () => ({
+  execSync: jest.fn(),
+}));
+jest.unstable_mockModule('fs', () => ({
+  default: {
+    ...realFs,
+    accessSync: jest.fn(),
+    constants: { W_OK: 2 },
+  },
+}));
+
+const { execSync } = await import('child_process');
+const { default: fs } = await import('fs');
 const {
   listSerialPortsFromRegistry,
   comPortToInterface,
   listCUPSPrinters,
   listDevPrinters,
-} = require('../../../src/drivers/printer/discovery');
+} = await import('../../../src/drivers/printer/discovery.js');
 
 describe('printer driver discovery', () => {
   afterEach(() => {

@@ -1,29 +1,31 @@
 'use strict';
 
-jest.mock('../../../src/providers/claude', () => ({
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('../../../src/providers/claude.js', () => ({
   ClaudeProvider: jest.fn().mockImplementation(() => ({
     validateKey: jest.fn().mockResolvedValue({ valid: true }),
   })),
 }));
-jest.mock('../../../src/providers/openai', () => ({
+jest.unstable_mockModule('../../../src/providers/openai.js', () => ({
   OpenAIProvider: jest.fn().mockImplementation(() => ({
     validateKey: jest.fn().mockResolvedValue({ valid: true }),
   })),
 }));
-jest.mock('../../../src/providers/gemini', () =>
-  jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule('../../../src/providers/gemini.js', () => ({
+  default: jest.fn().mockImplementation(() => ({
     validateKey: jest.fn().mockResolvedValue({ valid: false, error: 'bad key' }),
-  }))
-);
-jest.mock('../../../src/providers/ollama', () => ({
+  })),
+}));
+jest.unstable_mockModule('../../../src/providers/ollama.js', () => ({
   OllamaProvider: jest.fn().mockImplementation(() => ({
     validateKey: jest.fn().mockResolvedValue({ valid: true }),
   })),
 }));
 
-const { ClaudeProvider } = require('../../../src/providers/claude');
-const { OpenAIProvider } = require('../../../src/providers/openai');
-const { default: AIDomain } = require('../../../src/domains/ai/index.js');
+const { ClaudeProvider } = await import('../../../src/providers/claude.js');
+const { OpenAIProvider } = await import('../../../src/providers/openai.js');
+const { default: AIDomain } = await import('../../../src/domains/ai/index.js');
 
 describe('AIDomain', () => {
   let domain;

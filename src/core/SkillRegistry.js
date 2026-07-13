@@ -1,10 +1,12 @@
 // src/core/SkillRegistry.js
-const fs   = require('fs').promises;
-const fss  = require('fs');            // sync checks
-const path = require('path');
-const EventEmitter = require('events');
-const { logger } = require('./logger');
-const yaml = require('js-yaml');
+import fsPromises from 'fs';
+const fs = fsPromises.promises;
+import fss from 'fs';            // sync checks
+import path from 'path';
+import EventEmitter from 'events';
+import { pathToFileURL } from 'url';
+import { logger } from './logger.js';
+import yaml from 'js-yaml';
 
 class SkillRegistry extends EventEmitter {
   constructor(config) {
@@ -71,7 +73,7 @@ class SkillRegistry extends EventEmitter {
 
       let impl;
       if (fss.existsSync(implPath)) {
-        impl = require(path.resolve(implPath));
+        impl = (await import(pathToFileURL(path.resolve(implPath)).href)).default;
       } else {
         impl = {};
       }

@@ -1,12 +1,14 @@
 'use strict';
 
+import { jest } from '@jest/globals';
+
 // uuid is an optional peer dep in the test runner environment — mock it
-jest.mock('uuid', () => {
+jest.unstable_mockModule('uuid', () => {
     let counter = 0;
     return { v4: () => `mock-uuid-${++counter}` };
 });
 
-const { TaskRegistry, TaskStatus, getTaskRegistry } = require('../../src/core/taskRegistry');
+const { TaskRegistry, TaskStatus, getTaskRegistry } = await import('../../src/core/taskRegistry.js');
 
 // ── TaskStatus ────────────────────────────────────────────────────────────────
 

@@ -10,6 +10,9 @@
 import coreLogger from '../core/logger.js';
 
 // Named re-exports used in the wild: { Logger }, { logger }, default
+const Logger = coreLogger.logger;
+const logger = coreLogger.logger;
+export { Logger, logger };
 export default {
   ...coreLogger,
   // Alias: some files do `const { Logger } = require('../utils/logger')`

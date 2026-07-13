@@ -1,19 +1,21 @@
 'use strict';
 
+import { jest } from '@jest/globals';
+
 // uuid is an optional peer dep in the test runner environment — mock it
-jest.mock('uuid', () => {
+jest.unstable_mockModule('uuid', () => {
     let counter = 0;
     return { v4: () => `mock-uuid-${++counter}` };
 });
 
 // Mock heavy dependencies so unit tests don't require live services
-jest.mock('../../src/core/agentEngine',   () => ({ AgentEngine: class { static create() { return { sessionId: 'mock', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: 'ok' }), persistSession: jest.fn().mockReturnValue('/tmp/session'), renderSummary: jest.fn().mockReturnValue('summary'), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; } static fromSession(id) { return this.create(); } } }));
-jest.mock('../../src/core/mikrotik',      () => ({ getMikroTikClient: jest.fn() }));
-jest.mock('../../src/core/logger',        () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
+jest.unstable_mockModule('../../src/core/agentEngine.js',   () => ({ AgentEngine: class { static create() { return { sessionId: 'mock', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: 'ok' }), persistSession: jest.fn().mockReturnValue('/tmp/session'), renderSummary: jest.fn().mockReturnValue('summary'), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; } static fromSession(id) { return this.create(); } } }));
+jest.unstable_mockModule('../../src/core/mikrotik.js',      () => ({ getMikroTikClient: jest.fn() }));
+jest.unstable_mockModule('../../src/core/logger.js',        () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
-const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = require('../../src/core/agentRuntime');
-const { PermissionMode } = require('../../src/core/permissions');
-const { TaskStatus }     = require('../../src/core/taskRegistry');
+const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
+const { PermissionMode } = await import('../../src/core/permissions.js');
+const { TaskStatus }     = await import('../../src/core/taskRegistry.js');
 
 // ── TOOL_MANIFEST ─────────────────────────────────────────────────────────────
 

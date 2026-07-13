@@ -1,7 +1,9 @@
 'use strict';
 
-jest.mock('child_process', () => {
-  const util = require('util');
+import { jest } from '@jest/globals';
+import util from 'util';
+
+jest.unstable_mockModule('child_process', () => {
   const mockExec = jest.fn();
   // Node's real child_process.exec has a util.promisify.custom implementation
   // that resolves to { stdout, stderr } instead of just the callback's single
@@ -18,8 +20,8 @@ jest.mock('child_process', () => {
   return { exec: mockExec };
 });
 
-const { exec } = require('child_process');
-const { default: LinuxDomain } = require('../../../src/domains/linux/index.js');
+const { exec } = await import('child_process');
+const { default: LinuxDomain } = await import('../../../src/domains/linux/index.js');
 
 describe('LinuxDomain', () => {
   let domain;

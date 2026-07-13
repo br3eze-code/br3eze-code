@@ -20,7 +20,7 @@ import DiscoveryService from './discovery.js';
 // pulls in optional deps (mastercard-api-core) that may be absent in CI.
 let MastercardA2AService;
 try {
-  MastercardA2AService = require('../../services/mastercardA2A.js').default;
+  MastercardA2AService = (await import('../../services/mastercardA2A.js')).default;
 } catch (e) {
   MastercardA2AService = null;
 }
@@ -55,8 +55,7 @@ class AgentOS extends EventEmitter {
     this.financial = new FinancialController({ database: this.database, mastercard: this.mastercard });
     this.billing = new UniversalBilling({ database: this.database });
 
-    // Load MikroTik as an optional domain plugin (graceful if not configured)
-    this._loadDomainPlugin('mikrotik');
+    // MikroTik loads as an optional domain plugin during initialize() (graceful if not configured)
 
     // Convenience accessor kept for backward-compat: resolves from plugin map
     Object.defineProperty(this, 'mikrotik', {
@@ -89,10 +88,10 @@ class AgentOS extends EventEmitter {
    * Plugin must export a getManager() factory or a class with a destroy() method.
    * Failures are non-fatal — the kernel stays domain-agnostic.
    */
-  _loadDomainPlugin(id) {
+  async _loadDomainPlugin(id) {
     try {
-      const mod = require(`./${id}`);
-      const manager = typeof mod.getManager === 'function' ? mod.getManager() : (typeof mod === 'function' ? new mod() : mod);
+      const mod = await import(`./${id}.js`);
+      const manager = typeof mod.getManager === 'function' ? mod.getManager() : (typeof mod.default === 'function' ? new mod.default() : (mod.default ?? mod));
       this._domainPlugins.set(id, manager);
       logger.info(`AgentOS: Domain plugin loaded — ${id}`);
     } catch (err) {
@@ -109,8 +108,11 @@ class AgentOS extends EventEmitter {
   async initialize() {
     if (this.initialized) return;
 
+    // Load MikroTik as an optional domain plugin (graceful if not configured)
+    await this._loadDomainPlugin('mikrotik');
+
     // ── Global Instance Lock ──────────────────────────────────────────────────
-    const { STATE_PATH } = require('./config');
+    const { STATE_PATH } = await import('./config.js');
     const lockFile = path.join(STATE_PATH, '.agentos.lock');
 
     try {

@@ -1,20 +1,12 @@
 'use strict';
 
-const os   = require('os');
-const path = require('path');
-const fs   = require('fs');
+import { jest } from '@jest/globals';
+import os   from 'os';
+import path from 'path';
+import fs   from 'fs';
 
 // Stub Logger so we don't need winston in test runner
-jest.mock('../utils/logger', () => ({
-    Logger: class {
-        info()  {}
-        warn()  {}
-        error() {}
-        debug() {}
-    }
-}), { virtual: true });
-
-jest.mock('../../src/utils/logger', () => ({
+jest.unstable_mockModule('../../src/utils/logger.js', () => ({
     Logger: class {
         info()  {}
         warn()  {}
@@ -23,7 +15,7 @@ jest.mock('../../src/utils/logger', () => ({
     }
 }));
 
-const { SessionManager } = require('../../src/core/session-manager');
+const { SessionManager } = await import('../../src/core/session-manager.js');
 
 function tmpBase() {
     const dir = path.join(os.tmpdir(), `agentos-sm-${Date.now()}-${Math.random().toString(36).slice(2)}`);
