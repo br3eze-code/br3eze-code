@@ -4,9 +4,9 @@
  * Ported from 36.js §2.5
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../../logger.js';
 
 class GeminiProvider extends BaseProvider {
     static getMetadata() {

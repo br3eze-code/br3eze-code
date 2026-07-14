@@ -20,7 +20,7 @@
  *   platform whoami            show currently authenticated operator's role
  */
 
-const chalk = require('chalk');
+import chalk from 'chalk';
 
 export default (program) => {
   // ── MikroTik / Hotspot users ───────────────────────────────────────────

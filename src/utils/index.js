@@ -1,6 +1,6 @@
 'use strict';
 // src/utils/index.js — barrel export for the utils directory
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 // uid: short unique id (used by approval.js, agent.js, etc.)
 function uid(length = 12) {

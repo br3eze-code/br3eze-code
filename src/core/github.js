@@ -4,10 +4,10 @@
  * Ported from 36.js §3.8
  */
 
-const { logger } = require('./logger');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 let Octokit;
 try {

@@ -1,5 +1,5 @@
 // src/core/skills/SkillRegistry.js
-const { logger } = require('../logger');
+import { logger } from '../logger.js';
 
 class SkillRegistry {
   constructor() {

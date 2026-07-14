@@ -2,7 +2,7 @@
  * StateManager - Distributed state with CRDT-based conflict resolution
  */
 
-const CryptoUtils = require('../../../shared/utils/CryptoUtils');
+import CryptoUtils from '../../../shared/utils/CryptoUtils.js';
 
 class StateManager {
   constructor() {

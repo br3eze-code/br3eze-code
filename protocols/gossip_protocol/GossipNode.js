@@ -2,9 +2,9 @@
  * GossipNode - Epidemic broadcast protocol for distributed state sync
  */
 
-const PeerManager = require('./PeerManager');
-const MessageRouter = require('./MessageRouter');
-const VectorClock = require('./VectorClock');
+import PeerManager from './PeerManager.js';
+import MessageRouter from './MessageRouter.js';
+import VectorClock from './VectorClock.js';
 
 class GossipNode {
     constructor(config = {}) {

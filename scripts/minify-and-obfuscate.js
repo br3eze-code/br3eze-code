@@ -18,8 +18,8 @@
  */
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 const SKIP_FILES = new Set(['cordova.js', 'cordova_plugins.js', 'html5-qrcode.min.js']);
 const SKIP_DIRS = new Set(['plugins', 'res']);

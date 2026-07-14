@@ -3,10 +3,10 @@
  * LLM Coordinator — Orchestrates multiple LLM providers
  */
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { BaseProvider } = require('./providers/BaseProvider');
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseProvider } from './providers/BaseProvider.js';
 
 class LLMCoordinator {
     constructor(providerType = process.env.LLM_PROVIDER || 'gemini', config = {}) {

@@ -1,9 +1,9 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
-const inquirer = require('inquirer');
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import inquirer from 'inquirer';
 
 let _clack;
 const intro = (...args) => _clack.intro(...args);
@@ -18,8 +18,8 @@ const log = {
   warn: (...args) => _clack.log.warn(...args),
   info: (...args) => _clack.log.info(...args)
 };
-const chalk = require('chalk');
-const { onboardFleet, onboardRouter } = require('../../core/onboard');
+import chalk from 'chalk';
+import { onboardFleet, onboardRouter } from '../../core/onboard.js';
 
 /** clack doesn't have a good way to handle inquirer-style loops easily, so we use inquirer for data entry */
 async function prompt(questions) {

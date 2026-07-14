@@ -1,13 +1,13 @@
-const fs = require('fs');
-const path = require('path');
-const net = require('net');
-const { spawn, exec } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import net from 'net';
+import { spawn, exec } from 'child_process';
 
-const _chalk = require('chalk');
+import _chalk from 'chalk';
 const chalk = _chalk.default || _chalk;
 
-const { STATE_PATH, getConfig } = require('../../core/config');
-const { logger } = require('../../core/logger');
+import { STATE_PATH, getConfig } from '../../core/config.js';
+import { logger } from '../../core/logger.js';
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
 const clackProxy = {

@@ -1,18 +1,18 @@
 // src/core/gateway-engine.js 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const cors = require('cors');
-const compression = require('compression');
-const EventEmitter = require('events');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import cors from 'cors';
+import compression from 'compression';
+import EventEmitter from 'events';
+import path from 'path';
 
-const security = require('./security');
-const { logger } = require('./logger');
-const ChannelManager = require('./channels/ChannelManager');
-const MobileBridge = require('../api/mobile-bridge');
-const AICoordinator = require('../ai/coordinator');
-const { metrics } = require('./metrics');
+import security from './security.js';
+import { logger } from './logger.js';
+import ChannelManager from './channels/ChannelManager.js';
+import MobileBridge from '../api/mobile-bridge.js';
+import AICoordinator from '../ai/coordinator.js';
+import { metrics } from './metrics.js';
 
 // A2A Protocol Plugin
 let a2aPlugin;

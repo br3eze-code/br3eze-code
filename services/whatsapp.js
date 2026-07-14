@@ -5,9 +5,9 @@ const {
     useMultiFileAuthState,
     fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
-const QRCode = require('qrcode');
-const fs = require('fs');
-const path = require('path');
+import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
 const logger = require('../utils/logger'); // Your existing logger
 
 class WhatsAppService {

@@ -3,7 +3,7 @@
 
  */
 
-const { Logger } = require('../utils/logger');
+import { Logger } from '../utils/logger.js';
 
 class ProviderManager {
   constructor(options = {}) {

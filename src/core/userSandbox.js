@@ -20,10 +20,10 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-const path = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
-const { logger } = require('./logger');
+import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+import { logger } from './logger.js';
 
 // ── load roles ────────────────────────────────────────────────────────────
 let _roles = null;

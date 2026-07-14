@@ -33,8 +33,8 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import path from 'path';
 
 const REQUIRED_MANIFEST_FIELDS = ['name', 'description', 'version', 'permissions'];
 const MANIFEST_FILENAMES = ['manifest.json', 'skill.json'];

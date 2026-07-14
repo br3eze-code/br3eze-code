@@ -1,10 +1,10 @@
 // src/ai/coordinator.js
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const EventEmitter = require('events');
-const { logger } = require('../core/logger');
-const { DEFAULT_LOGIN_DOMAIN } = require('../core/config');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import EventEmitter from 'events';
+import { logger } from '../core/logger.js';
+import { DEFAULT_LOGIN_DOMAIN } from '../core/config.js';
 
-const { QNAPProcessor } = require('./qnap-integration');
+import { QNAPProcessor } from './qnap-integration.js';
 
 class AICoordinator extends EventEmitter {
   constructor(config = {}) {

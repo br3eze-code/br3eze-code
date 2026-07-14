@@ -6,18 +6,18 @@
  * Consolidates CLI and Daemon logic.
  */
 
-const { program } = require('commander');
-const _chalk = require('chalk');
+import { program } from 'commander';
+import _chalk from 'chalk';
 const chalk = _chalk.default || _chalk;
-const _boxen = require('boxen');
+import _boxen from 'boxen';
 const boxen = _boxen.default || _boxen;
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 require('dotenv').config();
 
 // ── Config & Brand ────────────────────────────────────────────────────────────
-const { BRAND, CONFIG_PATH, STATE_PATH, getConfig } = require('./src/core/config');
+import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
 
 function getProfileDir() {
     const profile = process.env.AGENTOS_PROFILE ||

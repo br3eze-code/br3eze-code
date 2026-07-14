@@ -4,8 +4,8 @@
  * Kept for backward compatibility with src/core/agent.js and other callers
  * that require('./auth'). New code should require('./userSandbox') directly.
  */
-const { UserSandbox, getUserSandbox, AuthError, anyMatch } = require('./userSandbox');
-const { audit } = require('./audit');
+import { UserSandbox, getUserSandbox, AuthError, anyMatch } from './userSandbox.js';
+import { audit } from './audit.js';
 
 async function authorize({ userId, tool, args, routerId }) {
   const sandbox = getUserSandbox();

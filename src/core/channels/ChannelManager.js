@@ -1,8 +1,8 @@
-const EventEmitter = require('events');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { BaseChannel } = require('./BaseChannel');
+import EventEmitter from 'events';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
 
 class ChannelManager extends EventEmitter {
   constructor(agent) {

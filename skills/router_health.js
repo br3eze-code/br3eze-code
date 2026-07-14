@@ -1,4 +1,5 @@
-const fs = require('fs/promises'); const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI } from 'node-routeros';
 
 const router_health = {
   name: "router_health",

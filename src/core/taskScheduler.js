@@ -17,9 +17,9 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
+import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
 
 let CronExpressionParser = null;
 try {
@@ -329,5 +329,5 @@ class TaskScheduler extends EventEmitter {
 }
 
 export default TaskScheduler;
-module.exports.computeInitialNextRun = computeInitialNextRun;
-module.exports.computeNextRun = computeNextRun;
+export { computeInitialNextRun };
+export { computeNextRun };

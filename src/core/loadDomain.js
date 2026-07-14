@@ -1,10 +1,10 @@
 // src/core/loadDomain.js
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const registry = require('./ToolRegistry');
+import fs from 'fs';
+import path from 'path';
+import { logger } from './logger.js';
+import registry from './ToolRegistry.js';
 
 /**
  * Automatically loads all domains from src/domains

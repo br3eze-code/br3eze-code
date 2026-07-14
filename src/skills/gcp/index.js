@@ -1,6 +1,6 @@
 const { InstancesClient } = require('@google-cloud/compute').v1
-const { Storage } = require('@google-cloud/storage')
-const { BaseSkill } = require('../base.js')
+import { Storage } from '@google-cloud/storage';
+import { BaseSkill } from '../base.js';
 
 class GCPSkill extends BaseSkill {
   static id = 'gcp'

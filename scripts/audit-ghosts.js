@@ -1,10 +1,10 @@
 import path from 'path';
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
-const { getDatabase } = require('../src/core/database');
-const { MikroTikManager } = require('../src/core/mikrotik');
-const UniversalBilling = require('../src/core/universal-billing');
-const { logger } = require('../src/core/logger');
+import { getDatabase } from '../src/core/database.js';
+import { MikroTikManager } from '../src/core/mikrotik.js';
+import UniversalBilling from '../src/core/universal-billing.js';
+import { logger } from '../src/core/logger.js';
 
 async function main() {
     logger.info('Starting Ghost Session Audit...');

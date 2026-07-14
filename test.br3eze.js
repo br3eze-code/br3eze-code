@@ -5,21 +5,21 @@
 // Features: WebSocket Gateway, Interactive Buttons, RouterOS Integration
 // ==========================================
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const WebSocket = require('ws');
-const http = require('http');
-const tools = require('./src/tools');
-const TelegramBot = require('node-telegram-bot-api');
-const { RouterOSClient } = require('routeros-client');
-const QRCode = require('qrcode');
-const admin = require('firebase-admin');
-const winston = require('winston');
-const Joi = require('joi');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import WebSocket from 'ws';
+import http from 'http';
+import tools from './src/tools/index.js';
+import TelegramBot from 'node-telegram-bot-api';
+import { RouterOSClient } from 'routeros-client';
+import QRCode from 'qrcode';
+import admin from 'firebase-admin';
+import winston from 'winston';
+import Joi from 'joi';
+import path from 'path';
+import fs from 'fs';
 require('dotenv').config();
 
 // ==========================================

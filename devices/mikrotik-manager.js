@@ -1,7 +1,7 @@
 'use strict';
 
-const { getManager } = require('../src/core/mikrotik');
-const { logger } = require('../src/core/logger');
+import { getManager } from '../src/core/mikrotik.js';
+import { logger } from '../src/core/logger.js';
 
 class MikroTikManager {
     constructor() {

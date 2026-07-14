@@ -8,9 +8,9 @@
  *   4. Application Default Credentials (Cloud Run / GCE)
  */
 
-const admin = require('firebase-admin');
-const path  = require('path');
-const fs    = require('fs');
+import admin from 'firebase-admin';
+import path from 'path';
+import fs from 'fs';
 
 let _db   = null;
 let _auth = null;

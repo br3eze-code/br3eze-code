@@ -4,7 +4,7 @@
 
 'use strict';
 
-const path = require('path');
+import path from 'path';
 
 const SKILL_PATH = path.join(__dirname, '../../skills/codegen/index.js');
 

@@ -1,9 +1,9 @@
 'use strict';
 
-const chalk = require('chalk');
-const { execSync } = require('child_process');
-const fs = require('fs');
-const dgram = require('dgram');
+import chalk from 'chalk';
+import { execSync } from 'child_process';
+import fs from 'fs';
+import dgram from 'dgram';
 
 export default (program) => {
   program

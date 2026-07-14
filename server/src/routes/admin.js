@@ -3,22 +3,22 @@
  * Handles MikroTik hotspot events and external integrations
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { body } = require('express-validator');
-const crypto = require('crypto');
-const { admin, db } = require('../config/firebase');
-const mikrotikService = require('../services/mikrotikAPI');
-const sessionManager = require('../services/sessionManager');
-const logger = require('../utils/logger');
-const { verifyWebhookSignature } = require('../utils/crypto');
+import { body, validationResult } from 'express-validator';
+import crypto from 'crypto';
+import { admin, db } from '../config/firebase.js';
+import mikrotikService from '../services/mikrotikAPI.js';
+import sessionManager from '../services/sessionManager.js';
+import logger from '../utils/logger.js';
+import { verifyWebhookSignature, generateMikrotikUsername, generateSecurePassword } from '../utils/crypto.js';
 
 // Webhook secret for verification
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
 // Validation middleware
 const validate = (req, res, next) => {
-    const errors = require('express-validator').validationResult(req);
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -277,7 +277,6 @@ router.post('/firebase/user-created', async (req, res) => {
         const { uid, email, displayName } = req.body;
 
         // Create MikroTik user
-        const { generateMikrotikUsername, generateSecurePassword } = require('../utils/crypto');
         const mikrotikUsername = generateMikrotikUsername(uid);
         const mikrotikPassword = generateSecurePassword();
 

@@ -3,8 +3,13 @@
 // skills/nanopdf/index.js
 // const puppeteer = require('puppeteer-core'); // Lazy loaded
 // const { PDFDocument, PDFPage, StandardFonts, rgb } = require('pdf-lib'); // Lazy loaded
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import fsSync from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class NanoPDFSkill {
   constructor() {
@@ -19,8 +24,8 @@ class NanoPDFSkill {
     
     // Lazy load dependencies
     try {
-      this.puppeteer = require('puppeteer-core');
-      const pdflib = require('pdf-lib');
+      this.puppeteer = (await import('puppeteer-core')).default;
+      const pdflib = await import('pdf-lib');
       this.PDFDocument = pdflib.PDFDocument;
       this.StandardFonts = pdflib.StandardFonts;
       this.rgb = pdflib.rgb;
@@ -38,7 +43,7 @@ class NanoPDFSkill {
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
             'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
           ];
-          executablePath = paths.find(p => require('fs').existsSync(p));
+          executablePath = paths.find(p => fs.existsSync(p));
         } else {
           executablePath = '/usr/bin/chromium';
         }

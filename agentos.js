@@ -9,26 +9,26 @@
 process.env.GRPC_DNS_RESOLVER = 'native';
 
 // ── Dependencies ─────────────────────────────────────────────
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const WebSocket = require('ws');
-const http = require('http');
-const MastercardA2AService = require('./services/mastercardA2A');
-const TelegramBot = require('node-telegram-bot-api');
-const { RouterOSClient } = require('routeros-client');
-const QRCode = require('qrcode');
-const admin = require('firebase-admin');
-const winston = require('winston');
-const Joi = require('joi');
-const fs = require('fs');
-const readline = require('readline');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { body, validationResult } = require('express-validator');
-const crypto = require('crypto');
-const path = require('path');
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import WebSocket from 'ws';
+import http from 'http';
+import MastercardA2AService from './services/mastercardA2A.js';
+import TelegramBot from 'node-telegram-bot-api';
+import { RouterOSClient } from 'routeros-client';
+import QRCode from 'qrcode';
+import admin from 'firebase-admin';
+import winston from 'winston';
+import Joi from 'joi';
+import fs from 'fs';
+import readline from 'readline';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { body, validationResult } from 'express-validator';
+import crypto from 'crypto';
+import path from 'path';
 require('dotenv').config();
 
 // Ensure log directory exists before Winston initialises

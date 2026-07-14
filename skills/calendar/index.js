@@ -1,10 +1,10 @@
 
 // skills/calendar/index.js
-const { 
+import { 
   LocalCalendarAdapter, 
   GoogleCalendarAdapter, 
   OutlookCalendarAdapter 
-} = require('./adapters');
+} from './adapters.js';
 
 class CalendarSkill {
   async execute(toolName, args, context) {

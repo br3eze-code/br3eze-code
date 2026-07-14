@@ -9,9 +9,9 @@
  */
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const admin = require('firebase-admin');
+import path from 'path';
+import fs from 'fs';
+import admin from 'firebase-admin';
 
 const ROOT = path.join(__dirname, '..');
 const keyPath = path.join(ROOT, 'serviceAccountKey.json');
