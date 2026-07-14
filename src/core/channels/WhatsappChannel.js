@@ -8,7 +8,7 @@ import { getDatabase } from '../database.js';
 import { getChatRegistry } from '../chat-registry.js';
 import { verifyLinkCode } from './link-verifier.js';
 import shop from '../shop.js';
-import ps from '../plans-sales.js';
+import * as ps from '../plans-sales.js';
 import { getConfig } from '../config.js';
 import voucherAgent from '../voucher.js';
 import QRCode from 'qrcode';

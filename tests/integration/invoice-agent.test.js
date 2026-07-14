@@ -1,15 +1,22 @@
-const { A2AProtocolAdapter } = require('../../core/plugins/a2a-protocol/a2a-adapter.js');
+import { jest } from '@jest/globals';
 
-jest.mock('../../agents/invoice-agent/lib/pdf-extractor.js', () => ({
+const { A2AProtocolAdapter } = await import('../../core/plugins/a2a-protocol/a2a-adapter.js');
+
+// Capture the real implementation before mocking the module, so the mock
+// factory doesn't have to dynamically re-import the very module it's mocking
+// (which recursively re-triggers the mock factory and OOMs the process).
+const { parseInvoiceFields: realParseInvoiceFields } = await import('../../agents/invoice-agent/lib/pdf-extractor.js');
+
+jest.unstable_mockModule('../../agents/invoice-agent/lib/pdf-extractor.js', () => ({
     extractPDF: jest.fn().mockResolvedValue({
         text: 'Invoice Number: INV-123\nDate: 2026-04-26\nTotal: $1,200.00',
         pages: 1,
         method: 'mock'
     }),
-    parseInvoiceFields: jest.requireActual('../../agents/invoice-agent/lib/pdf-extractor.js').parseInvoiceFields
+    parseInvoiceFields: realParseInvoiceFields
 }));
 
-const { default: processInvoice } = require('../../agents/invoice-agent/handlers/processInvoice.js');
+const { default: processInvoice } = await import('../../agents/invoice-agent/handlers/processInvoice.js');
 
 class Br3ezeTestHarness {
     constructor() {

@@ -7,6 +7,7 @@
 
 process.env.AGENTOS_PROFILE = 'test-whatsapp-buttons';
 
+import { jest } from '@jest/globals';
 import WhatsAppChannel from '../../src/core/channels/WhatsappChannel.js';
 
 describe('WhatsAppChannel button reply resolution', () => {

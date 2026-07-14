@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import fs from 'fs';
 import crypto from 'crypto';
 import path from 'path';
@@ -1574,7 +1574,7 @@ async function boot() {
     // Functions manages its own listener and can't proxy a raw WebSocket
     // server behind onRequest() -- all we need in that mode is `app` wired
     // up with an initialized database + command handler.
-    if (require.main === module) {
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
         // Create HTTP server
         const server = http.createServer(app);
 
@@ -1610,7 +1610,7 @@ global.commandHandler = null;
 
 boot().catch(err => {
     logger.error('Boot failed:', err);
-    if (require.main === module) process.exit(1);
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) process.exit(1);
 });
 
 export { app, TOOLS, database };

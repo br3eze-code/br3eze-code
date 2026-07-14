@@ -3,11 +3,11 @@
  * Consolidates routing script generation, agent provisioning, and system setup.
  */
 
-const fs = require('fs/promises');
-const path = require('path');
-const { getManager } = require('./mikrotik');
-const { logger } = require('./logger');
-const createDebug = require('debug');
+import fs from 'fs/promises';
+import path from 'path';
+import { getManager } from './mikrotik.js';
+import { logger } from './logger.js';
+import createDebug from 'debug';
 
 
 // Namespaced debuggers — enable with: DEBUG=agentos:* or DEBUG=agentos:onboard
@@ -371,10 +371,10 @@ async function provisionAgents(routerId, options = {}) {
     // Lazy load create_agent
     let create_agent;
     try {
-        create_agent = require('../../skills/create_agent').create_agent;
+        const mod = await import('../../skills/create_agent.js');
+        create_agent = mod.create_agent || mod.default;
     } catch (e) {
-        // Fallback for different pathing or direct require
-        create_agent = require('../../skills/create_agent');
+        create_agent = null;
     }
 
     logger.info(`Provisioning agent for router ${routerId}...`);
@@ -409,9 +409,10 @@ async function provisionAgents(routerId, options = {}) {
 async function createFleetMasterAgent() {
     let create_agent;
     try {
-        create_agent = require('../../skills/create_agent').create_agent;
+        const mod = await import('../../skills/create_agent.js');
+        create_agent = mod.create_agent || mod.default;
     } catch (e) {
-        create_agent = require('../../skills/create_agent');
+        create_agent = null;
     }
 
     logger.info("Provisioning Fleet Master agent...");
@@ -687,7 +688,7 @@ async function generateMissionControl(results) {
  * Steps: 1.Router  2.NodeURL  3.Telegram  4.WhatsApp  5.Slack  6.Discord  7.Skills/Debug  8.Confirm
  */
 async function runWizard() {
-    const pc = require('picocolors');
+    const pc = (await import('picocolors')).default;
     const {
         intro, outro, text, password: clackPwd, select, confirm,
         spinner, cancel, isCancel, note,
@@ -1035,7 +1036,8 @@ async function runWizard() {
 }
 
 // Allow direct invocation: node src/core/onboard.js wizard
-if (require.main === module && process.argv[2] === 'wizard') {
+import { pathToFileURL } from 'url';
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href && process.argv[2] === 'wizard') {
     runWizard().catch(console.error);
 }
 

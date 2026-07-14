@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import MikroTikDomain from '../../../src/domains/mikrotik/index.js';
 
 describe('MikroTikDomain', () => {

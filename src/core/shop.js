@@ -11,8 +11,8 @@
  */
 'use strict';
 
-const { getDatabase } = require('./database');
-const logger = require('./logger').logger || require('./logger');
+import { getDatabase } from './database.js';
+import { logger } from './logger.js';
 
 const SHIPPING_FLAT = 5;
 

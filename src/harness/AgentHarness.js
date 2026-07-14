@@ -38,13 +38,19 @@
  *   const result = await harness.run('network.ping', { host: '1.1.1.1' });
  */
 
-const EventEmitter = require('events');
-const path         = require('path');
+import EventEmitter from 'events';
+import path         from 'path';
+import fs from 'fs';
+import { pathToFileURL } from 'url';
+import { logger as _sharedLogger } from '../core/logger.js';
+import pkg from '../../package.json' with { type: 'json' };
+import AgentKernel from '../core/agentKernel.js';
+import { ToolRegistry } from '../core/ToolRegistry.js';
 
 let _logger;
 function log(level, ...args) {
   try {
-    _logger = _logger || require('../core/logger').logger;
+    _logger = _logger || _sharedLogger;
     _logger[level](...args);
   } catch (_) {
     console[level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log'](...args);
@@ -86,7 +92,7 @@ class AgentHarness extends EventEmitter {
 
     this.id      = opts.id   || process.env.AGENTOS_AGENT_ID   || 'agentos';
     this.name    = opts.name || process.env.AGENTOS_AGENT_NAME  || 'AgentOS';
-    this.version = (() => { try { return require('../../package.json').version; } catch { return '1.0.0'; } })();
+    this.version = (() => { try { return pkg.version; } catch { return '1.0.0'; } })();
     this._opts   = opts;
 
     this._domains  = new Map();   // domainId → adapter
@@ -127,10 +133,6 @@ class AgentHarness extends EventEmitter {
    */
   async start() {
     if (this._started) return this;
-
-    // Lazy-load AgentKernel & ToolRegistry to avoid circular deps at require time
-    const AgentKernel   = require('../core/agentKernel.js').default;
-    const { ToolRegistry } = require('../core/ToolRegistry.js');
 
     this._kernel   = new AgentKernel({ dbPath: this._opts.dbPath });
     this._registry = new ToolRegistry();
@@ -275,14 +277,13 @@ class AgentHarness extends EventEmitter {
    * Each file in the dir should export an adapter object { name, execute? }.
    */
   static async fromDirectory(domainsDir, opts = {}) {
-    const fs = require('fs');
     const harness = new AgentHarness(opts);
 
     const files = fs.readdirSync(domainsDir).filter((f) => f.endsWith('.js'));
     for (const file of files) {
       try {
-        const adapter = require(path.join(domainsDir, file));
-        const a = adapter.default || adapter;
+        const adapterMod = await import(pathToFileURL(path.join(domainsDir, file)).href);
+        const a = adapterMod.default || adapterMod;
         if (a && a.name) harness.useDomain(a);
       } catch (err) {
         log('warn', `[AgentHarness] could not load domain ${file}: ${err.message}`);

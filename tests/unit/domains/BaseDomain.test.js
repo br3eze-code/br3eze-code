@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import BaseDomain from '../../../src/domains/BaseDomain.js';
 
 describe('BaseDomain', () => {

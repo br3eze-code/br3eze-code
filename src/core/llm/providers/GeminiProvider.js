@@ -119,4 +119,5 @@ class GeminiProvider extends BaseProvider {
 }
 
 BaseProvider.register('gemini', GeminiProvider);
+export { GeminiProvider };
 export default { GeminiProvider };

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import GoogleWorkspaceDomain from '../../../src/domains/google-workspace/index.js';
 
 describe('GoogleWorkspaceDomain', () => {
