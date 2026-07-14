@@ -24,13 +24,14 @@ import path from 'path';
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
 import { logger } from './logger.js';
+import rolesJson from '../policies/roles.json' with { type: 'json' };
 
 // ── load roles ────────────────────────────────────────────────────────────
 let _roles = null;
 function getRoles() {
   if (!_roles) {
     try {
-      _roles = require(path.resolve(__dirname, '../policies/roles.json'));
+      _roles = rolesJson;
     } catch (_) {
       _roles = { roles: {}, users: {} };
     }

@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import 'dotenv/config';
 import pkg from '../../package.json' with { type: 'json' };
+import yaml from 'js-yaml';
 function getPkgVersion() {
     try {
         return pkg.version;
@@ -188,7 +189,6 @@ function loadConfig() {
     for (const yamlPath of yamlPaths) {
         if (fs.existsSync(yamlPath)) {
             try {
-                const yaml = require('js-yaml');
                 const content = fs.readFileSync(yamlPath, 'utf8');
                 const loaded = yaml.load(content);
 

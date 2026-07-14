@@ -7,7 +7,7 @@ async function debugDomains() {
   console.log('--- AgentOS Domain Audit ---');
   
   // Load domains
-  loadAllDomains({
+  await loadAllDomains({
     mikrotik: { /* dummy config */ host: '192.168.88.1' }
   });
 

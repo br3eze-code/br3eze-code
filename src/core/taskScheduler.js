@@ -20,10 +20,13 @@
 import path from 'path';
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 let CronExpressionParser = null;
 try {
-  ({ CronExpressionParser } = require('cron-parser'));
+  ({ CronExpressionParser } = await import('cron-parser'));
 } catch (_) {
   // optional dependency — cron schedules unavailable, interval/once still work
 }
