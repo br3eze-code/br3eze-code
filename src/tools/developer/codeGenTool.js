@@ -5,12 +5,16 @@
 'use strict';
 
 import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SKILL_PATH = path.join(__dirname, '../../skills/codegen/index.js');
 
 /** Lazy-load the skill so this file is safe to require without deps ready */
-function getSkill() {
-  return require(SKILL_PATH);
+async function getSkill() {
+  return (await import(pathToFileURL(SKILL_PATH).href)).default;
 }
 
 const codeGenTool = {

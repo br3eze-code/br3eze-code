@@ -13,7 +13,7 @@ class PluginManager {
   }
 
   async load(pluginPath) {
-    const Plugin = require(pluginPath);
+    const Plugin = (await import(pluginPath)).default;
     const instance = new Plugin(this.agent);
     
     // Register hooks
