@@ -882,4 +882,5 @@ async function startGateway(config) {
   return await gateway.start();
 }
 
+export { Gateway, startGateway };
 export default { Gateway, startGateway };

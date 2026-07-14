@@ -4,6 +4,16 @@ import chalk from 'chalk';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import dgram from 'dgram';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { getConfig } from '../../core/config.js';
+import { testConnection as testMikroTikConnection } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import { BaseChannel } from '../../core/channels/BaseChannel.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default (program) => {
   program
@@ -39,7 +49,6 @@ export default (program) => {
 
       // Load config using the core module if available, to merge env variables, etc.
       try {
-        const { getConfig } = require('../../core/config');
         config = getConfig();
       } catch (e) {
         // Fallback to the raw JSON config
@@ -48,8 +57,6 @@ export default (program) => {
       // Check 2: MikroTik Connection
       s.start('Testing MikroTik connection...');
       try {
-        const { testMikroTikConnection } = require('../../core/mikrotik');
-        const { getConfig } = require('../../core/config');
         const config = getConfig();
 
         const mkConfig = config.mikrotik || (config.adapters && config.adapters.mikrotik) || {};
@@ -73,7 +80,6 @@ export default (program) => {
       // Check 3: Firebase Connectivity
       s.start('Checking Firebase connectivity...');
       try {
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase();
         if (db.db) {
           await db.getStats();
@@ -124,7 +130,6 @@ export default (program) => {
 
       // Check 5: Gateway Status
       s.start('Checking gateway process...');
-      const path = require('path');
       const pidFile = path.join(STATE_PATH, 'gateway.pid');
       if (fs.existsSync(pidFile)) {
         try {
@@ -148,7 +153,6 @@ export default (program) => {
       // Check 6: AI Engine
       s.start('Checking AI Engine...');
       try {
-        const LLMCoordinator = require('../../core/llm/LLMCoordinator');
         const aiProvider = config.ai?.provider || 'none';
         const coordinator = new LLMCoordinator(aiProvider, config);
 
@@ -194,11 +198,10 @@ export default (program) => {
       }
 
       // Check 7-N: Messaging Channels
-      const { BaseChannel } = require('../../core/channels/BaseChannel');
       const channelFiles = fs.readdirSync(path.join(__dirname, '../../core/channels'));
       for (const file of channelFiles) {
         if (file.endsWith('Channel.js') && file !== 'BaseChannel.js') {
-          try { require(path.join(__dirname, '../../core/channels/', file)); } catch (_) { }
+          try { await import(pathToFileURL(path.join(__dirname, '../../core/channels/', file)).href); } catch (_) { }
         }
       }
 
@@ -283,7 +286,6 @@ export default (program) => {
 
       // Cleanup to prevent handle leaks causing Assertion failed in libuv (Windows)
       try {
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase();
         if (db) await db.close();
       } catch (_) { }

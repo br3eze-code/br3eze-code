@@ -8,6 +8,19 @@ const chalk = _chalk.default || _chalk;
 
 import { STATE_PATH, getConfig } from '../../core/config.js';
 import { logger } from '../../core/logger.js';
+import winston from 'winston';
+import { getManager as getMikroTik } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import FinancialService from '../../core/financial.js';
+import UniversalBilling from '../../core/universal-billing.js';
+import DiscoveryService from '../../core/discovery.js';
+import MemoryManager from '../../core/memory/MemoryManager.js';
+import nodeRegistry from '../../core/node-registry.js';
+import AskEngine from '../../core/ask-engine.js';
+import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import TaskScheduler from '../../core/taskScheduler.js';
+import { HeartbeatAgent } from '../../core/heartbeat.js';
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
 const clackProxy = {
@@ -189,22 +202,12 @@ export default (program) => {
             global.startupSpinner = spinner;
 
             // ── Silence console logs during spinner-heavy initialization ──────
-            const consoleTransports = logger.transports.filter(t => t instanceof require('winston').transports.Console);
+            const consoleTransports = logger.transports.filter(t => t instanceof winston.transports.Console);
             consoleTransports.forEach(t => t.silent = true);
 
             try {
                 // 1. Core Services Initialization
-                const { getManager: getMikroTik } = require('../../core/mikrotik');
-                const { getDatabase } = require('../../core/database');
-                const { getConfig } = require('../../core/config');
                 const config = getConfig();
-                const FinancialService = require('../../core/financial');
-                const UniversalBilling = require('../../core/universal-billing');
-                const DiscoveryService = require('../../core/discovery');
-                const MemoryManager = require('../../core/memory/MemoryManager');
-                const nodeRegistry = require('../../core/node-registry');
-                const AskEngine = require('../../core/ask-engine');
-                const { Gateway: AgentOSGateway } = require('../../core/gateway-engine');
 
                 const mikrotik = getMikroTik();
                 const database = await getDatabase();
@@ -224,7 +227,6 @@ export default (program) => {
                 global.nodeRegistry = nodeRegistry;
 
                 // 2. AI Engine — LLMCoordinator (multi-LLM: Gemini/Anthropic/OpenAI per LLM_PROVIDER)
-                const LLMCoordinator = require('../../core/llm/LLMCoordinator');
                 let llmCoordinator = null;
                 try {
                     llmCoordinator = new LLMCoordinator();
@@ -245,7 +247,6 @@ export default (program) => {
 
                 // 3a. Task Scheduler — cron/interval/once jobs dispatched through AskEngine
                 try {
-                    const TaskScheduler = require('../../core/taskScheduler');
                     const taskScheduler = new TaskScheduler({ engine: askEngine });
                     taskScheduler.on('error', (err) => logger.error('TaskScheduler error:', err.message));
                     taskScheduler.start();
@@ -291,7 +292,6 @@ export default (program) => {
                 // ── Heartbeat agent — proactive owner briefings (OpenClaw-style)
                 // Notify-only; enabled via HEARTBEAT_ENABLED=true.
                 try {
-                    const { HeartbeatAgent } = require('../../core/heartbeat');
                     const heartbeat = new HeartbeatAgent({
                         engine: askEngine,
                         channelManager: gateway.channelManager,
