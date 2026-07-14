@@ -393,39 +393,31 @@
             </section>
 
             <section id="messages-section" class="dashboard-section hidden">
-                <div class="p2p-messages-header">
-                    <div>
-                        <h1>Messages</h1>
-                        <p class="text-medium">Your support conversations &amp; P2P group history.</p>
+                <h1>Messages</h1>
+                <p class="text-medium">View your past and active support conversations.</p>
+                <div class="card" style="padding: 0; margin-bottom: 15px;">
+                    <div class="modal-header"
+                        style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);">
+                        <h3 style="font-weight: 500; font-size: 1.1rem;">Conversations</h3>
                     </div>
-                    <div style="display:flex;gap:10px;">
-                        <button class="btn btn-info" onclick="openChatBotModal()">
-                            <i class="fas fa-headset"></i> Live Support
-                        </button>
-                        <button class="btn btn-primary" onclick="openSubmitTicketModal()">
-                            <i class="fas fa-plus"></i> New Thread
-                        </button>
-                        <button class="btn contact-btn" onclick="pickContactForChat()">
-                            <i class="fas fa-address-book"></i> Import Contact
-                        </button>
+                    <div style="padding: 10px 15px 0;"><input type="text" id="chatSearchInput"
+                            placeholder="Search conversations..." oninput="filterChats()" style="width: 100%;"></div>
+                    <div id="chatsListContainer">
+                        <p class="text-medium" style="padding: 25px;">Loading conversations...</p>
                     </div>
                 </div>
-                <div class="p2p-chat-layout">
-                    <!-- Conversation List Panel -->
-                    <div class="p2p-thread-list" id="ticketListContainer">
-                        <div class="p2p-thread-loading">
-                            <i class="fas fa-circle-notch fa-spin"></i>
-                            <span>Loading conversations...</span>
-                        </div>
+                <div class="card" style="padding: 0; margin-bottom: 5px;">
+                    <div class="modal-header"
+                        style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);">
+                        <h3 style="font-weight: 500; font-size: 1.1rem;">Support Tickets</h3>
+                        <button class="btn btn-sm" onclick="openSubmitTicketModal();">+ New Ticket</button>
                     </div>
-                    <!-- Active Conversation Panel -->
-                    <div class="p2p-conversation-panel" id="p2pConversationPanel">
-                        <div class="p2p-empty-state">
-                            <i class="fas fa-comments"></i>
-                            <h3>Select a conversation</h3>
-                            <p>Choose a thread from the left to view the full message history.</p>
-                        </div>
+                    <div id="ticketListContainer">
+                        <p class="text-medium" style="padding: 25px;">Loading tickets...</p>
                     </div>
+                </div>
+                <div style="text-align: right; padding-top: 10px;"><button class="btn btn-info"
+                        onclick="openChatBotModal()"><i class="fas fa-headset"></i> Contact Live Support</button>
                 </div>
             </section>
 
@@ -857,6 +849,7 @@
     <script src="js/app-admin.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/chat.js"></script>
 
     <!-- Captive Portal status adapter & Native MikroTik scripts -->
     <script>

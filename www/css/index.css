@@ -1413,6 +1413,33 @@ textarea.form-control:focus {
     flex-shrink: 0;
 }
 
+/* Chat input action button (mic / send toggle) — status.html chat modal.
+   No 44x44 tap target existed, making the control invisible/untappable. */
+.chat-action-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.15s, transform 0.15s, color 0.15s;
+}
+.chat-action-btn.mode-mic {
+    background: var(--color-active);
+    color: var(--color-text-medium);
+}
+.chat-action-btn.mode-mic:hover { color: var(--color-text-light); }
+.chat-action-btn.mode-send {
+    background: var(--color-info-text);
+    color: #fff;
+}
+.chat-action-btn:active { transform: scale(0.92); }
+
 @keyframes popIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
