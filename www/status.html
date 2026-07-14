@@ -2,9 +2,24 @@
 <html lang="en">
 
 <head>
-    $(if refresh-timeout)
-    <meta http-equiv="refresh" content="$(refresh-timeout-secs)">
-    $(endif)
+    <script>
+        // RouterOS session auto-refresh. This used to be a bare
+        // `$(if refresh-timeout) <meta refresh ...> $(endif)` sitting as raw
+        // text directly in <head> — real browsers hang indefinitely parsing
+        // that (confirmed: removing it is what fixes the hang, independent of
+        // the meta tag itself), because unescaped non-whitespace text in
+        // <head> forces an early implied </head> mid-parse. RouterOS's hotspot
+        // engine substitutes $(...) tokens regardless of surrounding syntax,
+        // so doing the substitution inside a <script> (safely raw-text to the
+        // HTML parser either way) keeps the refresh working when served
+        // through the router while being a no-op — not a hang — when this
+        // file is served statically (Firebase Hosting) and the placeholder
+        // is left literal.
+        (function () {
+            var secs = parseInt('$(refresh-timeout-secs)', 10);
+            if (secs > 0) setTimeout(function () { location.reload(); }, secs * 1000);
+        })();
+    </script>
     <meta charset="utf-8">
     <meta name="format-detection" content="telephone=no">
     <meta name="msapplication-tap-highlight" content="no">
@@ -277,12 +292,12 @@
                 <!-- Firebase Account Status Card (Controlled by Auth State) -->
                 <div class="firebase-only">
                     <h2>Account Status</h2>
-                    <div class="grid grid-3" style="margin-bottom: 25px;">
-                        <div class="card stat-card">
-                            <div class="stat-icon"><i class="fas fa-wallet"></i></div>
-                            <div class="stat-value">$<span id="dashCredits">0.00</span></div>
-                            <div class="stat-label">Balance</div>
-                        </div>
+                    <div class="card stat-hero">
+                        <div class="stat-hero-label"><i class="fas fa-wallet"></i> Balance</div>
+                        <div class="stat-hero-value">$<span id="dashCredits">0.00</span></div>
+                        <button class="btn btn-primary" style="margin-top:14px;" onclick="Payments.openTopUp()"><i class="fab fa-cc-stripe"></i> Top Up with Card</button>
+                    </div>
+                    <div class="grid dash-stats-2" style="margin-bottom: 25px;">
                         <div class="card stat-card">
                             <div class="stat-icon"><i class="fas fa-box"></i></div>
                             <div class="stat-value" id="dashPlans">0</div>
@@ -423,6 +438,13 @@
 
             <section id="settings-section" class="dashboard-section hidden">
                 <h1>Settings</h1>
+                <div class="card firebase-only">
+                    <h3>Payment Method</h3>
+                    <p class="text-medium">Your saved card is used for one-tap top-ups — no redirect to an external checkout page.</p>
+                    <div id="savedCardSummary" style="margin:12px 0;"><p class="text-medium">No card on file yet.</p></div>
+                    <button type="button" class="btn btn-primary" onclick="Payments.open()"><i class="fab fa-cc-stripe"></i> Add / Edit Card</button>
+                </div>
+
                 <div class="card">
                     <h3>Profile</h3>
                     <form id="updateProfileForm">
@@ -797,6 +819,64 @@
         </div>
     </div>
 
+    <!-- Payment Method — save/replace the card on file (Stripe Elements). -->
+    <div class="modal" id="paymentMethodModal">
+        <div class="modal-content" style="max-width:480px;">
+            <div class="modal-header"><h3>Payment Method</h3><button class="modal-close" onclick="closeModal('paymentMethodModal')">×</button></div>
+            <div class="modal-body-scroll">
+                <form id="paymentMethodForm" onsubmit="Payments.save(event)">
+                    <div class="pay-field-group">
+                        <input type="text" id="payCardName" class="pay-field" placeholder="Name (as it appears on card)" autocomplete="cc-name" required>
+                        <div id="payCardNumber" class="pay-field"></div>
+                        <div class="pay-field-row">
+                            <div id="payCardExpiry" class="pay-field"></div>
+                            <div id="payCardCvc" class="pay-field"></div>
+                        </div>
+                        <input type="text" id="payAddrLine" class="pay-field" placeholder="Billing Address Line" autocomplete="address-line1" required>
+                        <input type="text" id="payAddrCity" class="pay-field" placeholder="Billing City" autocomplete="address-level2" required>
+                        <input type="text" id="payAddrState" class="pay-field" placeholder="Billing State / Province (Optional)" autocomplete="address-level1">
+                        <div class="pay-country-field">
+                            <span class="pay-country-label">Country</span>
+                            <select id="payAddrCountry" class="pay-field">
+                                <option>South Africa</option>
+                                <option>Zimbabwe</option>
+                                <option>Botswana</option>
+                                <option>Namibia</option>
+                                <option>Mozambique</option>
+                                <option>Zambia</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <hr class="pay-divider">
+                    <div class="pay-footer">
+                        <button type="button" class="btn" onclick="closeModal('paymentMethodModal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="paySaveBtn">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Up — pay with the saved card in-app; falls back to hosted Checkout if no card is saved. -->
+    <div class="modal" id="topUpModal">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header"><h3>Top Up Balance</h3><button class="modal-close" onclick="closeModal('topUpModal')">×</button></div>
+            <div class="modal-body-scroll">
+                <div class="amount-grid">
+                    <div class="amount-chip" onclick="Payments.pickAmount(5, this)">$5</div>
+                    <div class="amount-chip active" onclick="Payments.pickAmount(10, this)">$10</div>
+                    <div class="amount-chip" onclick="Payments.pickAmount(25, this)">$25</div>
+                    <div class="amount-chip" onclick="Payments.pickAmount(50, this)">$50</div>
+                    <div class="amount-chip" onclick="Payments.pickAmount(100, this)">$100</div>
+                    <div class="amount-chip" onclick="document.getElementById('topUpCustomAmount').focus()">Other</div>
+                </div>
+                <div class="form-group"><label>Amount (USD)</label><input type="number" step="0.01" min="0.5" id="topUpCustomAmount" value="10"></div>
+                <p class="top-up-card-hint" id="topUpCardHint"></p>
+                <button type="button" class="btn btn-primary btn-block" id="topUpConfirmBtn" onclick="Payments.confirmTopUp()">Pay Now</button>
+            </div>
+        </div>
+    </div>
 
     <!-- CDN Libraries -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -836,11 +916,11 @@
             }
         })();
     </script>
+    <script src="https://js.stripe.com/v3/"></script>
     <script src="js/html5-qrcode.min.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/websocket.js"></script>
     <script src="js/client.js"></script>
-    <script src="js/datastore.js"></script>
     <script src="js/oauth-vault.js"></script>
     <script src="js/offline-orchestrator.js"></script>
     <script src="js/nano-ai.js"></script>
@@ -850,6 +930,7 @@
     <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
     <script src="js/chat.js"></script>
+    <script src="js/payments.js"></script>
 
     <!-- Captive Portal status adapter & Native MikroTik scripts -->
     <script>
