@@ -3,12 +3,11 @@
  * WhatsApp Channel
  */
 
-const { 
-  default: makeWASocket, 
+import makeWASocket, { 
   DisconnectReason, 
   useMultiFileAuthState,
   Browsers
-} = require('@whiskeysockets/baileys');
+} from '@whiskeysockets/baileys';
 import { BaseChannel } from './base.js';
 import { Logger } from '../utils/logger.js';
 import QRCode from 'qrcode-terminal';

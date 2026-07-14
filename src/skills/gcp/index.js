@@ -1,4 +1,5 @@
-const { InstancesClient } = require('@google-cloud/compute').v1
+import gcpCompute from '@google-cloud/compute';
+const { InstancesClient } = gcpCompute.v1;
 import { Storage } from '@google-cloud/storage';
 import { BaseSkill } from '../base.js';
 

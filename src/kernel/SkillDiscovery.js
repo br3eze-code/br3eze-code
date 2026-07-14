@@ -34,7 +34,9 @@
  */
 
 import { promises as fs } from 'fs';
+import { watch as fsWatch } from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 
 const REQUIRED_MANIFEST_FIELDS = ['name', 'description', 'version', 'permissions'];
 const MANIFEST_FILENAMES = ['manifest.json', 'skill.json'];
@@ -207,8 +209,8 @@ class SkillDiscovery {
 
     let mod;
     try {
-      // eslint-disable-next-line global-require -- intentional dynamic/lazy require, the whole point of this protocol
-      mod = require(entry.mainPath);
+      const imported = await import(pathToFileURL(entry.mainPath).href);
+      mod = imported.default !== undefined ? imported.default : imported;
     } catch (err) {
       throw new SkillDiscoveryError(`failed to load skill '${name}' from ${entry.mainPath}`, {
         skillDir: entry.dir,
@@ -264,7 +266,7 @@ class SkillDiscovery {
   watch(onChange = () => {}) {
     for (const root of this.roots) {
       try {
-        const watcher = require('fs').watch(root, { persistent: false }, async () => {
+        const watcher = fsWatch(root, { persistent: false }, async () => {
           this.index.clear();
           const result = await this.scan();
           onChange(result);

@@ -5,20 +5,30 @@ import { logger } from '../core/logger.js';
 import { DEFAULT_LOGIN_DOMAIN } from '../core/config.js';
 
 import { QNAPProcessor } from './qnap-integration.js';
+import SkillRegistry from '../core/skills/SkillRegistry.js';
+import { getManager } from '../core/mikrotik.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { getDatabase, DEFAULT_PLANS } from '../core/database.js';
+import voucherAgent from '../core/voucher.js';
+import QRCode from 'qrcode';
+import { getUserSandbox } from './userSandbox.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class AICoordinator extends EventEmitter {
   constructor(config = {}) {
     super();
     this.config = config;
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.skillRegistry = new (require('../core/skills/SkillRegistry'))();
+    this.skillRegistry = new SkillRegistry();
     this.qnap = new QNAPProcessor();
     this.conversationContext = new Map(); // Context per user
     this.toolRegistry = new Map();
     this.toolToSkillMap = new Map(); // toolName -> skillName
 
     // Inject MikroTik Manager
-    const { getManager } = require('../core/mikrotik');
     this.mikrotik = getManager();
 
     this.model = this.genAI.getGenerativeModel({
@@ -31,7 +41,6 @@ class AICoordinator extends EventEmitter {
   }
 
   async _initSkills() {
-    const path = require('path');
     const skillsPath = path.join(__dirname, '../skills');
     await this.skillRegistry.loadFromDirectory(skillsPath, this.config);
 
@@ -222,13 +231,10 @@ When managing CCTV, target devices by their deviceId.`;
           throw new Error('Transaction flagged for review');
         }
 
-        const { getDatabase } = require('../core/database');
         const db = await getDatabase();
-        const voucherAgent = require('../core/voucher');
         const code = voucherAgent.generate(params.plan || '1hour');
 
-        const { DEFAULT_PLANS } = require('../core/database');
-        const dateUtils = require('../utils/date');
+        const { default: dateUtils } = await import('../utils/date.js');
 
         const planObj = DEFAULT_PLANS[params.plan] || { name: 'Custom', deviceLimit: 1 };
         const expiresAt =
@@ -281,7 +287,6 @@ When managing CCTV, target devices by their deviceId.`;
         }
 
         // Generate QR code
-        const QRCode = require('qrcode');
         const qrData = await QRCode.toDataURL(`WIFI:T:WPA;S:AgentOS;P:${code};;`);
 
         return {
@@ -319,7 +324,6 @@ When managing CCTV, target devices by their deviceId.`;
   }
 
   async executeTool(name, params, context = {}) {
-    const { getUserSandbox } = require('./userSandbox');
     const sandbox = getUserSandbox({ db: this.db });
     const userId = context.userId || 'system';
 
