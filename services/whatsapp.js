@@ -1,14 +1,15 @@
 // services/whatsapp.js
-const {
-    default: makeWASocket,
+import makeWASocket, {
     DisconnectReason,
     useMultiFileAuthState,
     fetchLatestBaileysVersion
-} = require('@whiskeysockets/baileys');
+} from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
-const logger = require('../utils/logger'); // Your existing logger
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const logger = require('../utils/logger'); // Your existing logger — NOTE: this path does not exist (pre-existing, unrelated to ESM migration); file has no importers anywhere in the repo
 
 class WhatsAppService {
     constructor(config = {}) {

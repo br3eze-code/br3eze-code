@@ -13,7 +13,8 @@ class MikroTikManager {
         // If host/user/pass provided, create a temporary manager or update current one
         // For now, we'll assume the global manager is configured or use the provided ones if possible
         if (host && username) {
-            const tempManager = require('../src/core/mikrotik').getManager({
+            const { getManager } = await import('../src/core/mikrotik.js');
+            const tempManager = getManager({
                 host,
                 user: username,
                 password,

@@ -52,7 +52,7 @@ async function _directMikroTikQuery(queryType) {
     // Lazy-load the MikroTik core module — it's in the main gateway process
     let MikroTikManager;
     try {
-        ({ MikroTikManager } = require('../../../src/core/mikrotik'));
+        ({ MikroTikManager } = await import('../../../src/core/mikrotik.js'));
     } catch {
         throw new Error('Network-agent unavailable and MikroTikManager cannot be loaded from this context');
     }

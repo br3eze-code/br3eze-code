@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 import admin from 'firebase-admin';
 
 try {

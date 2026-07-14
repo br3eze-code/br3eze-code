@@ -37,7 +37,7 @@ function getCredential() {
   // 3. Local serviceAccountKey.json (dev)
   const localKey = path.join(__dirname, '../serviceAccountKey.json');
   if (fs.existsSync(localKey)) {
-    return admin.credential.cert(require(localKey));
+    return admin.credential.cert(JSON.parse(fs.readFileSync(localKey, 'utf8')));
   }
 
   // 4. ADC (Cloud Run, GCE, Cloud Shell)
