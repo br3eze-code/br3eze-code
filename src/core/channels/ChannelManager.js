@@ -4,38 +4,25 @@ import path from 'path';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
 
+// Statically import all known channel adapters so their self-registration
+// (BaseChannel.register(...) at module top-level) runs on load, replacing
+// the require()-per-file directory scan (real ESM has no synchronous
+// dynamic require). A brand-new channel file needs a line here too.
+import './CLIChannel.js';
+import './DiscordChannel.js';
+import './EmailChannel.js';
+import './SMSChannel.js';
+import './SlackChannel.js';
+import './TelegramChannel.js';
+import './USSDChannel.js';
+import './WebSocketChannel.js';
+import './WhatsappChannel.js';
+
 class ChannelManager extends EventEmitter {
   constructor(agent) {
     super();
     this.agent = agent;
     this.channels = new Map();
-    this._loadAdapters();
-  }
-
-  /**
-   * Forces loading of all channel adapter files in the current directory
-   * to ensure they execute their self-registration calls on BaseChannel.
-   */
-  _loadAdapters() {
-    try {
-      const files = fs.readdirSync(__dirname);
-      for (const file of files) {
-        if (
-          file.endsWith('Channel.js') &&
-          file !== 'BaseChannel.js' &&
-          file !== 'ChannelManager.js'
-        ) {
-          try {
-            require(path.join(__dirname, file));
-            logger.debug(`ChannelManager: Loaded channel adapter ${file}`);
-          } catch (err) {
-            logger.error(`ChannelManager: Failed to load adapter ${file}:`, err.message);
-          }
-        }
-      }
-    } catch (err) {
-      logger.error('ChannelManager: Error reading channel adapters directory:', err.message);
-    }
   }
 
   async initialize() {
