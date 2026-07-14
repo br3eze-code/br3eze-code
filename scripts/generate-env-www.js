@@ -20,7 +20,13 @@ const ROOT = path.join(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');
 const OUT_PATH = path.join(ROOT, 'www', 'js', 'env.js');
 
-const BROWSER_KEYS = ['FIREBASE_API_KEY', 'GEMINI_API_KEY'];
+// Required: the app can't boot without these. Optional: features degrade
+// gracefully client-side when absent (e.g. Payments.ensureStripe() checks
+// for STRIPE_PUBLISHABLE_KEY and shows a toast instead of crashing), so a
+// secret ops hasn't provisioned yet must not fail the hosting predeploy.
+const REQUIRED_KEYS = ['FIREBASE_API_KEY', 'GEMINI_API_KEY'];
+const OPTIONAL_KEYS = ['STRIPE_PUBLISHABLE_KEY'];
+const BROWSER_KEYS = [...REQUIRED_KEYS, ...OPTIONAL_KEYS];
 
 if (!fs.existsSync(ENV_PATH)) {
     console.error(`[env:www] ${ENV_PATH} not found — cannot generate www/js/env.js`);
@@ -38,13 +44,18 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
     env[m[1]] = value;
 }
 
-const missing = BROWSER_KEYS.filter((k) => !env[k]);
-if (missing.length) {
-    console.error(`[env:www] Missing in .env: ${missing.join(', ')}`);
+const missingRequired = REQUIRED_KEYS.filter((k) => !env[k]);
+if (missingRequired.length) {
+    console.error(`[env:www] Missing in .env: ${missingRequired.join(', ')}`);
     process.exit(1);
 }
+const missingOptional = OPTIONAL_KEYS.filter((k) => !env[k]);
+if (missingOptional.length) {
+    console.warn(`[env:www] Optional keys not set (features will degrade gracefully): ${missingOptional.join(', ')}`);
+}
 
-const body = BROWSER_KEYS.map((k) => `    ${k}: ${JSON.stringify(env[k])}`).join(',\n');
+const present = BROWSER_KEYS.filter((k) => env[k]);
+const body = present.map((k) => `    ${k}: ${JSON.stringify(env[k])}`).join(',\n');
 const out = `// AUTO-GENERATED from .env by scripts/generate-env-www.js — do not edit.
 // Regenerate with: npm run env:www
 window.ENV = {
@@ -53,4 +64,4 @@ ${body}
 `;
 
 fs.writeFileSync(OUT_PATH, out, 'utf8');
-console.log(`[env:www] Wrote ${path.relative(ROOT, OUT_PATH)} (${BROWSER_KEYS.join(', ')})`);
+console.log(`[env:www] Wrote ${path.relative(ROOT, OUT_PATH)} (${present.join(', ')})`);

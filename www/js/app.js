@@ -2388,6 +2388,7 @@ window.pickContactForShare = pickContactForShare;
 function populateUserSettings() {
     if (!currentUser) return;
     if (window.PermissionCenter) PermissionCenter.render();
+    if (window.Payments) Payments.renderSavedCardSummary();
     document.getElementById('settingsFullname').value = currentUser.fullname || '';
     document.getElementById('settingsUsername').value = currentUser.username || '';
     document.getElementById('settingsPhoneNumber').value = currentUser.phoneNumber || '';

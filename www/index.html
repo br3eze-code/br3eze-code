@@ -178,7 +178,7 @@
             <div class="card stat-hero">
                 <div class="stat-hero-label"><i class="fas fa-wallet"></i> Balance</div>
                 <div class="stat-hero-value">$<span id="dashCredits">0.00</span></div>
-                <button class="btn btn-primary" style="margin-top:14px;" onclick="topUpWithCard()"><i class="fab fa-cc-stripe"></i> Top Up with Card</button>
+                <button class="btn btn-primary" style="margin-top:14px;" onclick="Payments.openTopUp()"><i class="fab fa-cc-stripe"></i> Top Up with Card</button>
             </div>
             <div class="grid dash-stats-2">
                 <div class="card stat-card"><div class="stat-icon"><i class="fas fa-box"></i></div><div class="stat-value" id="dashPlans">0</div><div class="stat-label">Active Plans</div></div>
@@ -338,6 +338,13 @@
                 <h3 id="profileDisplayName">--</h3>
                 <p class="text-medium" id="profileDisplayEmail">--</p>
                 <span id="profileRoleBadge" class="tag" style="margin-top:8px;display:inline-block;"></span>
+            </div>
+
+            <div class="card">
+                <h3>Payment Method</h3>
+                <p class="text-medium">Your saved card is used for one-tap top-ups — no redirect to an external checkout page.</p>
+                <div id="savedCardSummary" style="margin:12px 0;"><p class="text-medium">No card on file yet.</p></div>
+                <button type="button" class="btn btn-primary" onclick="Payments.open()"><i class="fab fa-cc-stripe"></i> Add / Edit Card</button>
             </div>
 
             <div class="card">
@@ -643,6 +650,65 @@
     </div>
 </div>
 
+<!-- Payment Method — save/replace the card on file (Stripe Elements). -->
+<div class="modal" id="paymentMethodModal">
+    <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header"><h3>Payment Method</h3><button class="modal-close" onclick="closeModal('paymentMethodModal')">×</button></div>
+        <div class="modal-body-scroll">
+            <form id="paymentMethodForm" onsubmit="Payments.save(event)">
+                <div class="pay-field-group">
+                    <input type="text" id="payCardName" class="pay-field" placeholder="Name (as it appears on card)" autocomplete="cc-name" required>
+                    <div id="payCardNumber" class="pay-field"></div>
+                    <div class="pay-field-row">
+                        <div id="payCardExpiry" class="pay-field"></div>
+                        <div id="payCardCvc" class="pay-field"></div>
+                    </div>
+                    <input type="text" id="payAddrLine" class="pay-field" placeholder="Billing Address Line" autocomplete="address-line1" required>
+                    <input type="text" id="payAddrCity" class="pay-field" placeholder="Billing City" autocomplete="address-level2" required>
+                    <input type="text" id="payAddrState" class="pay-field" placeholder="Billing State / Province (Optional)" autocomplete="address-level1">
+                    <div class="pay-country-field">
+                        <span class="pay-country-label">Country</span>
+                        <select id="payAddrCountry" class="pay-field">
+                            <option>South Africa</option>
+                            <option>Zimbabwe</option>
+                            <option>Botswana</option>
+                            <option>Namibia</option>
+                            <option>Mozambique</option>
+                            <option>Zambia</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <hr class="pay-divider">
+                <div class="pay-footer">
+                    <button type="button" class="btn" onclick="closeModal('paymentMethodModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="paySaveBtn">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Top Up — pay with the saved card in-app; falls back to hosted Checkout if no card is saved. -->
+<div class="modal" id="topUpModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header"><h3>Top Up Balance</h3><button class="modal-close" onclick="closeModal('topUpModal')">×</button></div>
+        <div class="modal-body-scroll">
+            <div class="amount-grid">
+                <div class="amount-chip" onclick="Payments.pickAmount(5, this)">$5</div>
+                <div class="amount-chip active" onclick="Payments.pickAmount(10, this)">$10</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(25, this)">$25</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(50, this)">$50</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(100, this)">$100</div>
+                <div class="amount-chip" onclick="document.getElementById('topUpCustomAmount').focus()">Other</div>
+            </div>
+            <div class="form-group"><label>Amount (USD)</label><input type="number" step="0.01" min="0.5" id="topUpCustomAmount" value="10"></div>
+            <p class="top-up-card-hint" id="topUpCardHint"></p>
+            <button type="button" class="btn btn-primary btn-block" id="topUpConfirmBtn" onclick="Payments.confirmTopUp()">Pay Now</button>
+        </div>
+    </div>
+</div>
+
 <!-- CDN Libraries -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -665,11 +731,13 @@
         });
     }
 </script>
+<script src="https://js.stripe.com/v3/"></script>
 <script src="js/vendor-qrcode.js"></script>
 <script src="js/shop.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/index.js"></script>
 <script src="js/15.hardware.print.js"></script>
 <script src="js/app.js"></script>
+<script src="js/payments.js"></script>
     </body>
 </html>
