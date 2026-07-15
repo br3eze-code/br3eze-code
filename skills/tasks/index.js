@@ -1,5 +1,7 @@
 
 // skills/tasks/index.js
+import crypto from 'crypto';
+
 class TasksSkill {
   async execute(params, context) {
     const { action, provider = 'local', task, filters } = params;

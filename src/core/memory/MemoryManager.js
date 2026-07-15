@@ -83,6 +83,21 @@ class MemoryManager {
   getStatus() {
     return this.adapter.getStatus();
   }
+
+  // ── Low-level KV passthrough ──────────────────────────────────────────
+  // Skills (e.g. tasks/index.js) are written against a direct get/set/push
+  // store interface, not the higher-level session/user methods above.
+  async get(key) {
+    return this.adapter.get(key);
+  }
+
+  async set(key, value, ttlSeconds = null) {
+    return this.adapter.set(key, value, ttlSeconds);
+  }
+
+  async push(key, value) {
+    return this.adapter.push(key, value);
+  }
 }
 
 export default MemoryManager;
