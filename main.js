@@ -14,10 +14,29 @@ const boxen = _boxen.default || _boxen;
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-require('dotenv').config();
+import 'dotenv/config';
 
 // ── Config & Brand ────────────────────────────────────────────────────────────
 import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
+import TelegramChannel from './src/core/channels/TelegramChannel.js';
+import { getDatabase } from './src/core/database.js';
+import { logger } from './src/core/logger.js';
+import registerOnboard from './src/cli/commands/onboard.js';
+import registerGateway from './src/cli/commands/gateway.js';
+import registerAsk from './src/cli/commands/ask.js';
+import registerLogin from './src/cli/commands/login.js';
+import registerNetworks from './src/cli/commands/networks.js';
+import registerUsers from './src/cli/commands/users.js';
+import registerVoucher from './src/cli/commands/voucher.js';
+import registerConfig from './src/cli/commands/config.js';
+import registerDoctor from './src/cli/commands/doctor.js';
+import registerStatus from './src/cli/commands/status.js';
+import registerDashboard from './src/cli/commands/dashboard.js';
+import registerSkill from './src/cli/commands/skill.js';
+import registerDahua from './src/cli/commands/dahua.js';
+import registerWacli from './src/cli/commands/wacli.js';
+import registerGoogle from './src/cli/commands/google.js';
+import registerUpdate from './src/cli/commands/update.js';
 
 function getProfileDir() {
     const profile = process.env.AGENTOS_PROFILE ||
@@ -75,29 +94,29 @@ program
     });
 
 // ── Command Registration ──────────────────────────────────────────────────────
-require('./src/cli/commands/onboard')(program);
-require('./src/cli/commands/gateway')(program);
-require('./src/cli/commands/ask')(program);
-require('./src/cli/commands/login')(program);
-require('./src/cli/commands/networks')(program);
-require('./src/cli/commands/users')(program);
-require('./src/cli/commands/voucher')(program);
-require('./src/cli/commands/config')(program);
-require('./src/cli/commands/doctor')(program);
-require('./src/cli/commands/status')(program);
-require('./src/cli/commands/dashboard')(program);
-require('./src/cli/commands/skill')(program);
-require('./src/cli/commands/dahua')(program);
-require('./src/cli/commands/wacli')(program);
-require('./src/cli/commands/google')(program);
-require('./src/cli/commands/update')(program);
+registerOnboard(program);
+registerGateway(program);
+registerAsk(program);
+registerLogin(program);
+registerNetworks(program);
+registerUsers(program);
+registerVoucher(program);
+registerConfig(program);
+registerDoctor(program);
+registerStatus(program);
+registerDashboard(program);
+registerSkill(program);
+registerDahua(program);
+registerWacli(program);
+registerGoogle(program);
+registerUpdate(program);
 
 // ── Logging Daemon ────────────────────────────────────────────────────────────
 program
     .command('logs')
     .description('Start the standalone logging daemon (UDP 5001)')
     .action(() => {
-        require('./src/cli/daemon/logs-daemon');
+        import('./src/cli/daemon/logs-daemon.js');
     });
 
 
@@ -110,7 +129,6 @@ program
         
         if (mode === 'telegram') {
             console.log(chalk.cyan('\n--- Telegram Channel Diagnostic ---\n'));
-            const TelegramChannel = require('./src/core/channels/TelegramChannel');
             try {
                 const bot = new TelegramChannel({
                     token: process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN
@@ -143,7 +161,6 @@ program
         try {
             // Trigger voucher debug if available
             console.log(chalk.gray('  - Vouchers: '));
-            const { getDatabase } = require('./src/core/database');
             const db = await getDatabase();
             const stats = await db.getStats();
             console.log(chalk.green(`    ✓ ${stats.total} vouchers found (${stats.active} active)`));
@@ -196,7 +213,6 @@ process.on('unhandledRejection', (reason, promise) => {
     
     // Log to file if logger is available
     try {
-        const { logger } = require('./src/core/logger');
         if (logger) logger.error('Unhandled Rejection', { reason, stack: reason?.stack });
     } catch (e) {
         // Fallback if logger is not ready

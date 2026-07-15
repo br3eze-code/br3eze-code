@@ -7,7 +7,7 @@ async function migrate() {
   console.log('🔄 Migrating to Domain-Agnostic AgentOS...');
   
   // 1. Load old config
-  const oldConfig = require('./old-config.json');
+  const { default: oldConfig } = await import('./old-config.json', { with: { type: 'json' } });
   
   // 2. Create new workspace
   const workspace = {
@@ -35,7 +35,7 @@ async function migrate() {
   };
   
   // 3. Import existing vouchers
-  const db = require('./src/core/database');
+  const db = await import('./src/core/database.js');
   const oldVouchers = await db.getAllVouchers();
   
   for (const v of oldVouchers) {
@@ -48,8 +48,10 @@ async function migrate() {
   }
   
   // 4. Save new config
-  require('fs').writeFileSync('./agentos.yaml', 
-    require('yaml').stringify(workspace)
+  const fs = await import('fs');
+  const yaml = await import('yaml');
+  fs.writeFileSync('./agentos.yaml', 
+    yaml.stringify(workspace)
   );
   
   console.log('✅ Migration complete!');

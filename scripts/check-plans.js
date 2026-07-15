@@ -5,7 +5,7 @@ import 'dotenv/config';
 async function check() {
     if (!admin.apps.length) {
         const saPath = process.env.FIREBASE_SERVICE_ACCOUNT || './serviceAccountKey.json';
-        if (fs.existsSync(saPath)) admin.initializeApp({ credential: admin.credential.cert(require(path.resolve(saPath))) });
+        if (fs.existsSync(saPath)) admin.initializeApp({ credential: admin.credential.cert(JSON.parse(fs.readFileSync(path.resolve(saPath), 'utf8'))) });
         else admin.initializeApp({ credential: admin.credential.applicationDefault() });
     }
 

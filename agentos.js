@@ -29,7 +29,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { body, validationResult } from 'express-validator';
 import crypto from 'crypto';
 import path from 'path';
-require('dotenv').config();
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import 'dotenv/config';
 
 // Ensure log directory exists before Winston initialises
 const logDir = path.join(__dirname, 'logs');
@@ -129,7 +133,7 @@ const REQUIRED_MODULES = [
 
 for (const [pkg, name] of REQUIRED_MODULES) {
     try {
-        require(pkg);
+        await import(pkg);
     } catch (e) {
         console.error(`❌ Missing module: ${pkg}. Run: npm install ${pkg}`);
         process.exit(1);

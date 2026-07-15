@@ -20,7 +20,8 @@ import winston from 'winston';
 import Joi from 'joi';
 import path from 'path';
 import fs from 'fs';
-require('dotenv').config();
+import crypto from 'crypto';
+import 'dotenv/config';
 
 // ==========================================
 // BRANDING & CONFIGURATION
@@ -57,7 +58,7 @@ const CONFIG = {
     GATEWAY: {
         PORT: process.env.GATEWAY_PORT || 19876,
         HOST: process.env.GATEWAY_HOST || '127.0.0.1',
-        TOKEN: process.env.AGENTOS_GATEWAY_TOKEN || require('crypto').randomBytes(32).toString('hex'),
+        TOKEN: process.env.AGENTOS_GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex'),
         WS_PATH: '/ws'
     },
     SERVER: {
@@ -458,7 +459,7 @@ class AgentOSGateway {
 
     setupHandlers() {
         this.wss.on('connection', (ws, req) => {
-            const clientId = require('crypto').randomUUID();
+            const clientId = crypto.randomUUID();
             this.clients.set(clientId, { ws, authenticated: true, role: 'client' });
 
             logger.info(`Client connected: ${clientId}`);

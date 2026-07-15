@@ -8,7 +8,7 @@ export default (program) => {
         .description('Update AgentOS to the latest version')
         .action(async () => {
             const { intro, outro, spinner, log, note } = await import('@clack/prompts');
-            const chalk = (await import('chalk')).default || require('chalk');
+            const chalk = (await import('chalk')).default;
 
             console.clear();
             intro(chalk.cyan('🚀 AgentOS Update'));

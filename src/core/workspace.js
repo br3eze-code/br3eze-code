@@ -2,6 +2,8 @@
 /**
  * Multi-Tenant Workspace System
  */
+import UniversalBilling from './universal-billing.js';
+import UniversalAICoordinator from '../ai/universal-coordinator.js';
 
 class Workspace {
   constructor(config) {
@@ -25,13 +27,13 @@ class Workspace {
     }
 
     // Initialize domain-specific billing
-    this.billing = new (require('./universal-billing'))({
+    this.billing = new UniversalBilling({
       database: this.config.database,
       resourceType: this.domain
     });
 
     // Initialize AI with workspace context
-    this.aiCoordinator = new (require('../ai/universal-coordinator'))({
+    this.aiCoordinator = new UniversalAICoordinator({
       domain: this.domain,
       registry: this,
       workspace: this.config

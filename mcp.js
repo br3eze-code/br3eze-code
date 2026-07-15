@@ -5,10 +5,10 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-const {
+import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
-} = require('@modelcontextprotocol/sdk/types.js');
+} from '@modelcontextprotocol/sdk/types.js';
 
 // Device Control Modules
 import WiFiManager from './devices/wifi-manager.js';
