@@ -2,10 +2,10 @@
  * WiFi Agent - Manages WiFi connections with billing integration
  */
 
-const ConnectionManager = require('./ConnectionManager');
-const NetworkScanner = require('./NetworkScanner');
-const SignalMonitor = require('./SignalMonitor');
-const EventEmitter = require('events');
+import ConnectionManager from './ConnectionManager.js';
+import NetworkScanner from './NetworkScanner.js';
+import SignalMonitor from './SignalMonitor.js';
+import EventEmitter from 'events';
 
 class WiFiAgent extends EventEmitter {
   constructor(config = {}) {
@@ -227,4 +227,4 @@ class WiFiAgent extends EventEmitter {
   }
 }
 
-module.exports = WiFiAgent;
+export default WiFiAgent;

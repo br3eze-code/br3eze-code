@@ -17,5 +17,5 @@ class BaseAdapter {
     async generateFileStream(prompt, options = {})  { throw new Error(`${this.name} must implement generateFileStream()`); }
 }
 
-module.exports = { BaseAdapter };
+export { BaseAdapter };
 

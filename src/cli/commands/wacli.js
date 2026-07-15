@@ -5,13 +5,16 @@
 
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
-const qrcode       = require('qrcode-terminal');
-const { getConfig } = require('../../core/config');
+import qrcode from 'qrcode-terminal';
+import { getConfig } from '../../core/config.js';
+import { getDatabase } from '../../core/database.js';
+import voucherAgent from '../../core/voucher.js';
+import WhatsAppChannel from '../../core/channels/WhatsappChannel.js';
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('wacli')
     .description('WhatsApp CLI — QR pairing, auth status, and diagnostics')
@@ -75,7 +78,6 @@ module.exports = (program) => {
 
         s.start('Connecting to database…');
         try {
-          const { getDatabase } = require('../../core/database');
           const db    = await getDatabase();
           const stats = await db.getStats();
           s.stop('Database reachable');
@@ -87,7 +89,6 @@ module.exports = (program) => {
 
         s.start('Dry-run voucher generation…');
         try {
-          const voucherAgent = require('../../core/voucher');
           const sample = voucherAgent.generate('default');
           s.stop(`Sample: ${sample}`);
           checks.push({ name: 'Generator', ok: true, detail: `sample → ${sample}` });
@@ -110,7 +111,6 @@ module.exports = (program) => {
       intro('📱 WhatsApp QR Pairing');
       log.info(`Auth folder: ${authDir}`);
 
-      const WhatsAppChannel = require('../../core/channels/WhatsappChannel');
       const stubAgent = {};
 
       waConfig.authStateFolder = authDir;

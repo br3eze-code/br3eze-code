@@ -1,7 +1,7 @@
 // src/payments/pesapal-integration.js
 // Complete PesaPal integration for Br3eze Africa AgentOS
 
-const PesaPalProvider = require('./providers/pesapay-provider');
+import PesaPalProvider from './providers/pesapay-provider.js';
 
 class PesaPalIntegration {
   constructor(config = {}) {
@@ -198,4 +198,4 @@ class PesaPalIntegration {
   }
 }
 
-module.exports = PesaPalIntegration;
+export default PesaPalIntegration;

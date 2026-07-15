@@ -1,6 +1,5 @@
-'use strict';
-
-const BaseDomain = require('../../../src/domains/BaseDomain');
+import { jest } from '@jest/globals';
+import BaseDomain from '../../../src/domains/BaseDomain.js';
 
 describe('BaseDomain', () => {
   let domain;

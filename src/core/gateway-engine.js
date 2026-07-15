@@ -1,23 +1,32 @@
 // src/core/gateway-engine.js 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const cors = require('cors');
-const compression = require('compression');
-const EventEmitter = require('events');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import cors from 'cors';
+import compression from 'compression';
+import EventEmitter from 'events';
+import path from 'path';
 
-const security = require('./security');
-const { logger } = require('./logger');
-const ChannelManager = require('./channels/ChannelManager');
-const MobileBridge = require('../api/mobile-bridge');
-const AICoordinator = require('../ai/coordinator');
-const { metrics } = require('./metrics');
+import security from './security.js';
+import { logger } from './logger.js';
+import ChannelManager from './channels/ChannelManager.js';
+import MobileBridge from '../api/mobile-bridge.js';
+import AICoordinator from '../ai/coordinator.js';
+import { metrics } from './metrics.js';
+import admin from 'firebase-admin';
+import https from 'https';
+import bcrypt from 'bcryptjs';
+import rolesJson from '../policies/roles.json' with { type: 'json' };
+import { getUserSandbox } from './userSandbox.js';
+import { getToolForge } from './toolForge.js';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from './database.js';
+import QRCode from 'qrcode';
 
 // A2A Protocol Plugin
 let a2aPlugin;
 try {
-  a2aPlugin = require('../../core/plugins/a2a-protocol');
+  a2aPlugin = (await import('../../core/plugins/a2a-protocol/index.js')).default;
 } catch (e) {
   logger.warn('A2A Protocol Plugin not found, cross-agent communication may be limited.');
 }
@@ -176,12 +185,10 @@ class Gateway extends EventEmitter {
 
       // ── 1. Try Firebase Auth ─────────────────────────────────────────────────
       try {
-        const admin = require('firebase-admin');
         if (admin.apps.length && db?.db) {
           // Firebase REST sign-in
           const apiKey = process.env.FIREBASE_API_KEY;
           if (apiKey) {
-            const https = require('https');
             const signInPayload = JSON.stringify({ email: username, password, returnSecureToken: true });
             const fbResult = await new Promise((resolve, reject) => {
               const req2 = https.request({
@@ -221,7 +228,6 @@ class Gateway extends EventEmitter {
       // ── 2. SQLite fallback ───────────────────────────────────────────────────
       if (!authSource && db) {
         try {
-          const bcrypt = require('bcryptjs');
           let row = null;
           if (db.sqlite) {
             row = db.sqlite.prepare(
@@ -314,14 +320,13 @@ class Gateway extends EventEmitter {
     // ── Users / Roles API ────────────────────────────────────────────────────
     this.app.get('/api/v1/users/roles', (req, res) => {
       try {
-        const { roles } = require('../policies/roles.json');
+        const { roles } = rolesJson;
         res.json({ roles });
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/users/platform', async (req, res) => {
       try {
-        const { getUserSandbox } = require('./userSandbox');
         const sandbox = getUserSandbox({ db: global.database });
         const users = await sandbox.listUsers({ role: req.query.role, limit: parseInt(req.query.limit) || 50 });
         res.json({ users });
@@ -330,7 +335,6 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/users/platform/:uid/role', async (req, res) => {
       try {
-        const { getUserSandbox } = require('./userSandbox');
         const sandbox = getUserSandbox({ db: global.database });
         const operatorId = req.user?.id || 'gateway';
         await sandbox.setRole(operatorId, req.params.uid, req.body.role);
@@ -341,14 +345,12 @@ class Gateway extends EventEmitter {
     // ── ToolForge API ────────────────────────────────────────────────────────
     this.app.get('/api/v1/forge/active', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         res.json({ tools: getToolForge().listActive() });
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
     this.app.get('/api/v1/forge/proposals', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         const forge = getToolForge();
         res.json({ proposals: forge.listProposals(req.query.status ? { status: req.query.status } : {}) });
       } catch (e) { res.status(500).json({ error: e.message }); }
@@ -356,7 +358,6 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/forge/propose', async (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         const forge = getToolForge({ skillRegistry: this.ai?.skillRegistry });
         const propId = await forge.propose({ ...req.body, proposedBy: req.user?.id || 'api' });
         res.json({ ok: true, proposalId: propId });
@@ -365,7 +366,6 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/forge/proposals/:id/approve', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         const result = getToolForge().approve(req.params.id, { by: req.user?.id || 'api' });
         res.json({ ok: true, proposal: result });
       } catch (e) { res.status(400).json({ error: e.message }); }
@@ -373,7 +373,6 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/forge/proposals/:id/reject', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         const result = getToolForge().reject(req.params.id, { by: req.user?.id || 'api', reason: req.body?.reason });
         res.json({ ok: true, proposal: result });
       } catch (e) { res.status(400).json({ error: e.message }); }
@@ -381,7 +380,6 @@ class Gateway extends EventEmitter {
 
     this.app.delete('/api/v1/forge/tools/:id', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         getToolForge().revoke(req.params.id, { by: req.user?.id || 'api' });
         res.json({ ok: true });
       } catch (e) { res.status(400).json({ error: e.message }); }
@@ -389,7 +387,6 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/forge/receipts', (req, res) => {
       try {
-        const { getToolForge } = require('./toolForge');
         res.json({ receipts: getToolForge().listReceipts(parseInt(req.query.limit) || 50) });
       } catch (e) { res.status(500).json({ error: e.message }); }
     });
@@ -438,11 +435,9 @@ class Gateway extends EventEmitter {
     this.app.post('/api/v1/vouchers', async (req, res) => {
       try {
         if (!global.database) return res.status(503).json({ error: 'Database not ready' });
-        const crypto = require('crypto');
         const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
         const code = `STAR-${part()}-${part()}`;
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
+        const { default: dateUtils } = await import('../utils/date.js');
         const plan = req.body.plan || 'default';
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
 
@@ -520,7 +515,6 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/vouchers/:code/qr', async (req, res) => {
       try {
-        const QRCode = require('qrcode');
         const voucher = await global.database.getVoucher(req.params.code);
         if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
         const url = `${req.protocol}://${req.get('host')}/login.html?code=${req.params.code}`;
@@ -643,16 +637,13 @@ class Gateway extends EventEmitter {
       try {
         const { plan, amount, method } = req.body;
         if (!plan || !amount) return res.status(400).json({ error: 'plan and amount required' });
-
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
+        const { default: dateUtils } = await import('../utils/date.js');
 
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
           dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
         // This would integrate with UniversalBilling/Payment providers
-        const crypto = require('crypto');
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
         const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'br3eze.africa'}/login?username=${code}&password=${code}`;
@@ -882,4 +873,5 @@ async function startGateway(config) {
   return await gateway.start();
 }
 
-module.exports = { Gateway, startGateway };
+export { Gateway, startGateway };
+export default { Gateway, startGateway };

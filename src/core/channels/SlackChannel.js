@@ -1,6 +1,10 @@
 // src/core/channels/SlackChannel.js
-const { BaseChannel } = require('./BaseChannel');
-const { WebClient } = require('@slack/web-api');
+import { BaseChannel } from './BaseChannel.js';
+import { WebClient } from '@slack/web-api';
+import { SocketModeClient } from '@slack/socket-mode';
+import { getChatRegistry } from '../chat-registry.js';
+import { getDatabase } from '../database.js';
+import H from './HandlerLibrary.js';
 
 class SlackChannel extends BaseChannel {
   static getMetadata() {
@@ -60,7 +64,6 @@ class SlackChannel extends BaseChannel {
   }
 
   async initializeSocketMode() {
-    const { SocketModeClient } = require('@slack/socket-mode');
     this.socket = new SocketModeClient({ appToken: this.config.appToken });
 
     this.socket.on('message', async ({ event, ack }) => {
@@ -73,7 +76,6 @@ class SlackChannel extends BaseChannel {
       const from = event.channel;
 
       // Register active chat for broadcasts
-      const { getChatRegistry } = require('../chat-registry');
       getChatRegistry().register('slack', from);
 
       // Command Dispatcher
@@ -113,7 +115,6 @@ class SlackChannel extends BaseChannel {
           return this.send(jid, '🚫 *Unauthorized.* Your ID is not in the allowed list.');
         }
 
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
 
         await db.upsertUser(jid, {
@@ -134,7 +135,6 @@ class SlackChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    const H = require('./HandlerLibrary');
 
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);
@@ -248,4 +248,4 @@ class SlackChannel extends BaseChannel {
 
 BaseChannel.register('slack', SlackChannel);
 
-module.exports = SlackChannel;
+export default SlackChannel;

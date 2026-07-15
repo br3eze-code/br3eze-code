@@ -1,9 +1,8 @@
-'use strict';
 /**
  * OperationProgressTracker — step-by-step progress for long-running ops
  */
 
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 // ── Status enum ───────────────────────────────────────────────────────────────
 
@@ -182,7 +181,8 @@ function createProgressTracker(template, onProgress = null) {
     return new OperationProgressTracker(template, onProgress);
 }
 
-module.exports = {
+export { createProgressTracker, buildMikrotikProvisionTemplate, buildVoucherBatchTemplate };
+export default {
     OperationProgressTracker, StepStatus,
     createProgressTracker,
     buildMikrotikProvisionTemplate,

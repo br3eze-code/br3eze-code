@@ -7,9 +7,11 @@
 
 'use strict';
 
-const express = require('express');
+import express from 'express';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from '../../core/database.js';
 const router  = express.Router();
-const { logger } = require('../../core/logger');
+import { logger } from '../../core/logger.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ok       = (res, data, meta = {}) => res.json({ ok: true, version: 'v3', ...meta, data });
@@ -45,14 +47,12 @@ router.get('/health', (req, res) => {
 router.post('/bulk/vouchers', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const crypto    = require('crypto');
-    const { DEFAULT_PLANS } = require('../../core/database');
-    const dateUtils = require('../../utils/date');
 
     const { count = 1, plan = 'default', createdBy = 'api-v3-bulk' } = req.body;
     const n = Math.min(Math.max(parseInt(count) || 1, 1), 100);
 
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+    const { default: dateUtils } = await import('../../utils/date.js');
     const expiresAt = planObj.durationValue && planObj.durationUnit
       ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;
@@ -348,4 +348,4 @@ function _mb(b) { return `${Math.round(b / 1024 / 1024)}MB`; }
 function _ms(us) { return `${(us / 1e6).toFixed(3)}s`; }
 function _svc(v) { return { status: v ? 'up' : 'down' }; }
 
-module.exports = router;
+export default router;

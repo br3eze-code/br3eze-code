@@ -1,5 +1,5 @@
-const { Octokit } = require('@octokit/rest')
-const { BaseSkill } = require('../base.js')
+import { Octokit } from '@octokit/rest';
+import { BaseSkill } from '../base.js';
 
 class GitHubSkill extends BaseSkill {
   static id = 'github'
@@ -171,4 +171,4 @@ class GitHubSkill extends BaseSkill {
   }
 }
 
-module.exports = GitHubSkill
+export default GitHubSkill;

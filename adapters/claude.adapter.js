@@ -1,7 +1,5 @@
-'use strict';
-
-const Anthropic           = require('@anthropic-ai/sdk');
-const { BaseAdapter }     = require('./base.adapter');
+import Anthropic from '@anthropic-ai/sdk';
+import { BaseAdapter } from './base.adapter.js';
 
 class ClaudeAdapter extends BaseAdapter {
     constructor(apiKey) {
@@ -27,4 +25,4 @@ class ClaudeAdapter extends BaseAdapter {
     }
 }
 
-module.exports = ClaudeAdapter;
+export default ClaudeAdapter;

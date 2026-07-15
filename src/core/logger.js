@@ -1,16 +1,16 @@
-'use strict';
-
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import dgram from 'dgram';
 /**
  * Structured Logger with Winston
  * @module core/logger
  */
-const { randomUUID } = require('crypto');
-const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
-const { AsyncLocalStorage } = require('async_hooks');
-const { A } = require('./constants');
-const util = require('util');
+const { randomUUID } = crypto;
+import winston from 'winston';
+import { AsyncLocalStorage } from 'async_hooks';
+import { A } from './constants.js';
+import util from 'util';
 
 // Create async local storage for correlation IDs
 const asyncLocalStorage = new AsyncLocalStorage();
@@ -136,7 +136,7 @@ const logger = winston.createLogger({
         super(opts);
         this.port = opts.port || 5001;
         this.host = opts.host || '127.0.0.1';
-        this.client = require('dgram').createSocket('udp4');
+        this.client = dgram.createSocket('udp4');
         this.client.unref();
       }
       log(info, callback) {
@@ -173,7 +173,8 @@ logger.cyber = logger.cyber.bind(logger);
 logger.fatal = logger.fatal.bind(logger);
 logger.trace = logger.trace.bind(logger);
 
-module.exports = {
+export { logger, correlationIdMiddleware, asyncLocalStorage };
+export default {
   logger,
   correlationIdMiddleware,
   asyncLocalStorage

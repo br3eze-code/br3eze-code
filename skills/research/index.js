@@ -1,10 +1,10 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const path = require('path')
-const fs = require('fs/promises')
-const pdf = require('pdf-parse')
-const cheerio = require('cheerio')
-const { BaseSkill } = require('../base.js')
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs/promises';
+import pdf from 'pdf-parse';
+import cheerio from 'cheerio';
+import { BaseSkill } from '../base.js';
 
 const execAsync = promisify(exec)
 
@@ -598,7 +598,7 @@ case 'research.citavi.import': {
   let refs = [], knowledge = [], quotes = []
   if (ext === '.ctv6') {
     // Citavi 6 is SQLite
-    const sqlite3 = require('sqlite3').verbose()
+    const sqlite3 = (await import('sqlite3')).default.verbose()
     const db = new sqlite3.Database(filePath)
     const get = promisify(db.all.bind(db))
 
@@ -783,7 +783,7 @@ case 'research.endnote.import': {
   let refs = []
   if (ext === '.ris' || ext === '.bib') {
     const content = await fs.readFile(filePath, 'utf8')
-    const bibtex = require('bibtex')
+    const bibtex = await import('bibtex')
 
     if (ext === '.bib') {
       const parsed = bibtex.parse(content)
@@ -820,7 +820,7 @@ case 'research.endnote.import': {
     }
   } else if (ext === '.enl') {
     // EndNote.enl is SQLite
-    const sqlite3 = require('sqlite3').verbose()
+    const sqlite3 = (await import('sqlite3')).default.verbose()
     const db = new sqlite3.Database(filePath)
     const get = promisify(db.all.bind(db))
     const rows = await get(`SELECT refs.*, GROUP_CONCAT(authors.last_name||', '||authors.first_name, '; ') as authors
@@ -1062,7 +1062,7 @@ case 'research.logseq.write': {
         const fmMatch = content.match(/^---\n([\s\S]*?)\n---/)
         let frontmatter = {}
         if (fmMatch) {
-          try { frontmatter = require('js-yaml').load(fmMatch[1]) } catch {}
+          try { frontmatter = (await import('js-yaml')).default.load(fmMatch[1]) } catch {}
         }
 
         // Wikilinks [[Note]] and [[Note|Alias]]
@@ -1116,7 +1116,7 @@ case 'research.obsidian.write': {
 
   let content = args.content
   if (args.frontmatter && Object.keys(args.frontmatter).length) {
-    const yaml = require('js-yaml').dump(args.frontmatter)
+    const yaml = (await import('js-yaml')).default.dump(args.frontmatter)
     content = `---\n${yaml}---\n\n${content}`
   }
 
@@ -1272,7 +1272,7 @@ case 'research.zotero.add': {
 }
 case 'research.notion.export': {
   this.logger.warn(`RESEARCH NOTION EXPORT ${args.title}`, { user: ctx.userId, reason: args.reason })
-  const { Client } = require('@notionhq/client')
+  const { Client } = await import('@notionhq/client')
   const notion = new Client({ auth: args.notion_token })
 
   const md = await fs.readFile(path.resolve(this.workspace, args.markdown_path), 'utf8')
@@ -1295,7 +1295,7 @@ case 'research.notion.export': {
 }
 case 'research.notion.sync': {
   this.logger.info(`RESEARCH NOTION SYNC DB`, { user: ctx.userId })
-  const { Client: Client2 } = require('@notionhq/client')
+  const { Client: Client2 } = await import('@notionhq/client')
   const notion2 = new Client2({ auth: args.notion_token })
 
   const db = await notion2.databases.query({ database_id: args.database_id, page_size: 100 })
@@ -1444,4 +1444,4 @@ Structure: Executive Summary, Key Findings, Analysis, Conclusion, References.`
   }
 }
 
-module.exports = ResearchSkill
+export default ResearchSkill

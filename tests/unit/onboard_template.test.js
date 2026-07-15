@@ -1,4 +1,4 @@
-const { generateSetupScript } = require('../../src/core/onboard');
+import { generateSetupScript } from '../../src/core/onboard.js';
 
 describe('Onboard Template Generation', () => {
     const mockEnv = {

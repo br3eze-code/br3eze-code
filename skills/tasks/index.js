@@ -107,4 +107,4 @@ class LocalTaskAdapter {
   }
 }
 
-module.exports = new TasksSkill();
+export default new TasksSkill();

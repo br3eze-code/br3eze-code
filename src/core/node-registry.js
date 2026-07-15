@@ -1,10 +1,10 @@
-'use strict';
 /**
  * NodeRegistry — migrated from ss35.js §5
  * Manages multi-router mesh: connect, fan-out, per-node execution.
  */
-const EventEmitter = require('events');
-const { logger }   = require('./logger');
+import EventEmitter from 'events';
+import { logger } from './logger.js';
+import { getManager } from './mikrotik.js';
 
 class NodeRegistry extends EventEmitter {
     constructor() {
@@ -27,7 +27,6 @@ class NodeRegistry extends EventEmitter {
         }
 
         // Lazy-require to avoid circular deps at startup
-        const { getManager } = require('./mikrotik');
         const node = getManager({ host: ip, port, username: user, password: pass });
         this._nodes.set(name, node);
         logger.info(`NodeRegistry: registered "${name}" (${ip}:${port})`);
@@ -113,4 +112,4 @@ class NodeRegistry extends EventEmitter {
 }
 
 // Singleton
-module.exports = new NodeRegistry();
+export default new NodeRegistry();

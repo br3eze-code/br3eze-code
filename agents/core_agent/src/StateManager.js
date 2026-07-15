@@ -2,7 +2,7 @@
  * StateManager - Distributed state with CRDT-based conflict resolution
  */
 
-const CryptoUtils = require('../../../shared/utils/CryptoUtils');
+import CryptoUtils from '../../../shared/utils/CryptoUtils.js';
 
 class StateManager {
   constructor() {
@@ -15,7 +15,8 @@ class StateManager {
 
   async initialize(options = {}) {
     if (options.persistence) {
-      this.persistence = new (require('../../../sync/local_storage/IndexedDBManager'))();
+      const IndexedDBManager = (await import('../../../sync/local_storage/IndexedDBManager.js')).default;
+      this.persistence = new IndexedDBManager();
       await this.persistence.open('powerconnect_states', 1);
     }
 
@@ -24,7 +25,8 @@ class StateManager {
     }
 
     if (options.sync) {
-      this.syncAdapter = new (require('../../../sync/firebase_sync/FirebaseAdapter'))();
+      const FirebaseAdapter = (await import('../../../sync/firebase_sync/FirebaseAdapter.js')).default;
+      this.syncAdapter = new FirebaseAdapter();
       await this.syncAdapter.connect();
 
       // Setup sync listeners
@@ -184,4 +186,4 @@ class StateManager {
   }
 }
 
-module.exports = StateManager;
+export default StateManager;

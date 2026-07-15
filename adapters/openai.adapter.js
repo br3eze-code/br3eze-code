@@ -1,7 +1,5 @@
-'use strict';
-
-const OpenAI          = require('openai');
-const { BaseAdapter } = require('./base.adapter');
+import OpenAI from 'openai';
+import { BaseAdapter } from './base.adapter.js';
 
 class OpenAIAdapter extends BaseAdapter {
     constructor(apiKey) {
@@ -27,4 +25,4 @@ class OpenAIAdapter extends BaseAdapter {
     }
 }
 
-module.exports = OpenAIAdapter;
+export default OpenAIAdapter;

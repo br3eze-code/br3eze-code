@@ -9,9 +9,13 @@
  */
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const admin = require('firebase-admin');
+import path from 'path';
+import fs from 'fs';
+import admin from 'firebase-admin';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const ROOT = path.join(__dirname, '..');
 const keyPath = path.join(ROOT, 'serviceAccountKey.json');
@@ -19,7 +23,7 @@ if (!fs.existsSync(keyPath)) {
     console.error(`serviceAccountKey.json not found at ${keyPath}`);
     process.exit(1);
 }
-admin.initializeApp({ credential: admin.credential.cert(require(keyPath)) });
+admin.initializeApp({ credential: admin.credential.cert(JSON.parse(fs.readFileSync(keyPath, 'utf8'))) });
 
 const dryRun = process.argv.includes('--dry-run');
 const db = admin.firestore();

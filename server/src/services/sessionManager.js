@@ -3,10 +3,10 @@
  * Handles user sessions, caching, and state management
  */
 
-const NodeCache = require('node-cache');
-const { admin, db } = require('../config/firebase');
-const logger = require('../utils/logger');
-const { generateSessionId } = require('../utils/helpers');
+import NodeCache from 'node-cache';
+import { admin, db } from '../config/firebase.js';
+import logger from '../utils/logger.js';
+import { generateSessionId } from '../utils/helpers.js';
 
 class SessionManager {
     constructor() {
@@ -385,4 +385,4 @@ class SessionManager {
     }
 }
 
-module.exports = new SessionManager();
+export default new SessionManager();

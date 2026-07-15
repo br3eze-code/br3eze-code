@@ -1,8 +1,9 @@
-const { exec } = require('child_process')
-const { promisify } = require('util')
-const path = require('path')
-const fs = require('fs/promises')
-const { BaseSkill } = require('../base.js')
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs/promises';
+import { BaseSkill } from '../base.js';
+import xml2js from 'xml2js';
 
 const execAsync = promisify(exec)
 
@@ -141,7 +142,6 @@ class CordovaSkill extends BaseSkill {
       switch (toolName) {
         case 'cordova.info':
           const proj1 = this._safePath(args.project)
-          const xml2js = require('xml2js')
           const xml = await fs.readFile(path.join(proj1, 'config.xml'), 'utf8')
           const config = await xml2js.parseStringPromise(xml)
           const { stdout: platOut } = await execAsync('cordova platform ls', { cwd: proj1 })
@@ -238,4 +238,4 @@ class CordovaSkill extends BaseSkill {
   }
 }
 
-module.exports = CordovaSkill
+export default CordovaSkill;

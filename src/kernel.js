@@ -15,10 +15,10 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const AgentKernel = require('./core/agentKernel');
+import AgentKernel from './core/agentKernel.js';
 
 // Re-export for existing callers that do:
 //   const AgentKernel = require('./kernel')
 //   const kernel = new AgentKernel()
 //   kernel.execute(...)  ← still works via dispatch()
-module.exports = AgentKernel;
+export default AgentKernel;

@@ -4,6 +4,9 @@
  * Tests the full flow: voucher.generate → database.createVoucher → addHotspotUser
  */
 
+import { jest } from '@jest/globals';
+import crypto from 'crypto';
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const mkVouchers = () => new Map();
@@ -33,7 +36,12 @@ function makeDb(vouchersMap = mkVouchers()) {
 
 describe('VoucherAgent.generate', () => {
     let voucher;
-    beforeEach(() => { jest.resetModules(); voucher = require('../../src/core/voucher'); });
+    let eventBus;
+    beforeEach(async () => {
+        jest.resetModules();
+        ({ default: voucher } = await import('../../src/core/voucher.js'));
+        ({ default: eventBus } = await import('../../src/core/eventBus.js'));
+    });
 
     test('returns a STAR-prefixed string', () => {
         const code = voucher.generate('1day');
@@ -67,7 +75,6 @@ describe('VoucherAgent.generate', () => {
     });
 
     test('emits voucher.created with code and plan', () => {
-        const eventBus = require('../../src/core/eventBus');
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
         const code = voucher.generate('1day');
@@ -76,7 +83,6 @@ describe('VoucherAgent.generate', () => {
     });
 });
 
-const crypto = require('crypto');
 function hashPlanId(name) {
     return crypto.createHash('sha256').update(name.trim()).digest('hex').substring(0, 16);
 }

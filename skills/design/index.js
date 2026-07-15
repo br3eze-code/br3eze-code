@@ -1,5 +1,5 @@
 // skills/design/index.js
-module.exports = {
+export default {
   name: 'design',
   tools: [
     {

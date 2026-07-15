@@ -1,6 +1,5 @@
-'use strict';
-
-const MikroTikDomain = require('../../../src/domains/mikrotik');
+import { jest } from '@jest/globals';
+import MikroTikDomain from '../../../src/domains/mikrotik/index.js';
 
 describe('MikroTikDomain', () => {
   let domain;

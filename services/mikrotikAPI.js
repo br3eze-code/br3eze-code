@@ -1,5 +1,5 @@
-const axios = require('axios');
-const https = require('https');
+import axios from 'axios';
+import https from 'https';
 
 class MikroTikAPI {
     constructor() {
@@ -144,4 +144,4 @@ class MikroTikAPI {
     }
 }
 
-module.exports = new MikroTikAPI();
+export default new MikroTikAPI();

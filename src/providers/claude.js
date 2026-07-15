@@ -2,8 +2,8 @@
  * Anthropic Claude Provider
  */
 
-const Anthropic = require('@anthropic-ai/sdk');
-const { BaseProvider } = require('./base');
+import Anthropic from '@anthropic-ai/sdk';
+import { BaseProvider } from './base.js';
 
 class ClaudeProvider extends BaseProvider {
   constructor(options = {}) {
@@ -144,5 +144,5 @@ class ClaudeProvider extends BaseProvider {
   }
 }
 
-module.exports = { ClaudeProvider };
+export { ClaudeProvider };
 

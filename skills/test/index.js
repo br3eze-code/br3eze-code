@@ -1,5 +1,5 @@
 // skills/test/index.js
-module.exports = {
+export default {
   execute: async (toolName, params, context) => {
     // If called via executeTool(skill.tool), toolName is the first arg
     if (typeof toolName === 'string') {

@@ -1,5 +1,5 @@
 // skills/general/index.js
-module.exports = {
+export default {
   name: 'general',
   tools: [
     { name: 'calculate', description: 'Math calculations' /* ... add execute fn */ },

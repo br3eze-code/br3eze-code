@@ -1,7 +1,7 @@
 /**
  * NetworkScanner - Manages WiFi network scanning and filtering on the backend
  */
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 class NetworkScanner extends EventEmitter {
   constructor(config = {}) {
@@ -59,4 +59,4 @@ class NetworkScanner extends EventEmitter {
   }
 }
 
-module.exports = NetworkScanner;
+export default NetworkScanner;

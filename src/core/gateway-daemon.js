@@ -5,8 +5,8 @@
  * @module core/gateway-daemon
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -42,7 +42,7 @@ if (!fs.existsSync(logDir)) {
 }
 
 // Start gateway
-const { startGateway } = require('./gateway-engine');
+import { startGateway } from './gateway-engine.js';
 
 startGateway({ port, gateway: { port } })
   .then(() => {

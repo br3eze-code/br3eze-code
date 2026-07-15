@@ -1,11 +1,14 @@
-'use strict';
 /**
  * tests/harness.test.js
  *
  * Smoke tests for AgentHarness — run without any external services.
  */
 
-const { AgentHarness } = require('../src/harness/AgentHarness');
+import { AgentHarness } from '../src/harness/AgentHarness.js';
+import registry from '../src/core/ToolRegistry.js';
+import { ToolRegistry } from '../src/core/ToolRegistry.js';
+import r from '../src/core/tool-registry.js';
+import BaseDomain from '../src/domains/BaseDomain.js';
 
 // ── Minimal domain adapter (no external deps) ─────────────────────────────
 const mockDomain = {
@@ -128,27 +131,23 @@ describe('AgentHarness', () => {
 
 describe('ToolRegistry integration', () => {
   test('ToolRegistry singleton is importable', () => {
-    const registry = require('../src/core/ToolRegistry');
     expect(typeof registry.registerDomain).toBe('function');
     expect(typeof registry.execute).toBe('function');
     expect(typeof registry.getManifest).toBe('function');
   });
 
   test('ToolRegistry class is accessible', () => {
-    const { ToolRegistry } = require('../src/core/ToolRegistry');
     expect(typeof ToolRegistry).toBe('function');
     const r = new ToolRegistry();
     expect(r).toBeInstanceOf(ToolRegistry);
   });
 
   test('tool-registry.js redirect works', () => {
-    const r = require('../src/core/tool-registry');
     expect(typeof r.registerDomain).toBe('function');
   });
 });
 
 describe('BaseDomain', () => {
-  const BaseDomain = require('../src/domains/BaseDomain');
 
   test('registerTool + getSkills', () => {
     const d = new BaseDomain();

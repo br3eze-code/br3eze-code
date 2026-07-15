@@ -5,17 +5,21 @@
  * @version 2026.04
  */
 
-const TelegramBot = require('node-telegram-bot-api');
-const QRCode = require('qrcode');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const { getMikroTikClient } = require('./mikrotik');
-const { getDatabase } = require('./database');
-const { getAgentRuntime } = require('./agentRuntime');
-const { getTaskRegistry, TaskStatus } = require('./taskRegistry');
-const { PermissionMode } = require('./permissions');
+import TelegramBot from 'node-telegram-bot-api';
+import QRCode from 'qrcode';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import { getMikroTikClient } from './mikrotik.js';
+import { getDatabase } from './database.js';
+import { getAgentRuntime } from './agentRuntime.js';
+import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { PermissionMode } from './permissions.js';
 
-const AskEngine = require('./ask-engine');
+import AskEngine from './ask-engine.js';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from './database.js';
+import { printVoucher } from './printer.js';
+import { admin } from './firebase.js';
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW = 60_000;
 const ALERT_COOLDOWN = 300_000;
@@ -527,14 +531,12 @@ class AgentOSBot {
     async createVoucher(chatId, plan, duration = '') {
         try {
             const db = await getDatabase();
-            const crypto = require('crypto');
             const code = `AGENT-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-            const { DEFAULT_PLANS } = require('./database');
-            const dateUtils = require('../utils/date');
             
             const mikrotik = getMikroTikClient();
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                const { default: dateUtils } = await import('../utils/date.js');
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
                 dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
             const loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
@@ -573,7 +575,6 @@ class AgentOSBot {
 
             // Auto-print voucher
             try {
-                const { printVoucher } = require('./printer');
                 printVoucher({
                     username: code,
                     password: code,
@@ -820,7 +821,6 @@ class AgentOSBot {
                 let warnings = [];
 
                 if (user.uid) {
-                    const { admin } = require('./firebase');
                     if (admin && admin.auth) {
                         try {
                             const authRec = await admin.auth().getUser(user.uid);
@@ -983,4 +983,4 @@ class AgentOSBot {
     stop() { this.bot.stopPolling(); }
 }
 
-module.exports = { AgentOSBot };
+export { AgentOSBot };

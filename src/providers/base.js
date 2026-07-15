@@ -70,7 +70,7 @@ class BaseProvider {
   }
 }
 
-module.exports = { BaseProvider };
+export { BaseProvider };
 
 
 

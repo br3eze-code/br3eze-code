@@ -2,8 +2,8 @@
  * OpenAI Provider
  */
 
-const OpenAI = require('openai');
-const { BaseProvider } = require('./base');
+import OpenAI from 'openai';
+import { BaseProvider } from './base.js';
 
 class OpenAIProvider extends BaseProvider {
   constructor(options = {}) {
@@ -133,5 +133,5 @@ class OpenAIProvider extends BaseProvider {
   }
 }
 
-module.exports = { OpenAIProvider };
+export { OpenAIProvider };
 

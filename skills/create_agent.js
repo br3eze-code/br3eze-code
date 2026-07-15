@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'fs/promises';
+import path from 'path';
 
 const create_agent = {
   name: "create_agent",
@@ -55,4 +55,4 @@ const create_agent = {
   }
 };
 
-module.exports = { create_agent };
+export { create_agent };

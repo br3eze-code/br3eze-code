@@ -3,18 +3,18 @@
 // Bridges Gemini Enterprise Agent SDK with device control
 // ============================================================
 
-const { Server } = require('@modelcontextprotocol/sdk/server/index.js');
-const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js');
-const {
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
-} = require('@modelcontextprotocol/sdk/types.js');
+} from '@modelcontextprotocol/sdk/types.js';
 
 // Device Control Modules
-const WiFiManager = require('./devices/wifi-manager');
-const MikroTikManager = require('./devices/mikrotik-manager');
-const LegacyDeviceManager = require('./devices/legacy-device-manager');
-const DeviceRegistry = require('./core/device-registry');
+import WiFiManager from './devices/wifi-manager.js';
+import MikroTikManager from './devices/mikrotik-manager.js';
+import LegacyDeviceManager from './devices/legacy-device-manager.js';
+import DeviceRegistry from './core/device-registry.js';
 
 class AgentOSMCPServer {
     constructor() {

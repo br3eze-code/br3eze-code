@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const { glob } = require('glob');
+import fs from 'fs/promises';
+import { glob } from 'glob';
 
 const rollback = {
   name: "rollback",
@@ -52,4 +52,4 @@ const rollback = {
   }
 };
 
-module.exports = { rollback };
+export { rollback };

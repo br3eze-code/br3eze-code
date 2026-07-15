@@ -9,9 +9,9 @@
  * ~/.agentos state, and cleaned up afterward.
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 process.env.AGENTOS_PROFILE = 'test-sqlite-fallback';
 
@@ -26,9 +26,9 @@ describe('SQLite fallback for user lookups (Firebase unavailable)', () => {
     // No Firebase credentials in test env -> src/core/firebase.js's init()
     // resolves to null db/auth, so Database._init() falls through to the
     // SQLite-only path (this.db stays null, this.sqlite gets set).
-    const { getDatabase } = require('../../src/core/database');
+    const { getDatabase } = await import('../../src/core/database.js');
     db = await getDatabase();
-    ({ SQLiteDB } = require('../../src/core/sqlite-db'));
+    ({ SQLiteDB } = await import('../../src/core/sqlite-db.js'));
     // better-sqlite3 is a native addon; some sandboxed environments can't
     // build it (no network access to fetch prebuilt binaries / node
     // headers). When that happens Database._init()'s try/catch swallows

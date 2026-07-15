@@ -1,13 +1,12 @@
-'use strict';
 /**
  * AgentOS SQLite Persistence Layer
  * Managed via better-sqlite3
  */
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
 
 const DB_PATH = path.join(STATE_PATH, 'agentos.db');
 
@@ -275,4 +274,4 @@ async function getSQLite() {
   return instance._db;
 }
 
-module.exports = { getSQLite, SQLiteDB };
+export { getSQLite, SQLiteDB };

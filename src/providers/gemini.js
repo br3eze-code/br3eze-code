@@ -3,8 +3,8 @@
  /* Google Gemini Provider
  */
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { BaseProvider } = require('./base');
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { BaseProvider } from './base.js';
 
 class GeminiProvider extends BaseProvider {
   constructor(config = {}) {
@@ -183,7 +183,7 @@ class GeminiProvider extends BaseProvider {
   }
 }
 
-module.exports = GeminiProvider;
+export default GeminiProvider;
 
 
 

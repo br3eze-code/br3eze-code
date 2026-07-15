@@ -7,11 +7,13 @@
  * (dev / offline environments), so the rest of the A2A stack keeps working.
  */
 
-const https = require('https');
-const { GoogleAuth } = (() => {
-    try { return require('google-auth-library'); }
-    catch { return { GoogleAuth: null }; }
-})();
+import https from 'https';
+let GoogleAuth;
+try {
+    ({ GoogleAuth } = await import('google-auth-library'));
+} catch {
+    GoogleAuth = null;
+}
 
 class ModelArmor {
     constructor(config = {}) {
@@ -182,4 +184,5 @@ class ModelArmor {
     }
 }
 
-module.exports = { ModelArmor };
+export { ModelArmor };
+export default { ModelArmor };

@@ -1,15 +1,14 @@
-'use strict';
 /**
  * AgentRuntime
  *
  */
 
-const EventEmitter       = require('events');
-const { AgentEngine }    = require('./agentEngine');
-const { PermissionMode, PermissionDenial } = require('./permissions');
-const { getTaskRegistry, TaskStatus }    = require('./taskRegistry');
-const { getMikroTikClient }  = require('./core/mikrotik');
-const { logger }             = require('./core/logger');
+import EventEmitter from 'events';
+import { AgentEngine } from './agentEngine.js';
+import { PermissionMode, PermissionDenial } from './permissions.js';
+import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { getMikroTikClient } from './core/mikrotik.js';
+import { logger } from './core/logger.js';
 
 // ── Tool manifest ─────────────────────────────────────────────────────────────
 
@@ -231,4 +230,4 @@ function resetAgentRuntime() {
     }
 }
 
-module.exports = { AgentRuntime, RuntimeSession, getAgentRuntime, resetAgentRuntime, TOOL_MANIFEST };
+export { AgentRuntime, RuntimeSession, getAgentRuntime, resetAgentRuntime, TOOL_MANIFEST };

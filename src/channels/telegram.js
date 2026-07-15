@@ -1,9 +1,10 @@
 // src/channels/telegram.js
-const TelegramBot = require('node-telegram-bot-api');
-const https = require('https');
-const EventEmitter = require('events');
-const security = require('../core/security');
-const { logger } = require('../core/logger');
+import TelegramBot from 'node-telegram-bot-api';
+import https from 'https';
+import EventEmitter from 'events';
+import security from '../core/security.js';
+import { logger } from '../core/logger.js';
+import { getManager } from '../core/mikrotik.js';
 
 class TelegramChannel extends EventEmitter {
   constructor(token, askEngine, options = {}) {
@@ -141,7 +142,6 @@ class TelegramChannel extends EventEmitter {
     const chatId = msg.chat.id;
     
     try {
-      const { getManager } = require('../core/mikrotik');
       const mt = getManager();
       
       const activeUsers = await mt.getActiveUsers();
@@ -281,7 +281,6 @@ class TelegramChannel extends EventEmitter {
 
   async _sendDashboard(chatId) {
     try {
-      const { getManager } = require('../core/mikrotik');
       const mt = getManager();
       const stats = await mt.getSystemStats();
       
@@ -323,4 +322,4 @@ class TelegramChannel extends EventEmitter {
   }
 }
 
-module.exports = TelegramChannel;
+export default TelegramChannel;

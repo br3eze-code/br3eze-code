@@ -3,16 +3,16 @@
  * Administrative endpoints for router management
  */
 
-const express = require('express');
+import express from 'express';
+import { body, param, query, validationResult } from 'express-validator';
+import mikrotikService from '../services/mikrotikAPI.js';
+import sessionManager from '../services/sessionManager.js';
+import logger from '../utils/logger.js';
 const router = express.Router();
-const { body, param, query } = require('express-validator');
-const mikrotikService = require('../services/mikrotikAPI');
-const sessionManager = require('../services/sessionManager');
-const logger = require('../utils/logger');
 
 // Validation middleware
 const validate = (req, res, next) => {
-    const errors = require('express-validator').validationResult(req);
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ success: false, errors: errors.array() });
     }
@@ -496,4 +496,4 @@ router.post('/batch-users', [
     }
 });
 
-module.exports = router;
+export default router;

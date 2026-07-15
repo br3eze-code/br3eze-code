@@ -11,9 +11,9 @@
  * - No XSS/injection vulnerabilities
  */
 
-const fs = require('node:fs');
-const path = require('node:path');
-const { execSync } = require('node:child_process');
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 const log = (...a) => console.log(...a);
 const warn = (...a) => console.warn('⚠️ ', ...a);

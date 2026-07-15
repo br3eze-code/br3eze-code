@@ -3,11 +3,11 @@
  * Fixed: SPIRE path, error codes, streaming, session cleanup, event emissions
  */
 
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
-const { AgentIdentity } = require('./agent-identity');
-const { ModelArmor } = require('./model-armor');
-const { GrpcTransport } = require('./grpc-transport');
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+import { AgentIdentity } from './agent-identity.js';
+import { ModelArmor } from './model-armor.js';
+import { GrpcTransport } from './grpc-transport.js';
 
 class A2AError extends Error {
     constructor(code, message) {
@@ -458,4 +458,4 @@ class A2AProtocolAdapter extends EventEmitter {
 }
 
 
-module.exports = { A2AProtocolAdapter, A2AError };
+export { A2AProtocolAdapter, A2AError };

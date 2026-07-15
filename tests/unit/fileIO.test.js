@@ -1,11 +1,12 @@
 'use strict';
 
-const os   = require('os');
-const path = require('path');
-const fs   = require('fs');
+import { jest } from '@jest/globals';
+import os   from 'os';
+import path from 'path';
+import fs   from 'fs';
 
 // Mock logger so fileIO doesn't need winston configured
-jest.mock('../../src/core/logger', () => ({
+jest.unstable_mockModule('../../src/core/logger.js', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 }));
 
@@ -14,7 +15,7 @@ const {
     readRaw, writeRaw, appendRaw,
     deleteFile, fileExists, listDirectory, getFileStats,
     setCache, getCache, clearCache
-} = require('../../tools/system/fileIO');
+} = await import('../../tools/system/fileIO.js');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

@@ -1,9 +1,8 @@
-'use strict';
 /**
  * Base LLM Provider
  */
 
-const { logger } = require('../../logger');
+import { logger } from '../../logger.js';
 
 class BaseProvider {
     static registry = new Map();
@@ -55,4 +54,4 @@ class BaseProvider {
     }
 }
 
-module.exports = { BaseProvider };
+export { BaseProvider };

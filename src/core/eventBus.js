@@ -1,8 +1,8 @@
 // src/core/eventBus.js
 
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 class AgentBus extends EventEmitter { }
 const eventBus = new AgentBus();
 
-module.exports = eventBus;
+export default eventBus;

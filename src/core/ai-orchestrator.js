@@ -10,19 +10,19 @@
  *   - Fallback to Gemini Developer API (GEMINI_API_KEY) when Vertex is not configured
  */
 
-const https = require('https');
-const { EventEmitter } = require('events');
+import https from 'https';
+import { EventEmitter } from 'events';
 
 // ─── Vertex AI Generative Language SDK (optional) ─────────────────────────────
 let VertexAI;
 try {
-    ({ VertexAI } = require('@google-cloud/vertexai'));
+    ({ VertexAI } = await import('@google-cloud/vertexai'));
 } catch { /* will fall back to REST */ }
 
 // ─── Google Auth (optional) ────────────────────────────────────────────────────
 let GoogleAuth;
 try {
-    ({ GoogleAuth } = require('google-auth-library'));
+    ({ GoogleAuth } = await import('google-auth-library'));
 } catch { /* will fall back to API key */ }
 
 class AIOrchestrator extends EventEmitter {
@@ -311,4 +311,5 @@ const DEFAULT_SAFETY_SETTINGS = [
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
 ];
 
-module.exports = { AIOrchestrator };
+export { AIOrchestrator };
+export default { AIOrchestrator };

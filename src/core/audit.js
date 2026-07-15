@@ -1,9 +1,8 @@
-'use strict';
 /**
  * AuditLogger — append-only audit trail for all RBAC decisions and tool calls
  * Writes to database.getAuditLog() when a db is available, always logs via logger.
  */
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
 class AuditLogger {
   constructor(db = null, secret = null) {
@@ -40,4 +39,4 @@ function getAuditLogger(db) {
 
 const audit = { log: (...args) => getAuditLogger().log(...args) };
 
-module.exports = { AuditLogger, getAuditLogger, audit };
+export { AuditLogger, getAuditLogger, audit };

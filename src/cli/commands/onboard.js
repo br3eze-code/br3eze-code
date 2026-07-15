@@ -1,9 +1,27 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
-const inquirer = require('inquirer');
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import { testConnection as testMikroTikConnection } from '../../core/mikrotik.js';
+import { logger } from '../../core/logger.js';
+import { BaseProvider } from '../../core/llm/providers/BaseProvider.js';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import { AnthropicProvider } from '../../core/llm/providers/AnthropicProvider.js';
+import { OpenAIProvider } from '../../core/llm/providers/OpenAIProvider.js';
+import { GeminiProvider } from '../../core/llm/providers/GeminiProvider.js';
+import { GemmaProvider } from '../../core/llm/providers/GemmaProvider.js';
+import { LlamaProvider } from '../../core/llm/providers/LlamaProvider.js';
+import { TogetherAIProvider } from '../../core/llm/providers/TogetherAIProvider.js';
+import { DeepSeekProvider } from '../../core/llm/providers/DeepSeekProvider.js';
+import { GroqProvider } from '../../core/llm/providers/GroqProvider.js';
+import { OpenRouterProvider } from '../../core/llm/providers/OpenRouterProvider.js';
+import { MoonshotProvider } from '../../core/llm/providers/MoonshotProvider.js';
+import { MiniMaxProvider } from '../../core/llm/providers/MiniMaxProvider.js';
+import { XAIProvider } from '../../core/llm/providers/XAIProvider.js';
+import { OllamaProvider } from '../../core/llm/providers/OllamaProvider.js';
+import { _internal as loginInternal } from './login.js';
+import inquirer from 'inquirer';
 
 let _clack;
 const intro = (...args) => _clack.intro(...args);
@@ -18,8 +36,8 @@ const log = {
   warn: (...args) => _clack.log.warn(...args),
   info: (...args) => _clack.log.info(...args)
 };
-const chalk = require('chalk');
-const { onboardFleet, onboardRouter } = require('../../core/onboard');
+import chalk from 'chalk';
+import { onboardFleet, onboardRouter } from '../../core/onboard.js';
 
 /** clack doesn't have a good way to handle inquirer-style loops easily, so we use inquirer for data entry */
 async function prompt(questions) {
@@ -74,7 +92,6 @@ const DOMAIN_CATALOGUE = {
 
 // ── MikroTik adapter ────────────────────────────────────────────────────────────
 async function collectMikroTikConfig(existing = {}) {
-  const { testMikroTikConnection } = require('../../core/mikrotik');
   note(chalk.gray('Configure one or more RouterOS API endpoints.'), chalk.cyan('📡 MikroTik Routers'));
 
   const routers = {};
@@ -378,7 +395,7 @@ async function collectPaymentConfig(existing = {}) {
   return { provider, currency: currency.trim().toUpperCase(), credentials, configured: true };
 }
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('onboard')
     .description('Interactive domain-agnostic setup wizard')
@@ -390,7 +407,6 @@ module.exports = (program) => {
         process.exit(1);
       }
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
-      const { logger } = require('../../core/logger');
 
       // Silence ALL winston transports during onboarding to avoid log noise
       // (instanceof Console check is unreliable for wrapped/custom transports)
@@ -596,8 +612,6 @@ module.exports = (program) => {
       // ── Step 4: AI Provider ───────────────────────────────────────────────
       note(chalk.gray('Pick the AI brain powering your agents.'), chalk.magentaBright.bold('🧠 Step 4 — AI Provider'));
       // Load all providers via LLMCoordinator to ensure they are registered
-      const { BaseProvider } = require('../../core/llm/providers/BaseProvider');
-      const LLMCoordinator = require('../../core/llm/LLMCoordinator');
       try { new LLMCoordinator('gemini'); } catch (_) { /* just registering provider classes, key isn't needed yet */ }
 
       const registry = BaseProvider.getRegistry();
@@ -913,19 +927,19 @@ module.exports = (program) => {
         s.start(`Validating ${aiProvider} key…`);
         try {
           let prov;
-          if (aiProvider === 'anthropic') { const { AnthropicProvider } = require('../../core/llm/providers/AnthropicProvider'); prov = new AnthropicProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openai') { const { OpenAIProvider } = require('../../core/llm/providers/OpenAIProvider'); prov = new OpenAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemini') { const { GeminiProvider } = require('../../core/llm/providers/GeminiProvider'); prov = new GeminiProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemma') { const { GemmaProvider } = require('../../core/llm/providers/GemmaProvider'); prov = new GemmaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'llama') { const { LlamaProvider } = require('../../core/llm/providers/LlamaProvider'); prov = new LlamaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'together') { const { TogetherAIProvider } = require('../../core/llm/providers/TogetherAIProvider'); prov = new TogetherAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'deepseek') { const { DeepSeekProvider } = require('../../core/llm/providers/DeepSeekProvider'); prov = new DeepSeekProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'groq') { const { GroqProvider } = require('../../core/llm/providers/GroqProvider'); prov = new GroqProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openrouter') { const { OpenRouterProvider } = require('../../core/llm/providers/OpenRouterProvider'); prov = new OpenRouterProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'moonshot') { const { MoonshotProvider } = require('../../core/llm/providers/MoonshotProvider'); prov = new MoonshotProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'minimax') { const { MiniMaxProvider } = require('../../core/llm/providers/MiniMaxProvider'); prov = new MiniMaxProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'xai') { const { XAIProvider } = require('../../core/llm/providers/XAIProvider'); prov = new XAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'ollama') { const { OllamaProvider } = require('../../core/llm/providers/OllamaProvider'); prov = new OllamaProvider({ apiKey: aiKey }); }
+          if (aiProvider === 'anthropic') { prov = new AnthropicProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'openai') { prov = new OpenAIProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'gemini') { prov = new GeminiProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'gemma') { prov = new GemmaProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'llama') { prov = new LlamaProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'together') { prov = new TogetherAIProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'deepseek') { prov = new DeepSeekProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'groq') { prov = new GroqProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'openrouter') { prov = new OpenRouterProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'moonshot') { prov = new MoonshotProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'minimax') { prov = new MiniMaxProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'xai') { prov = new XAIProvider({ apiKey: aiKey }); }
+          else if (aiProvider === 'ollama') { prov = new OllamaProvider({ apiKey: aiKey }); }
 
           if (prov) {
             const r = await prov.validateKey();
@@ -1036,7 +1050,7 @@ module.exports = (program) => {
 
       // ── Step 6.5: Account Authentication ──────────────────────────────────
       note(chalk.gray('Optional: connect a GitHub or Firebase account for identity and `agentos whoami`.'), chalk.whiteBright.bold('🔗 Step 6.5 — Account Authentication'));
-      const loginInternal = require('./login')._internal;
+
       const alreadyLoggedIn = loginInternal.readCredentials();
       if (alreadyLoggedIn) {
         log.info(`Already connected as ${alreadyLoggedIn.login} (${alreadyLoggedIn.provider}).`);

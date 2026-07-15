@@ -1,6 +1,6 @@
 // src/core/approvals.js
-const { uid } = require('../utils')
-const { logger } = require('../utils/logger')
+import { uid } from '../utils/index.js';
+import { logger } from '../utils/logger.js';
 
 class ApprovalEngine {
   constructor({ db, gateway }) {
@@ -67,4 +67,4 @@ class ApprovalEngine {
   }
 }
 
-module.exports = { ApprovalEngine }
+export { ApprovalEngine };

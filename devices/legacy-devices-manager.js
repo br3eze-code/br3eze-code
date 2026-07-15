@@ -1,6 +1,4 @@
-'use strict';
-
-const { logger } = require('../src/core/logger');
+import { logger } from '../src/core/logger.js';
 
 class LegacyDeviceManager {
     constructor() {
@@ -22,4 +20,4 @@ class LegacyDeviceManager {
     }
 }
 
-module.exports = LegacyDeviceManager;
+export default LegacyDeviceManager;

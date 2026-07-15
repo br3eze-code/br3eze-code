@@ -1,17 +1,21 @@
 'use strict';
 
-jest.mock('openai', () => {
-  return jest.fn().mockImplementation(() => ({
-    chat: {
-      completions: {
-        create: jest.fn(),
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('openai', () => {
+  return {
+    default: jest.fn().mockImplementation(() => ({
+      chat: {
+        completions: {
+          create: jest.fn(),
+        },
       },
-    },
-  }));
+    })),
+  };
 });
 
-const OpenAI = require('openai');
-const OpenAIAdapter = require('../../../adapters/openai.adapter');
+const { default: OpenAI } = await import('openai');
+const { default: OpenAIAdapter } = await import('../../../adapters/openai.adapter.js');
 
 describe('OpenAIAdapter', () => {
   let adapter;

@@ -1,4 +1,4 @@
-const { A2AProtocolAdapter } = require('../../core/plugins/a2a-protocol/a2a-adapter.js');
+import { A2AProtocolAdapter } from '../../core/plugins/a2a-protocol/a2a-adapter.js';
 
 class Br3ezeTestHarness {
     constructor() {

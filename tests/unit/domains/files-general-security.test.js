@@ -1,8 +1,6 @@
-'use strict';
-
-const FilesDomain = require('../../../src/domains/files');
-const GeneralDomain = require('../../../src/domains/general');
-const SecurityDomain = require('../../../src/domains/security');
+import FilesDomain from '../../../src/domains/files/index.js';
+import GeneralDomain from '../../../src/domains/general/index.js';
+import SecurityDomain from '../../../src/domains/security/index.js';
 
 describe('FilesDomain', () => {
   let domain;

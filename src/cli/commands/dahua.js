@@ -5,10 +5,11 @@
 
 'use strict';
 
-const fs   = require('fs');
-const { CONFIG_PATH } = require('../../core/config');
+import fs from 'fs';
+import { CONFIG_PATH } from '../../core/config.js';
+import DahuaSkill from '../../skills/dahua/index.js';
 
-module.exports = (program) => {
+export default (program) => {
   const dahua = program
     .command('dahua')
     .description('Manage Dahua cameras');
@@ -20,7 +21,6 @@ module.exports = (program) => {
       console.error('No configuration found — run: agentos onboard');
       process.exit(1);
     }
-    const DahuaSkill = require('../../skills/dahua/index.js');
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     return new DahuaSkill({ config });
   };

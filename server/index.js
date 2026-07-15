@@ -1,5 +1,3 @@
-'use strict';
-
 /**
  * Cloud Functions entry point (firebase.json -> functions.source = "server").
  * Wraps the plain Express app exported by server.js -- requiring server.js
@@ -10,7 +8,7 @@
  * firebase.json's hosting rewrite ("/api/**" -> function "api") expects the
  * exported function to be named "api".
  */
-const functions = require('firebase-functions');
-const { app } = require('./server.js');
+import functions from 'firebase-functions';
+import { app } from './server.js';
 
-exports.api = functions.https.onRequest(app);
+export const api = functions.https.onRequest(app);

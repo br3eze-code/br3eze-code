@@ -1,6 +1,9 @@
-const { PythonShell } = require('python-shell')
-const path = require('path')
-const { BaseSkill } = require('../base.js')
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import { PythonShell } from 'python-shell';
+import path from 'path';
+import { BaseSkill } from '../base.js';
 
 class VMwareSkill extends BaseSkill {
   static id = 'vmware'
@@ -102,4 +105,4 @@ class VMwareSkill extends BaseSkill {
   }
 }
 
-module.exports = VMwareSkill
+export default VMwareSkill;

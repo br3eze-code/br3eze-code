@@ -23,4 +23,4 @@ class BaseSkill {
   }
 }
 
-module.exports = { BaseSkill }
+export { BaseSkill };

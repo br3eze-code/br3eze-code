@@ -182,4 +182,4 @@ class ConnectionManager {
   }
 }
 
-module.exports = ConnectionManager;
+export default ConnectionManager;

@@ -1,4 +1,3 @@
-'use strict';
 /**
  * AskEngine — Tiered ReAct intelligence engine
  * Ported from main.js §8
@@ -9,8 +8,10 @@
  * Tier 4: Fallback message
  */
 
-const { logger } = require('./logger');
-const { costTracker } = require('./cost-tracker');
+import { logger } from './logger.js';
+import { costTracker } from './cost-tracker.js';
+import crypto from 'crypto';
+import { DEFAULT_PLANS } from './database.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -139,7 +140,6 @@ const TOOL_MAP = {
 // ── Voucher code generator (matches main.js voucherCode()) ───────────────────
 
 function voucherCode() {
-    const crypto = require('crypto');
     const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
     return `STAR-${part()}-${part()}`;
 }
@@ -372,10 +372,9 @@ class AskEngine {
                 const plan = genMatch[1];
                 const code = voucherCode();
 
-                const { DEFAULT_PLANS } = require('./database');
-                const dateUtils = require('../utils/date');
 
                 const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                    const { default: dateUtils } = await import('../utils/date.js');
                 const expiresAt = planObj.durationValue && planObj.durationUnit ?
                     dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
@@ -564,4 +563,4 @@ class AskEngine {
     }
 }
 
-module.exports = AskEngine;
+export default AskEngine;

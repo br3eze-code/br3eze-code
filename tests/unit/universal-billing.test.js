@@ -1,7 +1,9 @@
 'use strict';
 
+import { jest } from '@jest/globals';
+
 // ── Mock logger (guardHotspot uses logger, not console.error) ─────────────────
-jest.mock('../../src/core/logger', () => ({
+jest.unstable_mockModule('../../src/core/logger.js', () => ({
     logger: {
         info:  jest.fn(),
         warn:  jest.fn(),
@@ -12,8 +14,8 @@ jest.mock('../../src/core/logger', () => ({
     }
 }));
 
-const { logger } = require('../../src/core/logger');
-const UniversalBilling = require('../../src/core/universal-billing');
+const { logger } = await import('../../src/core/logger.js');
+const { default: UniversalBilling } = await import('../../src/core/universal-billing.js');
 
 // ── Shared factory helpers ────────────────────────────────────────────────────
 

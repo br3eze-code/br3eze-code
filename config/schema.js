@@ -1,5 +1,5 @@
 // config/schema.js
-const { z } = require('zod');
+import { z } from 'zod';
 
 const SkillSchema = z.object({
   name: z.string(),
@@ -56,4 +56,4 @@ const ConfigSchema = z.object({
   plugins: z.array(z.string()).default([])
 });
 
-module.exports = { ConfigSchema, SkillSchema, ChannelSchema };
+export { ConfigSchema, SkillSchema, ChannelSchema };

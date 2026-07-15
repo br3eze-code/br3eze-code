@@ -1,7 +1,7 @@
 /**
  * SignalMonitor - Tracks WiFi signal strength and triggers events for roaming
  */
-const EventEmitter = require('events');
+import EventEmitter from 'events';
 
 class SignalMonitor extends EventEmitter {
   constructor(config = {}) {
@@ -54,4 +54,4 @@ class SignalMonitor extends EventEmitter {
   }
 }
 
-module.exports = SignalMonitor;
+export default SignalMonitor;

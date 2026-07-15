@@ -1,5 +1,9 @@
 // src/core/channels/EmailChannel.js
-const { BaseChannel } = require('./BaseChannel');
+import { BaseChannel } from './BaseChannel.js';
+import nodemailer from 'nodemailer';
+import { getDatabase } from '../database.js';
+import H from './HandlerLibrary.js';
+import { getChatRegistry } from '../chat-registry.js';
 
 class EmailChannel extends BaseChannel {
     static getMetadata() {
@@ -42,7 +46,6 @@ class EmailChannel extends BaseChannel {
 
     if (this.provider === 'smtp') {
       try {
-        const nodemailer = require('nodemailer');
         this.transporter = nodemailer.createTransport({
           host: process.env.SMTP_HOST || 'localhost',
           port: parseInt(process.env.SMTP_PORT) || 587,
@@ -66,7 +69,6 @@ class EmailChannel extends BaseChannel {
           return this.send(emailAddress, { subject: 'Unauthorized', text: 'Your email address is not in the allowed list.' });
         }
 
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
 
         await db.upsertUser(emailAddress, {
@@ -87,7 +89,6 @@ class EmailChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    const H = require('./HandlerLibrary');
     
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);
@@ -108,7 +109,6 @@ class EmailChannel extends BaseChannel {
   }
 
   async handleIncomingEmail(emailAddress, subject, text, rawData = {}) {
-    const { getChatRegistry } = require('../chat-registry');
     getChatRegistry().register('email', emailAddress);
 
     const safeSubject = subject || '';
@@ -167,7 +167,6 @@ class EmailChannel extends BaseChannel {
   }
 
   async broadcast(message) {
-    const { getChatRegistry } = require('../chat-registry');
     const emails = getChatRegistry().getChats('email');
     if (!emails || emails.length === 0) return { success: true, sentCount: 0 };
     
@@ -197,4 +196,4 @@ class EmailChannel extends BaseChannel {
 
 BaseChannel.register('email', EmailChannel);
 
-module.exports = EmailChannel;
+export default EmailChannel;

@@ -1,6 +1,8 @@
-const { BaseSkill } = require('../base.js')
-const osc = require('osc')
-const MidiWriter = require('midi-writer-js')
+import fs_promises from 'fs/promises';
+import path from 'path';
+import { BaseSkill } from '../base.js';
+import osc from 'osc';
+import MidiWriter from 'midi-writer-js';
 
 class FLStudioSkill extends BaseSkill {
   static id = 'flstudio'
@@ -823,8 +825,7 @@ case 'flstudio.browse': {
           }
 case 'flstudio.script': {
   this.logger.info(`FL SCRIPT ${args.action} ${args.name}`, { user: ctx.userId })
-  const fs = require('fs/promises')
-  const path = require('path')
+  const fs = fs_promises
 
   const scriptPath = `${this.workspace}/fl_scripts`
   await fs.mkdir(scriptPath, { recursive: true })
@@ -963,7 +964,7 @@ case 'flstudio.piano_roll': {
             const write = new MidiWriter.Writer(track)
             const filename = `pattern_ch${args.channel}.mid`
             const filepath = `${this.workspace}/${filename}`
-            await require('fs/promises').writeFile(filepath, Buffer.from(write.buildFile()))
+            await fs_promises.writeFile(filepath, Buffer.from(write.buildFile()))
             return { output: 'midi', file: filename, path: filepath, steps: steps.length }
           }
 
@@ -1033,4 +1034,4 @@ case 'flstudio.piano_roll': {
   }
 }
 
-module.exports = FLStudioSkill
+export default FLStudioSkill;

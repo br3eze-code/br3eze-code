@@ -1,5 +1,5 @@
-const { App } = require('@slack/bolt')
-const { BaseSkill } = require('../base.js')
+import { App } from '@slack/bolt';
+import { BaseSkill } from '../base.js';
 
 class SlackSkill extends BaseSkill {
   static id = 'slack'
@@ -186,4 +186,4 @@ class SlackSkill extends BaseSkill {
   }
 }
 
-module.exports = SlackSkill
+export default SlackSkill;
