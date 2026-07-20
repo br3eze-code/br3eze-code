@@ -644,6 +644,15 @@ class WhatsAppChannel extends BaseChannel {
       const r = await shop.checkout('whatsapp', jid, { uid: linked ? linked.uid : null, address, payMethod });
       const paidLine = r.payMethod === 'credits' ? `Paid $${r.total.toFixed(2)} from your balance.` : `Total $${r.total.toFixed(2)} — *cash on delivery*.`;
       await this.send(jid, `🎉 *Order confirmed!*\nOrder: *${r.invoiceNumber}*\n${paidLine}\n\nWe'll ship to ${address.city}. Thank you! 📦`);
+
+      // Best-effort PDF invoice — never blocks or fails the order itself.
+      try {
+        const { renderInvoicePdf } = require('../invoicing');
+        const pdf = await renderInvoicePdf({ ...r, billingAddress: address });
+        if (pdf) await this.sendMedia(jid, pdf, 'application/pdf', `Invoice ${r.invoiceNumber}`, `${r.invoiceNumber}.pdf`);
+      } catch (e) {
+        logger.warn(`[Shop] Invoice PDF failed for ${r.invoiceNumber}: ${e.message}`);
+      }
     } catch (e) { await this.send(jid, `⚠️ ${e.message}`); }
   }
 
@@ -1253,7 +1262,7 @@ class WhatsAppChannel extends BaseChannel {
   /**
    * Send media message
    */
-  async sendMedia(userId, buffer, mimeType, caption = '') {
+  async sendMedia(userId, buffer, mimeType, caption = '', fileName = undefined) {
     if (!this.sock || !this.connected) {
       throw new Error('WhatsApp not connected');
     }
@@ -1268,7 +1277,7 @@ class WhatsAppChannel extends BaseChannel {
     } else if (mimeType.startsWith('audio/')) {
       messageContent = { audio: buffer, mimetype: mimeType };
     } else {
-      messageContent = { document: buffer, caption, mimetype: mimeType };
+      messageContent = { document: buffer, caption, mimetype: mimeType, fileName };
     }
 
     try {

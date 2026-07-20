@@ -144,3 +144,6 @@ www/js/env.js
 # Runtime SQLite databases
 server/agentos.db
 *.db
+
+# Generated runtime caches (nanopdf output, TTS audio, etc.)
+/cache/

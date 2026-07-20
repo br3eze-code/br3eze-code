@@ -1,10 +1,10 @@
 
 // skills/nanopdf/index.js
-// skills/nanopdf/index.js
 // const puppeteer = require('puppeteer-core'); // Lazy loaded
 // const { PDFDocument, PDFPage, StandardFonts, rgb } = require('pdf-lib'); // Lazy loaded
 const fs = require('fs').promises;
 const path = require('path');
+const { logger } = require('../../src/core/logger');
 
 class NanoPDFSkill {
   constructor() {
@@ -33,15 +33,23 @@ class NanoPDFSkill {
     try {
       let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!executablePath) {
-        if (process.platform === 'win32') {
-          const paths = [
+        const fsSync = require('fs');
+        const candidates = process.platform === 'win32'
+          ? [
             'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
             'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-          ];
-          executablePath = paths.find(p => require('fs').existsSync(p));
-        } else {
-          executablePath = '/usr/bin/chromium';
-        }
+          ]
+          : [
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+            // Playwright's own cache layout (`chromium` is a symlink straight
+            // to the binary, e.g. .../chromium-1194/chrome-linux/chrome).
+            process.env.PLAYWRIGHT_BROWSERS_PATH
+              && path.join(process.env.PLAYWRIGHT_BROWSERS_PATH, 'chromium'),
+          ].filter(Boolean);
+        executablePath = candidates.find((p) => fsSync.existsSync(p));
       }
 
       if (executablePath) {
@@ -50,6 +58,8 @@ class NanoPDFSkill {
           executablePath,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
+      } else {
+        logger.warn('NanoPDFSkill: No Chromium/Chrome executable found — PDF rendering unavailable. Set PUPPETEER_EXECUTABLE_PATH to enable it.');
       }
     } catch (err) {
       logger.warn(`NanoPDFSkill: Failed to launch browser: ${err.message}`);
@@ -136,8 +146,22 @@ class NanoPDFSkill {
   }
 
   renderTemplate(template, data) {
-    // Simple template engine
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    // Simple Mustache-like engine: {{#key}}...{{/key}} repeats its inner
+    // block once per element of data[key] (an array), resolving each
+    // {{field}} inside against that element first, then the outer data
+    // (built-in templates, e.g. invoice.html, rely on this for line items).
+    const withSections = template.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, inner) => {
+      const items = data?.[key];
+      if (!Array.isArray(items)) return '';
+      return items
+        .map((item) => inner.replace(/\{\{(\w+)\}\}/g, (m, field) => {
+          if (item?.[field] !== undefined) return String(item[field]);
+          if (data?.[field] !== undefined) return String(data[field]);
+          return m;
+        }))
+        .join('');
+    });
+    return withSections.replace(/\{\{(\w+)\}\}/g, (match, key) => {
       return data?.[key] !== undefined ? String(data[key]) : match;
     });
   }
