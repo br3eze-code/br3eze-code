@@ -1502,6 +1502,17 @@ async function _verifyCallerUid(admin, idToken, claimedUid) {
     }
 }
 
+// Stripe object ids are interpolated straight into request URLs below (e.g.
+// `.../v1/payment_methods/${paymentMethodId}`). Without validating the shape
+// first, a caller could pass something like "pm_x/../../account" and redirect
+// our own secret-key-authenticated request to an arbitrary Stripe API path —
+// full account access, not just this endpoint's intended scope. Every id that
+// reaches a URL (even ones we believe we generated ourselves, e.g. a
+// customerId round-tripped through Firestore) must pass this first.
+function _isStripeId(id, prefix) {
+    return typeof id === 'string' && new RegExp(`^${prefix}_[a-zA-Z0-9]+$`).test(id);
+}
+
 // Idempotent fulfilment — a given Stripe reference (Checkout session id or
 // PaymentIntent id) credits the user's balance at most once, however many
 // times the client re-checks it.
@@ -1521,6 +1532,7 @@ app.post('/api/checkout/verify', async (req, res) => {
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
     const sessionId = (req.body && req.body.session_id) || req.query.session_id;
     if (!sessionId) return res.status(400).json({ error: 'session_id required' });
+    if (!_isStripeId(sessionId, 'cs')) return res.status(400).json({ error: 'Malformed session_id' });
     try {
         const { db, admin } = require('./src/config/firebase');
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
@@ -1557,6 +1569,11 @@ app.post('/api/setup-intent/create', async (req, res) => {
         const user = userSnap.exists ? userSnap.data() : {};
         const auth = { username: SK, password: '' };
         let customerId = user.billing && user.billing.stripeCustomerId;
+        if (customerId && !_isStripeId(customerId, 'cus')) {
+            // Stored value doesn't look like a real Stripe customer id — don't
+            // let a corrupted/tampered Firestore field reach a Stripe URL.
+            return res.status(500).json({ error: 'Stored billing record is invalid' });
+        }
         if (!customerId) {
             const cr = await _stripeAxios.post('https://api.stripe.com/v1/customers', _stripeForm({
                 ...(user.email ? { email: user.email } : {}),
@@ -1581,6 +1598,7 @@ app.post('/api/payment-method/save', async (req, res) => {
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
     const { uid, idToken, paymentMethodId, billingAddress } = req.body || {};
     if (!uid || !paymentMethodId) return res.status(400).json({ error: 'uid and paymentMethodId required' });
+    if (!_isStripeId(paymentMethodId, 'pm')) return res.status(400).json({ error: 'Malformed paymentMethodId' });
     try {
         const { db, admin } = require('./src/config/firebase');
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
@@ -1590,6 +1608,7 @@ app.post('/api/payment-method/save', async (req, res) => {
         const existing = (userSnap.exists && userSnap.data().billing) || {};
         const customerId = existing.stripeCustomerId;
         if (!customerId) return res.status(400).json({ error: 'No Stripe customer on file — call /api/setup-intent/create first' });
+        if (!_isStripeId(customerId, 'cus')) return res.status(500).json({ error: 'Stored billing record is invalid' });
         const auth = { username: SK, password: '' };
         // Make this the customer's default so future off-session top-up charges use it.
         await _stripeAxios.post(`https://api.stripe.com/v1/customers/${customerId}`, _stripeForm({
@@ -1667,6 +1686,7 @@ app.post('/api/charge-card/confirm', async (req, res) => {
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
     const { uid, idToken, paymentIntentId } = req.body || {};
     if (!uid || !paymentIntentId) return res.status(400).json({ error: 'uid and paymentIntentId required' });
+    if (!_isStripeId(paymentIntentId, 'pi')) return res.status(400).json({ error: 'Malformed paymentIntentId' });
     try {
         const { db, admin } = require('./src/config/firebase');
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
