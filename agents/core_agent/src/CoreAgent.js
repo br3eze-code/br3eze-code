@@ -4,8 +4,8 @@
  * @version 4.0.0
  */
 
-const EventBus = require('./EventBus.js');
-const StateManager = require('./StateManager.js');
+import EventBus from './EventBus.js';
+import StateManager from './StateManager.js';
 
 class LifecycleController {
   constructor(core) {
@@ -231,4 +231,4 @@ class CoreAgent {
   }
 }
 
-module.exports = CoreAgent;
+export default CoreAgent;

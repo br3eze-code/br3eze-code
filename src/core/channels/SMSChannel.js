@@ -1,7 +1,11 @@
 // src/core/channels/SMSChannel.js
-const { BaseChannel } = require('./BaseChannel');
-const https = require('https');
-const http = require('http');
+import { BaseChannel } from './BaseChannel.js';
+import https from 'https';
+import http from 'http';
+import twilio from 'twilio';
+import { getDatabase } from '../database.js';
+import H from './HandlerLibrary.js';
+import { getChatRegistry } from '../chat-registry.js';
 
 class SMSChannel extends BaseChannel {
     static getMetadata() {
@@ -31,7 +35,6 @@ class SMSChannel extends BaseChannel {
 
     if (this.provider === 'twilio') {
       try {
-        const twilio = require('twilio');
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
         const authToken = process.env.TWILIO_AUTH_TOKEN;
         if (accountSid && authToken) {
@@ -70,7 +73,6 @@ class SMSChannel extends BaseChannel {
           return this.send(phoneNumber, 'Unauthorized. Your number is not in the allowed list.');
         }
 
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
 
         await db.upsertUser(phoneNumber, {
@@ -101,7 +103,6 @@ class SMSChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    const H = require('./HandlerLibrary');
     
     this.handlers.set('start', this._handleStart.bind(this));
     this.handlers.set('menu', this._handleMenu.bind(this));
@@ -122,7 +123,6 @@ class SMSChannel extends BaseChannel {
   }
 
   async handleIncomingMessage(phoneNumber, text, rawData = {}) {
-    const { getChatRegistry } = require('../chat-registry');
     getChatRegistry().register('sms', phoneNumber);
 
     const cmdName = text.trim().toLowerCase().split(/\s+/)[0];
@@ -251,7 +251,6 @@ class SMSChannel extends BaseChannel {
   }
 
   async broadcast(message) {
-    const { getChatRegistry } = require('../chat-registry');
     const phones = getChatRegistry().getChats('sms');
     if (!phones || phones.length === 0) return { success: true, sentCount: 0 };
     
@@ -275,4 +274,4 @@ class SMSChannel extends BaseChannel {
 
 BaseChannel.register('sms', SMSChannel);
 
-module.exports = SMSChannel;
+export default SMSChannel;

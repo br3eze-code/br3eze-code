@@ -5,8 +5,8 @@
  * @version 2026.04.23
  */
 
-const eventBus  = require('../core/eventBus');
-const { getConfig } = require('./config');
+import eventBus from '../core/eventBus.js';
+import { getConfig } from './config.js';
 
 class VoucherAgent {
     constructor() {
@@ -124,4 +124,4 @@ class VoucherAgent {
     }
 }
 
-module.exports = new VoucherAgent();
+export default new VoucherAgent();

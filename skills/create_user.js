@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
 
 const create_user = {
   name: "create_user",
@@ -59,4 +59,4 @@ const create_user = {
   }
 };
 
-module.exports = { create_user };
+export { create_user };

@@ -4,14 +4,14 @@
  * Ported from 36.js §3.8
  */
 
-const { logger } = require('./logger');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 let Octokit;
 try {
-    Octokit = require('@octokit/rest').Octokit;
+    ({ Octokit } = await import('@octokit/rest'));
 } catch (e) {
     logger.warn('Octokit not installed — npm install @octokit/rest for GitHub features');
 }
@@ -35,7 +35,7 @@ class GitHubIntegration {
     }
 
     getOAuthURL(state) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = configDefault.OAUTH?.GITHUB;
         if (!config) throw new Error('GitHub OAuth config missing');
 
         const params = new URLSearchParams({
@@ -48,7 +48,7 @@ class GitHubIntegration {
     }
 
     async handleCallback(code) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = configDefault.OAUTH?.GITHUB;
         if (!config) throw new Error('GitHub OAuth config missing');
 
         const response = await fetch('https://github.com/login/oauth/access_token', {
@@ -103,7 +103,7 @@ class GitHubIntegration {
     }
 
     handleWebhook(payload, signature) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = configDefault.OAUTH?.GITHUB;
         if (config?.WEBHOOK_SECRET && signature) {
             const hmac = crypto.createHmac('sha256', config.WEBHOOK_SECRET);
             hmac.update(typeof payload === 'string' ? payload : JSON.stringify(payload));
@@ -124,4 +124,4 @@ class GitHubIntegration {
     }
 }
 
-module.exports = GitHubIntegration;
+export default GitHubIntegration;

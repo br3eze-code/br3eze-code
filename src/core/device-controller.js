@@ -1,11 +1,10 @@
-'use strict';
 /**
  * DeviceController — manages IoT device mesh via WebSocket.
  * Ported from 36.js §7.6
  */
 
-const { logger } = require('./logger');
-const crypto = require('crypto');
+import { logger } from './logger.js';
+import crypto from 'crypto';
 
 class DeviceController {
     constructor(deps = {}) {
@@ -105,4 +104,4 @@ class DeviceController {
     }
 }
 
-module.exports = DeviceController;
+export default DeviceController;

@@ -1,4 +1,3 @@
-'use strict';
 /**
  * MissionDispatch — structured mission submission and dispatch runner
  *
@@ -6,12 +5,12 @@
  * rather than spawning a CLI subprocess.
  */
 
-const { v4: uuidv4 }          = require('uuid');
-const { getAgentRuntime }     = require('./agentRuntime');
-const { getTaskRegistry, TaskStatus } = require('./taskRegistry');
-const { PermissionMode }      = require('./permissions');
-const { isMissionReady }      = require('./diagnostics');
-const { logger }              = require('./logger');
+import { v4 as uuidv4 } from 'uuid';
+import { getAgentRuntime } from './agentRuntime.js';
+import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { PermissionMode } from './permissions.js';
+import { isMissionReady } from './diagnostics.js';
+import { logger } from './logger.js';
 
 // ── Thinking levels  ────────────
 
@@ -272,7 +271,8 @@ async function handleAbortMission(req, res) {
     }
 }
 
-module.exports = {
+export { ThinkingLevel, submitMission, abortMission, streamTaskFeed, handleSubmitMission, handleAbortMission, validateMissionSubmission };
+export default {
     ThinkingLevel,
     submitMission,
     abortMission,

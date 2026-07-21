@@ -1,4 +1,3 @@
-'use strict';
 // Stub — PesaPal webhook routes
 function setupPesaPalRoutes(app, service) {
   if (!app || typeof app.post !== 'function') return;
@@ -6,4 +5,4 @@ function setupPesaPalRoutes(app, service) {
     res.json({ received: true });
   });
 }
-module.exports = setupPesaPalRoutes;
+export default setupPesaPalRoutes;

@@ -1,6 +1,6 @@
-const { BaseSkill } = require('../base');
-const { GoogleAuth } = require('google-auth-library');
-const axios = require('axios');
+import { BaseSkill } from '../base.js';
+import { GoogleAuth } from 'google-auth-library';
+import axios from 'axios';
 
 class GoogleWorkspaceSkill extends BaseSkill {
   static id = 'google-workspace'
@@ -164,4 +164,4 @@ class GoogleWorkspaceSkill extends BaseSkill {
   }
 }
 
-module.exports = GoogleWorkspaceSkill;
+export default GoogleWorkspaceSkill;

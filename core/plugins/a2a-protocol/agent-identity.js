@@ -1,7 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-const { X509Certificate } = require('crypto');
+import { promises as fs } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { X509Certificate } from 'crypto';
 
 class AgentIdentity {
     constructor(spiffeID, mTLSConfig) {
@@ -76,4 +76,4 @@ class AgentIdentity {
     }
 }
 
-module.exports = { AgentIdentity };
+export { AgentIdentity };

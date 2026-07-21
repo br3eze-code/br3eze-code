@@ -8,9 +8,9 @@
  *   4. Application Default Credentials (Cloud Run / GCE)
  */
 
-const admin = require('firebase-admin');
-const path  = require('path');
-const fs    = require('fs');
+import admin from 'firebase-admin';
+import path from 'path';
+import fs from 'fs';
 
 let _db   = null;
 let _auth = null;
@@ -37,7 +37,7 @@ function getCredential() {
   // 3. Local serviceAccountKey.json (dev)
   const localKey = path.join(__dirname, '../serviceAccountKey.json');
   if (fs.existsSync(localKey)) {
-    return admin.credential.cert(require(localKey));
+    return admin.credential.cert(JSON.parse(fs.readFileSync(localKey, 'utf8')));
   }
 
   // 4. ADC (Cloud Run, GCE, Cloud Shell)
@@ -75,4 +75,4 @@ const firebaseProxy = {
   init,
 };
 
-module.exports = firebaseProxy;
+export default firebaseProxy;

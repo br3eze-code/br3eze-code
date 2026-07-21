@@ -1,4 +1,3 @@
-'use strict';
 /**
  * TelegramChannel — AgentOS core channel
  * Fixes applied:
@@ -7,16 +6,21 @@
  *   - initialize() / send() / broadcast() implement BaseChannel contract
  */
 
-const TelegramBot = require('node-telegram-bot-api');
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { printVoucher } = require('../printer');
-const { BaseChannel } = require('./BaseChannel');
-const { BRAND } = require('../config');
+import TelegramBot from 'node-telegram-bot-api';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { printVoucher } from '../printer.js';
+import { BaseChannel } from './BaseChannel.js';
+import { BRAND, STATE_PATH, getConfig } from '../config.js';
 
-const { STATE_PATH } = require('../config');
+import { getDatabase, DEFAULT_PLANS } from '../database.js';
+import { getChatRegistry } from '../chat-registry.js';
+import voucherAgent from '../voucher.js';
+import { verifyLinkCode } from './link-verifier.js';
+import UniversalBilling from '../universal-billing.js';
+import QRCode from 'qrcode';
 const LOCK_FILE = path.join(STATE_PATH, '.telegram_bot.lock');
 
 
@@ -316,7 +320,6 @@ class TelegramChannel extends BaseChannel {
 
             try {
                 // ── Auto-register/Sync User ──────────────────────────────────
-                const { getDatabase } = require('../database');
                 const db = await getDatabase();
                 const from = msg.from || msg.message?.from;
                 if (from) {
@@ -410,7 +413,6 @@ class TelegramChannel extends BaseChannel {
 
         // Natural language (non-command messages)
         this.bot.on('message', this._rl(async (msg) => {
-            const { getChatRegistry } = require('../chat-registry');
             getChatRegistry().register('telegram', msg.chat.id.toString());
 
             if (!msg.text || msg.text.startsWith('/') || msg.via_bot) return;
@@ -486,7 +488,6 @@ class TelegramChannel extends BaseChannel {
         const chatId = msg.chat.id;
         const planId = typeof match === 'string' ? match : match?.[1];  // set if called as /voucher <planId>
 
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
         const user = await db.getUser(chatId);
         const isAdmin = user?.role === 'admin' || user?.role === 'reseller';
@@ -501,7 +502,6 @@ class TelegramChannel extends BaseChannel {
 
             // Fallback to defaults if no plans found
             if (!plans.length) {
-                const { getConfig } = require('../config');
                 const cfg = getConfig();
                 plans = Array.isArray(cfg.plans) ? cfg.plans.filter(p => p.active !== false) : [];
             }
@@ -561,7 +561,6 @@ class TelegramChannel extends BaseChannel {
 
     async _handleVoucherDebug(msg, opts = {}) {
         const chatId = msg.chat.id;
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
         const user = await db.getUser(chatId);
         const isAdmin = user?.role === 'admin' || user?.role === 'reseller';
@@ -572,8 +571,6 @@ class TelegramChannel extends BaseChannel {
             return this.bot.sendMessage(chatId, errText);
         }
 
-        const fs = require('fs');
-        const { BRAND, getConfig } = require('../config');
 
         let report = `🔍 *${BRAND?.name || 'System'} Voucher Diagnostics*\n\n`;
         try {
@@ -589,7 +586,6 @@ class TelegramChannel extends BaseChannel {
                 `  Count: ${stats.total || 0} total, ${stats.active || 0} active\n\n`;
 
             // 3. Generation Dry-run
-            const voucherAgent = require('../voucher');
             const testCode = voucherAgent.generate('default');
             report += `*Dry-run:*\n` +
                 `  Status: ✅ PASSED\n` +
@@ -973,7 +969,6 @@ class TelegramChannel extends BaseChannel {
                 '🔗 *Link your Power Connect account*\n\n1. Open the Power Connect app\n2. Go to *Settings → Link Chat Account*\n3. Send me the 6-digit code like this:\n`/link 123456`',
                 { parse_mode: 'Markdown' });
         }
-        const { verifyLinkCode } = require('./link-verifier');
         const result = await verifyLinkCode(code, 'telegram', String(chatId));
         return this.bot.sendMessage(chatId, result.message, { parse_mode: 'Markdown' }).catch(() =>
             this.bot.sendMessage(chatId, result.message));
@@ -992,7 +987,6 @@ class TelegramChannel extends BaseChannel {
         const emails = text.match(emailRegex);
         if (emails && emails.length > 0) {
             const email = emails[0].toLowerCase();
-            const { getDatabase } = require('../database');
             const db = await getDatabase();
 
             await db.upsertUser(String(chatId), {
@@ -1278,7 +1272,6 @@ class TelegramChannel extends BaseChannel {
         const chatId = msg.chat.id;
         const planId = match?.[1];
 
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
         const wallet = await db.getWallet(chatId);
         const balance = wallet.balance || 0;
@@ -1289,7 +1282,6 @@ class TelegramChannel extends BaseChannel {
             try {
                 let plans = await db.getPlans(true);
                 if (!plans.length) {
-                    const { getConfig } = require('../config');
                     const cfg = getConfig();
                     plans = Array.isArray(cfg.plans) ? cfg.plans.filter(p => p.active !== false) : [];
                 }
@@ -1356,7 +1348,6 @@ class TelegramChannel extends BaseChannel {
 
     async _handlePayAction(chatId, method, plan, opts = {}) {
         const messageId = opts.editMessageId;
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
         const planObj = await db.getPlan(plan);
         const wallet = await db.getWallet(chatId);
@@ -1403,7 +1394,6 @@ class TelegramChannel extends BaseChannel {
     async _handleWallet(msg, opts = {}) {
         const chatId = msg.chat.id;
         try {
-            const { getDatabase } = require('../database');
             const db = await getDatabase();
             const wallet = await db.getWallet(chatId);
             const history = await db.getTransactions(5, { userId: chatId });
@@ -1453,7 +1443,6 @@ class TelegramChannel extends BaseChannel {
         }
 
         try {
-            const { getDatabase } = require('../database');
             const db = await getDatabase();
 
             let resource = null;
@@ -1600,7 +1589,6 @@ class TelegramChannel extends BaseChannel {
             // ── Resolve full plan object ──────────────────────────────────────
             let planObj = null;
             try {
-                const { getDatabase } = require('../database');
                 const db = await getDatabase();
                 planObj = await db.getPlan(planId);
                 if (!planObj) {
@@ -1610,7 +1598,6 @@ class TelegramChannel extends BaseChannel {
             } catch (_) { }
 
             if (!planObj) {
-                const { getConfig } = require('../config');
                 const plans = Array.isArray(getConfig().plans) ? getConfig().plans : [];
                 planObj = plans.find(p => p.mikrotikProfile === planId || p.name === planId);
             }
@@ -1624,7 +1611,6 @@ class TelegramChannel extends BaseChannel {
             const price = Number(planObj.price || 0);
 
             // ── Payment Check ────────────────────────────────────────────────
-            const { getDatabase } = require('../database');
             const db = await getDatabase();
             const user = await db.getUser(chatId);
             const isStaff = user?.role === 'admin' || user?.role === 'reseller';
@@ -1663,7 +1649,6 @@ class TelegramChannel extends BaseChannel {
             // ── Compute expiry ────────────────────────────────────────────────
             let expiresAt = null;
             try {
-                const UniversalBilling = require('../universal-billing');
                 expiresAt = new UniversalBilling().calculateExpiry(planObj);
             } catch (_) {
                 if (planObj.durationValue && planObj.durationUnit) {
@@ -1674,8 +1659,6 @@ class TelegramChannel extends BaseChannel {
             }
 
             // ── Generate voucher code ─────────────────────────────────────────
-            const voucherAgent = require('../voucher');
-            const QRCode = require('qrcode');
             const code = voucherAgent.generate(profile);
 
             // ── Build login URL (used in QR + DB) ────────────────────────────
@@ -1829,7 +1812,6 @@ class TelegramChannel extends BaseChannel {
      */
     async _handleBulkVoucher(chatId, action, extra, messageId, query) {
         // Guard: admin/reseller only
-        const { getDatabase } = require('../database');
         const db = await getDatabase();
         const user = await db.getUser(chatId);
         const isStaff = user?.role === 'admin' || user?.role === 'reseller';
@@ -1845,7 +1827,6 @@ class TelegramChannel extends BaseChannel {
         if (action === 'pick') {
             let plans = await db.getPlans(true).catch(() => []);
             if (!plans.length) {
-                const { DEFAULT_PLANS } = require('../database');
                 plans = Object.values(DEFAULT_PLANS).filter(p => p.active !== false);
             }
             const wallet = await db.getWallet(chatId);
@@ -1903,11 +1884,9 @@ class TelegramChannel extends BaseChannel {
 
         const profile = planObj.mikrotikProfile || planId;
         const mt = this.mikrotik || global.mikrotik || null;
-        const voucherAgent = require('../voucher');
 
         let expiresAt = null;
         try {
-            const UniversalBilling = require('../universal-billing');
             expiresAt = new UniversalBilling().calculateExpiry(planObj);
         } catch (_) { }
 
@@ -2423,4 +2402,4 @@ class TelegramChannel extends BaseChannel {
 
 BaseChannel.register('telegram', TelegramChannel);
 
-module.exports = TelegramChannel;
+export default TelegramChannel;

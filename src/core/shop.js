@@ -11,8 +11,8 @@
  */
 'use strict';
 
-const { getDatabase } = require('./database');
-const logger = require('./logger').logger || require('./logger');
+import { getDatabase } from './database.js';
+import { logger } from './logger.js';
 
 const SHIPPING_FLAT = 5;
 
@@ -150,7 +150,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     return { orderId: orderRef.id, invoiceNumber: number, subtotal: sub, shipping, total, payMethod, items };
 }
 
-module.exports = {
+export default {
     SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart,
     removeFromCart, clearCart, checkout, subtotal,
 };

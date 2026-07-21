@@ -3,12 +3,13 @@
  * AgentOS Database
  * Collections: vouchers, users, transactions, plans, wallets, audit_log, mikrotik
  */
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const admin = require('firebase-admin');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import admin from 'firebase-admin';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
+import { getSQLite, SQLiteDB } from './sqlite-db.js';
 
 
 // ── Default Plans (mirrors agentos-sentinel.rsc profiles) ────────────────────
@@ -182,7 +183,6 @@ class Database {
     async _init() {
         try {
             // Always initialize SQLite as the persistent local state
-            const { getSQLite } = require('./sqlite-db');
             this.sqlite = await getSQLite();
             logger.info('Database: SQLite initialized');
 
@@ -191,7 +191,7 @@ class Database {
                     let credential;
 
                     if (process.env.FIREBASE_SERVICE_ACCOUNT && fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT)) {
-                        credential = admin.credential.cert(require(path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT)));
+                        credential = admin.credential.cert(JSON.parse(fs.readFileSync(path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT), 'utf8')));
                         logger.info(`Firebase: loaded service account from ${process.env.FIREBASE_SERVICE_ACCOUNT}`);
 
                     } else if (process.env.FIREBASE_PRIVATE_KEY) {
@@ -235,7 +235,6 @@ class Database {
     async _migrateToSQLite() {
         try {
             // Simple migration loop
-            const { SQLiteDB } = require('./sqlite-db');
 
             this.sqlite.transaction(() => {
                 for (const [id, user] of this._users) {
@@ -365,7 +364,6 @@ class Database {
         } else {
             const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
             if (row) {
-                const { SQLiteDB } = require('./sqlite-db');
                 return SQLiteDB.rowToPlan(row);
             }
         }
@@ -379,7 +377,6 @@ class Database {
             } else {
                 const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(hashedId);
                 if (row) {
-                    const { SQLiteDB } = require('./sqlite-db');
                     return SQLiteDB.rowToPlan(row);
                 }
             }
@@ -426,7 +423,6 @@ class Database {
         } else {
             rows = this.sqlite.prepare('SELECT * FROM plans').all();
         }
-        const { SQLiteDB } = require('./sqlite-db');
         return rows.map(r => SQLiteDB.rowToPlan(r));
     }
 
@@ -434,7 +430,6 @@ class Database {
         const doc = { ...data, createdAt: this._ts(), active: data.active !== false };
         if (this.db) await this.db.collection('plans').doc(planId).set(doc);
         else {
-            const { SQLiteDB } = require('./sqlite-db');
             this.sqlite.prepare('INSERT OR REPLACE INTO plans (id, name, description, value, currency, durationUnit, durationValue, deviceLimit, active, speedLimit, dataLimit, features, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                 .run(planId, doc.name, doc.description, doc.value, doc.currency, doc.durationUnit, doc.durationValue, doc.deviceLimit, doc.active ? 1 : 0, doc.speedLimit, doc.dataLimit, SQLiteDB.toDB(doc.features), doc.createdAt);
         }
@@ -447,7 +442,6 @@ class Database {
                 const existing = await this.getPlan(planId);
                 if (!existing) return;
                 const updated = { ...existing, ...updates };
-                const { SQLiteDB } = require('./sqlite-db');
                 this.sqlite.prepare('INSERT OR REPLACE INTO plans (id, name, description, value, currency, durationUnit, durationValue, deviceLimit, active, speedLimit, dataLimit, features, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                     .run(planId, updated.name, updated.description, updated.value, updated.currency, updated.durationUnit, updated.durationValue, updated.deviceLimit, updated.active ? 1 : 0, updated.speedLimit, updated.dataLimit, SQLiteDB.toDB(updated.features), updated.createdAt);
             }
@@ -469,7 +463,6 @@ class Database {
             }
             const row = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
             if (!row) return null;
-            const { SQLiteDB } = require('./sqlite-db');
             return SQLiteDB.rowToVoucher(row);
         }
 
@@ -512,7 +505,6 @@ class Database {
             };
             if (this.db) await this.db.collection('vouchers').doc(code).set(doc, { merge: true });
             else {
-                const { SQLiteDB } = require('./sqlite-db');
                 this.sqlite.prepare('INSERT OR REPLACE INTO vouchers (code, status, used, usedAt, usedBy, redeemedByUsername, plan, planName, durationUnit, durationValue, deviceLimit, value, currency, loginUrl, expiresAt, createdBy, redemption, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                     .run(doc.code, doc.status, doc.used ? 1 : 0, doc.usedAt, doc.usedBy, doc.redeemedByUsername, doc.plan, doc.planName, doc.durationUnit, doc.durationValue, doc.deviceLimit, doc.value, doc.currency, doc.loginUrl, doc.expiresAt, doc.createdBy, SQLiteDB.toDB(doc.redemption), doc.createdAt || now);
             }
@@ -526,7 +518,6 @@ class Database {
                 const existing = await this.getVoucher(code);
                 if (!existing) return;
                 const updated = { ...existing, ...updates };
-                const { SQLiteDB } = require('./sqlite-db');
                 this.sqlite.prepare('INSERT OR REPLACE INTO vouchers (code, status, used, usedAt, usedBy, redeemedByUsername, plan, planName, durationUnit, durationValue, deviceLimit, value, currency, loginUrl, expiresAt, createdBy, redemption, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                     .run(updated.code, updated.status, updated.used ? 1 : 0, updated.usedAt, updated.usedBy, updated.redeemedByUsername, updated.plan, updated.planName, updated.durationUnit, updated.durationValue, updated.deviceLimit, updated.value, updated.currency, updated.loginUrl, updated.expiresAt, updated.createdBy, SQLiteDB.toDB(updated.redemption), updated.createdAt);
             }
@@ -615,7 +606,6 @@ class Database {
                         voucher = { ...voucher, ...vUpdate };
                     });
                 } else {
-                    const { SQLiteDB } = require('./sqlite-db');
 
                     this.sqlite.transaction(() => {
                         voucher = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
@@ -805,7 +795,6 @@ class Database {
             return doc.exists ? { id: doc.id, ...doc.data() } : null;
         }
         if (this.sqlite) {
-            const { SQLiteDB } = require('./sqlite-db');
             const row = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
             return row ? SQLiteDB.rowToUser(row) : null;
         }
@@ -852,7 +841,6 @@ class Database {
                     // SQLite fallback: persist to the users table (previously this
                     // branch only wrote the in-memory _users map, so getUser —
                     // which reads SQLite — never found freshly-created users).
-                    const { SQLiteDB } = require('./sqlite-db');
                     this.sqlite.prepare(`
                         INSERT OR REPLACE INTO users
                         (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, vouchersUsed, createdAt, lastSeen)
@@ -878,7 +866,6 @@ class Database {
         } else if (this.sqlite) {
             const existing = await this.getUser(id);
             const updated = { ...(existing || {}), ...safeUpdates, uid: id };
-            const { SQLiteDB } = require('./sqlite-db');
             this.sqlite.prepare(`
                 INSERT OR REPLACE INTO users 
                 (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, createdAt, lastSeen) 
@@ -903,7 +890,6 @@ class Database {
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
                 if (this.sqlite) {
-                    const { SQLiteDB } = require('./sqlite-db');
                     const row = this.sqlite.prepare('SELECT * FROM users WHERE username = ? LIMIT 1').get(username);
                     return row ? SQLiteDB.rowToUser(row) : null;
                 }
@@ -917,7 +903,6 @@ class Database {
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
                 if (this.sqlite) {
-                    const { SQLiteDB } = require('./sqlite-db');
                     const row = this.sqlite.prepare('SELECT * FROM users WHERE phoneNumber = ? LIMIT 1').get(phone);
                     return row ? SQLiteDB.rowToUser(row) : null;
                 }
@@ -931,7 +916,6 @@ class Database {
                     return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
                 }
                 if (this.sqlite) {
-                    const { SQLiteDB } = require('./sqlite-db');
                     const row = this.sqlite.prepare('SELECT * FROM users WHERE email = ? LIMIT 1').get(email);
                     return row ? SQLiteDB.rowToUser(row) : null;
                 }
@@ -950,7 +934,6 @@ class Database {
                 if (this.sqlite) {
                     // json_extract gives an EXACT match on the channel's value —
                     // avoids LIKE substring false-positives (e.g. '111' vs '1112223').
-                    const { SQLiteDB } = require('./sqlite-db');
                     const row = this.sqlite.prepare("SELECT * FROM users WHERE json_extract(channels, '$.' || ?) = ? LIMIT 1").get(channel, String(channelId));
                     return row ? SQLiteDB.rowToUser(row) : null;
                 }
@@ -966,7 +949,6 @@ class Database {
                     const user = await this.getUser(String(userId));
                     if (!user) return false;
                     const channels = { ...(user.channels || {}), [channel]: String(channelId) };
-                    const { SQLiteDB } = require('./sqlite-db');
                     this.sqlite.prepare('UPDATE users SET channels = ? WHERE uid = ?')
                         .run(SQLiteDB.toDB(channels), String(userId));
                 } else {
@@ -1773,4 +1755,4 @@ class Database {
             return initPromise;
         }
 
-        module.exports = { getDatabase, DEFAULT_PLANS };
+        export { getDatabase, DEFAULT_PLANS };

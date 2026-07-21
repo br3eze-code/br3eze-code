@@ -1,5 +1,5 @@
-const DigestFetch = require('digest-fetch')
-const { BaseSkill } = require('../base.js')
+import DigestFetch from 'digest-fetch';
+import { BaseSkill } from '../base.js';
 
 class DahuaSkill extends BaseSkill {
   static id = 'dahua'
@@ -222,4 +222,4 @@ class DahuaSkill extends BaseSkill {
   }
 }
 
-module.exports = DahuaSkill
+export default DahuaSkill;

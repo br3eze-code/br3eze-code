@@ -1,7 +1,8 @@
 {
   "name": "@br3eze-code/br3eze-code",
-  "version": "2026.7.41",
+  "version": "2026.7.4",
   "description": "AgentOS — Network Intelligence Operating System for MikroTik via AI",
+  "type": "module",
   "main": "src/core/gateway.js",
   "bin": {
     "agentos": "bin/agentos.js",
@@ -59,7 +60,6 @@
   ],
   "author": "MZACANA / Br3eze Africa",
   "license": "Apache-2.0",
-  "type": "commonjs",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -155,6 +155,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "firebase-tools": "^15.23.0",
     "@babel/core": "^7.23.3",
     "@babel/plugin-proposal-class-properties": "^7.18.6",
     "@babel/plugin-proposal-private-methods": "^7.18.6",

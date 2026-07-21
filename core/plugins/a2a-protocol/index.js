@@ -1,5 +1,5 @@
-const { A2AProtocolAdapter } = require('./a2a-adapter');
-const { EventEmitter } = require('events');
+import { A2AProtocolAdapter } from './a2a-adapter.js';
+import { EventEmitter } from 'events';
 
 class A2APlugin extends EventEmitter {
     constructor() {
@@ -92,4 +92,4 @@ class A2APlugin extends EventEmitter {
     }
 }
 
-module.exports = new A2APlugin();
+export default new A2APlugin();

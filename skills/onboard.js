@@ -1,6 +1,6 @@
-const fs = require('fs/promises');
-const RouterOSAPI = require('node-routeros').RouterOSAPI;
-const { create_agent } = require('./create_agent');
+import fs from 'fs/promises';
+import { RouterOSAPI as RouterOSAPI } from 'node-routeros';
+import { create_agent } from './create_agent.js';
 
 const onboard = {
   name: "onboard",
@@ -79,4 +79,4 @@ const onboard = {
   }
 };
 
-module.exports = { onboard };
+export { onboard };

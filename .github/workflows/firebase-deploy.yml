@@ -1,0 +1,102 @@
+name: Firebase Deploy
+
+# Runs after a GitHub Release is published (see release.yml), or manually.
+# Deploys www/ to Firebase Hosting, server/ as the "api" Cloud Function,
+# and firestore.rules / firestore.indexes.json — everything firebase.json
+# points at. Does NOT touch the Cloud Run deployment (apphosting.yaml) or
+# Kubernetes (deploy.yml) — those are separate, unrelated targets.
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Restrict deploy to one target (leave blank for everything)'
+        required: false
+        type: choice
+        default: ''
+        options:
+          - ''
+          - hosting
+          - functions
+          - firestore
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    # Only proceed if this was triggered manually, or the Release workflow
+    # actually ran on main and succeeded (it no-ops without failing when
+    # there's nothing new to release, so also guard on it having produced one).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install functions (server/) dependencies
+        run: npm ci --ignore-scripts --prefix server
+
+      - name: Validate secrets
+        id: validate
+        run: |
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            echo "❌ FIREBASE_SERVICE_ACCOUNT secret not set — cannot authenticate to Firebase."
+            exit 1
+          fi
+          echo "✓ Secrets present"
+
+      - name: Configure Firebase credentials
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > "$RUNNER_TEMP/firebase-key.json"
+          chmod 600 "$RUNNER_TEMP/firebase-key.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-key.json" >> "$GITHUB_ENV"
+
+      - name: Write CI .env for the hosting predeploy step
+        # firebase.json's hosting.predeploy runs scripts/generate-env-www.js,
+        # which reads a root .env for the browser-safe keys it copies into
+        # www/js/env.js. There's no .env checked into the repo, so build a
+        # minimal one here from secrets. Only add keys generate-env-www.js's
+        # BROWSER_KEYS allowlist actually reads (FIREBASE_API_KEY, GEMINI_API_KEY) -
+        # nothing else belongs in a file destined for the client bundle.
+        run: |
+          {
+            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}"
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
+          } > .env
+
+      - name: Deploy
+        run: |
+          ONLY="${{ github.event.inputs.only }}"
+          if [ -n "$ONLY" ]; then
+            echo "Deploying: $ONLY"
+            npx firebase-tools deploy --only "$ONLY" --project br3eze-africa-312df --non-interactive
+          else
+            echo "Deploying: hosting, functions, firestore"
+            npx firebase-tools deploy --only hosting,functions,firestore --project br3eze-africa-312df --non-interactive
+          fi
+
+      - name: Clean up credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/firebase-key.json" .env

@@ -1,13 +1,13 @@
 'use strict';
 
-const {
+import {
     PermissionMode,
     PermissionEnforcer,
     ToolPermissionContext,
     PermissionDenial,
     requiredModeFor,
     TOOL_TIERS
-} = require('../../src/core/permissions');
+} from '../../src/core/permissions.js';
 
 // ── PermissionMode ────────────────────────────────────────────────────────────
 

@@ -1,10 +1,12 @@
 ﻿'use strict';
 
-const QRCode = require('qrcode');
-const crypto = require('crypto');
-const pc = require('picocolors');
-const clack = require('@clack/prompts');
-const { fmtBytes } = require('./utils');
+import QRCode from 'qrcode';
+import crypto from 'crypto';
+import pc from 'picocolors';
+import clack from '@clack/prompts';
+import { fmtBytes } from './utils.js';
+import { DEFAULT_PLANS } from './database.js';
+import { printVoucher } from './printer.js';
 
 /**
  * AgentOSCLI — Interactive REPL powered by @clack/prompts + picocolors
@@ -319,8 +321,6 @@ class AgentOSCLI {
 
     async cmdVoucher([plan]) {
         if (!plan) { this._warn('Usage: voucher <plan>'); return; }
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
 
         const code = (this.config?.VOUCHER_PREFIX || 'STAR-') + crypto.randomBytes(3).toString('hex').toUpperCase();
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
@@ -328,6 +328,7 @@ class AgentOSCLI {
         const ok = await this._nav(`Generate voucher for plan: ${pc.cyan(planObj.name || plan)}?`);
         if (!ok) { this._info('Cancelled.'); return; }
 
+        const { default: dateUtils } = await import('../utils/date.js');
         const expiresAt = planObj.durationValue && planObj.durationUnit
             ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
         const loginUrl = `http://${this.mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
@@ -349,7 +350,6 @@ class AgentOSCLI {
         s.stop(pc.green('✔ Voucher created'));
 
         // ── Print receipt ─────────────────────────────────────────────────────
-        const { printVoucher } = require('./printer');
         await printVoucher({ username: code, password: code, profile: plan, loginUrl })
             .then(r => {
                 if (r.success) console.log(pc.dim(`  🖨  Printed via ${r.interface}`));
@@ -548,4 +548,4 @@ async function runOneOff(params, deps) {
     setTimeout(() => process.exit(0), 100);
 }
 
-module.exports = { AgentOSCLI, runOneOff };
+export { AgentOSCLI, runOneOff };

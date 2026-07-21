@@ -1,4 +1,3 @@
-'use strict';
 /**
  * Regression test for redeemVoucher() via the SQLite fallback path.
  *
@@ -15,9 +14,10 @@
  * Isolated into its own AGENTOS_PROFILE, cleaned up afterward.
  */
 
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { getDatabase } from '../../src/core/database.js';
 
 process.env.AGENTOS_PROFILE = 'test-voucher-redemption';
 
@@ -28,7 +28,6 @@ describe('redeemVoucher via SQLite fallback', () => {
   let sqliteAvailable = true;
 
   beforeAll(async () => {
-    const { getDatabase } = require('../../src/core/database');
     db = await getDatabase();
     sqliteAvailable = !!db.sqlite;
     if (!sqliteAvailable) {

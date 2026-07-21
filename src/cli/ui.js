@@ -1,4 +1,3 @@
-'use strict';
 /**
  * Terminal UI Helpers — animations, gradients, and spinners.
  * Ported from 36.js §3
@@ -98,4 +97,4 @@ const TerminalAnimator = {
     },
 };
 
-module.exports = { TerminalAnimator, ANSICodes };
+export { TerminalAnimator, ANSICodes };

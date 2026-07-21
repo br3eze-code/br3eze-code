@@ -1,5 +1,5 @@
 // config/domains.js
-module.exports = {
+export default {
   networking: {
     skills: ['mikrotik', 'ping', 'traceroute'],
     prompts: './prompts/networking.txt',

@@ -3,7 +3,18 @@
 
  */
 
-const { Logger } = require('../utils/logger');
+import { Logger } from '../utils/logger.js';
+import GeminiProvider from '../providers/gemini.js';
+import { ClaudeProvider } from '../providers/claude.js';
+import { OpenAIProvider } from '../providers/openai.js';
+import { OllamaProvider } from '../providers/ollama.js';
+
+const PROVIDER_CLASSES = {
+  gemini: GeminiProvider,
+  claude: ClaudeProvider,
+  openai: OpenAIProvider,
+  ollama: OllamaProvider,
+};
 
 class ProviderManager {
   constructor(options = {}) {
@@ -20,17 +31,17 @@ class ProviderManager {
   initializeProviders() {
     // Register available providers
     const providerConfigs = [
-      { name: 'gemini', envKey: 'GEMINI_API_KEY', module: '../providers/gemini' },
-      { name: 'claude', envKey: 'ANTHROPIC_API_KEY', module: '../providers/claude' },
-      { name: 'openai', envKey: 'OPENAI_API_KEY', module: '../providers/openai' },
-      { name: 'ollama', envKey: null, module: '../providers/ollama' } // Local, no key needed
+      { name: 'gemini', envKey: 'GEMINI_API_KEY' },
+      { name: 'claude', envKey: 'ANTHROPIC_API_KEY' },
+      { name: 'openai', envKey: 'OPENAI_API_KEY' },
+      { name: 'ollama', envKey: null } // Local, no key needed
     ];
     
     for (const config of providerConfigs) {
       const hasKey = !config.envKey || process.env[config.envKey];
       if (hasKey) {
         try {
-          const ProviderClass = require(config.module);
+          const ProviderClass = PROVIDER_CLASSES[config.name];
           this.providers.set(config.name, new ProviderClass());
           this.logger.info(`Registered provider: ${config.name}`);
         } catch (error) {
@@ -157,5 +168,5 @@ class ProviderManager {
   }
 }
 
-module.exports = { ProviderManager };
+export default { ProviderManager };
 

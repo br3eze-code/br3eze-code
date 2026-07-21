@@ -1,10 +1,13 @@
 'use strict';
 
-jest.mock('../../src/utils/logger', () => ({
+import { jest } from '@jest/globals';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
+
+jest.unstable_mockModule('../../src/utils/logger.js', () => ({
     Logger: class { info(){} warn(){} error(){} debug(){} }
 }));
 
-const { SafetyEnvelope } = require('../../src/core/safety-envelope');
+const { SafetyEnvelope } = await import('../../src/core/safety-envelope.js');
 
 // ── constructor ───────────────────────────────────────────────────────────────
 
@@ -138,7 +141,7 @@ describe('SafetyEnvelope — checkRateLimit', () => {
 
     test('blocks sender after exhausting points', async () => {
         // Use a tiny limiter so we can exhaust it in tests
-        const { RateLimiterMemory } = require('rate-limiter-flexible');
+        // RateLimiterMemory imported at top of file
         const se = new SafetyEnvelope();
         // Replace limiter with 2-point limit
         se.rateLimiter = new RateLimiterMemory({ points: 2, duration: 60 });
@@ -150,7 +153,7 @@ describe('SafetyEnvelope — checkRateLimit', () => {
     });
 
     test('different senders have independent limits', async () => {
-        const { RateLimiterMemory } = require('rate-limiter-flexible');
+        // RateLimiterMemory imported at top of file
         const se = new SafetyEnvelope();
         se.rateLimiter = new RateLimiterMemory({ points: 1, duration: 60 });
 

@@ -8,7 +8,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'power-connect-shell-v6';
+const CACHE_NAME = 'power-connect-shell-v7';
 const APP_SHELL = [
     './',
     'index.html',

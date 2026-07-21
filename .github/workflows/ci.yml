@@ -23,8 +23,11 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install (skip lifecycle hooks)
-        run: npm ci --ignore-scripts
+      - name: Install
+        # Full install (not --ignore-scripts): the SQLite tests need
+        # better-sqlite3's native addon built, otherwise the suite flakes/errors
+        # under emulation. Matches the reliable Node.js CI job.
+        run: npm ci --legacy-peer-deps
 
       - name: Lint
         # Report-only for now: the repo carries pre-existing lint debt in legacy

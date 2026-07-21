@@ -1,7 +1,5 @@
-'use strict';
-
-const { BaseAdapter }   = require('../../adapters/base.adapter');
-const { networkAgent }  = require('../../agents/network.agent');
+import { BaseAdapter } from '../../adapters/base.adapter.js';
+import { networkAgent } from '../../agents/network.agent.js';
 
 // ── BaseAdapter ───────────────────────────────────────────────────────────────
 

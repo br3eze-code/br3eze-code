@@ -1,4 +1,3 @@
-'use strict';
 /**
  * Unit tests for WhatsAppChannel's numbered-choice "buttons" feature.
  * WhatsApp deprecated real outgoing interactive-button messages for
@@ -8,7 +7,8 @@
 
 process.env.AGENTOS_PROFILE = 'test-whatsapp-buttons';
 
-const WhatsAppChannel = require('../../src/core/channels/WhatsappChannel');
+import { jest } from '@jest/globals';
+import WhatsAppChannel from '../../src/core/channels/WhatsappChannel.js';
 
 describe('WhatsAppChannel button reply resolution', () => {
   let channel;

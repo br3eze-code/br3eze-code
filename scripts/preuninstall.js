@@ -7,9 +7,9 @@
  * SAFE: no require() of app code — avoids crash on fresh/broken installs
  */
 
-const fs   = require('fs');
-const path = require('path');
-const os   = require('os');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 // ── Stop gateway if running ───────────────────────────────────────────────────
 // Resolve state path directly — do NOT require app modules (they may not be installed)

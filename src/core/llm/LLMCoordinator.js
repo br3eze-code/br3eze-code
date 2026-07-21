@@ -3,39 +3,37 @@
  * LLM Coordinator — Orchestrates multiple LLM providers
  */
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { BaseProvider } = require('./providers/BaseProvider');
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseProvider } from './providers/BaseProvider.js';
+import LLMHooks from './hooks.js';
+
+// Statically import all known providers so their self-registration
+// (BaseProvider.register(...) at module top-level) runs on load, same
+// as the require()-per-file directory scan this replaces. Any brand-new
+// provider file added later will need a line here too (loses the old
+// auto-discovery-by-directory-scan behavior in exchange for working
+// under real ESM, which has no synchronous dynamic require).
+import './providers/AnthropicProvider.js';
+import './providers/DeepSeekProvider.js';
+import './providers/GeminiProvider.js';
+import './providers/GemmaProvider.js';
+import './providers/GroqProvider.js';
+import './providers/LlamaProvider.js';
+import './providers/MiniMaxProvider.js';
+import './providers/MoonshotProvider.js';
+import './providers/OllamaProvider.js';
+import './providers/OpenAIProvider.js';
+import './providers/OpenRouterProvider.js';
+import './providers/TogetherAIProvider.js';
+import './providers/XAIProvider.js';
 
 class LLMCoordinator {
     constructor(providerType = process.env.LLM_PROVIDER || 'gemini', config = {}) {
-        this._loadProviders();
         this.providerType = providerType;
         this.provider = this.createProvider(providerType, config);
-        this.hooks = config.hooks || new (require('./hooks'))();
-    }
-
-    /**
-     * Dynamically loads all provider files to ensure self-registration
-     */
-    _loadProviders() {
-        const providersDir = path.join(__dirname, 'providers');
-        try {
-            const files = fs.readdirSync(providersDir);
-            for (const file of files) {
-                if (file.endsWith('Provider.js') && file !== 'BaseProvider.js') {
-                    try {
-                        require(path.join(providersDir, file));
-                        logger.debug(`LLMCoordinator: Loaded provider ${file}`);
-                    } catch (err) {
-                        logger.error(`LLMCoordinator: Failed to load provider ${file}:`, err.message);
-                    }
-                }
-            }
-        } catch (err) {
-            logger.error('LLMCoordinator: Error reading providers directory:', err.message);
-        }
+        this.hooks = config.hooks || new LLMHooks();
     }
 
     createProvider(type, config = {}) {
@@ -143,4 +141,4 @@ class LLMCoordinator {
     }
 }
 
-module.exports = LLMCoordinator;
+export default LLMCoordinator;

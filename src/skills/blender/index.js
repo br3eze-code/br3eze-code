@@ -1,7 +1,11 @@
-const { PythonShell } = require('python-shell')
-const path = require('path')
-const fs = require('fs/promises')
-const { BaseSkill } = require('../base.js')
+import { fileURLToPath } from 'url';
+import FormData from 'form-data';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import { PythonShell } from 'python-shell';
+import path from 'path';
+import fs from 'fs/promises';
+import { BaseSkill } from '../base.js';
 
 class BlenderSkill extends BaseSkill {
   static id = 'blender'
@@ -405,7 +409,6 @@ case 'blender.review.post':
   
   if (args.platform === 'frameio') {
     // Requires FRAMEIO_TOKEN in env + frameio skill or direct API
-    const FormData = require('form-data')
     const form = new FormData()
     form.append('file', mediaBuf, path.basename(mediaPath))
     form.append('name', args.version_name)
@@ -603,4 +606,4 @@ print(json.dumps({'glb': out_glb}))
   }
 }
 
-module.exports = BlenderSkill
+export default BlenderSkill;

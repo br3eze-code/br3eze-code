@@ -1,6 +1,5 @@
-'use strict';
-const Database = require("better-sqlite3");
-const { v4: uuidv4 } = require("uuid");
+import Database from 'better-sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 
 const db = new Database("agentos.db");
 
@@ -134,4 +133,4 @@ Date: ${r.createdAt}
 Thank you for using AgentOS`
     );
 }
-module.exports = { createReceipt, getReceipt, getReceiptsByUser, updateReceiptStatus, getPendingReceipts, listReceipts, deleteReceipt, getReceiptsByVoucher, getReceiptsByDateRange, getReceiptsByMethod, getReceiptsByPlan, getReceiptsByStatus, getReceiptsByAmountRange, getReceiptsByCurrency, formatReceipt };
+export { createReceipt, getReceipt, getReceiptsByUser, updateReceiptStatus, getPendingReceipts, listReceipts, deleteReceipt, getReceiptsByVoucher, getReceiptsByDateRange, getReceiptsByMethod, getReceiptsByPlan, getReceiptsByStatus, getReceiptsByAmountRange, getReceiptsByCurrency, formatReceipt };

@@ -1,7 +1,5 @@
-'use strict';
-
-const EventEmitter = require('events');
-const crypto = require('crypto');
+import EventEmitter from 'events';
+import crypto from 'crypto';
 
 class BaseChannel extends EventEmitter {
     static registry = {};
@@ -96,4 +94,4 @@ class BaseChannel extends EventEmitter {
     }
 }
 
-module.exports = { BaseChannel };
+export { BaseChannel };

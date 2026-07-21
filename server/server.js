@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+import { fileURLToPath, pathToFileURL } from 'url';
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import Database from 'better-sqlite3';
+import https from 'https';
+import net from 'net';
+import { db, admin } from './src/config/firebase.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // ============================================================
 // AgentOS WiFi Manager - Node.js Backend
 // Version: 2026.5.0
@@ -6,17 +16,14 @@
 // ============================================================
 
 'use strict';
-
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const winston = require('winston');
-const helmet = require('helmet');
-const cors = require('cors');
-const crypto = require('crypto');
-const path = require('path');
-const QRCode = require('qrcode');
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import winston from 'winston';
+import helmet from 'helmet';
+import cors from 'cors';
+import QRCode from 'qrcode';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -92,7 +99,6 @@ class DatabaseService {
 
     async initialize() {
         try {
-            const Database = require('better-sqlite3');
             this.db = new Database('agentos.db');
 
             // Create tables
@@ -554,8 +560,6 @@ class NetworkDiscoveryService {
 
     // Check if IP is a MikroTik router
     async checkMikrotik(ip, ports) {
-        const http = require('http');
-        const https = require('https');
 
         for (const port of ports) {
             try {
@@ -583,8 +587,6 @@ class NetworkDiscoveryService {
 
     // HTTP check with timeout
     httpCheck(ip, port, timeout = 2000) {
-        const http = require('http');
-        const https = require('https');
         return new Promise((resolve) => {
             const httpModule = port === 443 ? https : http;
             const options = {
@@ -667,7 +669,6 @@ class NetworkDiscoveryService {
 
     // Ping host (TCP method since ICMP requires admin)
     async pingHost(ip, timeout = 2000) {
-        const net = require('net');
 
         return new Promise((resolve) => {
             const start = Date.now();
@@ -704,7 +705,6 @@ class NetworkDiscoveryService {
     }
 
     async checkPort(ip, port, timeout) {
-        const net = require('net');
         return new Promise((resolve) => {
             const socket = new net.Socket();
             socket.setTimeout(timeout);
@@ -1449,6 +1449,71 @@ app.get('/api/audit', authMiddleware, (req, res) => {
     res.json(database.getAuditLog(limit));
 });
 
+// ── Stripe card top-up ──────────────────────────────────────────────────────
+// Card payments are server-side (the secret key never touches the browser).
+// Topping up the internal balance makes card payment work for BOTH plans and
+// merch, since everything is bought with credits. Stripe REST via axios so no
+// extra dependency is needed.
+import _stripeAxios from 'axios';
+function _stripeForm(flat) {
+    const p = new URLSearchParams();
+    for (const k in flat) p.append(k, flat[k]);
+    return p.toString();
+}
+app.post('/api/checkout/create', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, amount, label } = req.body || {};
+    const dollars = Number(amount);
+    if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
+    // Stripe's USD minimum is $0.50; the cap keeps a typo from becoming a $10k charge.
+    if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
+    const origin = req.headers.origin || 'https://br3eze-africa-312df.web.app';
+    try {
+        const r = await _stripeAxios.post('https://api.stripe.com/v1/checkout/sessions', _stripeForm({
+            mode: 'payment',
+            success_url: `${origin}/?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/?topup=cancel`,
+            'line_items[0][price_data][currency]': 'usd',
+            'line_items[0][price_data][product_data][name]': label || 'Power Connect credit top-up',
+            'line_items[0][price_data][unit_amount]': Math.round(dollars * 100),
+            'line_items[0][quantity]': 1,
+            'metadata[uid]': uid,
+            'metadata[credits]': String(dollars),
+        }), { auth: { username: SK, password: '' }, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        res.json({ url: r.data.url, id: r.data.id });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+app.post('/api/checkout/verify', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const sessionId = (req.body && req.body.session_id) || req.query.session_id;
+    if (!sessionId) return res.status(400).json({ error: 'session_id required' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        const r = await _stripeAxios.get(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, { auth: { username: SK, password: '' } });
+        const s = r.data;
+        if (s.payment_status !== 'paid') return res.json({ paid: false, status: s.payment_status });
+        const uid = s.metadata && s.metadata.uid;
+        const credits = Number(s.metadata && s.metadata.credits);
+        if (!uid || !(credits > 0)) return res.json({ paid: true, credited: false, reason: 'no metadata' });
+        // Idempotent fulfilment — a session is credited at most once.
+        const ref = db.collection('stripeSessions').doc(sessionId);
+        const credited = await db.runTransaction(async (tx) => {
+            const doc = await tx.get(ref);
+            if (doc.exists && doc.data().processed) return false;
+            tx.set(ref, { processed: true, uid, credits, at: new Date().toISOString() });
+            tx.update(db.collection('users').doc(uid), { credits: admin.firestore.FieldValue.increment(credits) });
+            return true;
+        });
+        res.json({ paid: true, credited, amount: credits });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+
 app.get('/api/router/status', authMiddleware, async (req, res) => {
     try {
         const result = await global.commandHandler.execute('router.status');
@@ -1492,7 +1557,6 @@ app.use((err, req, res, next) => {
 
 async function boot() {
     // Ensure logs directory exists
-    const fs = require('fs');
     if (!fs.existsSync('logs')) {
         fs.mkdirSync('logs', { recursive: true });
     }
@@ -1510,7 +1574,7 @@ async function boot() {
     // Functions manages its own listener and can't proxy a raw WebSocket
     // server behind onRequest() -- all we need in that mode is `app` wired
     // up with an initialized database + command handler.
-    if (require.main === module) {
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
         // Create HTTP server
         const server = http.createServer(app);
 
@@ -1546,7 +1610,7 @@ global.commandHandler = null;
 
 boot().catch(err => {
     logger.error('Boot failed:', err);
-    if (require.main === module) process.exit(1);
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) process.exit(1);
 });
 
-module.exports = { app, TOOLS, database };
+export { app, TOOLS, database };

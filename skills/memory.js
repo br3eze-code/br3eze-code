@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'fs/promises';
+import path from 'path';
 
 const KNOWLEDGE_DIR = './knowledge';
 
@@ -50,4 +50,4 @@ const memory = {
   }
 };
 
-module.exports = { memory };
+export { memory };

@@ -1,7 +1,5 @@
-'use strict';
-
-const axios           = require('axios');
-const { BaseAdapter } = require('./base.adapter');
+import axios from 'axios';
+import { BaseAdapter } from './base.adapter.js';
 
 class GeminiAdapter extends BaseAdapter {
     constructor(apiKey) {
@@ -22,4 +20,4 @@ class GeminiAdapter extends BaseAdapter {
     }
 }
 
-module.exports = GeminiAdapter;
+export default GeminiAdapter;

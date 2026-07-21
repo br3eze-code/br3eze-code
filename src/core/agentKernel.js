@@ -15,14 +15,16 @@
  * No direct imports from domains/, adapters/, mikrotik, etc.
  */
 
-const EventEmitter = require('events');
-const crypto       = require('crypto');
-const path         = require('path');
-const sdk          = require('../plugin-sdk');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+import EventEmitter from 'events';
+import crypto       from 'crypto';
+import path         from 'path';
+import sdk          from '../plugin-sdk/index.js';
 
 let _logger;
 function log(level, ...a) {
-  try { _logger = _logger || require('./logger').logger; _logger[level](...a); }
+  try { _logger = _logger || _sharedLogger; _logger[level](...a); }
   catch (_) { console[level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log'](...a); }
 }
 
@@ -219,4 +221,4 @@ class AgentKernel extends EventEmitter {
   }
 }
 
-module.exports = AgentKernel;
+export default AgentKernel;

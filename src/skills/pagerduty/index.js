@@ -1,4 +1,4 @@
-const { BaseSkill } = require('../base.js')
+import { BaseSkill } from '../base.js';
 
 const PD_API = 'https://api.pagerduty.com'
 
@@ -227,4 +227,4 @@ class PagerDutySkill extends BaseSkill {
   }
 }
 
-module.exports = PagerDutySkill
+export default PagerDutySkill;

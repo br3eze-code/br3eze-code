@@ -18,8 +18,11 @@
  */
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 const SKIP_FILES = new Set(['cordova.js', 'cordova_plugins.js', 'html5-qrcode.min.js']);
 const SKIP_DIRS = new Set(['plugins', 'res']);
@@ -44,7 +47,7 @@ function walkJsFiles(dir, onFile) {
     }
 }
 
-module.exports = function (context) {
+export default function (context) {
     let JavaScriptObfuscator;
     try {
         JavaScriptObfuscator = require('javascript-obfuscator');

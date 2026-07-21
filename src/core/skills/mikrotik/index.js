@@ -1,6 +1,6 @@
 
 // skills/mikrotik/index.js
-const RouterOSClient = require('routeros-client').RouterOSClient;
+import { RouterOSClient as RouterOSClient } from 'routeros-client';
 
 class MikroTikSkill {
   constructor() {
@@ -204,4 +204,4 @@ class MikroTikSkill {
   }
 }
 
-module.exports = new MikroTikSkill();
+export default new MikroTikSkill();

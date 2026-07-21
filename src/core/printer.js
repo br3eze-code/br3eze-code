@@ -1,12 +1,10 @@
-'use strict';
-const ThermalPrinter = require('node-thermal-printer').printer;
-const PrinterTypes = require('node-thermal-printer').types;
-const QRCode = require('qrcode');
-const { execSync, spawnSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
+import { printer as ThermalPrinter, types as PrinterTypes } from 'node-thermal-printer';
+import QRCode from 'qrcode';
+import { execSync, spawnSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { logger } from './logger.js';
+import { STATE_PATH, getConfig, BRAND, saveConfig } from './config.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Port discovery cache
@@ -287,7 +285,6 @@ function _writeToDevNode(buffer, devPath) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function _printVoucherDirect(voucherData, printerId = 'PRINTER_MAIN', _triedInterfaces = []) {
-    const { getConfig } = require('./config');
     const config = getConfig();
 
     if (!voucherData?.username) {
@@ -351,7 +348,6 @@ async function _printVoucherDirect(voucherData, printerId = 'PRINTER_MAIN', _tri
         const printer = new ThermalPrinter(printerConfig);
 
         // ── Build receipt ────────────────────────────────────────────────────
-        const { BRAND } = require('./config');
         printer.alignCenter();
         printer.setTextSize(1, 1);
         printer.bold(true);
@@ -609,7 +605,7 @@ async function testPrinterConnection(printerConfig = {}) {
  */
 async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
     try {
-        const { PrintBroker } = require('./print-broker');
+        const { PrintBroker } = await import('./print-broker.js');
         const broker = PrintBroker.getInstance();
         if (broker.getMobileClientStatus().count > 0) {
             return await broker.print(voucherData, { preferMobile: true });
@@ -619,7 +615,6 @@ async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
 }
 
 function getPrinterStatus() {
-    const { getConfig } = require('./config');
     const config = getConfig();
     const iface = config.printer?.interface || 'auto';
     const isLinux = process.platform === 'linux';
@@ -639,7 +634,6 @@ function getPrinterStatus() {
 }
 
 function setPrinterModel(model) {
-    const { getConfig, saveConfig } = require('./config');
     const config = getConfig();
     config.printer = config.printer || {};
     config.printer.model = model;
@@ -683,7 +677,8 @@ async function printRaw(buffer, printerConfig = {}) {
     return { success: true };
 }
 
-module.exports = {
+export { printVoucher, _printVoucherDirect, discoverBluetoothPrinterPort, discoverPrinterPort, testPrinterConnection, printRaw, getPrinterStatus, setPrinterModel, printTestPage, listAvailableInterfaces, _listCUPSPrinters, _listDevPrinters };
+export default {
     printVoucher,
     _printVoucherDirect,
     discoverBluetoothPrinterPort,

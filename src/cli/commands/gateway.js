@@ -1,13 +1,26 @@
-const fs = require('fs');
-const path = require('path');
-const net = require('net');
-const { spawn, exec } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import net from 'net';
+import { spawn, exec } from 'child_process';
 
-const _chalk = require('chalk');
+import _chalk from 'chalk';
 const chalk = _chalk.default || _chalk;
 
-const { STATE_PATH, getConfig } = require('../../core/config');
-const { logger } = require('../../core/logger');
+import { STATE_PATH, getConfig } from '../../core/config.js';
+import { logger } from '../../core/logger.js';
+import winston from 'winston';
+import { getManager as getMikroTik } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import FinancialService from '../../core/financial.js';
+import UniversalBilling from '../../core/universal-billing.js';
+import DiscoveryService from '../../core/discovery.js';
+import MemoryManager from '../../core/memory/MemoryManager.js';
+import nodeRegistry from '../../core/node-registry.js';
+import AskEngine from '../../core/ask-engine.js';
+import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import TaskScheduler from '../../core/taskScheduler.js';
+import { HeartbeatAgent } from '../../core/heartbeat.js';
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
 const clackProxy = {
@@ -23,7 +36,7 @@ const clackProxy = {
     select: async () => ''
 };
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('gateway')
         .description('Run, inspect, and query the WebSocket Gateway')
@@ -189,22 +202,12 @@ module.exports = (program) => {
             global.startupSpinner = spinner;
 
             // ── Silence console logs during spinner-heavy initialization ──────
-            const consoleTransports = logger.transports.filter(t => t instanceof require('winston').transports.Console);
+            const consoleTransports = logger.transports.filter(t => t instanceof winston.transports.Console);
             consoleTransports.forEach(t => t.silent = true);
 
             try {
                 // 1. Core Services Initialization
-                const { getManager: getMikroTik } = require('../../core/mikrotik');
-                const { getDatabase } = require('../../core/database');
-                const { getConfig } = require('../../core/config');
                 const config = getConfig();
-                const FinancialService = require('../../core/financial');
-                const UniversalBilling = require('../../core/universal-billing');
-                const DiscoveryService = require('../../core/discovery');
-                const MemoryManager = require('../../core/memory/MemoryManager');
-                const nodeRegistry = require('../../core/node-registry');
-                const AskEngine = require('../../core/ask-engine');
-                const { Gateway: AgentOSGateway } = require('../../core/gateway-engine');
 
                 const mikrotik = getMikroTik();
                 const database = await getDatabase();
@@ -224,7 +227,6 @@ module.exports = (program) => {
                 global.nodeRegistry = nodeRegistry;
 
                 // 2. AI Engine — LLMCoordinator (multi-LLM: Gemini/Anthropic/OpenAI per LLM_PROVIDER)
-                const LLMCoordinator = require('../../core/llm/LLMCoordinator');
                 let llmCoordinator = null;
                 try {
                     llmCoordinator = new LLMCoordinator();
@@ -245,7 +247,6 @@ module.exports = (program) => {
 
                 // 3a. Task Scheduler — cron/interval/once jobs dispatched through AskEngine
                 try {
-                    const TaskScheduler = require('../../core/taskScheduler');
                     const taskScheduler = new TaskScheduler({ engine: askEngine });
                     taskScheduler.on('error', (err) => logger.error('TaskScheduler error:', err.message));
                     taskScheduler.start();
@@ -287,6 +288,21 @@ module.exports = (program) => {
                 global.gateway = gateway;
 
                 await gateway.start();
+
+                // ── Heartbeat agent — proactive owner briefings (OpenClaw-style)
+                // Notify-only; enabled via HEARTBEAT_ENABLED=true.
+                try {
+                    const heartbeat = new HeartbeatAgent({
+                        engine: askEngine,
+                        channelManager: gateway.channelManager,
+                        database: global.database,
+                        mikrotik,
+                    });
+                    heartbeat.start();
+                    global.heartbeat = heartbeat;
+                } catch (err) {
+                    logger.warn(`Heartbeat agent not started: ${err.message}`);
+                }
 
                 // Save PID
                 fs.writeFileSync(pidFile, process.pid.toString());

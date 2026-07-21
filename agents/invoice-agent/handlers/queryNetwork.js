@@ -22,7 +22,7 @@ const QUERY_TYPE_MAP = {
  * @param {string} senderSPIFFE
  * @param {object} a2aAdapter   - A2AProtocolAdapter instance
  */
-module.exports = async function queryNetwork(parameters, session, senderSPIFFE, a2aAdapter) {
+export default async function queryNetwork(parameters, session, senderSPIFFE, a2aAdapter) {
     const { query_type } = parameters;
 
     const capability = QUERY_TYPE_MAP[query_type];
@@ -52,7 +52,7 @@ async function _directMikroTikQuery(queryType) {
     // Lazy-load the MikroTik core module — it's in the main gateway process
     let MikroTikManager;
     try {
-        ({ MikroTikManager } = require('../../../src/core/mikrotik'));
+        ({ MikroTikManager } = await import('../../../src/core/mikrotik.js'));
     } catch {
         throw new Error('Network-agent unavailable and MikroTikManager cannot be loaded from this context');
     }

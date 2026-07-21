@@ -17,4 +17,4 @@ const codegen = {
   }
 };
 
-module.exports = { codegen };
+export { codegen };

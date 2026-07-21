@@ -1,10 +1,10 @@
-'use strict';
-const crypto = require('crypto');
-const vm = require('vm');
-const fs = require('fs');
-const path = require('path');
-const { EventEmitter } = require('events');
-const { logger } = require('./logger');
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import perf_hooks from 'perf_hooks';
+import vm from 'vm';
+import { EventEmitter } from 'events';
+import { logger } from './logger.js';
 
 const FORGE_DIR = process.env.TOOLFORGE_DIR
   || path.join(process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'), 'toolforge');
@@ -96,9 +96,9 @@ class VMSandbox {
       TextEncoder: typeof TextEncoder !== 'undefined' ? TextEncoder : undefined,
       TextDecoder: typeof TextDecoder !== 'undefined' ? TextDecoder : undefined,
       // Crypto (non-sensitive — random UUIDs, hashing)
-      crypto: { randomUUID: () => require('crypto').randomUUID() },
+      crypto: { randomUUID: () => crypto.randomUUID() },
       // Timing (read-only — no side effects)
-      performance: { now: () => require('perf_hooks').performance.now() },
+      performance: { now: () => perf_hooks.performance.now() },
     };
 
     if (spec.capabilities.includes(CAPABILITY.FETCH)) {
@@ -436,4 +436,4 @@ function getToolForge(opts) {
   return _instance;
 }
 
-module.exports = { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };
+export { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };

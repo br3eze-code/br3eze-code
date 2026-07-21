@@ -1,10 +1,9 @@
-'use strict';
 /**
  * Groq LLM Provider
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
 
 class GroqProvider extends BaseProvider {
     static getMetadata() {
@@ -92,4 +91,4 @@ class GroqProvider extends BaseProvider {
 }
 
 BaseProvider.register('groq', GroqProvider);
-module.exports = { GroqProvider };
+export { GroqProvider };

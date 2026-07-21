@@ -1,5 +1,10 @@
 // src/core/skills/SkillRegistry.js
-const { logger } = require('../logger');
+import { logger } from '../logger.js';
+import fsSync from 'fs';
+import { promises as fs } from 'fs';
+import path from 'path';
+import yaml from 'js-yaml';
+import { pathToFileURL } from 'url';
 
 class SkillRegistry {
   constructor() {
@@ -9,9 +14,6 @@ class SkillRegistry {
   }
 
   async loadFromDirectory(skillsPath, config = {}) {
-    const fs = require('fs').promises;
-    const path = require('path');
-    
     const entries = await fs.readdir(skillsPath, { withFileTypes: true });
     
     for (const entry of entries) {
@@ -24,10 +26,9 @@ class SkillRegistry {
           const jsonPath = path.join(dirPath, 'skill.json');
           const yamlPath = path.join(dirPath, 'manifest.yaml');
           
-          if (require('fs').existsSync(jsonPath)) {
+          if (fsSync.existsSync(jsonPath)) {
             manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-          } else if (require('fs').existsSync(yamlPath)) {
-            const yaml = require('js-yaml');
+          } else if (fsSync.existsSync(yamlPath)) {
             manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
           }
           
@@ -36,12 +37,13 @@ class SkillRegistry {
           const entryFile = manifest.entry || 'index.js';
           const codePath = path.join(dirPath, entryFile);
           
-          if (!require('fs').existsSync(codePath)) {
+          if (!fsSync.existsSync(codePath)) {
             logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
             continue;
           }
 
-          const skillModule = require(path.resolve(codePath));
+          const imported = await import(pathToFileURL(path.resolve(codePath)).href);
+          const skillModule = imported.default !== undefined ? imported.default : imported;
           this.register(manifest, skillModule, config);
           logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
         } catch (err) {
@@ -144,4 +146,4 @@ class SkillRegistry {
   }
 }
 
-module.exports = SkillRegistry;
+export default SkillRegistry;

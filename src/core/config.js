@@ -1,11 +1,13 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-require('dotenv').config();
-
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import os from 'os';
+import 'dotenv/config';
+import pkg from '../../package.json' with { type: 'json' };
+import yaml from 'js-yaml';
 function getPkgVersion() {
     try {
-        return require('../../package.json').version;
+        return pkg.version;
     } catch (_) {
         return '0.0.0';
     }
@@ -66,7 +68,7 @@ const DEFAULT_CONFIG = {
         port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
         host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',
         token: process.env.AGENTOS_GATEWAY_TOKEN
-            || require('crypto').randomBytes(32).toString('hex')
+            || crypto.randomBytes(32).toString('hex')
     },
     server: {
         port: 3000,
@@ -187,7 +189,6 @@ function loadConfig() {
     for (const yamlPath of yamlPaths) {
         if (fs.existsSync(yamlPath)) {
             try {
-                const yaml = require('js-yaml');
                 const content = fs.readFileSync(yamlPath, 'utf8');
                 const loaded = yaml.load(content);
 
@@ -296,7 +297,8 @@ function getConfig() {
     return loaded;
 }
 
-module.exports = {
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };
+export default {
     BRAND,
     PROFILE_DIR,
     CONFIG_PATH,

@@ -1,7 +1,5 @@
-'use strict';
-
-const VisionDomain = require('../../../src/domains/vision');
-const VoiceDomain = require('../../../src/domains/voice');
+import VisionDomain from '../../../src/domains/vision/index.js';
+import VoiceDomain from '../../../src/domains/voice/index.js';
 
 describe('VisionDomain', () => {
   let domain;

@@ -10,7 +10,8 @@
  */
 'use strict';
 
-const { logger } = require('../logger');
+import { logger } from '../logger.js';
+import { getDatabase } from '../database.js';
 
 const CODE_RE = /^\d{6}$/;
 
@@ -26,7 +27,6 @@ async function verifyLinkCode(code, platform, channelId) {
         return { ok: false, message: 'That does not look like a link code. Open the Power Connect app → Settings → Link Chat Account, then send: /link 123456' };
     }
 
-    const { getDatabase } = require('../database');
     const db = await getDatabase();
     if (!db.db) {
         return { ok: false, message: 'Account linking requires the Firebase backend, which is not configured on this node.' };
@@ -71,4 +71,4 @@ async function verifyLinkCode(code, platform, channelId) {
     }
 }
 
-module.exports = { verifyLinkCode };
+export { verifyLinkCode };

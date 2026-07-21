@@ -2,8 +2,8 @@
  * Slack Channel
  */
 
-const { BaseChannel } = require('./base');
-const { Logger } = require('../utils/logger');
+import { BaseChannel } from './base.js';
+import { Logger } from '../utils/logger.js';
 
 class SlackChannel extends BaseChannel {
   constructor(options = {}) {
@@ -89,5 +89,5 @@ class SlackChannel extends BaseChannel {
   }
 }
 
-module.exports = { SlackChannel };
+export { SlackChannel };
 

@@ -1,8 +1,13 @@
 'use strict';
 
-jest.mock('axios');
-const axios = require('axios');
-const GeminiAdapter = require('../../../adapters/gemini.adapter');
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('axios', () => ({
+  default: { post: jest.fn() },
+}));
+
+const { default: axios } = await import('axios');
+const { default: GeminiAdapter } = await import('../../../adapters/gemini.adapter.js');
 
 describe('GeminiAdapter', () => {
   let adapter;

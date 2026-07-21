@@ -2,9 +2,9 @@
  * AI Orchestrator - Autonomous decision making and action planning
  */
 
-const IntentParser = require('./IntentParser');
-const ActionPlanner = require('./ActionPlanner');
-const AutonomyEngine = require('./AutonomyEngine');
+import IntentParser from './IntentParser.js';
+import ActionPlanner from './ActionPlanner.js';
+import AutonomyEngine from './AutonomyEngine.js';
 
 class AIOrchestrator {
   constructor(config = {}) {
@@ -278,4 +278,4 @@ class AIOrchestrator {
   }
 }
 
-module.exports = AIOrchestrator;
+export default AIOrchestrator;

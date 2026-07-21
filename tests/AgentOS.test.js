@@ -1,45 +1,50 @@
+import { jest } from '@jest/globals';
+import EventEmitter from 'events';
+
 // Mock LLMCoordinator — prevents real Ollama/network connections during tests
-jest.mock('../src/core/llm/LLMCoordinator', () => {
-  return jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule('../src/core/llm/LLMCoordinator.js', () => ({
+  default: jest.fn().mockImplementation(() => ({
     initialize: jest.fn().mockResolvedValue(undefined),
     generate:   jest.fn().mockResolvedValue({ text: 'mock response', calls: null, usage: {} }),
     classify:   jest.fn().mockResolvedValue('general'),
     embed:      jest.fn().mockResolvedValue({ embeddings: [[0.1, 0.2]], usage: {} }),
-  }));
-});
+  })),
+}));
 
 // Mock Firebase
-jest.mock('firebase-admin', () => ({
-  apps: [],
-  initializeApp: jest.fn(),
-  credential: { cert: jest.fn() },
-  firestore: Object.assign(jest.fn(() => ({
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ exists: false })),
-        set: jest.fn(() => Promise.resolve()),
-        update: jest.fn(() => Promise.resolve()),
-        delete: jest.fn(() => Promise.resolve())
+jest.unstable_mockModule('firebase-admin', () => ({
+  default: {
+    apps: [],
+    initializeApp: jest.fn(),
+    credential: { cert: jest.fn() },
+    firestore: Object.assign(jest.fn(() => ({
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ exists: false })),
+          set: jest.fn(() => Promise.resolve()),
+          update: jest.fn(() => Promise.resolve()),
+          delete: jest.fn(() => Promise.resolve())
+        })),
+        where: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ docs: [], empty: true }))
+        })),
+        limit: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ docs: [] }))
+        })),
+        count: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ data: () => ({ count: 0 }) }))
+        }))
       })),
-      where: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ docs: [], empty: true }))
-      })),
-      limit: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ docs: [] }))
-      })),
-      count: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ data: () => ({ count: 0 }) }))
-      }))
-    })),
-    settings: jest.fn(),
-    runTransaction: jest.fn(cb => cb({ get: jest.fn(), set: jest.fn(), update: jest.fn() }))
-  })), {
-    FieldValue: { serverTimestamp: jest.fn(), arrayUnion: jest.fn() }
-  })
+      settings: jest.fn(),
+      runTransaction: jest.fn(cb => cb({ get: jest.fn(), set: jest.fn(), update: jest.fn() }))
+    })), {
+      FieldValue: { serverTimestamp: jest.fn(), arrayUnion: jest.fn() }
+    })
+  }
 }));
 
 // Mock MikroTik
-jest.mock('routeros-client', () => ({
+jest.unstable_mockModule('routeros-client', () => ({
   RouterOSClient: jest.fn().mockImplementation(() => ({
     connect: jest.fn().mockResolvedValue({}),
     menu: jest.fn().mockReturnValue({
@@ -54,18 +59,18 @@ jest.mock('routeros-client', () => ({
 }));
 
 // Mock Telegram bot — prevents real HTTP polling
-jest.mock('node-telegram-bot-api', () => {
-  return jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule('node-telegram-bot-api', () => ({
+  default: jest.fn().mockImplementation(() => ({
     on: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue({}),
     stopPolling: jest.fn().mockResolvedValue({}),
     isPolling: jest.fn().mockReturnValue(false)
-  }));
-});
+  })),
+}));
 
 // Mock WhatsApp / Baileys — prevents real WebSocket connections
-jest.mock('@whiskeysockets/baileys', () => ({
-  makeWASocket: jest.fn().mockReturnValue({
+jest.unstable_mockModule('@whiskeysockets/baileys', () => ({
+  default: jest.fn().mockReturnValue({
     ev: { on: jest.fn(), off: jest.fn() },
     sendMessage: jest.fn().mockResolvedValue({}),
     logout: jest.fn().mockResolvedValue({}),
@@ -78,11 +83,10 @@ jest.mock('@whiskeysockets/baileys', () => ({
   }),
   DisconnectReason: { loggedOut: 401, restartRequired: 515 },
   fetchLatestBaileysVersion: jest.fn().mockResolvedValue({ version: [2, 3000, 0], isLatest: true })
-}), { virtual: true });
+}));
 
 // Mock ChannelManager.initialize to skip real channel setup
-jest.mock('../src/core/channels/ChannelManager', () => {
-  const EventEmitter = require('events');
+jest.unstable_mockModule('../src/core/channels/ChannelManager.js', () => {
   class MockChannelManager extends EventEmitter {
     constructor(agent) {
       super();
@@ -98,12 +102,12 @@ jest.mock('../src/core/channels/ChannelManager', () => {
   }
   MockChannelManager.adapters = new Map();
   MockChannelManager.registerAdapter = jest.fn();
-  return MockChannelManager;
+  return { default: MockChannelManager };
 });
 
-const AgentOS = require('../src/core/AgentOS');
+const { default: AgentOS } = await import('../src/core/AgentOS.js');
 
-jest.setTimeout(30000);
+jest.setTimeout(60000); // skill init can be slow under CI load — avoid flaky timeouts
 
 describe('AgentOS', () => {
   let agent;

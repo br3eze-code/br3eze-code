@@ -1,0 +1,12 @@
+{
+  "name": "@agentos/runtime",
+  "version": "0.1.0",
+  "description": "Domain-agnostic agent runtime + library (ESM). Patterns reimplemented from the Claw-family runtimes (OpenClaw/PicoClaw, MIT).",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./skills/*": "./skills/*.js"
+  },
+  "license": "MIT"
+}

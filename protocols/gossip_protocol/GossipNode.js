@@ -2,9 +2,9 @@
  * GossipNode - Epidemic broadcast protocol for distributed state sync
  */
 
-const PeerManager = require('./PeerManager');
-const MessageRouter = require('./MessageRouter');
-const VectorClock = require('./VectorClock');
+import PeerManager from './PeerManager.js';
+import MessageRouter from './MessageRouter.js';
+import VectorClock from './VectorClock.js';
 
 class GossipNode {
     constructor(config = {}) {
@@ -29,21 +29,21 @@ class GossipNode {
 
     async initialize() {
         // Setup message handlers
-        this.setupDefaultHandlers();
+        await this.setupDefaultHandlers();
         
         // Initialize transport (WebRTC, WebSocket, etc.)
         await this.initializeTransport();
     }
 
-    setupDefaultHandlers() {
+    async setupDefaultHandlers() {
         // Billing sync handler
-        this.registerHandler('billing_sync', require('./handlers/billing_sync'));
+        this.registerHandler('billing_sync', (await import('./handlers/billing_sync.js')).default);
         
         // Auth broadcast handler
-        this.registerHandler('auth_broadcast', require('./handlers/auth_broadcast'));
+        this.registerHandler('auth_broadcast', (await import('./handlers/auth_broadcast.js')).default);
         
         // Presence heartbeat
-        this.registerHandler('presence_heartbeat', require('./handlers/presence_heartbeat'));
+        this.registerHandler('presence_heartbeat', (await import('./handlers/presence_heartbeat.js')).default);
     }
 
     registerHandler(type, handler) {
@@ -260,4 +260,4 @@ class GossipNode {
     }
 }
 
-module.exports = GossipNode;
+export default GossipNode;

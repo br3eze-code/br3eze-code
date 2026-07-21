@@ -1,7 +1,7 @@
 
 // skills/calendar/adapters.js
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
 class BaseCalendarAdapter {
   constructor(context) {
@@ -82,7 +82,8 @@ class OutlookCalendarAdapter extends BaseCalendarAdapter {
   }
 }
 
-module.exports = {
+export { LocalCalendarAdapter, GoogleCalendarAdapter, OutlookCalendarAdapter };
+export default {
   LocalCalendarAdapter,
   GoogleCalendarAdapter,
   OutlookCalendarAdapter

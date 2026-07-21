@@ -4,8 +4,9 @@
  * Supports: PesaPay, Stripe, M-Pesa (Daraja), Mastercard/Peach, Webhook, None
  */
 
-const crypto = require('crypto');
-const { logger } = require('./logger');
+import crypto from 'crypto';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
 
 class UniversalBilling {
     constructor(config = {}) {
@@ -76,7 +77,7 @@ class UniversalBilling {
         const secretKey = cfg?.credentials?.secretKey || process.env.STRIPE_SECRET_KEY;
         if (!secretKey) throw new Error('Stripe secret key not configured');
 
-        const stripe = require('stripe')(secretKey);
+        const stripe = (await import('stripe')).default(secretKey);
         const reference = `agentos-${plan}-${Date.now()}`;
 
         const session = await stripe.checkout.sessions.create({
@@ -102,7 +103,7 @@ class UniversalBilling {
     async _stripeVerify(sessionId, cfg) {
         const secretKey = cfg?.credentials?.secretKey || process.env.STRIPE_SECRET_KEY;
         if (!secretKey) return { paid: false, reason: 'no_key' };
-        const stripe = require('stripe')(secretKey);
+        const stripe = (await import('stripe')).default(secretKey);
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         return {
             paid: session.payment_status === 'paid',
@@ -114,7 +115,7 @@ class UniversalBilling {
     // ── PesaPay ───────────────────────────────────────────────────────────────
 
     async _pesapayLink(plan, amount, currency, label, cfg) {
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const apiKey = cfg?.credentials?.apiKey || process.env.PESAPAY_API_KEY;
         const merchantId = cfg?.credentials?.merchantId || process.env.PESAPAY_MERCHANT_ID;
         const baseUrl = cfg?.credentials?.baseUrl || process.env.PESAPAY_BASE_URL || 'https://www.pesapay.co.za';
@@ -144,7 +145,7 @@ class UniversalBilling {
     }
 
     async _pesapayVerify(reference, cfg) {
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const apiKey = cfg?.credentials?.apiKey || process.env.PESAPAY_API_KEY;
         const merchantId = cfg?.credentials?.merchantId || process.env.PESAPAY_MERCHANT_ID;
         const baseUrl = cfg?.credentials?.baseUrl || process.env.PESAPAY_BASE_URL || 'https://www.pesapay.co.za';
@@ -164,7 +165,7 @@ class UniversalBilling {
 
     async _mpesaLink(plan, amount, currency, label, cfg) {
         // STK Push — no redirect URL; we send STK push and poll
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const consumerKey = cfg?.credentials?.consumerKey || process.env.MPESA_CONSUMER_KEY;
         const consumerSecret = cfg?.credentials?.consumerSecret || process.env.MPESA_CONSUMER_SECRET;
         const shortcode = cfg?.credentials?.shortcode || process.env.MPESA_SHORTCODE;
@@ -193,7 +194,7 @@ class UniversalBilling {
     }
 
     async _mpesaVerify(checkoutRequestId, cfg) {
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const consumerKey = cfg?.credentials?.consumerKey || process.env.MPESA_CONSUMER_KEY;
         const consumerSecret = cfg?.credentials?.consumerSecret || process.env.MPESA_CONSUMER_SECRET;
         const shortcode = cfg?.credentials?.shortcode || process.env.MPESA_SHORTCODE;
@@ -247,7 +248,7 @@ class UniversalBilling {
     // ── Mastercard / Peach Payments ───────────────────────────────────────────
 
     async _peachLink(plan, amount, currency, label, cfg) {
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const apiKey = cfg?.credentials?.apiKey || process.env.PEACH_API_KEY;
         const entityId = cfg?.credentials?.entityId || process.env.PEACH_ENTITY_ID;
         const baseUrl = cfg?.credentials?.baseUrl || process.env.PEACH_BASE_URL || 'https://testsecure.peachpayments.com';
@@ -276,7 +277,7 @@ class UniversalBilling {
     }
 
     async _peachVerify(checkoutId, cfg) {
-        const axios = require('axios');
+        const axios = (await import('axios')).default;
         const apiKey = cfg?.credentials?.apiKey || process.env.PEACH_API_KEY;
         const entityId = cfg?.credentials?.entityId || process.env.PEACH_ENTITY_ID;
         const baseUrl = cfg?.credentials?.baseUrl || process.env.PEACH_BASE_URL || 'https://testsecure.peachpayments.com';
@@ -308,7 +309,7 @@ class UniversalBilling {
     // ── Mastercard A2A ───────────────────────────────────────────────────────
 
     async _mastercardA2ALink(plan, amount, currency, label, cfg) {
-        const MastercardA2A = require('../../services/mastercardA2A');
+        const MastercardA2A = (await import('../../services/mastercardA2A.js')).default;
         const service = new MastercardA2A();
         const code = this.generateSecureCode();
         
@@ -331,7 +332,7 @@ class UniversalBilling {
     }
 
     async _mastercardA2AVerify(paymentId, cfg) {
-        const MastercardA2A = require('../../services/mastercardA2A');
+        const MastercardA2A = (await import('../../services/mastercardA2A.js')).default;
         const service = new MastercardA2A();
         const status = await service.getPaymentStatus(paymentId);
 
@@ -389,7 +390,7 @@ class UniversalBilling {
         if (this.db) await this.db.saveVoucher(voucher);
 
         if (metadata.generateQR) {
-            const QRCode = require('qrcode');
+            const QRCode = (await import('qrcode')).default;
             voucher.qrCode = await QRCode.toDataURL(JSON.stringify({ code, type: this.resourceType, resource: resourceId }));
         }
 
@@ -858,7 +859,6 @@ _getPlanAmount(planId, cfg) {
 
 _readConfigFile() {
     try {
-        const { getConfig } = require('./config');
         return getConfig();
     } catch (_) {
         return null;
@@ -866,4 +866,4 @@ _readConfigFile() {
 }
 } // end class UniversalBilling
 
-module.exports = UniversalBilling;
+export default UniversalBilling;

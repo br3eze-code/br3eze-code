@@ -2,7 +2,11 @@
 // Central skill registry — discovers and wires all built-in skills
 // SPEC.md §12 Skill Loader
 
-const path = require('path');
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class SkillRegistry {
   constructor() {
@@ -10,7 +14,7 @@ class SkillRegistry {
   }
 
   /** Load all built-in skills. Called once during Bootstrap §26. */
-  loadBuiltinSkills() {
+  async loadBuiltinSkills() {
     const builtins = [
       'mikrotik',   // manage_network  — RouterOS users, firewall, system
       'finance',    // manage_finance  — revenue, P2P, Mastercard A2A
@@ -24,9 +28,9 @@ class SkillRegistry {
     for (const name of builtins) {
       try {
         const skillPath = path.join(__dirname, name, 'index.js');
-        const skill = require(skillPath);
+        const skill = (await import(pathToFileURL(skillPath).href)).default;
         let meta = {};
-        try { meta = require(path.join(__dirname, name, 'skill.json')); } catch {}
+        try { meta = (await import(pathToFileURL(path.join(__dirname, name, 'skill.json')).href, { with: { type: 'json' } })).default; } catch {}
         this.register(name, {
           description:  meta.description  || name,
           parameters:   meta.parameters   || {},
@@ -100,4 +104,4 @@ class SkillRegistry {
   }
 }
 
-module.exports = new SkillRegistry();
+export default new SkillRegistry();

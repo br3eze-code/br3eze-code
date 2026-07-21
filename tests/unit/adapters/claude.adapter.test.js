@@ -1,16 +1,20 @@
 'use strict';
 
-jest.mock('@anthropic-ai/sdk', () => {
-  return jest.fn().mockImplementation(() => ({
-    messages: {
-      create: jest.fn(),
-      stream: jest.fn(),
-    },
-  }));
+import { jest } from '@jest/globals';
+
+jest.unstable_mockModule('@anthropic-ai/sdk', () => {
+  return {
+    default: jest.fn().mockImplementation(() => ({
+      messages: {
+        create: jest.fn(),
+        stream: jest.fn(),
+      },
+    })),
+  };
 });
 
-const Anthropic = require('@anthropic-ai/sdk');
-const ClaudeAdapter = require('../../../adapters/claude.adapter');
+const { default: Anthropic } = await import('@anthropic-ai/sdk');
+const { default: ClaudeAdapter } = await import('../../../adapters/claude.adapter.js');
 
 describe('ClaudeAdapter', () => {
   let adapter;

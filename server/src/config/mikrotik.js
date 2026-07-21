@@ -2,7 +2,7 @@
  * MikroTik Router Configuration
  */
 
-const logger = require('../utils/logger');
+import logger from '../utils/logger.js';
 
 const config = {
     // Primary router
@@ -62,4 +62,4 @@ const validateConfig = () => {
 
 validateConfig();
 
-module.exports = config;
+export default config;

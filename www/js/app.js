@@ -1256,6 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // by username/phone next time (see DataStore.writeLoginLookups).
                         DataStore.writeLoginLookups(currentUser).catch(() => {});
                         await showMainApp();
+                        handleStripeReturn(); // credit balance if returning from Stripe checkout
                         setTimeout(() => maybePromptNotificationPermission(), 3000);
                         setTimeout(() => maybePromptLocationPermission(), 9000);
                         setTimeout(() => {
@@ -2222,6 +2223,57 @@ window.showSuccessCelebration = function ({ title = 'Success!', amount = null, s
     el.addEventListener('click', dismiss);
     setTimeout(dismiss, 2600);
 };
+
+/* ===================================================================
+   STRIPE CARD TOP-UP — pay by card to load balance (covers plans + merch).
+   The secret key lives only in the /api Cloud Function; the client just
+   redirects to Stripe Checkout and verifies on return.
+   =================================================================== */
+window.topUpWithCard = async function (preset) {
+    if (!currentUser || !auth?.currentUser) return showToast('Please log in first.', 'error');
+    const input = preset != null ? String(preset) : prompt('Top up amount (USD):', '10');
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (!(amount > 0)) return showToast('Enter a valid amount.', 'warning');
+    window.Loading.show('Starting secure checkout…');
+    try {
+        const res = await fetch('/api/checkout/create', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: currentUser.id, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }),
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; }
+        else { window.Loading.hide(); showToast(data.error || 'Could not start checkout.', 'error'); }
+    } catch (e) { window.Loading.hide(); showToast('Checkout failed: ' + e.message, 'error'); }
+};
+
+async function handleStripeReturn() {
+    const params = new URLSearchParams(location.search);
+    const topup = params.get('topup');
+    if (!topup) return;
+    history.replaceState({}, '', location.pathname); // scrub query from the URL
+    if (topup === 'cancel') { showToast('Top-up canceled.', 'info'); return; }
+    if (topup === 'success' && params.get('session_id')) {
+        try {
+            const res = await fetch('/api/checkout/verify', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: params.get('session_id') }),
+            });
+            const data = await res.json();
+            if (data.paid) {
+                if (typeof refreshCurrentUser === 'function') { await refreshCurrentUser(); }
+                if (typeof updateUI === 'function') updateUI();
+                if (data.credited && typeof showSuccessCelebration === 'function') {
+                    showSuccessCelebration({ title: 'Top-Up Successful!', amount: data.amount, subtitle: 'Your balance is loaded — buy plans or merch with it! 💳' });
+                } else {
+                    showToast('Payment received — balance updated.', 'success');
+                }
+            } else {
+                showToast('Payment not completed.', 'info');
+            }
+        } catch (e) { showToast('Could not verify payment.', 'warning'); }
+    }
+}
 
 /*  =====  VOUCHERS UI  =====  */
 function openRedeemVoucher() {

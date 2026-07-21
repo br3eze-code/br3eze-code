@@ -3,9 +3,11 @@
  * @module core/firebase
  */
 
-const admin = require('firebase-admin');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
+import admin from 'firebase-admin';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import path from 'path';
+import fs from 'fs';
 
 let firebaseApp = null;
 let db = null;
@@ -16,8 +18,6 @@ function initializeFirebase() {
   }
 
   try {
-    const path = require('path');
-    const fs = require('fs');
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
     
     if (serviceAccountPath) {
@@ -130,7 +130,8 @@ async function createAuthUser(identifier, opts = {}) {
   }
 }
 
-module.exports = {
+export { initializeFirebase, getFirestore, getFirebaseApp, getAuth, createAuthUser, admin };
+export default {
   initializeFirebase,
   getFirestore,
   getFirebaseApp,

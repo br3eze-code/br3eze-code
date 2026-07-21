@@ -2,8 +2,9 @@
  * Firebase Admin SDK Configuration
  */
 
-const admin = require('firebase-admin');
-const logger = require('../utils/logger');
+import fs from 'fs';
+import admin from 'firebase-admin';
+import logger from '../utils/logger.js';
 
 // Initialize Firebase Admin.
 // Use env vars, never load a JSON key file in production.
@@ -17,16 +18,15 @@ const credential = (
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 }) : (
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH
-        ? admin.credential.cert(require(process.env.FIREBASE_SERVICE_ACCOUNT_PATH))
+        ? admin.credential.cert(JSON.parse(fs.readFileSync(process.env.FIREBASE_SERVICE_ACCOUNT_PATH, 'utf8')))
         : null
 );
 
+let _admin = null, db = null, auth = null, storage = null, messaging = null;
+
 if (!credential) {
     logger.warn('Firebase credentials not configured; db/auth/storage will be null. Set FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY, and FIREBASE_CLIENT_EMAIL.');
-    module.exports = { admin: null, auth: null, db: null, storage: null, messaging: null };
 } else {
-    let db, auth, storage, messaging;
-
     try {
         admin.initializeApp({
             credential,
@@ -43,12 +43,13 @@ if (!credential) {
         auth = admin.auth();
         storage = admin.storage();
         messaging = admin.messaging();
+        _admin = admin;
 
         logger.info('Firebase Admin SDK initialized successfully');
     } catch (error) {
         logger.error('Firebase initialization error:', error);
         throw error;
     }
-
-    module.exports = { admin, auth, db, storage, messaging };
 }
+
+export { _admin as admin, auth, db, storage, messaging };

@@ -3,6 +3,7 @@
   "description": "AgentOS WiFi Manager backend, deployed as a Firebase Cloud Function (see index.js) and runnable standalone (node server.js).",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "main": "index.js",
   "engines": {
     "node": "22"

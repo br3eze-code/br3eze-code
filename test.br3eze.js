@@ -5,22 +5,23 @@
 // Features: WebSocket Gateway, Interactive Buttons, RouterOS Integration
 // ==========================================
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const WebSocket = require('ws');
-const http = require('http');
-const tools = require('./src/tools');
-const TelegramBot = require('node-telegram-bot-api');
-const { RouterOSClient } = require('routeros-client');
-const QRCode = require('qrcode');
-const admin = require('firebase-admin');
-const winston = require('winston');
-const Joi = require('joi');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import WebSocket from 'ws';
+import http from 'http';
+import tools from './src/tools/index.js';
+import TelegramBot from 'node-telegram-bot-api';
+import { RouterOSClient } from 'routeros-client';
+import QRCode from 'qrcode';
+import admin from 'firebase-admin';
+import winston from 'winston';
+import Joi from 'joi';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import 'dotenv/config';
 
 // ==========================================
 // BRANDING & CONFIGURATION
@@ -57,7 +58,7 @@ const CONFIG = {
     GATEWAY: {
         PORT: process.env.GATEWAY_PORT || 19876,
         HOST: process.env.GATEWAY_HOST || '127.0.0.1',
-        TOKEN: process.env.AGENTOS_GATEWAY_TOKEN || require('crypto').randomBytes(32).toString('hex'),
+        TOKEN: process.env.AGENTOS_GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex'),
         WS_PATH: '/ws'
     },
     SERVER: {
@@ -458,7 +459,7 @@ class AgentOSGateway {
 
     setupHandlers() {
         this.wss.on('connection', (ws, req) => {
-            const clientId = require('crypto').randomUUID();
+            const clientId = crypto.randomUUID();
             this.clients.set(clientId, { ws, authenticated: true, role: 'client' });
 
             logger.info(`Client connected: ${clientId}`);

@@ -1,4 +1,3 @@
-'use strict';
 /**
  * Circuit Breaker — prevents cascading failures to external services
  * States: CLOSED (normal) → OPEN (failing) → HALF_OPEN (testing recovery)
@@ -108,4 +107,4 @@ class CircuitBreaker {
   }
 }
 
-module.exports = CircuitBreaker;
+export default CircuitBreaker;

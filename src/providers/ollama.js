@@ -2,7 +2,7 @@
  * Ollama Provider
  */
 
-const { BaseProvider } = require('./base');
+import { BaseProvider } from './base.js';
 
 class OllamaProvider extends BaseProvider {
   constructor(options = {}) {
@@ -141,5 +141,5 @@ class OllamaProvider extends BaseProvider {
   }
 }
 
-module.exports = { OllamaProvider };
+export { OllamaProvider };
 

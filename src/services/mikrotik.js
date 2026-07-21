@@ -1,6 +1,6 @@
 // src/services/mikrotik.js
 
-const { RouterOSClient } = require('routeros-client');
+import { RouterOSClient } from 'routeros-client';
 
 class MikroTikService {
     constructor(config) {
@@ -37,4 +37,4 @@ class MikroTikService {
     }
 }
 
-module.exports = MikroTikService;
+export default MikroTikService;

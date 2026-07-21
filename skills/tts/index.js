@@ -1,13 +1,16 @@
 // skills/tts/index.js
-const { Readable } = require('stream');
-const fs = require('fs').promises;
-const path = require('path');
+import { Readable } from 'stream';
+import { promises as fs } from 'fs';
+import path from 'path';
+import os from 'os';
+import crypto from 'crypto';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 class TTSSkill {
   constructor() {
     this.providers = new Map();
     this.cache = new Map();
-    const os = require('os');
     this.cacheDir = path.join(process.cwd(), 'cache', 'tts');
   }
 
@@ -106,7 +109,6 @@ class TTSSkill {
   }
 
   getCacheKey(config) {
-    const crypto = require('crypto');
     const hash = crypto.createHash('md5');
     hash.update(`${config.text}|${config.voice}|${config.speed}|${config.language}`);
     return hash.digest('hex');
@@ -155,11 +157,8 @@ class EdgeTTSProvider {
 
   async synthesize({ text, voice = 'en-US-AriaNeural', speed = 1.0, format = 'mp3' }) {
     // Using edge-tts library (Python wrapper via child_process or native JS implementation)
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
     const execAsync = promisify(exec);
 
-    const os = require('os');
     const tempFile = path.join(os.tmpdir(), `tts-${Date.now()}.mp3`);
     
     try {
@@ -264,10 +263,7 @@ class ElevenLabsProvider {
 // Local TTS using system voices (macOS say, Linux espeak, Windows sapi)
 class LocalTTSProvider {
   async synthesize({ text, voice, speed = 1.0, format = 'wav' }) {
-    const { exec } = require('child_process');
-    const { promisify } = require('util');
     const execAsync = promisify(exec);
-    const os = require('os');
     const tempFile = path.join(os.tmpdir(), `tts-local-${Date.now()}.${format}`);
     const platform = os.platform();
 
@@ -300,12 +296,9 @@ $synth.Dispose();
   }
 
   async getVoices() {
-    const os = require('os');
     const platform = os.platform();
 
     if (platform === 'darwin') {
-      const { exec } = require('child_process');
-      const { promisify } = require('util');
       const execAsync = promisify(exec);
       
       const { stdout } = await execAsync('say -v "?"');
@@ -329,4 +322,4 @@ $synth.Dispose();
   }
 }
 
-module.exports = new TTSSkill();
+export default new TTSSkill();

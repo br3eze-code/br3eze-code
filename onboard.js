@@ -5,9 +5,10 @@
  * It uses the core onboarding service to apply templates and provision agents.
  */
 
-require('dotenv').config();
-const { onboardRouter, provisionAgents } = require('./src/core/onboard');
-const { logger } = require('./src/core/logger');
+import { pathToFileURL } from 'url';
+import 'dotenv/config';
+import { onboardRouter, provisionAgents } from './src/core/onboard.js';
+import { logger } from './src/core/logger.js';
 
 async function main() {
     const args = process.argv.slice(2);
@@ -50,9 +51,9 @@ async function main() {
         
         // Verify we can load the core module
         try {
-            const { templateRsc } = require('./src/core/onboard');
-            const fs = require('fs/promises');
-            const path = require('path');
+            const { templateRsc } = await import('./src/core/onboard.js');
+            const fs = (await import('fs/promises')).default;
+            const path = (await import('path')).default;
             
             const files = ['setup.rsc', 'mikro.rsc', 'agentos-sentinel.rsc'];
             for (const file of files) {
@@ -94,7 +95,7 @@ async function main() {
     }
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     main().catch(err => {
         console.error('Fatal error:', err);
         process.exit(1);

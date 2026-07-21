@@ -4,8 +4,11 @@
  * Ensures all providers extend BaseProvider, include metadata, and self-register.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const providersDir = path.join(__dirname, '../core/llm/providers');
 const files = fs.readdirSync(providersDir).filter(f => f.endsWith('Provider.js') && f !== 'BaseProvider.js');

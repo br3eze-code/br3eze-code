@@ -1,12 +1,11 @@
-'use strict';
-
-const WebSocket = require('ws');
-const QRCode = require('qrcode');
-const { logger } = require('../logger');
-const { getConfig } = require('../config');
-const { getMikroTikClient } = require('../mikrotik');
-const { getDatabase } = require('../database');
-const { generate: voucherCode } = require('../voucher');
+import WebSocket from 'ws';
+import QRCode from 'qrcode';
+import { logger } from '../logger.js';
+import { getConfig } from '../config.js';
+import { getMikroTikClient } from '../mikrotik.js';
+import { getDatabase } from '../database.js';
+import { generate as voucherCode } from '../voucher.js';
+import { DEFAULT_PLANS } from '../database.js';
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -249,10 +248,9 @@ class WebSocketCLI {
             const code = voucherCode();
             const db = await getDatabase();
             const mikrotik = getMikroTikClient();
-            const { DEFAULT_PLANS } = require('../database');
-            const dateUtils = require('../../utils/date');
             
             const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                const { default: dateUtils } = await import('../../utils/date.js');
             const expiresAt = planObj.durationValue && planObj.durationUnit ?
                 dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
             const loginUrl = `http://${mikrotik?.state?.host || 'br3eze.africa'}/login?username=${code}&password=${code}`;
@@ -537,4 +535,4 @@ class WebSocketCLI {
     destroy() { this.buffer = ''; this.isProcessing = false; this.pendingConfirm = null; }
 }
 
-module.exports = WebSocketCLI;
+export default WebSocketCLI;
