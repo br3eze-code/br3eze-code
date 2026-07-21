@@ -75,9 +75,13 @@ class EmailChannel extends BaseChannel {
           channels: { email: emailAddress }
         }).catch(e => console.warn(`Email user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(emailAddress, { channel: 'email', channelId: emailAddress }).catch(() => { });
+        // Resolve (or auto-provision) the Firebase Auth user for this email,
+        // then build a scoped UserDoc so handlers can only touch their own doc.
+        const authUser = await db.resolveFirebaseUser(emailAddress, { channel: 'email', channelId: emailAddress }).catch(() => null);
+        const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
+        const ctx = { emailAddress, userDoc, uid: authUser?.uid || null, db };
 
-        await fn.call(this, emailAddress, msg, match);
+        await fn.call(this, emailAddress, msg, match, ctx);
       } catch (err) {
         console.error(`EmailChannel handler error: ${err.message}`, { emailAddress });
         await this.send(emailAddress, { subject: 'Error', text: `Error: ${err.message}` }).catch(() => { });

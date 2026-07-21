@@ -101,9 +101,13 @@ class DiscordChannel extends BaseChannel {
           channels: { discord: jid }
         }).catch(e => console.warn(`Discord user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(jid, { channel: 'discord', channelId: jid }).catch(() => { });
+        // Resolve (or auto-provision) the Firebase Auth user for this Discord id,
+        // then build a scoped UserDoc so handlers can only touch their own doc.
+        const authUser = await db.resolveFirebaseUser(jid, { channel: 'discord', channelId: jid }).catch(() => null);
+        const userDoc = authUser?.uid ? db.getUserDoc(authUser.uid) : null;
+        const ctx = { jid, userDoc, uid: authUser?.uid || null, db };
 
-        await fn.call(this, jid, msg, match);
+        await fn.call(this, jid, msg, match, ctx);
       } catch (err) {
         console.error(`DiscordChannel handler error: ${err.message}`, { jid });
         await this.send(jid, `❌ *Error:* ${err.message}`).catch(() => { });
