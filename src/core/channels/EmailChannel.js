@@ -69,13 +69,26 @@ class EmailChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
+        // 1. Initial sync/registration by platform ID
         await db.upsertUser(emailAddress, {
           username: emailAddress,
           platform: 'email',
           channels: { email: emailAddress }
         }).catch(e => console.warn(`Email user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(emailAddress, { channel: 'email', channelId: emailAddress }).catch(() => { });
+        // 2. Bridge to Firebase Auth if possible (Identity Bridging)
+        const authUser = await db.resolveFirebaseUser(emailAddress, { 
+          channel: 'email', 
+          channelId: emailAddress 
+        }).catch(() => null);
+
+        if (authUser?.uid) {
+          msg.userDoc = db.getUserDoc(authUser.uid);
+          msg._uid = authUser.uid;
+        } else {
+          msg.userDoc = db.getUserDoc(emailAddress);
+          msg._uid = emailAddress;
+        }
 
         await fn.call(this, emailAddress, msg, match);
       } catch (err) {

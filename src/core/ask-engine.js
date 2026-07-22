@@ -113,6 +113,17 @@ const FUNCTION_DECLARATIONS = [
             },
             required: ['action']
         }
+    },
+    {
+        name: 'manage_roaming',
+        description: 'Query roaming partner network information (SSID and password).',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: { type: 'string', enum: ['get_info'] }
+            },
+            required: ['action']
+        }
     }
 ];
 
@@ -133,7 +144,9 @@ const TOOL_MAP = {
     'balance': { name: 'user.balance', args: [] },
     'my credits': { name: 'user.balance', args: [] },
     'scan network': { name: 'discovery.scan', args: [] },
-    'show neighbors': { name: 'discovery.neighbors', args: [] }
+    'show neighbors': { name: 'discovery.neighbors', args: [] },
+    'roaming info': { name: 'roaming.info', args: [] },
+    'partner network': { name: 'roaming.info', args: [] }
 };
 
 // ── Voucher code generator (matches main.js voucherCode()) ───────────────────
@@ -174,7 +187,7 @@ class AskEngine {
 
     // ── Public: run() — returns { tier, type, result, [data], [turns], [sessionId] }
 
-    async run(input) {
+    async run(input, context = {}) {
         // Tier 1 — direct keyword → tool
         const tier1 = this._matchTool(input);
         if (tier1 && this.mikrotik) {
@@ -186,7 +199,7 @@ class AskEngine {
         }
 
         // Tier 2 — rule-based shortcuts
-        const rule = this._matchRule(input);
+        const rule = this._matchRule(input, context);
         if (rule) {
             try {
                 return { tier: 2, type: 'rule', result: await rule() };
@@ -207,7 +220,7 @@ class AskEngine {
         try {
             // Broadcast thinking state to WebSocket clients if gateway is available
             if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
-            const res = await this._runAI(input);
+            const res = await this._runAI(input, context);
             if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
             return res;
         } catch (e) {
@@ -219,7 +232,7 @@ class AskEngine {
 
     // ── Public: stream() — async generator of typed SSE events
 
-    async *stream(input) {
+    async *stream(input, context = {}) {
         yield { type: 'message_start', input, ts: Date.now() };
 
         const tier1 = this._matchTool(input);
@@ -236,7 +249,7 @@ class AskEngine {
             return;
         }
 
-        const rule = this._matchRule(input);
+        const rule = this._matchRule(input, context);
         if (rule) {
             yield { type: 'rule_match' };
             try {
@@ -259,7 +272,7 @@ class AskEngine {
         yield { type: 'ai_thinking' };
         if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
         try {
-            const res = await this._runAI(input);
+            const res = await this._runAI(input, context);
             if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
             yield { type: 'message_delta', text: res.result };
             if (res.data) yield { type: 'tool_trace', trace: res.data };
@@ -313,7 +326,7 @@ class AskEngine {
 
     // ── Tier-2: rule-based matching ───────────────────────────────────────────
 
-    _matchRule(input) {
+    _matchRule(input, context = {}) {
         const lower = input.trim().toLowerCase();
 
         if (lower.includes('voucher stats') || lower.includes('db stats')) {
@@ -375,7 +388,18 @@ class AskEngine {
                 const { DEFAULT_PLANS } = require('./database');
                 const dateUtils = require('../utils/date');
 
-                const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
+                const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1, price: 0 };
+                const price = planObj.price || 0;
+
+                const uId = context?.userId || context?._uid;
+                if (uId && price > 0) {
+                    const user = await this.database.getUser(uId);
+                    if (!user || (user.credits || 0) < price) {
+                        return `⚠️ Insufficient credits. Plan '${plan}' costs ${price} credits. Your balance is ${user ? (user.credits || 0) : 0}.`;
+                    }
+                    await this.database.updateUser(uId, { credits: (user.credits || 0) - price });
+                }
+
                 const expiresAt = planObj.durationValue && planObj.durationUnit ?
                     dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
@@ -389,7 +413,8 @@ class AskEngine {
                     deviceLimit: planObj.deviceLimit || 1,
                     expiresAt,
                     loginUrl,
-                    createdBy: 'ask-engine-rule'
+                    price,
+                    createdBy: uId || 'ask-engine-rule'
                 };
 
                 await this.database.createVoucher(code, vData);
@@ -429,7 +454,7 @@ class AskEngine {
 
     // ── Tier-3: Gemini ReAct loop ─────────────────────────────────────────────
 
-    async _runAI(input) {
+    async _runAI(input, context = {}) {
         const messages = [{ role: 'user', content: input, blocks: [{ type: 'text', text: input }] }];
         const toolTrace = [];
         let turns = 0;
@@ -470,7 +495,7 @@ class AskEngine {
                 let toolResult;
                 let isError = false;
                 try {
-                    toolResult = await this._dispatchFunctionCall(call);
+                    toolResult = await this._dispatchFunctionCall(call, context);
                 } catch (err) {
                     toolResult = { error: err.message };
                     isError = true;
@@ -491,8 +516,9 @@ class AskEngine {
     }
 
 
-    async _dispatchFunctionCall({ name, args }) {
+    async _dispatchFunctionCall({ name, args }, context = {}) {
         const { action, plan, target, amount, code, userId, username } = args || {};
+        const currentUid = context.userId || context._uid;
 
         // ── Hotspot user write actions (disable / enable / remove) ─────────────
         if (name === 'manage_hotspot_user' && this.mikrotik) {
@@ -521,8 +547,18 @@ class AskEngine {
         }
 
         if (name === 'manage_vouchers' && this.database) {
-            if (action === 'create') return this.database.createVoucher(voucherCode(), { value: amount || 0 });
-            if (action === 'redeem') return this.database.redeemVoucher(code, { userId });
+            if (action === 'create') {
+                const cost = amount || 0;
+                if (cost > 0 && currentUid) {
+                    const user = await this.database.getUser(currentUid);
+                    if (!user || (user.credits || 0) < cost) {
+                        return { error: `Insufficient credits. Need ${cost}, balance is ${user ? (user.credits || 0) : 0}.` };
+                    }
+                    await this.database.updateUser(currentUid, { credits: (user.credits || 0) - cost });
+                }
+                return this.database.createVoucher(voucherCode(), { value: cost, createdBy: currentUid || 'ask-engine' });
+            }
+            if (action === 'redeem') return this.database.redeemVoucher(code, { userId: userId || currentUid });
             if (action === 'stats') return this.database.getStats();
             if (action === 'list') return this.database.listVouchers({ limit: 5 });
         }
@@ -537,10 +573,11 @@ class AskEngine {
 
         if (name === 'manage_users' && this.database) {
             if (action === 'get_balance') {
-                const user = await this.database.getUser(target);
-                return user ? { userId: target, balance: user.credits || 0 } : { error: 'User not found' };
+                const uId = target || currentUid;
+                const user = await this.database.getUser(uId);
+                return user ? { userId: uId, balance: user.credits || 0 } : { error: 'User not found' };
             }
-            if (action === 'find_user') return this.database.getUser(target);
+            if (action === 'find_user') return this.database.getUser(target || currentUid);
             if (action === 'list_hotspot_profiles' && this.database) return this.database.getHotspotUsers();
             if (action === 'list_active' && this.mikrotik) return this.mikrotik.getActiveUsers();
         }
@@ -557,7 +594,15 @@ class AskEngine {
             if (action === 'audit_log' && this.financial) return this.financial.auditTrail(5);
             if (action === 'trends' && this.financial) return this.financial.getTrends();
             if (action === 'payment_link' && this.billing) return this.billing.createPaymentLink({ plan, amount });
-            if (action === 'transfer' && this.database) return this.database.p2pTransfer(args.from || 'system', target, args.amount);
+            if (action === 'transfer' && this.database) return this.database.p2pTransfer(args.from || currentUid || 'system', target, args.amount);
+        }
+
+        if (name === 'manage_roaming' && this.database) {
+            if (action === 'get_info') return this.database.getPartnerNetwork();
+        }
+
+        if (name === 'roaming.info' && this.database) {
+            return this.database.getPartnerNetwork();
         }
 
         return { error: 'Unknown function or missing dependency' };

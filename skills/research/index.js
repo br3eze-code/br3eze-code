@@ -102,7 +102,7 @@ class ResearchSkill extends BaseSkill {
     },
     required: ['ids', 'format']
   }
-}
+},
 'research.mendeley.sync': {
   risk: 'medium',
   description: 'Sync Mendeley library: docs, folders, annotations. Requires approval.',
@@ -183,7 +183,7 @@ class ResearchSkill extends BaseSkill {
     },
     required: ['ids', 'format']
   }
-}
+},
 'research.roam.sync': {
   risk: 'medium',
   description: 'Sync Roam Research graph via API. Requires approval.',
@@ -267,7 +267,7 @@ class ResearchSkill extends BaseSkill {
     },
     required: ['graph_path', 'page', 'content', 'reason']
   }
-}
+},
 'research.obsidian.sync': {
   risk: 'medium',
   description: 'Sync Obsidian vault: index.md files, build backlink graph. Requires approval.',
@@ -333,7 +333,7 @@ class ResearchSkill extends BaseSkill {
     },
     required: ['token', 'query']
   }
-}
+},
 'research.zotero.sync': {
   risk: 'medium',
   description: 'Sync Zotero library: import items, collections, PDFs. Requires approval.',
@@ -406,7 +406,7 @@ class ResearchSkill extends BaseSkill {
     },
     required: ['notion_token', 'database_id']
   }
-}
+},
       'research.search': {
         risk: 'low',
         description: 'Web search with academic/news focus',
@@ -505,7 +505,7 @@ class ResearchSkill extends BaseSkill {
     
     try {
       switch (toolName) {
-          case 'research.papers.sync':
+          case 'research.papers.sync': {
   this.logger.warn(`RESEARCH PAPERS SYNC ${args.library}`, { user: ctx.userId, reason: args.reason })
   // ReadCube Papers uses Firebase auth + private API
   const authRes = await fetch('https://api.readcube.com/auth/login', {
@@ -536,7 +536,8 @@ class ResearchSkill extends BaseSkill {
 
   return { library: args.library, articles: articles.length, annotations: articles.reduce((n, a) => n + (a.annotations?.length || 0), 0), cache: cachePath }
 
-case 'research.papers.search':
+}
+case 'research.papers.search': {
   this.logger.info(`RESEARCH PAPERS SEARCH ${args.field}: ${args.query}`, { user: ctx.userId })
   const cache = JSON.parse(await fs.readFile(path.join(this.outputDir, 'papers.json'), 'utf8'))
   const q = args.query.toLowerCase()
@@ -560,7 +561,8 @@ case 'research.papers.search':
     annotations: a.annotations?.length || 0
   })) }
 
-case 'research.papers.annotate':
+}
+case 'research.papers.annotate': {
   this.logger.warn(`RESEARCH PAPERS ANNOTATE ${args.paper_id}`, { user: ctx.userId, reason: args.reason })
   const authRes2 = await fetch('https://api.readcube.com/auth/login', {
     method: 'POST',
@@ -586,7 +588,8 @@ case 'research.papers.annotate':
   const out = await res.json()
   return { id: out.id, paper_id: args.paper_id, page: args.page, created: true }
 
-case 'research.citavi.import':
+}
+case 'research.citavi.import': {
   this.logger.warn(`RESEARCH CITAVI IMPORT ${args.path}`, { user: ctx.userId, reason: args.reason })
   const filePath = path.resolve(this.workspace, args.path)
   const ext = path.extname(filePath)
@@ -639,7 +642,8 @@ case 'research.citavi.import':
   await fs.writeFile(cachePath2, JSON.stringify({ refs, knowledge, quotes, imported_at: new Date().toISOString() }, null, 2))
   return { path: args.path, references: refs.length, knowledge_items: knowledge.length, quotations: quotes.length, cache: cachePath2 }
 
-case 'research.citavi.search':
+}
+case 'research.citavi.search': {
   this.logger.info(`RESEARCH CITAVI SEARCH ${args.type}: ${args.query}`, { user: ctx.userId })
   const cache2 = JSON.parse(await fs.readFile(path.join(this.outputDir, 'citavi.json'), 'utf8'))
   const q2 = args.query.toLowerCase()
@@ -661,7 +665,8 @@ case 'research.citavi.search':
 
   return { type: args.type, query: args.query, results: results2.slice(0, 50) }
 
-case 'research.citavi.export':
+}
+case 'research.citavi.export': {
   this.logger.info(`RESEARCH CITAVI EXPORT ${args.format}`, { user: ctx.userId })
   const cache3 = JSON.parse(await fs.readFile(path.join(this.outputDir, 'citavi.json'), 'utf8'))
   const refs2 = cache3.refs.filter(r => args.ids.includes(r.id))
@@ -684,7 +689,8 @@ case 'research.citavi.export':
   const outPath = path.join(this.outputDir, `citavi_export_${Date.now()}.${args.format === 'bibtex'? 'bib' : args.format === 'ris'? 'ris' : 'rtf'}`)
   await fs.writeFile(outPath, output)
   return { format: args.format, count: refs2.length, path: outPath }
-          case 'research.mendeley.sync':
+          }
+          case 'research.mendeley.sync': {
   this.logger.warn(`RESEARCH MENDELEY SYNC`, { user: ctx.userId, reason: args.reason })
   const headers = { 'Authorization': `Bearer ${args.token}`, 'Accept': 'application/vnd.mendeley-document.1+json' }
   const base = 'https://api.mendeley.com'
@@ -719,7 +725,8 @@ case 'research.citavi.export':
   await fs.writeFile(cachePath, JSON.stringify({ docs, synced_at: new Date().toISOString() }, null, 2))
   return { documents: docs.length, annotations: docs.reduce((n, d) => n + (d.annotations?.length || 0), 0), cache: cachePath }
 
-case 'research.mendeley.search':
+}
+case 'research.mendeley.search': {
   this.logger.info(`RESEARCH MENDELEY SEARCH ${args.type}: ${args.query}`, { user: ctx.userId })
   const cache = JSON.parse(await fs.readFile(path.join(this.outputDir, 'mendeley.json'), 'utf8'))
   const q = args.query.toLowerCase()
@@ -743,7 +750,8 @@ case 'research.mendeley.search':
     annotations: d.annotations?.length || 0
   })) }
 
-case 'research.mendeley.annotate':
+}
+case 'research.mendeley.annotate': {
   this.logger.warn(`RESEARCH MENDELEY ANNOTATE doc ${args.document_id}`, { user: ctx.userId, reason: args.reason })
   const headers2 = { 'Authorization': `Bearer ${args.token}`, 'Content-Type': 'application/vnd.mendeley-annotation.1+json' }
 
@@ -765,7 +773,8 @@ case 'research.mendeley.annotate':
   const out = await res.json()
   return { id: out.id, document_id: args.document_id, page: args.page, created: true }
 
-case 'research.endnote.import':
+}
+case 'research.endnote.import': {
   this.logger.warn(`RESEARCH ENDNOTE IMPORT ${args.path}`, { user: ctx.userId, reason: args.reason })
   const filePath = path.resolve(this.workspace, args.path)
   const ext = path.extname(filePath)
@@ -833,7 +842,8 @@ case 'research.endnote.import':
   await fs.writeFile(cachePath2, JSON.stringify({ refs, imported_at: new Date().toISOString() }, null, 2))
   return { path: args.path, references: refs.length, cache: cachePath2 }
 
-case 'research.endnote.search':
+}
+case 'research.endnote.search': {
   this.logger.info(`RESEARCH ENDNOTE SEARCH ${args.field}: ${args.query}`, { user: ctx.userId })
   const cache2 = JSON.parse(await fs.readFile(path.join(this.outputDir, 'endnote.json'), 'utf8'))
   const q2 = args.query.toLowerCase()
@@ -848,7 +858,8 @@ case 'research.endnote.search':
 
   return { field: args.field, query: args.query, results: results2 }
 
-case 'research.endnote.export':
+}
+case 'research.endnote.export': {
   this.logger.info(`RESEARCH ENDNOTE EXPORT ${args.format}`, { user: ctx.userId })
   const cache3 = JSON.parse(await fs.readFile(path.join(this.outputDir, 'endnote.json'), 'utf8'))
   const refs2 = cache3.refs.filter(r => args.ids.includes(r.id))
@@ -872,7 +883,8 @@ case 'research.endnote.export':
   const outPath = path.join(this.outputDir, `export_${Date.now()}.${args.format === 'bibtex'? 'bib' : args.format === 'ris'? 'ris' : 'xml'}`)
   await fs.writeFile(outPath, output)
   return { format: args.format, count: refs2.length, path: outPath }
-          case 'research.roam.sync':
+          }
+          case 'research.roam.sync': {
   this.logger.warn(`RESEARCH ROAM SYNC ${args.graph}`, { user: ctx.userId, reason: args.reason })
   const headers = { 'Authorization': `Bearer ${args.token}`, 'Content-Type': 'application/json' }
   const base = `https://api.roamresearch.com/api/graph/${args.graph}`
@@ -893,7 +905,8 @@ case 'research.endnote.export':
   await fs.writeFile(cachePath, JSON.stringify(data, null, 2))
   return { graph: args.graph, entities: data.length, cache: cachePath }
 
-case 'research.roam.search':
+}
+case 'research.roam.search': {
   this.logger.info(`RESEARCH ROAM SEARCH ${args.mode}: ${args.query}`, { user: ctx.userId })
   const headers2 = { 'Authorization': `Bearer ${args.token}`, 'Content-Type': 'application/json' }
   const base2 = `https://api.roamresearch.com/api/graph/${args.graph}`
@@ -911,7 +924,8 @@ case 'research.roam.search':
   const results = await res2.json()
   return { mode: args.mode, query: args.query, results: results.slice(0, 50) }
 
-case 'research.roam.write':
+}
+case 'research.roam.write': {
   this.logger.warn(`RESEARCH ROAM WRITE ${args.page}`, { user: ctx.userId, reason: args.reason })
   const headers3 = { 'Authorization': `Bearer ${args.token}`, 'Content-Type': 'application/json' }
   const base3 = `https://api.roamresearch.com/api/graph/${args.graph}`
@@ -930,7 +944,8 @@ case 'research.roam.write':
   const out = await res3.json()
   return { page: args.page, uid: out[0]?.uid, written: true }
 
-case 'research.logseq.sync':
+}
+case 'research.logseq.sync': {
   this.logger.warn(`RESEARCH LOGSEQ SYNC ${args.graph_path}`, { user: ctx.userId, reason: args.reason })
   const graph = path.resolve(args.graph_path)
   const idxPath = path.join(this.outputDir, 'logseq_index.json')
@@ -988,7 +1003,8 @@ case 'research.logseq.sync':
   await fs.writeFile(idxPath, JSON.stringify({ pages, blocks, graphLinks, props, synced_at: new Date().toISOString() }, null, 2))
   return { graph_path: args.graph_path, pages: pages.length, blocks: blocks.length, index: idxPath }
 
-case 'research.logseq.search':
+}
+case 'research.logseq.search': {
   this.logger.info(`RESEARCH LOGSEQ SEARCH ${args.mode}: ${args.query}`, { user: ctx.userId })
   const idx2 = JSON.parse(await fs.readFile(path.join(this.outputDir, 'logseq_index.json'), 'utf8'))
   const q3 = args.query.toLowerCase()
@@ -1007,7 +1023,8 @@ case 'research.logseq.search':
   }
   return { mode: args.mode, query: args.query, results: results2 }
 
-case 'research.logseq.write':
+}
+case 'research.logseq.write': {
   this.logger.warn(`RESEARCH LOGSEQ WRITE ${args.page}`, { user: ctx.userId, reason: args.reason })
   const graph2 = path.resolve(args.graph_path)
   const pagePath = path.join(graph2, 'pages', `${args.page}.md`)
@@ -1021,7 +1038,8 @@ case 'research.logseq.write':
 
   await fs.appendFile(pagePath, `\n${block}\n`)
   return { page: args.page, written: true }
-          case 'research.obsidian.sync':
+          }
+          case 'research.obsidian.sync': {
   this.logger.warn(`RESEARCH OBSIDIAN SYNC ${args.vault_path}`, { user: ctx.userId, reason: args.reason })
   const vault = path.resolve(args.vault_path)
   const indexPath = path.join(this.outputDir, 'obsidian_index.json')
@@ -1065,7 +1083,8 @@ case 'research.logseq.write':
   await fs.writeFile(indexPath, JSON.stringify({ notes, linkGraph, tagIndex, synced_at: new Date().toISOString() }, null, 2))
   return { vault_path: args.vault_path, notes: notes.length, tags: Object.keys(tagIndex).length, index: indexPath }
 
-case 'research.obsidian.search':
+}
+case 'research.obsidian.search': {
   this.logger.info(`RESEARCH OBSIDIAN SEARCH ${args.mode}: ${args.query}`, { user: ctx.userId })
   const idx = JSON.parse(await fs.readFile(path.join(this.outputDir, 'obsidian_index.json'), 'utf8'))
 
@@ -1088,7 +1107,8 @@ case 'research.obsidian.search':
   }
   return { mode: args.mode, query: args.query, results: results.slice(0, 20) }
 
-case 'research.obsidian.write':
+}
+case 'research.obsidian.write': {
   this.logger.warn(`RESEARCH OBSIDIAN WRITE ${args.path}`, { user: ctx.userId, reason: args.reason })
   const vault2 = path.resolve(args.vault_path)
   const notePath = path.join(vault2, args.path)
@@ -1103,7 +1123,8 @@ case 'research.obsidian.write':
   await fs.writeFile(notePath, content)
   return { path: args.path, written: true, size: content.length }
 
-case 'research.readwise.sync':
+}
+case 'research.readwise.sync': {
   this.logger.warn(`RESEARCH READWISE SYNC`, { user: ctx.userId, reason: args.reason })
   const headers = { 'Authorization': `Token ${args.token}` }
   const base = 'https://readwise.io/api/v2'
@@ -1129,7 +1150,8 @@ case 'research.readwise.sync':
   await fs.writeFile(cachePath, JSON.stringify(data, null, 2))
   return { books: books.length, highlights: highlights.length, cache: cachePath }
 
-case 'research.readwise.search':
+}
+case 'research.readwise.search': {
   this.logger.info(`RESEARCH READWISE SEARCH ${args.query}`, { user: ctx.userId })
   const cache = JSON.parse(await fs.readFile(path.join(this.outputDir, 'readwise.json'), 'utf8'))
   const q = args.query.toLowerCase()
@@ -1155,7 +1177,8 @@ case 'research.readwise.search':
    .slice(0, 50)
 
   return { query: args.query, book: args.book, results }
-          case 'research.zotero.sync':
+          }
+          case 'research.zotero.sync': {
   this.logger.warn(`RESEARCH ZOTERO SYNC ${args.collection || 'all'}`, { user: ctx.userId, reason: args.reason })
   const base = `https://api.zotero.org/users/${args.user_id}`
   const headers = { 'Zotero-API-Key': args.api_key, 'Zotero-API-Version': '3' }
@@ -1193,7 +1216,8 @@ case 'research.readwise.search':
   await fs.writeFile(path.join(zoteroCache, 'items.json'), JSON.stringify(items, null, 2))
   return { user_id: args.user_id, collection: args.collection, items: items.length, version: res.headers.get('Last-Modified-Version') }
 
-case 'research.zotero.search':
+}
+case 'research.zotero.search': {
   this.logger.info(`RESEARCH ZOTERO SEARCH ${args.query}`, { user: ctx.userId })
   const base2 = `https://api.zotero.org/users/${args.user_id}`
   const headers2 = { 'Zotero-API-Key': args.api_key, 'Zotero-API-Version': '3' }
@@ -1217,7 +1241,8 @@ case 'research.zotero.search':
     }))
   }
 
-case 'research.zotero.add':
+}
+case 'research.zotero.add': {
   this.logger.warn(`RESEARCH ZOTERO ADD ${args.url}`, { user: ctx.userId, reason: args.reason })
   const base3 = `https://api.zotero.org/users/${args.user_id}`
   const headers3 = { 'Zotero-API-Key': args.api_key, 'Zotero-API-Version': '3', 'Content-Type': 'application/json' }
@@ -1244,7 +1269,8 @@ case 'research.zotero.add':
 
   return { key: created.successful['0'].key, title: item.title, added: true }
 
-case 'research.notion.export':
+}
+case 'research.notion.export': {
   this.logger.warn(`RESEARCH NOTION EXPORT ${args.title}`, { user: ctx.userId, reason: args.reason })
   const { Client } = require('@notionhq/client')
   const notion = new Client({ auth: args.notion_token })
@@ -1266,7 +1292,8 @@ case 'research.notion.export':
 
   return { page_id: page.id, url: page.url, blocks: blocks.length }
 
-case 'research.notion.sync':
+}
+case 'research.notion.sync': {
   this.logger.info(`RESEARCH NOTION SYNC DB`, { user: ctx.userId })
   const { Client: Client2 } = require('@notionhq/client')
   const notion2 = new Client2({ auth: args.notion_token })
@@ -1283,7 +1310,8 @@ case 'research.notion.sync':
   const cachePath = path.join(this.outputDir, 'notion_cache.json')
   await fs.writeFile(cachePath, JSON.stringify(pages, null, 2))
   return { database_id: args.database_id, pages: pages.length, cache: cachePath }
-        case 'research.search':
+        }
+        case 'research.search': {
           this.logger.info(`RESEARCH SEARCH ${args.focus}: ${args.query}`, { user: ctx.userId })
           // Use browser.search tool if available, else fallback to DuckDuckGo
           const searchUrl = args.focus === 'academic'
@@ -1303,12 +1331,14 @@ case 'research.notion.sync':
 
           return { query: args.query, focus: args.focus, results }
 
-        case 'research.fetch':
+        }
+        case 'research.fetch': {
           this.logger.info(`RESEARCH FETCH ${args.url}`, { user: ctx.userId })
           const data = await this._fetchText(args.url)
           return {...data, text: data.text.slice(0, 10000) } // truncate for response
 
-        case 'research.pdf':
+        }
+        case 'research.pdf': {
           this.logger.info(`RESEARCH PDF ${args.path}`, { user: ctx.userId })
           const pdfPath = path.resolve(this.workspace, args.path)
           const buffer = await fs.readFile(pdfPath)
@@ -1326,7 +1356,8 @@ case 'research.notion.sync':
             references: refs
           }
 
-        case 'research.synthesize':
+        }
+        case 'research.synthesize': {
           this.logger.warn(`RESEARCH SYNTHESIZE ${args.topic}`, { user: ctx.userId, reason: args.reason })
 
           // 1. Fetch all sources
@@ -1369,7 +1400,8 @@ Structure: Executive Summary, Key Findings, Analysis, Conclusion, References.`
 
           return { topic: args.topic, sources: docs.length, format: args.format, output: outPath, preview: final.slice(0, 1000) }
 
-        case 'research.citations':
+        }
+        case 'research.citations': {
           this.logger.info(`RESEARCH CITATIONS ${args.style}`, { user: ctx.userId })
           const cites = []
 
@@ -1400,6 +1432,7 @@ Structure: Executive Summary, Key Findings, Analysis, Conclusion, References.`
 
           return { style: args.style, citations: cites }
 
+        }
         default:
           throw new Error(`Unknown tool ${toolName}`)
       }

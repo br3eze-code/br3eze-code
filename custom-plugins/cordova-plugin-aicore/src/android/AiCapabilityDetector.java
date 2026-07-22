@@ -1,6 +1,7 @@
 package zw.power.www;
 
 import android.content.*;
+import android.app.ActivityManager;
 import android.content.pm.PackageManager;
 import org.json.*;
 

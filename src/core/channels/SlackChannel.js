@@ -116,13 +116,26 @@ class SlackChannel extends BaseChannel {
         const { getDatabase } = require('../database');
         const db = await getDatabase();
 
+        // 1. Initial sync/registration by platform ID
         await db.upsertUser(jid, {
           username: msg.user || jid,
           platform: 'slack',
           channels: { slack: jid }
         }).catch(e => console.warn(`Slack user sync failed: ${e.message}`));
 
-        db.resolveFirebaseUser(jid, { channel: 'slack', channelId: jid }).catch(() => { });
+        // 2. Bridge to Firebase Auth if possible (Identity Bridging)
+        const authUser = await db.resolveFirebaseUser(jid, { 
+          channel: 'slack', 
+          channelId: jid 
+        }).catch(() => null);
+
+        if (authUser?.uid) {
+          msg.userDoc = db.getUserDoc(authUser.uid);
+          msg._uid = authUser.uid;
+        } else {
+          msg.userDoc = db.getUserDoc(jid);
+          msg._uid = jid;
+        }
 
         await fn.call(this, jid, msg, match);
       } catch (err) {

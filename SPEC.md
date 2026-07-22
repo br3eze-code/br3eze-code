@@ -477,9 +477,19 @@ Runs on a 6-hour schedule and on-demand. Detects sensitive action bursts and ins
   "createdBy":  "portal:telegram:123456789",
   "actor":      "123456789",
   "paymentId":  null,
-  "paymentStatus": null
+  "paymentStatus": null,
+  "uid":        "user_firebase_uid_here",
+  "checksum":   "sha256_hash_of_document"
 }
 ```
+
+### 7.1.1 User Identity (uid / userId)
+
+**Internal Name:** `uid` or `userId`.
+
+**Description:** A unique, immutable string used to identify the user across Firebase Auth and Firestore.
+
+**Function:** It acts as the "Primary Key" that links the user's login credentials to their specific metadata (like their MAC address, data limits, or balance).
 
 ### 7.2 Audit Entry
 

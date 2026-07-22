@@ -5,6 +5,7 @@
  */
 
 const { Logger } = require('../utils/logger');
+const { ToolNotFoundError, SkillDisabledError } = require('./tool-registry');
 
 class AgentRuntime {
   constructor(options) {
@@ -29,9 +30,14 @@ class AgentRuntime {
     // Load session history
     const history = await this.sessionManager.load(sessionId);
     
-    // Get capability manifest
+    // Get capability manifest (used for system prompt)
     const manifest = this.toolRegistry.getManifest();
-    
+
+    // Get LLM-formatted tools (OpenAI function-calling schema when available)
+    const llmTools = typeof this.toolRegistry.getToolsForLLM === 'function'
+      ? this.toolRegistry.getToolsForLLM()
+      : manifest.tools;
+
     // Build system prompt with capabilities
     const systemPrompt = this.buildSystemPrompt(manifest);
     
@@ -49,8 +55,8 @@ class AgentRuntime {
     while (iteration < this.maxIterations) {
       iteration++;
       
-      // Call provider
-      const response = await this.providerManager.execute(conversation, manifest.tools);
+      // Call provider with OpenAI-compatible tool schema
+      const response = await this.providerManager.execute(conversation, llmTools);
       
       // Check for tool calls
       if (response.toolCalls && response.toolCalls.length > 0) {
@@ -110,12 +116,10 @@ class AgentRuntime {
    */
   async executeTool(toolName, params, options = {}) {
     const tool = this.toolRegistry.getTool(toolName);
-    if (!tool) {
-      throw new Error(`Tool not found: ${toolName}`);
-    }
+    if (!tool) throw new ToolNotFoundError(toolName);
     
     // Validate parameters
-    const validation = this.validateParams(tool.schema.parameters, params);
+    const validation = this.validateParams(tool.schema?.parameters, params);
     if (!validation.valid) {
       throw new Error(`Parameter validation failed: ${validation.error}`);
     }
@@ -125,65 +129,55 @@ class AgentRuntime {
       throw new Error(`Tool execution blocked by safety envelope: ${toolName}`);
     }
     
-    // Execute
+    // Route through registry so metrics + disabled-skill guard apply
     this.logger.info(`Executing tool: ${toolName}`, params);
-    return await tool.handler(params, options);
+    return this.toolRegistry.execute(toolName, params, options);
   }
   
   /**
    * Execute multiple tool calls
    */
   async executeTools(toolCalls, frame) {
+    const ctx = {
+      sender:    frame.sender,
+      channel:   frame.channel,
+      sessionId: this.sessionManager.getSessionId(frame)
+    };
     const results = [];
     
     for (const call of toolCalls) {
+      // LLM names use __ as separator (OpenAI compat) — convert back to .
+      const toolName = (call.name || '').replace(/__/g, '.');
       try {
-        const tool = this.toolRegistry.getTool(call.name);
+        const tool = this.toolRegistry.getTool(toolName);
         if (!tool) {
-          results.push({
-            toolCallId: call.id,
-            result: { error: `Tool not found: ${call.name}` }
-          });
+          results.push({ toolCallId: call.id, result: { error: `Tool not found: ${toolName}` } });
           continue;
         }
         
         // Validate
-        const validation = this.validateParams(tool.schema.parameters, call.arguments);
+        const validation = this.validateParams(tool.schema?.parameters, call.arguments);
         if (!validation.valid) {
-          results.push({
-            toolCallId: call.id,
-            result: { error: validation.error }
-          });
+          results.push({ toolCallId: call.id, result: { error: validation.error } });
           continue;
         }
         
         // Safety check
-        if (!this.safetyEnvelope.checkToolExecution(call.name, call.arguments)) {
-          results.push({
-            toolCallId: call.id,
-            result: { error: 'Blocked by safety envelope' }
-          });
+        if (!this.safetyEnvelope.checkToolExecution(toolName, call.arguments)) {
+          results.push({ toolCallId: call.id, result: { error: 'Blocked by safety envelope' } });
           continue;
         }
         
-        // Execute with context
-        const result = await tool.handler(call.arguments, {
-          sender: frame.sender,
-          channel: frame.channel,
-          sessionId: this.sessionManager.getSessionId(frame)
-        });
+        // Route through registry — metrics + disabled-skill guard applied
+        const result = await this.toolRegistry.execute(toolName, call.arguments, ctx);
+        results.push({ toolCallId: call.id, result });
         
-        results.push({
-          toolCallId: call.id,
-          result
-        });
-        
-      } catch (error) {
-        this.logger.error(`Tool execution error (${call.name}):`, error);
-        results.push({
-          toolCallId: call.id,
-          result: { error: error.message }
-        });
+      } catch (err) {
+        this.logger.error(`Tool execution error (${toolName}):`, err.message);
+        const friendly = err instanceof SkillDisabledError
+          ? `Skill is currently disabled: ${err.skillName}`
+          : err.message;
+        results.push({ toolCallId: call.id, result: { error: friendly } });
       }
     }
     
@@ -194,13 +188,19 @@ class AgentRuntime {
    * Build system prompt with capability manifest
    */
   buildSystemPrompt(manifest) {
-    const toolDescriptions = manifest.tools.map(tool => {
-      const params = tool.parameters.map(p => 
-        `${p.name}${p.required ? '' : '?'}: ${p.type}`
-      ).join(', ');
-      return `- ${tool.name}(${params}): ${tool.description}`;
-    }).join('\\n');
-    
+    const toolDescriptions = (manifest?.tools || []).map(tool => {
+      // Parameters can be an array or JSON-schema object — handle both
+      const paramDefs = Array.isArray(tool.parameters)
+        ? tool.parameters
+        : Object.entries(tool.parameters?.properties || {}).map(([name, def]) => ({
+            name, type: def.type, required: (tool.parameters.required || []).includes(name)
+          }));
+      const params = paramDefs
+        .map(p => `${p.name}${p.required ? '' : '?'}: ${p.type || 'any'}`)
+        .join(', ');
+      return `- ${tool.name}(${params}): ${tool.description || ''}`;
+    }).join('\n');
+
     return `You are AgentOS, an AI assistant that helps manage systems through available tools.
 
 Available tools:
@@ -213,28 +213,40 @@ Be concise and helpful. If a tool execution fails, explain the error to the user
   /**
    * Validate parameters against schema
    */
-  validateParams(schema, params) {
-    for (const param of schema) {
+  validateParams(schema, params = {}) {
+    // Handle missing or empty schema gracefully
+    if (!schema) return { valid: true };
+
+    // Normalise: accept both array form and JSON-schema object form
+    let paramList = [];
+    if (Array.isArray(schema)) {
+      paramList = schema;
+    } else if (schema.properties) {
+      const required = schema.required || [];
+      paramList = Object.entries(schema.properties).map(([name, def]) => ({
+        name,
+        type:     def.type,
+        required: required.includes(name),
+      }));
+    } else {
+      return { valid: true }; // unknown schema shape — skip validation
+    }
+
+    for (const param of paramList) {
       if (param.required && !(param.name in params)) {
         return { valid: false, error: `Missing required parameter: ${param.name}` };
       }
-      
       if (param.name in params) {
-        const value = params[param.name];
+        const value        = params[param.name];
         const expectedType = param.type;
-        
-        if (expectedType === 'string' && typeof value !== 'string') {
+        if (expectedType === 'string'  && typeof value !== 'string')
           return { valid: false, error: `Parameter ${param.name} must be a string` };
-        }
-        if (expectedType === 'number' && typeof value !== 'number') {
+        if (expectedType === 'number'  && typeof value !== 'number')
           return { valid: false, error: `Parameter ${param.name} must be a number` };
-        }
-        if (expectedType === 'boolean' && typeof value !== 'boolean') {
+        if (expectedType === 'boolean' && typeof value !== 'boolean')
           return { valid: false, error: `Parameter ${param.name} must be a boolean` };
-        }
       }
     }
-    
     return { valid: true };
   }
 }

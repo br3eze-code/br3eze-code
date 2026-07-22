@@ -34,6 +34,11 @@ class AgentOSCoreDriver extends BaseDriver {
           }
         }
       },
+      'agentos.printer.list': {
+        risk: 'low',
+        description: 'List all available printer interfaces (COM ports, Windows Spoolers)',
+        parameters: { type: 'object', properties: {} }
+      },
       'agentos.channels.status': {
         risk: 'low',
         description: 'Get connection status and metadata for all messaging channels',
@@ -46,9 +51,23 @@ class AgentOSCoreDriver extends BaseDriver {
           type: 'object',
           properties: {
             profile: { type: 'string', description: 'The profile to use (e.g. 1Hour, 1Day)' },
-            print: { type: 'boolean', description: 'If true, sends to thermal printer', default: true }
+            print: { type: 'boolean', description: 'If true, sends to thermal printer', default: true },
+            interface: { type: 'string', description: 'The printer interface to use (e.g. serial:COM7, printer:POS-58C)' },
+            quantity: { type: 'integer', description: 'Number of vouchers to create in bulk', default: 1 }
           },
           required: ['profile']
+        }
+      },
+      'agentos.voucher.print': {
+        risk: 'low',
+        description: 'Print an existing voucher',
+        parameters: {
+          type: 'object',
+          properties: {
+            voucher: { type: 'object', description: 'Voucher data' },
+            interface: { type: 'string', description: 'Printer interface' }
+          },
+          required: ['voucher']
         }
       }
     };
@@ -59,10 +78,11 @@ class AgentOSCoreDriver extends BaseDriver {
     if (!agent) throw new Error('AgentOS instance not found in context');
 
     switch (toolName) {
-      case 'agentos.broadcast':
+      case 'agentos.broadcast': {
         const prefix = args.urgent ? '🚨 *URGENT BROADCAST* 🚨\n\n' : '📢 *AgentOS Broadcast*\n\n';
         await agent.sendToAll(prefix + args.message);
         return { success: true, message: 'Broadcast sent to all active channels' };
+      }
 
       case 'agentos.printer.test':
         const printer = require('../../core/printer');
@@ -79,34 +99,56 @@ class AgentOSCoreDriver extends BaseDriver {
           return { success: false, error: err.message };
         }
 
+      case 'agentos.printer.list':
+        const printerServiceList = require('../../core/printer');
+        try {
+          const interfaces = await printerServiceList.listAvailableInterfaces();
+          return { success: true, interfaces };
+        } catch (err) {
+          return { success: false, error: err.message };
+        }
+
       case 'agentos.voucher.create':
         const voucherManager = require('../../core/voucher');
         const printerService = require('../../core/printer');
 
         try {
-          // 1. Generate the voucher (handles DB and MikroTik sync)
-          const voucher = await voucherManager.createVoucher(args.profile);
+          const quantity = args.quantity || 1;
+          const vouchers = [];
+          const results = [];
 
-          let printStatus = 'skipped';
-          if (args.print !== false) {
-            const printResult = await printerService.printVoucher({
-              username: voucher.username,
-              password: voucher.password,
-              profile: voucher.profile,
-              loginUrl: voucher.loginUrl
-            });
-            printStatus = printResult.success ? 'printed' : `failed: ${printResult.error}`;
+          for (let i = 0; i < quantity; i++) {
+            // 1. Generate the voucher (handles DB and MikroTik sync)
+            const voucher = await voucherManager.createVoucher(args.profile);
+            vouchers.push(voucher);
+
+            let printStatus = 'skipped';
+            if (args.print !== false) {
+              const printResult = await printerService.printVoucher({
+                username: voucher.username,
+                password: voucher.password,
+                profile: voucher.profile,
+                loginUrl: voucher.loginUrl
+              }, args.interface || 'PRINTER_MAIN');
+              printStatus = printResult.success ? 'printed' : `failed: ${printResult.error}`;
+            }
+            results.push({ username: voucher.username, printStatus });
           }
 
           return {
             success: true,
-            message: `Voucher created for profile ${args.profile}. Print status: ${printStatus}`,
-            voucher: {
-              username: voucher.username,
-              password: voucher.password,
-              expires: voucher.expires
-            }
+            message: `Bulk creation finished: ${quantity} vouchers created.`,
+            results
           };
+        } catch (err) {
+          return { success: false, error: err.message };
+        }
+
+      case 'agentos.voucher.print':
+        const printService = require('../../core/printer');
+        try {
+          const result = await printService.printVoucher(args.voucher, args.interface || 'PRINTER_MAIN');
+          return result;
         } catch (err) {
           return { success: false, error: err.message };
         }

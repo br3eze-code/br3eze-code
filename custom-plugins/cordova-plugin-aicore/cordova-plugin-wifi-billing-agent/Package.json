@@ -1,0 +1,44 @@
+{
+  "name": "cordova-plugin-wifi-billing-agent",
+  "version": "4.0.0",
+  "description": "Complete WiFi billing system with multi-agent architecture, gossip protocols, and AI orchestration",
+  "cordova": {
+    "id": "cordova-plugin-wifi-billing-agent",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  },
+  "keywords": [
+    "cordova",
+    "wifi",
+    "billing",
+    "agent",
+    "gossip",
+    "mesh",
+    "ai",
+    "orchestration",
+    "powerconnect",
+    "ecosystem:cordova",
+    "cordova-android",
+    "cordova-ios"
+  ],
+  "author": "Power Connect Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/br3ezeafrica/cordova-plugin-wifi-billing-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/br3ezeafrica/cordova-plugin-wifi-billing-agent/issues"
+  },
+  "homepage": "https://github.com/br3ezeafrica/cordova-plugin-wifi-billing-agent#readme",
+  "engines": {
+    "cordovaDependencies": {
+      "4.0.0": {
+        "cordova-android": ">=10.0.0",
+        "cordova-ios": ">=6.0.0"
+      }
+    }
+  }
+}

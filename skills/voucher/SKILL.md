@@ -6,11 +6,12 @@
 
 ## Description
 
-Voucher lifecycle management for AgentOS community WiFi operators. Generates `STAR-XXXXXX` codes, provisions users on MikroTik RouterOS, creates QR codes, and runs the Auto-Renewal (recurring billing) engine that extends sessions when a user's wallet has sufficient balance.
+Voucher lifecycle management for AgentOS community WiFi operators. Generates `STAR-XXXX-XXXX` codes, provisions users on MikroTik RouterOS, creates QR codes, and runs the Auto-Renewal (recurring billing) engine that extends sessions when a user's wallet has sufficient balance.
 
 ## When to Use
 
 Invoke when the user asks about:
+
 - Creating a new WiFi voucher for a plan (1hour / 1Day / 7Day / 30Day)
 - Redeeming a voucher code for a user
 - Listing vouchers (active, used, recent)
@@ -22,10 +23,10 @@ Invoke when the user asks about:
 
 | Plan | Duration | Price (USD) |
 |---|---|---|
-| `1hour` | 1 hour | $1.00 |
-| `1Day` | 24 hours | $5.00 |
-| `7Day` | 7 days | $25.00 |
-| `30Day` | 30 days | $80.00 |
+| `1hour` | 1 hour | $0.50 |
+| `1Day` | 24 hours | $2.00 |
+| `7Day` | 7 days | $3.00 |
+| `30Day` | 30 days | $6.00 |
 
 **Code format:** `STAR-[A-F0-9]{6}` — generated via `crypto.randomBytes(3)`
 
@@ -73,6 +74,7 @@ expireOldVouchers() marks used
 
 The `guardHotspot` reaper in `AgentOSOrchestrator` runs every 1 hour.  
 If a user has `hasPlan` status and wallet balance ≥ plan price:
+
 1. Wallet is debited
 2. MikroTik session is extended — no service interruption
 

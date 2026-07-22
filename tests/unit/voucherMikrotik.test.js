@@ -29,48 +29,59 @@ function makeDb(vouchersMap = mkVouchers()) {
     };
 }
 
+// Mock database
+jest.mock('../../src/core/database', () => ({
+    getDatabase: jest.fn().mockResolvedValue({
+        getVoucher: jest.fn().mockResolvedValue(null),
+        createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
+    })
+}));
+
 // ── VoucherAgent.generate ─────────────────────────────────────────────────────
 
 describe('VoucherAgent.generate', () => {
     let voucher;
     beforeEach(() => { jest.resetModules(); voucher = require('../../src/core/voucher'); });
 
-    test('returns a STAR-prefixed string', () => {
-        const code = voucher.generate('1day');
+    test('returns a STAR-prefixed string', async () => {
+        const code = await voucher.generate('1day');
         expect(typeof code).toBe('string');
         expect(code).toMatch(/^STAR-/);
     });
 
-    test('generates a unique code each call', () => {
-        const codes = new Set(Array.from({ length: 50 }, () => voucher.generate('1day')));
+    test('generates a unique code each call', async () => {
+        const codes = new Set();
+        for (let i = 0; i < 50; i++) {
+            codes.add(await voucher.generate('1day'));
+        }
         expect(codes.size).toBe(50);
     });
 
-    test('throws for totally unknown plan', () => {
-        expect(() => voucher.generate('nonexistent-xyz')).toThrow(/Invalid plan/i);
+    test('throws for totally unknown plan', async () => {
+        await expect(voucher.generate('nonexistent-xyz')).rejects.toThrow(/Invalid plan/i);
     });
 
-    test('accepts all canonical profiles', () => {
+    test('accepts all canonical profiles', async () => {
         const canonical = ['default', '1hour', '1day', '1week', '30day', '7day'];
-        canonical.forEach(p => {
-            expect(() => voucher.generate(p)).not.toThrow();
-        });
+        for (const p of canonical) {
+            await expect(voucher.generate(p)).resolves.toBeDefined();
+        }
     });
 
-    test('code has exactly the right segment count (STAR-XXXX-XXXX → 3 parts)', () => {
+    test('code has exactly the right segment count (STAR-XXXX-XXXX → 3 parts)', async () => {
         // default format is prefix-XXXX-XXXX → "STAR-XXXX-XXXX" = 3 parts when split by -
-        const code = voucher.generate();
+        const code = await voucher.generate();
         const parts = code.split('-');
         // "STAR-ABCD-EFGH" splits to 3, but format may vary; just check prefix + at least 1 segment
         expect(parts[0]).toBe('STAR');
         expect(parts.length).toBeGreaterThanOrEqual(2);
     });
 
-    test('emits voucher.created with code and plan', () => {
+    test('emits voucher.created with code and plan', async () => {
         const eventBus = require('../../src/core/eventBus');
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
-        const code = voucher.generate('1day');
+        const code = await voucher.generate('1day');
         expect(handler).toHaveBeenCalledWith(expect.objectContaining({ code, plan: '1day' }));
         eventBus.removeAllListeners('voucher.created');
     });

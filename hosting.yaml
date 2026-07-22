@@ -1,0 +1,265 @@
+##############################################################################
+# AgentOS â€” Cloud Run Service Manifest
+# Project : br3eze-africa-312df
+# Region  : africa-south1 (Johannesburg)
+# Image   : ghcr.io/br3eze-code/br3eze-code:latest  (built by deploy.yml)
+# Deploy  : gcloud run services replace hosting.yaml --region=africa-south1
+# Docs    : https://cloud.google.com/run/docs/reference/rest/v2/projects.locations.services
+##############################################################################
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+
+metadata:
+  name: agentos
+  namespace: br3eze-africa-312df
+
+  labels:
+    app: agentos
+    env: production
+    managed-by: gcloud
+    version: "2026.05.20"
+
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: all          # allow public + internal traffic
+    run.googleapis.com/description: "AgentOS â€” AI-powered MikroTik network management & hotspot billing"
+
+spec:
+  template:
+    metadata:
+      annotations:
+        ##################################################################
+        # Scaling â€” keeps one instance warm, caps at 10 for cost control
+        ##################################################################
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+
+        ##################################################################
+        # Startup / execution
+        ##################################################################
+        run.googleapis.com/startup-cpu-boost: "true"   # burst CPU on cold start
+        run.googleapis.com/cpu-throttling: "false"      # keep CPU allocated (long-running daemon)
+        run.googleapis.com/execution-environment: gen2  # better networking & file-system
+
+        ##################################################################
+        # VPC â€” uncomment if you have a Serverless VPC connector
+        # run.googleapis.com/vpc-access-connector: projects/br3eze-africa-312df/locations/africa-south1/connectors/agentos-vpc
+        # run.googleapis.com/vpc-access-egress: private-ranges-only
+        ##################################################################
+
+    spec:
+      containerConcurrency: 80     # max concurrent requests per instance
+      timeoutSeconds: 300          # 5-min timeout for long MikroTik/AI ops
+
+      serviceAccountName: agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com
+
+      containers:
+        - name: agentos
+          image: ghcr.io/br3eze-code/br3eze-code:latest
+
+          ports:
+            - name: http1
+              containerPort: 3000
+
+          ##################################################################
+          # Resources
+          ##################################################################
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1Gi
+            requests:          # Cloud Run ignores requests, kept for parity
+              cpu: "1"
+              memory: 512Mi
+
+          ##################################################################
+          # Non-secret env vars
+          ##################################################################
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: GATEWAY_HOST
+              value: "0.0.0.0"
+            - name: GCP_PROJECT_ID
+              value: br3eze-africa-312df
+            - name: GCP_REGION
+              value: africa-south1
+            - name: FIREBASE_PROJECT_ID
+              value: br3eze-africa-312df
+            - name: SESSION_MODE
+              value: isolated
+            - name: LOG_LEVEL
+              value: info
+            - name: SKILLS_PATH
+              value: /app/src/skills
+            - name: MEMORY_BASE_PATH
+              value: /tmp/sessions        # ephemeral; use Firestore for persistence
+
+          ##################################################################
+          # Secrets â€” all sourced from Secret Manager
+          # gcloud secrets create <NAME> --replication-policy=automatic
+          ##################################################################
+          envFrom: []          # no bulk env injection; explicit mapping below
+
+          # ---- Core auth ------------------------------------------------
+          - name: GATEWAY_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: gateway-token          # Secret Manager secret name
+                key: latest
+
+          - name: AUDIT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: audit-secret
+                key: latest
+
+          # ---- AI providers ---------------------------------------------
+          - name: GEMINI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gemini-api-key
+                key: latest
+
+          - name: ANTHROPIC_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: anthropic-api-key
+                key: latest
+
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: openai-api-key
+                key: latest
+
+          # ---- MikroTik -------------------------------------------------
+          - name: DRIVER_MIKROTIK_API_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: mikrotik-api-token
+                key: latest
+
+          # ---- Payments -------------------------------------------------
+          - name: PAYNOW_INTEGRATION_ID
+            valueFrom:
+              secretKeyRef:
+                name: paynow-integration-id
+                key: latest
+
+          - name: PAYNOW_INTEGRATION_KEY
+            valueFrom:
+              secretKeyRef:
+                name: paynow-integration-key
+                key: latest
+
+          - name: MASTERCARD_CONSUMER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: mastercard-consumer-key
+                key: latest
+
+          - name: MASTERCARD_CONSUMER_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: mastercard-consumer-secret
+                key: latest
+
+          # ---- Messaging ------------------------------------------------
+          - name: TELEGRAM_BOT_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: telegram-bot-token
+                key: latest
+
+          # ---- AWS (optional) -------------------------------------------
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: aws-access-key-id
+                key: latest
+
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: aws-secret-access-key
+                key: latest
+
+          ##################################################################
+          # GCP Service Account key â€” mounted as a file for Firebase Admin
+          ##################################################################
+          volumeMounts:
+            - name: gcp-sa-key
+              mountPath: /var/secrets/gcp
+              readOnly: true
+
+          ##################################################################
+          # Health checks (Cloud Run gen2 supports startup + liveness)
+          ##################################################################
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10     # 50 s total startup window
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            periodSeconds: 30
+            failureThreshold: 3
+
+      ##################################################################
+      # Volumes
+      ##################################################################
+      volumes:
+        - name: gcp-sa-key
+          secret:
+            secretName: gcp-sa-key        # Secret Manager; stores SA JSON
+            items:
+              - key: latest
+                path: sa-key.json
+                mode: 0400
+
+  ##################################################################
+  # Traffic â€” 100% to latest revision on every deploy
+  ##################################################################
+  traffic:
+    - percent: 100
+      latestRevision: true
+
+##############################################################################
+# Quick-start commands
+##############################################################################
+# 1. Build & push image (done by deploy.yml on push to main)
+#    docker build -t ghcr.io/br3eze-code/br3eze-code:latest .
+#    docker push ghcr.io/br3eze-code/br3eze-code:latest
+#
+# 2. Create secrets (one-time per secret)
+#    echo -n "TOKEN_VALUE" | gcloud secrets create gateway-token \
+#      --data-file=- --replication-policy=automatic \
+#      --project=br3eze-africa-312df
+#
+# 3. Grant SA access to secrets
+#    gcloud secrets add-iam-policy-binding gateway-token \
+#      --member="serviceAccount:agentos-sa@br3eze-africa-312df.iam.gserviceaccount.com" \
+#      --role="roles/secretmanager.secretAccessor" \
+#      --project=br3eze-africa-312df
+#
+# 4. Deploy
+#    gcloud run services replace hosting.yaml \
+#      --region=africa-south1 \
+#      --project=br3eze-africa-312df
+#
+# 5. Allow unauthenticated (hotspot portal & webhook)
+#    gcloud run services add-iam-policy-binding agentos \
+#      --region=africa-south1 \
+#      --member="allUsers" \
+#      --role="roles/run.invoker" \
+#      --project=br3eze-africa-312df
+##############################################################################

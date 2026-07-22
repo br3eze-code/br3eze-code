@@ -156,13 +156,22 @@ class AgentOSBot {
         try {
             const mikrotik = getMikroTikClient();
             const db = await getDatabase();
-            const [dbStats, routerStats] = await Promise.all([
+            const [dbStats, routerStats, partnerNet] = await Promise.all([
                 db.getStats(),
-                mikrotik.executeTool('system.stats')
+                mikrotik.executeTool('system.stats'),
+                db.getPartnerNetwork()
             ]);
             const cpuLoad = routerStats ? parseInt(routerStats['cpu-load'], 10) : 0;
             const cpuEmoji = cpuLoad > 80 ? '🔴' : cpuLoad > 50 ? '🟡' : '🟢';
             const taskSum = getTaskRegistry().summary();
+
+            let roamingText = '';
+            if (partnerNet) {
+                roamingText = `\n\n🌍 *Partner Network (Roaming):*\n` +
+                             `SSID: \`${partnerNet.ssid}\`\n` +
+                             `Pass: \`${partnerNet.password}\`\n` +
+                             `_Connect to this network if you are away from home._`;
+            }
 
             const text =
                 `📊 *AgentOS Dashboard*\n\n` +
@@ -171,7 +180,8 @@ class AgentOSBot {
                 `🧠 Memory: ${this.formatBytes(routerStats?.['free-memory'] ?? 0)}\n` +
                 `⏱ Uptime: ${routerStats?.uptime ?? 'N/A'}\n\n` +
                 `*Vouchers:*\n🎫 ${dbStats.total} total | ✅ ${dbStats.used} used | ⏳ ${dbStats.active} active\n\n` +
-                `*Tasks:*\n🏃 ${taskSum.running} running | ✅ ${taskSum.completed} done | ❌ ${taskSum.failed} failed`;
+                `*Tasks:*\n🏃 ${taskSum.running} running | ✅ ${taskSum.completed} done | ❌ ${taskSum.failed} failed` +
+                roamingText;
 
             await this.bot.sendMessage(msg.chat.id, text, {
                 parse_mode: 'Markdown',
@@ -820,10 +830,11 @@ class AgentOSBot {
                 let warnings = [];
 
                 if (user.uid) {
-                    const { admin } = require('./firebase');
-                    if (admin && admin.auth) {
+                    const { getAuth } = require('./firebase');
+                    const firebaseAuth = getAuth();
+                    if (firebaseAuth) {
                         try {
-                            const authRec = await admin.auth().getUser(user.uid);
+                            const authRec = await firebaseAuth.getUser(user.uid);
                             
                             // Cross-check email if both exist
                             if (user.email && authRec.email && user.email.toLowerCase() !== authRec.email.toLowerCase()) {

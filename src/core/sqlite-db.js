@@ -56,7 +56,8 @@ class SQLiteDB {
                 expiresAt TEXT,
                 createdBy TEXT,
                 redemption TEXT,
-                createdAt TEXT
+                createdAt TEXT,
+                checksum TEXT
             );
 
             CREATE TABLE IF NOT EXISTS users (
@@ -75,7 +76,8 @@ class SQLiteDB {
                 pendingNotification TEXT,
                 channels TEXT,
                 createdAt TEXT,
-                lastSeen TEXT
+                lastSeen TEXT,
+                checksum TEXT
             );
 
             CREATE TABLE IF NOT EXISTS wallets (
@@ -110,7 +112,8 @@ class SQLiteDB {
                 status TEXT,
                 description TEXT,
                 timestamp TEXT,
-                createdAt TEXT
+                createdAt TEXT,
+                checksum TEXT
             );
 
             CREATE TABLE IF NOT EXISTS audit_log (

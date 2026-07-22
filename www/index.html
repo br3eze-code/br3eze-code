@@ -1,1372 +1,669 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self' 'unsafe-inline' https:; connect-src 'self' ws: wss: https: http://localhost:* ws://localhost:*; img-src 'self' data: https:;">
-  <title>AgentOS WiFi Manager</title>
-  <link rel="stylesheet" href="css/styles.css">
-</head>
+    <meta charset="utf-8">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover, user-scalable=no">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="Power Connect — br3eze.africa Wi-Fi hotspot subscription management">
+    <meta name="theme-color" content="#08080c">
 
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline';
+                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
+                 font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
+                 img-src 'self' data: blob: https://www.gstatic.com https://firebase.google.com https://lh3.googleusercontent.com;
+                 script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
+                 connect-src 'self'
+                     https://*.firebaseio.com https://*.googleapis.com
+                     https://*.firebase.google.com https://*.firebaseapp.com
+                     https://generativelanguage.googleapis.com
+                     https://www.gstatic.com
+                     https://br3eze.africa https://*.br3eze.africa
+                     ws://127.0.0.1:* ws://localhost:* wss://127.0.0.1:* wss://localhost:*
+                     wss://*.firebaseio.com wss://*.googleapis.com
+                     ws: wss: http: https:;
+                 frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;">
+
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+          crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <!-- App Stylesheet (canonical from br3eze-code) -->
+    <link rel="stylesheet" href="css/index.css">
+
+    <title>Power Connect — br3eze.africa</title>
+    <link rel="icon" href="images/logo/logo.png" onerror="this.remove()">
+</head>
 <body>
-  <div id="app">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <span class="logo">🤖</span>
-        <h1>AgentOS</h1>
-      </div>
-      <div class="header-right">
-        <button id="connectionStatus" class="status-indicator offline">
-          <span class="dot"></span>
-          <span class="status-text">Offline</span>
-        </button>
-      </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         LOADING OVERLAY
+    ═══════════════════════════════════════════════════════ -->
+    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
+        <div class="spinner"></div>
+        <div id="loadingText" style="margin-top:15px;font-size:.9rem;opacity:.8">Loading...</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         HEADER
+    ═══════════════════════════════════════════════════════ -->
+    <header class="main-header hidden" id="mainHeader">
+        <div class="header-left">
+            <img src="images/logo/logo.png" alt="br3eze" class="header-logo" onerror="this.style.display='none'">
+            <span class="logo">POWER CONNECT</span>
+        </div>
+        <div class="header-right">
+            <span id="backendStatusBadge" class="backend-status-badge status-offline" title="Gateway: Offline"></span>
+            <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
+        </div>
+
+        <div class="user-dropdown" id="userDropdown">
+            <div class="dropdown-header">
+                <strong id="dropdownFullname"></strong>
+                <p id="dropdownEmail"></p>
+                <small style="opacity:.5;font-size:.7rem">br3eze.africa</small>
+            </div>
+            <div class="dropdown-menu">
+                <ul>
+                    <li onclick="showSection('settings'); toggleDropdown('userDropdown');">
+                        <i class="fas fa-user"></i> Profile
+                    </li>
+                    <li onclick="Auth.logout(); toggleDropdown('userDropdown');">
+                        <i class="fas fa-sign-out-alt"></i> Sign Out
+                    </li>
+                </ul>
+            </div>
+        </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="app-content">
-      <!-- Dashboard Tab -->
-      <section id="tab-dashboard" class="tab-content active">
-        <div class="dashboard-grid">
-          <div class="card router-status-card" onclick="App.navigateTo('router')">
-            <div class="card-icon">🖥️</div>
-            <div class="card-content">
-              <h3>Router Status</h3>
-              <p id="router-status-text">Loading...</p>
+    <!-- ═══════════════════════════════════════════════════════
+         AUTH SCREEN
+    ═══════════════════════════════════════════════════════ -->
+    <div id="authScreen">
+        <div class="auth-container">
+
+            <!-- Login Card -->
+            <div class="card auth-card" id="loginForm">
+                <div class="auth-header">
+                    <img src="images/logo/logo.png" alt="Power Connect" class="auth-logo"
+                         onerror="this.style.display='none'">
+                    <h2>Welcome Back!</h2>
+                    <p>Login to access your hotspot</p>
+                    <small style="opacity:.5;font-size:.75rem">br3eze.africa</small>
+                </div>
+                <form id="loginFormElement" autocomplete="on">
+                    <div class="form-group">
+                        <label>Username or Email</label>
+                        <input type="text" id="loginIdentifier" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                <div class="auth-toggle">
+                    Don't have an account? <a onclick="toggleAuthForm()">Create Account</a>
+                </div>
             </div>
-          </div>
 
-          <div class="card voucher-stats-card" onclick="App.navigateTo('vouchers')">
-            <div class="card-icon">🎟️</div>
-            <div class="card-content">
-              <h3>Vouchers</h3>
-              <p id="voucher-stats-text">Loading...</p>
+            <!-- Signup Card -->
+            <div class="card auth-card hidden" id="signupForm">
+                <div class="auth-header">
+                    <h2>Create Account</h2>
+                    <p>Join Power Connect — br3eze.africa</p>
+                </div>
+                <form id="signupFormElement" autocomplete="on">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" id="signupFullname" autocomplete="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="signupUsername" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail" autocomplete="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" autocomplete="new-password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="signupConfirmPassword" autocomplete="new-password" required minlength="6">
+                    </div>
+                    <button type="submit" id="signupBtn" class="btn btn-primary btn-block">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+                <div class="auth-toggle">
+                    Already have an account? <a onclick="toggleAuthForm()">Login</a>
+                </div>
             </div>
-          </div>
 
-          <div class="card active-users-card" onclick="App.navigateTo('users')">
-            <div class="card-icon">👥</div>
-            <div class="card-content">
-              <h3>Active Users</h3>
-              <p id="active-users-text">Loading...</p>
-            </div>
-          </div>
-
-          <div class="card system-health-card" onclick="App.showSystemHealth()">
-            <div class="card-icon">💚</div>
-            <div class="card-content">
-              <h3>System Health</h3>
-              <p id="system-health-text">Loading...</p>
-            </div>
-          </div>
         </div>
-
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-          <h3>Quick Actions</h3>
-          <div class="action-buttons">
-            <button class="action-btn primary" onclick="App.createVoucherPrompt()">
-              <span>➕</span> Create Voucher
-            </button>
-            <button class="action-btn secondary" onclick="App.showRouterCommands()">
-              <span>🖥️</span> Router Commands
-            </button>
-            <button class="action-btn secondary" onclick="App.showNetworkTools()">
-              <span>🌐</span> Network Tools
-            </button>
-          </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div class="recent-activity">
-          <h3>Recent Activity</h3>
-          <ul id="activity-list" class="activity-list">
-            <li class="activity-item empty">No recent activity</li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- Vouchers Tab -->
-      <section id="tab-vouchers" class="tab-content">
-        <div class="voucher-controls">
-          <div class="search-box">
-            <input type="text" id="voucher-search" placeholder="Search vouchers..."
-              oninput="App.filterVouchers(this.value)">
-          </div>
-          <div class="filter-buttons">
-            <button class="filter-btn active" data-filter="all" onclick="App.filterVouchersByStatus('all')">All</button>
-            <button class="filter-btn" data-filter="active"
-              onclick="App.filterVouchersByStatus('active')">Active</button>
-            <button class="filter-btn" data-filter="used" onclick="App.filterVouchersByStatus('used')">Used</button>
-            <button class="filter-btn" data-filter="expired"
-              onclick="App.filterVouchersByStatus('expired')">Expired</button>
-          </div>
-        </div>
-
-        <div class="voucher-list" id="voucher-list">
-          <div class="loading-spinner">Loading vouchers...</div>
-        </div>
-
-        <div class="create-voucher-fab" onclick="App.createVoucherPrompt()">
-          <span>➕</span>
-        </div>
-      </section>
-
-      <!-- Users Tab -->
-      <section id="tab-users" class="tab-content">
-        <div class="users-header">
-          <h3>Hotspot Users</h3>
-          <button class="refresh-btn" onclick="App.refreshUsers()">
-            <span>🔄</span> Refresh
-          </button>
-        </div>
-
-        <div class="users-sections">
-          <!-- Active Users -->
-          <div class="user-section">
-            <h4>🟢 Active Sessions</h4>
-            <div id="active-users-list" class="user-list">
-              <div class="loading-spinner">Loading...</div>
-            </div>
-          </div>
-
-          <!-- All Users -->
-          <div class="user-section">
-            <h4>📋 All Users</h4>
-            <div id="all-users-list" class="user-list">
-              <div class="loading-spinner">Loading...</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Omni-Agent Tab -->
-      <section id="tab-omni" class="tab-content">
-        <div class="omni-header">
-          <h3>🤖 Omni-Agent Control Center</h3>
-          <p class="subtitle">Distributed Agent Runtime</p>
-        </div>
-
-        <!-- Node Status -->
-        <div class="omni-section">
-          <h4>🔗 Connected Nodes</h4>
-          <div id="node-list" class="node-list">
-            <div class="empty-state"><span>🌐</span>
-              <p>No nodes connected</p>
-            </div>
-          </div>
-          <div class="node-actions">
-            <button class="btn secondary" onclick="App.scanForNodes()">
-              <span>🔍</span> Scan Network
-            </button>
-            <button class="btn secondary" onclick="App.discoverServices()">
-              <span>📡</span> Discover Services
-            </button>
-          </div>
-        </div>
-
-        <!-- WhatsApp Gateway -->
-        <div class="omni-section">
-          <h4>💬 WhatsApp Gateway</h4>
-          <div id="whatsapp-status" class="whatsapp-status-card">
-            <div class="status-info">
-              <span class="status-dot disconnected"></span>
-              <span class="status-label">Disconnected</span>
-            </div>
-            <button class="btn secondary btn-small" id="whatsapp-login-btn" onclick="App.initiateWhatsAppLogin()">
-              <span>📱</span> Login with WhatsApp
-            </button>
-          </div>
-        </div>
-
-        <!-- OAuth Connections -->
-
-        <!-- Command Execution -->
-        <div class="omni-section">
-          <h4>⚡ Execute Command</h4>
-          <div class="command-form">
-            <div class="form-group">
-              <label>Target</label>
-              <select id="command-target">
-                <option value="all">All Nodes</option>
-                <option value="master">Master Only</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Command</label>
-              <input type="text" id="command-input" placeholder="e.g., shell.run git status">
-            </div>
-            <button class="btn primary" onclick="App.executeNodeCommand()">
-              <span>▶️</span> Execute
-            </button>
-          </div>
-          <div id="command-output" class="command-output">
-            <pre>Command output will appear here...</pre>
-          </div>
-        </div>
-
-        <!-- AskEngine -->
-        <div class="omni-section">
-          <h4>🧠 ReAct AskEngine</h4>
-          <div class="ask-form">
-            <textarea id="ask-input"
-              placeholder="Enter your goal... (e.g., 'Deploy latest MikroTik patch to all nodes and update GitHub repo')"
-              rows="3"></textarea>
-            <button class="btn primary" onclick="App.askEngine()">
-              <span>💡</span> Execute Plan
-            </button>
-          </div>
-          <div id="ask-output" class="ask-output">
-            <pre>Plan output will appear here...</pre>
-          </div>
-        </div>
-
-        <!-- NanoAI Status -->
-        <div class="omni-section">
-          <h4>⚛️ NanoAI Engine</h4>
-          <div id="nanoai-status" class="nanoai-status">
-            <div class="status-grid">
-              <div class="status-item">
-                <span class="label">Version</span>
-                <span class="value" id="nanoai-version">27.5.0</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Quantum Dims</span>
-                <span class="value" id="nanoai-quantum">4096</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Neural Layers</span>
-                <span class="value" id="nanoai-layers">4</span>
-              </div>
-              <div class="status-item">
-                <span class="label">Hot-Swap</span>
-                <span class="value" id="nanoai-hotswap">Enabled</span>
-              </div>
-            </div>
-            <button class="btn secondary" onclick="App.runNanoAIDiagnostics()">
-              <span>🔬</span> Run Diagnostics
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tools Tab -->
-      <section id="tab-tools" class="tab-content">
-        <div class="tools-grid">
-          <div class="tool-category">
-            <h3>🔧 Router Tools</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('router.status')">
-                <span>📊</span> Status
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.users')">
-                <span>👥</span> Users
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.active')">
-                <span>🟢</span> Active
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('router.backup')">
-                <span>💾</span> Backup
-              </button>
-              <button class="tool-btn danger" onclick="App.executeTool('router.reboot')">
-                <span>🔄</span> Reboot
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>🌐 Network Tools</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.pingPrompt()">
-                <span>🏓</span> Ping
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('network.interfaces')">
-                <span>🔌</span> Interfaces
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>📈 System</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('system.stats')">
-                <span>📊</span> Stats
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('system.health')">
-                <span>💚</span> Health
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('audit.list')">
-                <span>📜</span> Audit Log
-              </button>
-            </div>
-          </div>
-
-          <div class="tool-category">
-            <h3>🎟️ Vouchers</h3>
-            <div class="tool-buttons">
-              <button class="tool-btn" onclick="App.executeTool('voucher.stats')">
-                <span>📊</span> Stats
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('voucher.plans')">
-                <span>📋</span> Plans
-              </button>
-              <button class="tool-btn" onclick="App.executeTool('voucher.list')">
-                <span>📋</span> List
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tool Output -->
-        <div class="tool-output">
-          <h3>Tool Output</h3>
-          <pre id="tool-output-content">Execute a tool to see output here...</pre>
-        </div>
-      </section>
-
-      <!-- Settings Tab -->
-      <section id="tab-settings" class="tab-content">
-        <div class="settings-section">
-          <h3>🔗 Server Connection</h3>
-          <div class="setting-item">
-            <label>Server URL</label>
-            <input type="text" id="server-url" placeholder="https://your-server.com" value="http://localhost:3000">
-          </div>
-          <div class="setting-item">
-            <label>API Token</label>
-            <input type="password" id="api-token" placeholder="Enter your API token">
-          </div>
-          <button class="btn primary" onclick="App.saveSettings()">Save Settings</button>
-        </div>
-
-        <div class="settings-section">
-          <h3>🔐 Security</h3>
-          <div class="setting-item">
-            <label>Quantum Ledger Status</label>
-            <p id="ledger-status" class="status-text">Checking...</p>
-          </div>
-          <button class="btn secondary" onclick="App.verifyLedger()">Verify Ledger Integrity</button>
-        </div>
-
-        <div class="settings-section">
-          <h3>📊 About</h3>
-          <p><strong>AgentOS WiFi Manager</strong></p>
-          <p>Version: <span id="app-version">2026.5.0</span></p>
-          <p>Architecture: AgentOS Monolith Pattern</p>
-        </div>
-      </section>
-    </main>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-btn active" data-tab="dashboard" onclick="App.switchTab('dashboard')">
-        <span class="nav-icon">📊</span>
-        <span class="nav-label">Dashboard</span>
-      </button>
-      <button class="nav-btn" data-tab="vouchers" onclick="App.switchTab('vouchers')">
-        <span class="nav-icon">🎟️</span>
-        <span class="nav-label">Vouchers</span>
-      </button>
-      <button class="nav-btn" data-tab="users" onclick="App.switchTab('users')">
-        <span class="nav-icon">👥</span>
-        <span class="nav-label">Users</span>
-      </button>
-      <button class="nav-btn" data-tab="omni" onclick="App.switchTab('omni')">
-        <span class="nav-icon">🤖</span>
-        <span class="nav-label">Omni-Agent</span>
-      </button>
-      <button class="nav-btn" data-tab="settings" onclick="App.switchTab('settings')">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-label">Settings</span>
-      </button>
-    </nav>
-  </div>
-
-  <!-- Modals -->
-  <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="modal-title">Modal Title</h3>
-        <button class="modal-close" onclick="App.closeModal()">×</button>
-      </div>
-      <div class="modal-body" id="modal-body">
-        <!-- Dynamic content -->
-      </div>
     </div>
-  </div>
-
-  <!-- Toast Notifications -->
-  <div id="toast-container" class="toast-container"></div>
-
-  <!-- Scripts -->
-  <script src="js/config.js"></script>
-  <script src="js/security.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/ledger.js"></script>
-  <script src="js/nanoai.js"></script>
-  <script src="js/oauth-vault.js"></script>
-  <script src="js/slave-node.js"></script>
-  <script src="js/react-engine.js"></script>
-  <script src="js/websocket.js"></script>
-  <script src="js/tools.js"></script>
-  <script src="js/client.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/app.js"></script>
-
-  <script>
-    /**
-     * Iframe 元素高亮注入脚本
-     * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
-     *
-     * 使用方法：
-     * 1. 将此脚本添加到目标网站的 HTML 中
-     * 2. 或通过浏览器扩展、用户脚本等方式注入
-     */
-
-    (function () {
-      "use strict";
-
-      // 检查是否在 iframe 中
-      if (window.self === window.top) {
-        return; // 不在 iframe 中，不执行
-      }
-
-      // 检查是否已经初始化过
-      if (window.__iframeHighlightInitialized) {
-        return;
-      }
-      window.__iframeHighlightInitialized = true;
-      console.log("Iframe 高亮脚本已加载");
-
-      // 创建高亮覆盖层
-      var overlay = document.createElement("div");
-      overlay.id = "iframe-highlight-overlay";
-      overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
-
-      // 创建悬停高亮框（虚线边框）
-      var highlightBox = document.createElement("div");
-      highlightBox.id = "iframe-highlight-box";
-      highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
-
-      // 创建选中节点的常驻高亮框（实线边框）
-      var selectedBox = document.createElement("div");
-      selectedBox.id = "iframe-selected-box";
-      selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
-
-      // 创建悬停标签显示
-      var tagLabel = document.createElement("div");
-      tagLabel.id = "iframe-tag-label";
-      tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
-
-      // 创建选中节点标签
-      var selectedLabel = document.createElement("div");
-      selectedLabel.id = "iframe-selected-label";
-      selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
-      overlay.appendChild(highlightBox);
-      overlay.appendChild(selectedBox);
-      overlay.appendChild(tagLabel);
-      overlay.appendChild(selectedLabel);
-      document.body.appendChild(overlay);
-
-      // 存储当前选中的元素
-      var selectedElement = null;
-      var highlightEnabled = false;
-
-      // 更新选中元素的高亮显示
-      function updateSelectedHighlight(element) {
-        console.log("updateSelectedHighlight called with:", element);
-        if (!element) {
-          selectedBox.style.display = "none";
-          selectedLabel.style.display = "none";
-          selectedElement = null;
-          console.log("Cleared selected highlight");
-          return;
-        }
-        selectedElement = element;
-        var rect = element.getBoundingClientRect();
-        console.log("Selected element rect:", rect);
-
-        // 更新选中高亮框位置
-        selectedBox.style.display = "block";
-        selectedBox.style.left = "".concat(rect.left - 2, "px");
-        selectedBox.style.top = "".concat(rect.top - 2, "px");
-        selectedBox.style.width = "".concat(rect.width + 4, "px");
-        selectedBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新选中标签位置和内容
-        selectedLabel.style.display = "block";
-        selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 28;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 5) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
-        if (labelLeft + labelWidth > window.innerWidth - 10) {
-          labelLeft = window.innerWidth - labelWidth - 10;
-        }
-        selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
-        selectedLabel.style.top = "".concat(labelTop, "px");
-        console.log("Selected highlight positioned at:", {
-          left: selectedBox.style.left,
-          top: selectedBox.style.top,
-          width: selectedBox.style.width,
-          height: selectedBox.style.height
-        });
-      }
-      function getElementSelector(element) {
-        if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
-        var segments = [];
-        var current = element;
-        while (current !== document.documentElement) {
-          var selector = '';
-          // 优先检查唯一ID
-          if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
-            segments.unshift("#".concat(current.id));
-            break; // ID唯一，无需继续向上
-          }
-
-          // 生成类名选择器（取第一个有效类名）
-          var classes = Array.from(current.classList).filter(function (c) {
-            return !c.startsWith('js-');
-          });
-          var className = classes.length > 0 ? ".".concat(classes[0]) : '';
-
-          // 生成位置索引（nth-child）
-          var tag = current.tagName.toLowerCase();
-          if (!className) {
-            var siblings = Array.from(current.parentNode.children);
-            var index = siblings.findIndex(function (el) {
-              return el === current;
-            }) + 1;
-            selector = "".concat(tag, ":nth-child(").concat(index, ")");
-          } else {
-            selector = className;
-          }
-          segments.unshift(selector);
-          current = current.parentElement;
-        }
-
-        // 处理根元素
-        if (current === document.documentElement) {
-          segments.unshift('html');
-        }
-        return segments.join(' > ');
-      }
-
-      // 获取元素文本内容
-      function getElementText(element) {
-        var _element$textContent;
-        if (element.tagName === "INPUT") {
-          return element.value || element.placeholder || "";
-        }
-        if (element.tagName === "TEXTAREA") {
-          return element.value || element.placeholder || "";
-        }
-        var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
-        return text.length > 50 ? text.substring(0, 50) + "..." : text;
-      }
-
-      // 获取元素属性信息
-      function getElementAttributes(element) {
-        var attrs = {};
-        for (var i = 0; i < element.attributes.length; i++) {
-          var attr = element.attributes[i];
-          attrs[attr.name] = attr.value;
-        }
-        return attrs;
-      }
-
-      // 鼠标悬停事件处理
-      function handleMouseOver(e) {
-        if (!highlightEnabled) return;
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免高亮 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 如果是已选中的元素，不显示悬停高亮
-        if (target === selectedElement) {
-          highlightBox.style.display = "none";
-          tagLabel.style.display = "none";
-          return;
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-
-        // 更新悬停高亮框位置
-        highlightBox.style.display = "block";
-        highlightBox.style.left = "".concat(rect.left - 2, "px");
-        highlightBox.style.top = "".concat(rect.top - 2, "px");
-        highlightBox.style.width = "".concat(rect.width + 4, "px");
-        highlightBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新标签位置和内容
-        tagLabel.style.display = "block";
-        tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 22;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 0) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
-          labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
-        }
-        tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
-        tagLabel.style.top = "".concat(labelTop, "px");
-
-        // 发送消息到父窗口
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 鼠标离开事件处理
-      function handleMouseOut(e) {
-        if (!highlightEnabled) return;
-        var relatedTarget = e.relatedTarget;
-
-        // 如果鼠标移动到高亮相关元素上，不隐藏高亮
-        if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
-          return;
-        }
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: null,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 点击事件处理
-      function handleClick(e) {
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免处理 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 检查是否是交互元素，这些元素需要保留默认行为
-        var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
-
-        // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
-        if (highlightEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-        console.log("Element clicked:", {
-          tagName: target.tagName,
-          selector: selector,
-          rect: rect
-        });
-
-        // 立即更新选中高亮
-        updateSelectedHighlight(target);
-
-        // 隐藏悬停高亮，因为现在是选中状态
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-click",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 监听来自父窗口的消息
-      function handleParentMessage(event) {
-        console.log("Received message from parent:", event.data);
-        if (event.data.type === "iframe-highlight-toggle") {
-          var enabled = event.data.enabled;
-          console.log("Highlight toggle:", enabled);
-          if (enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "enable-iframe-highlight") {
-          console.log("Enable iframe highlight");
-          enableHighlight();
-        } else if (event.data.type === "disable-iframe-highlight") {
-          console.log("Disable iframe highlight");
-          disableHighlight();
-        } else if (event.data.type === "toggle-iframe-highlight") {
-          var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
-          console.log("Toggle iframe highlight to:", _enabled);
-          if (_enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "update-selected-element") {
-          var selector = event.data.selector;
-          console.log("Update selected element with selector:", selector);
-          if (selector) {
-            try {
-              var element = document.querySelector(selector);
-              console.log("Found element by selector:", element);
-              updateSelectedHighlight(element);
-            } catch (error) {
-              console.warn("Failed to select element:", error);
-              updateSelectedHighlight(null);
-            }
-          } else {
-            updateSelectedHighlight(null);
-          }
-        } else if (event.data.type === "clear-selected-element") {
-          console.log("Clear selected element");
-          updateSelectedHighlight(null);
-        }
-      }
-
-      // 启用高亮功能
-      function enableHighlight() {
-        console.log("Enabling highlight");
-        document.addEventListener("mouseover", handleMouseOver, true);
-        document.addEventListener("mouseout", handleMouseOut, true);
-        document.addEventListener("click", handleClick, true);
-        highlightEnabled = true;
-        overlay.style.display = "block";
-      }
-
-      // 禁用高亮功能
-      function disableHighlight() {
-        console.log("Disabling highlight");
-        highlightEnabled = false;
-        // 保持事件监听器，但通过 highlightEnabled 变量控制行为
-        // 这样可以保留选中状态的显示
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
-      }
-
-      // 完全禁用高亮功能（移除所有监听器）
-      function fullyDisableHighlight() {
-        console.log("Fully disabling highlight");
-        highlightEnabled = false;
-        document.removeEventListener("mouseover", handleMouseOver, true);
-        document.removeEventListener("mouseout", handleMouseOut, true);
-        document.removeEventListener("click", handleClick, true);
-        overlay.style.display = "none";
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        selectedBox.style.display = "none";
-        selectedLabel.style.display = "none";
-      }
-
-      // 添加事件监听
-      enableHighlight();
-      window.addEventListener("message", handleParentMessage);
-
-      // 暴露全局函数供外部调用
-      window.__iframeHighlightControl = {
-        enable: enableHighlight,
-        disable: disableHighlight,
-        fullyDisable: fullyDisableHighlight,
-        isEnabled: function isEnabled() {
-          return highlightEnabled;
-        },
-        getSelectedElement: function getSelectedElement() {
-          return selectedElement;
-        },
-        updateSelected: updateSelectedHighlight,
-        // 通过消息发送开关控制
-        sendToggleMessage: function sendToggleMessage(enabled) {
-          window.parent.postMessage({
-            type: 'iframe-highlight-status',
-            enabled: enabled || highlightEnabled,
-            source: 'iframe-highlight-injector'
-          }, '*');
-        }
-      };
-
-      // 通知父窗口脚本已加载
-      try {
-        window.parent.postMessage({
-          type: "iframe-highlight-ready",
-          data: {
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            timestamp: Date.now()
-          },
-          source: "iframe-highlight-injector"
-        }, "*");
-      } catch (error) {
-        console.warn("无法发送就绪消息到父窗口:", error);
-      }
-
-      // 清理函数
-      window.__iframeHighlightCleanup = function () {
-        fullyDisableHighlight();
-        window.removeEventListener("message", handleParentMessage);
-        if (overlay.parentElement) {
-          overlay.parentElement.removeChild(overlay);
-        }
-        delete window.__iframeHighlightInitialized;
-        delete window.__iframeHighlightCleanup;
-      };
-    })();
-
-  </script>
-
-  <script>
-    /**
-     * Iframe 元素高亮注入脚本
-     * 需要在目标网站中引入此脚本来支持跨域 iframe 高亮功能
-     *
-     * 使用方法：
-     * 1. 将此脚本添加到目标网站的 HTML 中
-     * 2. 或通过浏览器扩展、用户脚本等方式注入
-     */
-
-    (function () {
-      "use strict";
-
-      // 检查是否在 iframe 中
-      if (window.self === window.top) {
-        return; // 不在 iframe 中，不执行
-      }
-
-      // 检查是否已经初始化过
-      if (window.__iframeHighlightInitialized) {
-        return;
-      }
-      window.__iframeHighlightInitialized = true;
-      console.log("Iframe 高亮脚本已加载");
-
-      // 创建高亮覆盖层
-      var overlay = document.createElement("div");
-      overlay.id = "iframe-highlight-overlay";
-      overlay.style.cssText = "\n    position: fixed;\n    top: 0;\n    left: 0;\n    width: 100vw;\n    height: 100vh;\n    pointer-events: none;\n    z-index: 999999;\n    overflow: hidden;\n  ";
-
-      // 创建悬停高亮框（虚线边框）
-      var highlightBox = document.createElement("div");
-      highlightBox.id = "iframe-highlight-box";
-      highlightBox.style.cssText = "\n    position: absolute;\n    border: 2px dashed #007AFF;\n    background: rgba(0, 122, 255, 0.08);\n    pointer-events: none;\n    display: none;\n    transition: all 0.1s ease;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);\n    border-radius: 2px;\n  ";
-
-      // 创建选中节点的常驻高亮框（实线边框）
-      var selectedBox = document.createElement("div");
-      selectedBox.id = "iframe-selected-box";
-      selectedBox.style.cssText = "\n    position: absolute;\n    border: 2px solid #007AFF;\n    pointer-events: none;\n    display: none;\n    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 8px rgba(255, 107, 53, 0.4);\n    border-radius: 2px;\n    z-index: 1000000;\n  ";
-
-      // 创建悬停标签显示
-      var tagLabel = document.createElement("div");
-      tagLabel.id = "iframe-tag-label";
-      tagLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 2px 6px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 2px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000001;\n    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);\n    font-weight: 500;\n  ";
-
-      // 创建选中节点标签
-      var selectedLabel = document.createElement("div");
-      selectedLabel.id = "iframe-selected-label";
-      selectedLabel.style.cssText = "\n    position: absolute;\n    background: #007AFF;\n    color: white;\n    padding: 3px 8px;\n    font-size: 11px;\n    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;\n    border-radius: 3px;\n    pointer-events: none;\n    display: none;\n    white-space: nowrap;\n    z-index: 1000002;\n    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);\n    font-weight: 600;\n  ";
-      overlay.appendChild(highlightBox);
-      overlay.appendChild(selectedBox);
-      overlay.appendChild(tagLabel);
-      overlay.appendChild(selectedLabel);
-      document.body.appendChild(overlay);
-
-      // 存储当前选中的元素
-      var selectedElement = null;
-      var highlightEnabled = false;
-
-      // 更新选中元素的高亮显示
-      function updateSelectedHighlight(element) {
-        console.log("updateSelectedHighlight called with:", element);
-        if (!element) {
-          selectedBox.style.display = "none";
-          selectedLabel.style.display = "none";
-          selectedElement = null;
-          console.log("Cleared selected highlight");
-          return;
-        }
-        selectedElement = element;
-        var rect = element.getBoundingClientRect();
-        console.log("Selected element rect:", rect);
-
-        // 更新选中高亮框位置
-        selectedBox.style.display = "block";
-        selectedBox.style.left = "".concat(rect.left - 2, "px");
-        selectedBox.style.top = "".concat(rect.top - 2, "px");
-        selectedBox.style.width = "".concat(rect.width + 4, "px");
-        selectedBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新选中标签位置和内容
-        selectedLabel.style.display = "block";
-        selectedLabel.textContent = "\u2713 <".concat(element.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 28;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 5) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        var labelWidth = selectedLabel.offsetWidth || 100; // 预估宽度
-        if (labelLeft + labelWidth > window.innerWidth - 10) {
-          labelLeft = window.innerWidth - labelWidth - 10;
-        }
-        selectedLabel.style.left = "".concat(Math.max(5, labelLeft), "px");
-        selectedLabel.style.top = "".concat(labelTop, "px");
-        console.log("Selected highlight positioned at:", {
-          left: selectedBox.style.left,
-          top: selectedBox.style.top,
-          width: selectedBox.style.width,
-          height: selectedBox.style.height
-        });
-      }
-      function getElementSelector(element) {
-        if (!(element instanceof Element)) throw new Error('Argument must be a DOM element');
-        var segments = [];
-        var current = element;
-        while (current !== document.documentElement) {
-          var selector = '';
-          // 优先检查唯一ID
-          if (current.id && document.querySelectorAll("#".concat(current.id)).length === 1) {
-            segments.unshift("#".concat(current.id));
-            break; // ID唯一，无需继续向上
-          }
-
-          // 生成类名选择器（取第一个有效类名）
-          var classes = Array.from(current.classList).filter(function (c) {
-            return !c.startsWith('js-');
-          });
-          var className = classes.length > 0 ? ".".concat(classes[0]) : '';
-
-          // 生成位置索引（nth-child）
-          var tag = current.tagName.toLowerCase();
-          if (!className) {
-            var siblings = Array.from(current.parentNode.children);
-            var index = siblings.findIndex(function (el) {
-              return el === current;
-            }) + 1;
-            selector = "".concat(tag, ":nth-child(").concat(index, ")");
-          } else {
-            selector = className;
-          }
-          segments.unshift(selector);
-          current = current.parentElement;
-        }
-
-        // 处理根元素
-        if (current === document.documentElement) {
-          segments.unshift('html');
-        }
-        return segments.join(' > ');
-      }
-
-      // 获取元素文本内容
-      function getElementText(element) {
-        var _element$textContent;
-        if (element.tagName === "INPUT") {
-          return element.value || element.placeholder || "";
-        }
-        if (element.tagName === "TEXTAREA") {
-          return element.value || element.placeholder || "";
-        }
-        var text = ((_element$textContent = element.textContent) === null || _element$textContent === void 0 ? void 0 : _element$textContent.trim()) || "";
-        return text.length > 50 ? text.substring(0, 50) + "..." : text;
-      }
-
-      // 获取元素属性信息
-      function getElementAttributes(element) {
-        var attrs = {};
-        for (var i = 0; i < element.attributes.length; i++) {
-          var attr = element.attributes[i];
-          attrs[attr.name] = attr.value;
-        }
-        return attrs;
-      }
-
-      // 鼠标悬停事件处理
-      function handleMouseOver(e) {
-        if (!highlightEnabled) return;
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免高亮 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 如果是已选中的元素，不显示悬停高亮
-        if (target === selectedElement) {
-          highlightBox.style.display = "none";
-          tagLabel.style.display = "none";
-          return;
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-
-        // 更新悬停高亮框位置
-        highlightBox.style.display = "block";
-        highlightBox.style.left = "".concat(rect.left - 2, "px");
-        highlightBox.style.top = "".concat(rect.top - 2, "px");
-        highlightBox.style.width = "".concat(rect.width + 4, "px");
-        highlightBox.style.height = "".concat(rect.height + 4, "px");
-
-        // 更新标签位置和内容
-        tagLabel.style.display = "block";
-        tagLabel.textContent = "<".concat(target.tagName.toLowerCase(), ">");
-
-        // 计算标签位置，确保不超出视窗
-        var labelTop = rect.top - 22;
-        var labelLeft = rect.left;
-
-        // 如果标签会超出顶部，显示在元素下方
-        if (labelTop < 0) {
-          labelTop = rect.bottom + 5;
-        }
-
-        // 如果标签会超出右侧，向左调整
-        if (labelLeft + tagLabel.offsetWidth > window.innerWidth) {
-          labelLeft = window.innerWidth - tagLabel.offsetWidth - 5;
-        }
-        tagLabel.style.left = "".concat(Math.max(0, labelLeft), "px");
-        tagLabel.style.top = "".concat(labelTop, "px");
-
-        // 发送消息到父窗口
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 鼠标离开事件处理
-      function handleMouseOut(e) {
-        if (!highlightEnabled) return;
-        var relatedTarget = e.relatedTarget;
-
-        // 如果鼠标移动到高亮相关元素上，不隐藏高亮
-        if (relatedTarget && (relatedTarget === highlightBox || relatedTarget === tagLabel || relatedTarget === overlay || relatedTarget === selectedBox || relatedTarget === selectedLabel)) {
-          return;
-        }
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-hover",
-            data: null,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 点击事件处理
-      function handleClick(e) {
-        var target = e.target;
-        if (!target || target === overlay || target === highlightBox || target === tagLabel || target === selectedBox || target === selectedLabel) {
-          return;
-        }
-
-        // 避免处理 html 和 body 元素
-        if (target === document.documentElement || target === document.body) {
-          return;
-        }
-
-        // 检查是否是交互元素，这些元素需要保留默认行为
-        var isInteractiveElement = ['input', 'textarea', 'select', 'button', 'a'].includes(target.tagName.toLowerCase());
-
-        // 如果高亮功能启用，对于非交互元素阻止默认行为和事件传播
-        if (highlightEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        var rect = target.getBoundingClientRect();
-        var selector = getElementSelector(target);
-        var text = getElementText(target);
-        var attributes = getElementAttributes(target);
-        console.log("Element clicked:", {
-          tagName: target.tagName,
-          selector: selector,
-          rect: rect
-        });
-
-        // 立即更新选中高亮
-        updateSelectedHighlight(target);
-
-        // 隐藏悬停高亮，因为现在是选中状态
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        var elementInfo = {
-          tagName: target.tagName.toLowerCase(),
-          rect: {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-            x: rect.x,
-            y: rect.y
-          },
-          selector: selector,
-          text: text,
-          attributes: attributes,
-          url: window.location.href,
-          path: window.location.pathname,
-          timestamp: Date.now()
-        };
-        try {
-          window.parent.postMessage({
-            type: "iframe-element-click",
-            data: elementInfo,
-            source: "iframe-highlight-injector"
-          }, "*");
-        } catch (error) {
-          console.warn("无法发送消息到父窗口:", error);
-        }
-      }
-
-      // 监听来自父窗口的消息
-      function handleParentMessage(event) {
-        console.log("Received message from parent:", event.data);
-        if (event.data.type === "iframe-highlight-toggle") {
-          var enabled = event.data.enabled;
-          console.log("Highlight toggle:", enabled);
-          if (enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "enable-iframe-highlight") {
-          console.log("Enable iframe highlight");
-          enableHighlight();
-        } else if (event.data.type === "disable-iframe-highlight") {
-          console.log("Disable iframe highlight");
-          disableHighlight();
-        } else if (event.data.type === "toggle-iframe-highlight") {
-          var _enabled = event.data.enabled !== undefined ? event.data.enabled : !highlightEnabled;
-          console.log("Toggle iframe highlight to:", _enabled);
-          if (_enabled) {
-            enableHighlight();
-          } else {
-            disableHighlight();
-          }
-        } else if (event.data.type === "update-selected-element") {
-          var selector = event.data.selector;
-          console.log("Update selected element with selector:", selector);
-          if (selector) {
-            try {
-              var element = document.querySelector(selector);
-              console.log("Found element by selector:", element);
-              updateSelectedHighlight(element);
-            } catch (error) {
-              console.warn("Failed to select element:", error);
-              updateSelectedHighlight(null);
-            }
-          } else {
-            updateSelectedHighlight(null);
-          }
-        } else if (event.data.type === "clear-selected-element") {
-          console.log("Clear selected element");
-          updateSelectedHighlight(null);
-        }
-      }
-
-      // 启用高亮功能
-      function enableHighlight() {
-        console.log("Enabling highlight");
-        document.addEventListener("mouseover", handleMouseOver, true);
-        document.addEventListener("mouseout", handleMouseOut, true);
-        document.addEventListener("click", handleClick, true);
-        highlightEnabled = true;
-        overlay.style.display = "block";
-      }
-
-      // 禁用高亮功能
-      function disableHighlight() {
-        console.log("Disabling highlight");
-        highlightEnabled = false;
-        // 保持事件监听器，但通过 highlightEnabled 变量控制行为
-        // 这样可以保留选中状态的显示
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        // 不隐藏 selectedBox 和 selectedLabel，保留选中状态
-      }
-
-      // 完全禁用高亮功能（移除所有监听器）
-      function fullyDisableHighlight() {
-        console.log("Fully disabling highlight");
-        highlightEnabled = false;
-        document.removeEventListener("mouseover", handleMouseOver, true);
-        document.removeEventListener("mouseout", handleMouseOut, true);
-        document.removeEventListener("click", handleClick, true);
-        overlay.style.display = "none";
-        highlightBox.style.display = "none";
-        tagLabel.style.display = "none";
-        selectedBox.style.display = "none";
-        selectedLabel.style.display = "none";
-      }
-
-      // 添加事件监听
-      enableHighlight();
-      window.addEventListener("message", handleParentMessage);
-
-      // 暴露全局函数供外部调用
-      window.__iframeHighlightControl = {
-        enable: enableHighlight,
-        disable: disableHighlight,
-        fullyDisable: fullyDisableHighlight,
-        isEnabled: function isEnabled() {
-          return highlightEnabled;
-        },
-        getSelectedElement: function getSelectedElement() {
-          return selectedElement;
-        },
-        updateSelected: updateSelectedHighlight,
-        // 通过消息发送开关控制
-        sendToggleMessage: function sendToggleMessage(enabled) {
-          window.parent.postMessage({
-            type: 'iframe-highlight-status',
-            enabled: enabled || highlightEnabled,
-            source: 'iframe-highlight-injector'
-          }, '*');
-        }
-      };
-
-      // 通知父窗口脚本已加载
-      try {
-        window.parent.postMessage({
-          type: "iframe-highlight-ready",
-          data: {
-            url: window.location.href,
-            userAgent: navigator.userAgent,
-            timestamp: Date.now()
-          },
-          source: "iframe-highlight-injector"
-        }, "*");
-      } catch (error) {
-        console.warn("无法发送就绪消息到父窗口:", error);
-      }
-
-      // 清理函数
-      window.__iframeHighlightCleanup = function () {
-        fullyDisableHighlight();
-        window.removeEventListener("message", handleParentMessage);
-        if (overlay.parentElement) {
-          overlay.parentElement.removeChild(overlay);
-        }
-        delete window.__iframeHighlightInitialized;
-        delete window.__iframeHighlightCleanup;
-      };
-    })();
-
-  </script>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MAIN APP
+    ═══════════════════════════════════════════════════════ -->
+    <div class="dashboard-container" id="mainApp" style="display:none;">
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebarNav">
+            <ul>
+                <li onclick="showSection('home')" class="active" data-section="home">
+                    <i class="fas fa-home"></i>
+                    <span class="nav-text">Home</span>
+                </li>
+                <li onclick="showSection('subscriptions')" id="sidebarPlansLink" data-section="subscriptions">
+                    <i class="fas fa-wifi"></i>
+                    <span class="nav-text">Plans</span>
+                </li>
+                <li onclick="showSection('messages')" data-section="messages">
+                    <i class="fas fa-comment-alt"></i>
+                    <span class="nav-text">Support</span>
+                </li>
+                <li onclick="showSection('settings')" data-section="settings">
+                    <i class="fas fa-cog"></i>
+                    <span class="nav-text">Settings</span>
+                </li>
+                <!-- Admin Only -->
+                <li onclick="showSection('admin-tools')" id="adminToolsLink" class="hidden" data-section="admin-tools">
+                    <i class="fas fa-tools"></i>
+                    <span class="nav-text">Admin</span>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content-panel">
+
+            <!-- HOME -->
+            <section id="home-section" class="dashboard-section">
+                <h1>Dashboard</h1>
+                <p class="account-info text-medium">
+                    Welcome, <span id="navUsername">User</span>
+                </p>
+
+                <!-- Active Plan Card -->
+                <div class="card active-plan-card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <span class="text-medium"><i class="fas fa-wifi"></i> Connection Status</span>
+                        <span id="dashUptime" style="font-weight:600;">Checking...</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="planProgressBar" style="width:0%"></div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-top:6px;color:var(--color-text-medium);">
+                        <span>Start: <span id="planStartLabel">--</span></span>
+                        <span>End: <span id="planEndLabel">--</span></span>
+                    </div>
+                </div>
+
+                <!-- Stat Tiles -->
+                <div class="grid grid-2">
+                    <div class="card stat-card">
+                        <h3><i class="fas fa-coins"></i> Credits</h3>
+                        <h2 id="dashCredits">0.00</h2>
+                    </div>
+                    <div class="card stat-card">
+                        <h3><i class="fas fa-layer-group"></i> Active Plans</h3>
+                        <h2 id="dashPlans">0</h2>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <h2>Quick Actions</h2>
+                <div class="grid grid-4">
+                    <button class="btn" id="btnBuyPlan" onclick="showSection('subscriptions')">
+                        <i class="fas fa-cart-plus"></i> Buy Plan
+                    </button>
+                    <button class="btn" id="btnRedeem" onclick="openRedeemVoucher()">
+                        <i class="fas fa-gift"></i> Redeem
+                    </button>
+                    <button class="btn" id="btnAIHelp" onclick="openChatBotModal()">
+                        <i class="fas fa-robot"></i> AI Help
+                    </button>
+                    <button class="btn btn-danger" id="btnLogout" onclick="Auth.logout()">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+
+                <!-- Mesh Status (shown when GossipService is active) -->
+                <div class="card" id="meshStatusCard" style="display:none;margin-top:16px;">
+                    <h3><i class="fas fa-network-wired"></i> Mesh Network</h3>
+                    <p class="text-medium" id="meshPeerCount">Scanning for peers...</p>
+                </div>
+            </section>
+
+            <!-- PLANS -->
+            <section id="subscriptions-section" class="dashboard-section hidden">
+                <h1>Available Plans</h1>
+                <p class="text-medium" style="margin-bottom:16px;">Powered by br3eze.africa</p>
+                <div class="grid grid-3" id="plansList">
+                    <div class="card" style="opacity:.5;text-align:center;padding:40px;">
+                        <i class="fas fa-spinner fa-spin"></i> Loading plans...
+                    </div>
+                </div>
+            </section>
+
+            <!-- MESSAGES / SUPPORT -->
+            <section id="messages-section" class="dashboard-section hidden">
+                <div class="messages-header-area">
+                    <h1>Conversations</h1>
+                    <button class="btn btn-sm btn-ghost" id="btnNewChat" onclick="handleNewChatClick()">
+                        <i class="fas fa-plus"></i> New Chat
+                    </button>
+                </div>
+                <div class="chat-hub-list" id="chatListContainer"></div>
+
+                <h2 style="margin-top:24px;">Support Tickets</h2>
+                <button class="btn btn-sm" id="btnNewTicket" onclick="openSubmitTicketModal()">
+                    <i class="fas fa-plus"></i> New Ticket
+                </button>
+                <div id="ticketListContainer" class="chat-hub-list" style="margin-top:10px;"></div>
+            </section>
+
+            <!-- SETTINGS -->
+            <section id="settings-section" class="dashboard-section hidden">
+                <h1>Settings</h1>
+                <div class="card">
+                    <h3>Profile</h3>
+                    <form id="updateProfileForm">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="settingsFullname">
+                        </div>
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" id="settingsUsername" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="settingsPhoneNumber">
+                        </div>
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="settingsAddress">
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btnUpdateProfile">
+                            <i class="fas fa-save"></i> Save Profile
+                        </button>
+                    </form>
+                </div>
+                <div class="card" style="margin-top:16px;">
+                    <h3>About</h3>
+                    <p class="text-medium">Power Connect v1.0</p>
+                    <p class="text-medium">br3eze.africa</p>
+                    <p class="text-medium" style="font-size:.8rem;margin-top:8px;">
+                        <span id="debugDeviceInfo"></span>
+                    </p>
+                </div>
+            </section>
+
+            <!-- ADMIN -->
+            <section id="admin-tools-section" class="dashboard-section hidden">
+                <h1>Admin Tools</h1>
+                <div class="card" id="adminToolsContainer">
+                    <div class="grid grid-4">
+                        <button class="btn" id="btnGenVouchers" onclick="openGenerateVoucherModal()">
+                            <i class="fas fa-ticket-alt"></i> Gen Vouchers
+                        </button>
+                        <button class="btn" id="btnViewVouchers" onclick="renderVoucherList()">
+                            <i class="fas fa-list"></i> Vouchers
+                        </button>
+                        <button class="btn" id="btnNetConfig" onclick="openEditNetworkModal()">
+                            <i class="fas fa-network-wired"></i> Network
+                        </button>
+                        <button class="btn" id="btnAddPlan" onclick="openAdminPlanModal()">
+                            <i class="fas fa-plus"></i> Add Plan
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-2" style="margin-top:16px;">
+                    <div class="card stat-card">
+                        <h3>Revenue</h3>
+                        <h2 id="statsTotalRevenue">0.00</h2>
+                    </div>
+                    <div class="card stat-card">
+                        <h3>Users</h3>
+                        <h2 id="statsTotalUsers">0</h2>
+                    </div>
+                </div>
+                <div class="card" id="userListContainer" style="margin-top:16px;"></div>
+                <div class="card" id="voucherListContainer" style="margin-top:16px;"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         MODALS
+    ═══════════════════════════════════════════════════════ -->
+
+    <!-- P2P Chat -->
+    <div class="modal full-screen-modal" id="unifiedChatModal">
+        <div class="modal-content chat-interface">
+            <div class="chat-header">
+                <button class="btn-icon" id="btnClosePeerChat" onclick="closeModal('unifiedChatModal')">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="chat-user-info" onclick="openUserProfile()">
+                    <div class="chat-header-avatar" id="chatHeaderAvatar">U</div>
+                    <div class="chat-header-text">
+                        <h4 id="chatHeaderName">User</h4>
+                        <span id="chatHeaderStatus" class="status-text">online</span>
+                    </div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="btn-icon" onclick="toggleChatMenu()">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="dropdown-menu chat-menu" id="chatMenuDropdown">
+                        <ul>
+                            <li onclick="clearChatHistory()"><i class="fas fa-eraser"></i> Clear</li>
+                            <li onclick="blockUser()"><i class="fas fa-ban"></i> Block</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="chat-container">
+                <div class="chat-log" id="chatLog"></div>
+                <form class="chat-input-area" id="unifiedChatForm">
+                    <input type="text" id="unifiedChatInput" class="form-control"
+                           placeholder="Message..." autocomplete="off">
+                    <button type="submit" id="chatSendBtn" class="chat-action-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant -->
+    <div class="modal" id="chatBoxModal" style="z-index:var(--z-modal);">
+        <div class="modal-content chat-interface" style="height:82vh;">
+            <div class="chat-header">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="chat-header-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">B</div>
+                    <div>
+                        <h3 style="margin:0">Br3eze AI</h3>
+                        <small class="text-medium">br3eze.africa support</small>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btnCloseAI" onclick="closeModal('chatBoxModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="chat-container">
+                <div class="chat-log" id="aiChatLog"></div>
+                <form class="chat-input-area" id="aiChatForm">
+                    <input type="text" id="aiChatInput" class="form-control"
+                           placeholder="Ask Br3eze AI..." autocomplete="off">
+                    <button type="submit" class="chat-action-btn" id="aiSendBtn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Picker -->
+    <div class="modal" id="contactPickerModal">
+        <div class="modal-content" style="max-height:80vh;overflow-y:auto;">
+            <div class="modal-header">
+                <h3>Select Contact</h3>
+                <button id="btnCloseContacts" onclick="closeModal('contactPickerModal')">×</button>
+            </div>
+            <div id="contactListContainer" class="chat-hub-list"></div>
+        </div>
+    </div>
+
+    <!-- Voucher Redeem -->
+    <div class="modal" id="redeemVoucherModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-gift"></i> Redeem Voucher</h3>
+                <button id="btnCloseRedeem" onclick="closeModal('redeemVoucherModal')">×</button>
+            </div>
+            <form id="redeemVoucherForm">
+                <div class="form-group">
+                    <label>Voucher Code</label>
+                    <input type="text" id="voucherCodeInput" placeholder="e.g. BR3-XXXX" required
+                           style="text-transform:uppercase;">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnRedeemSubmit">
+                    <i class="fas fa-check"></i> Redeem
+                </button>
+                <button type="button" class="btn btn-ghost btn-block"
+                        onclick="closeModal('redeemVoucherModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ticket Detail -->
+    <div class="modal" id="ticketDetailModal">
+        <div class="modal-content" style="height:80vh;display:flex;flex-direction:column;">
+            <div class="modal-header">
+                <h3 id="ticketModalTitle">Subject</h3>
+                <button id="btnCloseTicket" onclick="closeModal('ticketDetailModal')">×</button>
+            </div>
+            <div style="padding:10px;background:var(--color-panel);border-bottom:1px solid var(--color-border);">
+                <small id="ticketModalSubtitle" class="text-medium">Details</small>
+                <div id="ticketModalStatus" style="float:right;"></div>
+            </div>
+            <div id="ticketRepliesContainer" style="flex:1;overflow-y:auto;padding:12px;"></div>
+            <div id="ticketModalActions" style="padding:5px;"></div>
+            <form id="ticketReplyForm" class="chat-input-area">
+                <input type="hidden" id="currentTicketId">
+                <input type="text" id="ticketReplyInput" class="form-control"
+                       placeholder="Reply..." required autocomplete="off">
+                <button type="submit" class="btn btn-primary" id="btnTicketReply">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- New Ticket -->
+    <div class="modal" id="submitTicketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-headset"></i> New Support Ticket</h3>
+                <button id="btnCloseNewTicket" onclick="closeModal('submitTicketModal')">×</button>
+            </div>
+            <form id="newTicketForm">
+                <div class="form-group">
+                    <label>Subject</label>
+                    <input type="text" id="newTicketSubject" required>
+                </div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea id="newTicketBody" rows="4" class="form-control" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnSubmitTicket">
+                    Submit Ticket
+                </button>
+                <button type="button" class="btn btn-ghost btn-block"
+                        onclick="closeModal('submitTicketModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin: Generate Vouchers -->
+    <div class="modal" id="generateVoucherModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-ticket-alt"></i> Generate Vouchers</h3>
+                <button onclick="closeModal('generateVoucherModal')">×</button>
+            </div>
+            <form id="generateVoucherForm">
+                <div class="form-group">
+                    <label>Value ($)</label>
+                    <input type="number" id="voucherValue" step="0.01" min="0.5" required>
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="voucherQuantity" value="1" min="1" max="100" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnGenVouchersSubmit">
+                    Generate
+                </button>
+                <button type="button" class="btn btn-ghost btn-block"
+                        onclick="closeModal('generateVoucherModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin: Network Config -->
+    <div class="modal" id="adminNetworkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-network-wired"></i> Network Config</h3>
+                <button onclick="closeModal('adminNetworkModal')">×</button>
+            </div>
+            <form id="adminNetworkForm">
+                <div class="form-group">
+                    <label>SSID</label>
+                    <input type="text" id="adminNetworkSsid" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="text" id="adminNetworkPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnSaveNetwork">
+                    Save Config
+                </button>
+                <button type="button" class="btn btn-ghost btn-block"
+                        onclick="closeModal('adminNetworkModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin: Plan CRUD -->
+    <div class="modal" id="adminPlanModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-box"></i> Manage Plan</h3>
+                <button onclick="closeModal('adminPlanModal')">×</button>
+            </div>
+            <form id="adminPlanForm">
+                <input type="hidden" id="adminPlanId">
+                <div class="form-group">
+                    <label>Plan Name</label>
+                    <input type="text" id="adminPlanName" required>
+                </div>
+                <div class="form-group">
+                    <label>Price ($)</label>
+                    <input type="number" id="adminPlanPrice" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Duration</label>
+                    <input type="number" id="adminPlanDuration" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Unit</label>
+                    <select id="adminPlanDurationUnit">
+                        <option value="days">Days</option>
+                        <option value="hours">Hours</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Max Devices</label>
+                    <input type="number" id="adminPlanDevices" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Image URL (optional)</label>
+                    <input type="text" id="adminPlanImageUrl">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btnSavePlan">Save Plan</button>
+                <button type="button" id="deletePlanBtn" class="btn btn-danger btn-block hidden"
+                        onclick="deletePlan()">Delete Plan</button>
+                <button type="button" class="btn btn-ghost btn-block"
+                        onclick="closeModal('adminPlanModal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Profile (view only) -->
+    <div class="modal" id="userProfileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>User Profile</h3>
+                <button onclick="closeModal('userProfileModal')">×</button>
+            </div>
+            <h4 id="profileModalName"></h4>
+            <p id="profileModalHandle" class="text-medium"></p>
+            <button class="btn btn-ghost btn-block" onclick="closeModal('userProfileModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast hidden" id="toast">
+        <div class="toast-icon" id="toastIcon">ℹ️</div>
+        <div class="toast-message" id="toastMessage"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         SCRIPTS — Load order matters!
+         ── Tier 0: Firebase SDK (CDN)
+         ── Tier 1: Debug + Guard
+         ── Tier 2: UI + Permissions + Notifications + Network
+         ── Tier 3: Cordova boot
+         ── Tier 4: Firebase / DataStore
+         ── Tier 5: Auth + Features
+         ── Tier 6: App entry point
+    ═══════════════════════════════════════════════════════ -->
+
+    <!-- Tier 0: Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+    <!-- Tier 1: Debug + Crypto (must come first so errors are caught) -->
+    <script src="js/env.js"></script>
+    <script src="js/00.debug.js"></script>
+    <script src="js/00a.guard.js"></script>
+    <script src="js/14a.crypto.js"></script>
+    <script src="js/15.hardware.print.js"></script>
+
+    <!-- Tier 2: Core utilities -->
+    <script src="js/01.ui.utils.js"></script>
+    <script src="js/02.permissions.js"></script>
+    <script src="js/03.notifications.js"></script>
+    <script src="js/04.network.tools.js"></script>
+    <script src="js/14.mesh.nearby.js"></script>
+
+    <!-- Tier 3: Cordova (must load BEFORE deviceready listeners) -->
+    <script src="cordova.js"></script>
+    <script src="js/05.cordova.boot.js"></script>
+
+    <!-- Tier 4: Firebase + DataStore -->
+    <script src="js/06.firebase.js"></script>
+
+    <!-- Tier 5: App modules -->
+    <script src="js/07.auth.js"></script>
+    <script src="js/08.ui.sections.js"></script>
+    <script src="js/09.plans.js"></script>
+    <script src="js/10.messages.js"></script>
+    <script src="js/11.ai.bot.js"></script>
+    <script src="js/12.modals.js"></script>
+
+    <!-- Tier 6: App boot (DOMContentLoaded, auth state, form wiring) -->
+    <script src="js/13.app.boot.js"></script>
+
 </body>
-
 </html>

@@ -53,6 +53,20 @@ jest.mock('node-telegram-bot-api', () => {
   }));
 });
 
+// Mock Puppeteer
+jest.mock('puppeteer-core', () => ({
+  launch: jest.fn().mockResolvedValue({
+    newPage: jest.fn().mockResolvedValue({
+      setContent: jest.fn().mockResolvedValue({}),
+      pdf: jest.fn().mockResolvedValue(Buffer.from('mock pdf')),
+      close: jest.fn().mockResolvedValue({}),
+      screenshot: jest.fn().mockResolvedValue(Buffer.from('mock img')),
+      goto: jest.fn().mockResolvedValue({})
+    }),
+    close: jest.fn().mockResolvedValue({})
+  })
+}), { virtual: true });
+
 // Mock WhatsApp / Baileys — prevents real WebSocket connections
 jest.mock('@whiskeysockets/baileys', () => ({
   makeWASocket: jest.fn().mockReturnValue({

@@ -310,9 +310,14 @@ class TelegramChannel extends EventEmitter {
   }
 
   async start() {
-    await this.bot.startPolling();
-    logger.info('Telegram bot started');
-    this.emit('started');
+    const { acquireBotLock } = require('../utils/bot-lock');
+    if (acquireBotLock()) {
+      await this.bot.startPolling();
+      logger.info('Telegram bot started');
+      this.emit('started');
+    } else {
+      logger.warn('Telegram bot polling skipped (singleton lock active)');
+    }
   }
 
   destroy() {

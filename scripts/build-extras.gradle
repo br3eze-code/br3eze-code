@@ -1,0 +1,14 @@
+android {
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.core:core:1.12.0'
+    }
+}

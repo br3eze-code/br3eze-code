@@ -62,16 +62,16 @@ program
     .name('agentos')
     .description(`${BRAND.name} — Modular AI Agent Operating System`)
     .version(BRAND.version, '-V, --version', 'Output version number')
-    .option('--dev',               'Use dev profile (~/.agentos-dev)')
-    .option('--profile <name>',    'Named profile (isolates config/state)')
+    .option('--dev', 'Use dev profile (~/.agentos-dev)')
+    .option('--profile <name>', 'Named profile (isolates config/state)')
     .option('--log-level <level>', 'Log level: silent|error|warn|info|debug', 'info')
-    .option('--no-color',          'Disable ANSI colors')
-    .option('--json',              'Machine-readable JSON output')
-    .option('--no-banner',         'Suppress startup banner')
+    .option('--no-color', 'Disable ANSI colors')
+    .option('--json', 'Machine-readable JSON output')
+    .option('--no-banner', 'Suppress startup banner')
     .configureOutput({
         writeErr: str => process.stdout.write(str),
-        getOutHelpWidth:  () => 100,
-        getErrHelpWidth:  () => 100
+        getOutHelpWidth: () => 100,
+        getErrHelpWidth: () => 100
     });
 
 // ── Command Registration ──────────────────────────────────────────────────────
@@ -82,13 +82,17 @@ require('./src/cli/commands/users')(program);
 require('./src/cli/commands/voucher')(program);
 require('./src/cli/commands/config')(program);
 require('./src/cli/commands/doctor')(program);
+require('./src/cli/commands/domain')(program);
 require('./src/cli/commands/status')(program);
 require('./src/cli/commands/dashboard')(program);
 require('./src/cli/commands/skill')(program);
 require('./src/cli/commands/dahua')(program);
 require('./src/cli/commands/wacli')(program);
+require('./src/cli/commands/telegram')(program);
 require('./src/cli/commands/google')(program);
 require('./src/cli/commands/update')(program);
+require('./src/cli/commands/tailscale')(program);
+require('./src/cli/commands/cli')(program);
 
 // ── Logging Daemon ────────────────────────────────────────────────────────────
 program
@@ -105,7 +109,7 @@ program
     .description('Perform system-wide or component diagnostics')
     .action(async (mode) => {
         showBanner();
-        
+
         if (mode === 'telegram') {
             console.log(chalk.cyan('\n--- Telegram Channel Diagnostic ---\n'));
             const TelegramChannel = require('./src/core/channels/TelegramChannel');
@@ -113,10 +117,22 @@ program
                 const bot = new TelegramChannel({
                     token: process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN
                 });
-                await bot.initialize();
+                const initialized = await bot.initialize();
+                if (initialized === false) {
+                    console.log(chalk.yellow('⚠ Could not start polling: another instance is active.'));
+                    const me = await bot.bot.getMe();
+                    console.log(chalk.gray('  Bot Info: '), `@${me.username} (${me.first_name})`);
+                    process.exit(0);
+                }
+
                 console.log(chalk.green('✔ Initialized successfully'));
                 const me = await bot.bot.getMe();
                 console.log(chalk.gray('  Bot Info: '), `@${me.username} (${me.first_name})`);
+
+                // Allow some time for polling to start and catch potential immediate conflicts
+                await new Promise(r => setTimeout(r, 2000));
+
+                await bot.destroy();
                 process.exit(0);
             } catch (err) {
                 console.error(chalk.red('✘ Initialization failed:'), err.message);
@@ -125,11 +141,11 @@ program
         }
 
         console.log(chalk.cyan('\n🩺 AgentOS System Diagnostics\n'));
-        
+
         const { PROFILE_DIR, CONFIG_PATH } = global.AGENTOS;
         console.log(chalk.gray('  Profile:  '), chalk.white(PROFILE_DIR));
         console.log(chalk.gray('  Config:   '), fs.existsSync(CONFIG_PATH) ? chalk.green('Found') : chalk.red('Missing'));
-        
+
         const envKeys = ['GEMINI_API_KEY', 'MIKROTIK_IP', 'FIREBASE_PROJECT_ID', 'TELEGRAM_BOT_TOKEN'];
         console.log(chalk.gray('\n  Environment:'));
         envKeys.forEach(k => {
@@ -173,12 +189,12 @@ const run = async () => {
     // Centrally manage process exit for commands that should terminate.
     const daemonCommands = ['gateway', 'logs'];
     const currentCommand = program.args[0] || (process.argv.some(arg => daemonCommands.includes(arg)) ? 'gateway' : null);
-    
+
     const isDashboard = currentCommand === 'dashboard';
     const isRefreshing = process.argv.includes('--refresh');
-    
-    const shouldExit = !daemonCommands.includes(currentCommand) && 
-                      (!isDashboard || !isRefreshing);
+
+    const shouldExit = !daemonCommands.includes(currentCommand) &&
+        (!isDashboard || !isRefreshing);
 
     if (shouldExit) {
         // Set exit code and let the event loop drain naturally.
@@ -191,7 +207,7 @@ const run = async () => {
 process.on('unhandledRejection', (reason, promise) => {
     const errorMsg = `\n✗ Unhandled Rejection at: ${promise} reason: ${reason}`;
     console.error(chalk.red(errorMsg));
-    
+
     // Log to file if logger is available
     try {
         const { logger } = require('./src/core/logger');

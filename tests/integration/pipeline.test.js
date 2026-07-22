@@ -43,6 +43,14 @@ jest.mock('../../src/core/agentEngine', () => ({
 
 jest.mock('../../src/core/mikrotik', () => ({ getMikroTikClient: jest.fn() }));
 
+// Mock database
+jest.mock('../../src/core/database', () => ({
+    getDatabase: jest.fn().mockResolvedValue({
+        getVoucher: jest.fn().mockResolvedValue(null),
+        createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
+    })
+}));
+
 // ── TaskRegistry + EventBus integration ──────────────────────────────────────
 
 describe('Integration — TaskRegistry + EventBus', () => {
@@ -253,7 +261,7 @@ describe('Integration — SessionManager filesystem round-trip', () => {
 describe('Integration — VoucherAgent + EventBus', () => {
     beforeEach(() => { jest.resetModules(); });
 
-    test('generate → redeem emits events in correct order', () => {
+    test('generate → redeem emits events in correct order', async () => {
         const eventBus = require('../../src/core/eventBus');
         const voucher  = require('../../src/core/voucher');
         const events   = [];
@@ -261,7 +269,7 @@ describe('Integration — VoucherAgent + EventBus', () => {
         eventBus.on('voucher.created',  e => events.push({ type: 'created',  code: e.code }));
         eventBus.on('voucher.redeemed', e => events.push({ type: 'redeemed', code: e.code }));
 
-        const code = voucher.generate('1day');
+        const code = await voucher.generate('1day');
         voucher.redeem(code, 'user-001');
 
         expect(events[0].type).toBe('created');
@@ -271,16 +279,16 @@ describe('Integration — VoucherAgent + EventBus', () => {
         eventBus.removeAllListeners();
     });
 
-    test('multiple vouchers emit independent events', () => {
+    test('multiple vouchers emit independent events', async () => {
         const eventBus = require('../../src/core/eventBus');
         const voucher  = require('../../src/core/voucher');
         const codes    = [];
 
         eventBus.on('voucher.created', e => codes.push(e.code));
 
-        voucher.generate('1hour');
-        voucher.generate('1day');
-        voucher.generate('1week');
+        await voucher.generate('1hour');
+        await voucher.generate('1day');
+        await voucher.generate('1week');
 
         expect(codes).toHaveLength(3);
         expect(new Set(codes).size).toBe(3); // all unique

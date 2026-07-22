@@ -21,6 +21,9 @@ tools:
       text:
         type: string
         description: Optional text to include in the test print
+  - name: printer.list
+    description: List all available printer interfaces (COM ports, Windows Spoolers)
+    parameters: {}
   - name: channels.status
     description: Get connection status and metadata for all messaging channels
     parameters: {}
@@ -35,6 +38,23 @@ tools:
         type: boolean
         description: If true, sends the voucher to the thermal printer
         default: true
+      interface:
+        type: string
+        description: The printer interface to use (e.g. serial:COM7, printer:POS-58C)
+      quantity:
+        type: integer
+        description: Number of vouchers to create in bulk
+        default: 1
+  - name: voucher.print
+    description: Print an existing voucher
+    parameters:
+      voucher:
+        type: object
+        description: Voucher data (username, password, profile, loginUrl)
+        required: true
+      interface:
+        type: string
+        description: Printer interface to use
 examples:
   - user: "create a 1 hour voucher"
     action: "agentos.voucher.create"

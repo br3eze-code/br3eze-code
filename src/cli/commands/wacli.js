@@ -88,7 +88,7 @@ module.exports = (program) => {
         s.start('Dry-run voucher generation…');
         try {
           const voucherAgent = require('../../core/voucher');
-          const sample = voucherAgent.generate('default');
+          const sample = await voucherAgent.generate('default');
           s.stop(`Sample: ${sample}`);
           checks.push({ name: 'Generator', ok: true, detail: `sample → ${sample}` });
         } catch (e) {

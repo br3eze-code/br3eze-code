@@ -15,46 +15,76 @@ function initializeFirebase() {
     return { app: firebaseApp, db };
   }
 
+  // Check if already initialized by another module (e.g. database.js)
+  if (admin.apps.length > 0) {
+    firebaseApp = admin.app();
+    db = admin.firestore();
+    logger.debug('Firebase: reusing existing initialization');
+    return { app: firebaseApp, db };
+  }
+
   try {
     const path = require('path');
     const fs = require('fs');
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
     
     if (serviceAccountPath) {
-      // Resolve path relative to CWD if it's relative
       if (!path.isAbsolute(serviceAccountPath)) {
         serviceAccountPath = path.resolve(process.cwd(), serviceAccountPath);
       }
+      
+      if (fs.existsSync(serviceAccountPath)) {
+        try {
+          const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          firebaseApp = admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: process.env.FIREBASE_DATABASE_URL
+          });
+          logger.info('Firebase initialized with service account');
+        } catch (e) {
+          logger.error(`Firebase: Service account init failed: ${e.message}`);
+        }
+      }
     }
     
-    if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
-      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-      
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
-      });
-      
-      logger.info('Firebase initialized with service account');
-    } else if (process.env.FIREBASE_API_KEY) {
-      // Use application default credentials or API key
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
-        databaseURL: process.env.FIREBASE_DATABASE_URL
-      });
-      
-      logger.info('Firebase initialized with application credentials');
-    } else {
-      logger.warn('Firebase credentials not found. Database features disabled.');
+    if (!firebaseApp && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY.length > 32) {
+      try {
+        // Use private key components from env
+        let pk = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+        if (pk.startsWith('"') && pk.endsWith('"')) pk = pk.slice(1, -1);
+        
+        let body = pk;
+        if (pk.includes('-----BEGIN PRIVATE KEY-----')) {
+            body = pk.replace(/-----BEGIN PRIVATE KEY-----/g, '').replace(/-----END PRIVATE KEY-----/g, '');
+        }
+        body = body.replace(/\s+/g, '');
+        let chunks = [];
+        for (let i = 0; i < body.length; i += 64) {
+            chunks.push(body.substring(i, i + 64));
+        }
+        pk = `-----BEGIN PRIVATE KEY-----\n${chunks.join('\n')}\n-----END PRIVATE KEY-----`;
+        
+        firebaseApp = admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            privateKey: pk,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          }),
+          databaseURL: process.env.FIREBASE_DATABASE_URL
+        });
+        logger.info('Firebase initialized with private key from env');
+      } catch (e) {
+        logger.error(`Firebase: Private key init failed: ${e.message}`);
+      }
+    } 
+    
+    if (!firebaseApp) {
+      logger.warn('Firebase credentials not found or invalid. Database features disabled.');
       return { app: null, db: null };
     }
 
     db = admin.firestore();
-    
-    // Enable offline persistence for Firestore
-    db.settings({
-      cacheSizeBytes: admin.firestore.CACHE_SIZE_UNLIMITED
-    });
+    db.settings({ ignoreUndefinedProperties: true });
 
     return { app: firebaseApp, db };
   } catch (error) {
@@ -62,6 +92,7 @@ function initializeFirebase() {
     return { app: null, db: null };
   }
 }
+
 
 function getFirestore() {
   if (!db) {
@@ -75,6 +106,14 @@ function getFirebaseApp() {
     initializeFirebase();
   }
   return firebaseApp;
+}
+
+/**
+ * Returns the high-level Database instance.
+ * @returns {Promise<any>}
+ */
+async function getDatabase() {
+  return require('./database').getDatabase();
 }
 
 /**
@@ -135,6 +174,7 @@ module.exports = {
   getFirestore,
   getFirebaseApp,
   getAuth,
+  getDatabase,
   createAuthUser,
   admin
 };

@@ -6,7 +6,7 @@ const { logger } = require('../logger');
 const { getConfig } = require('../config');
 const { getMikroTikClient } = require('../mikrotik');
 const { getDatabase } = require('../database');
-const { generate: voucherCode } = require('../voucher');
+const voucherAgent = require('../voucher');
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -68,6 +68,20 @@ class WebSocketCLI {
     }
 
     handleInput(input) {
+        if (!input) return;
+
+        // Support bulk input from ci.html (e.g. "voucher 1Day\r")
+        if (input.length > 1 && (input.endsWith('\r') || input.endsWith('\n'))) {
+            this.buffer = input.slice(0, -1);
+            this.cursorPos = this.buffer.length;
+            if (this.pendingConfirm) {
+                input = '\r';
+            } else {
+                this._executeCommand();
+                return;
+            }
+        }
+
         if (this.pendingConfirm && (input === '\r' || input === '\n')) {
             const answer = this.buffer.trim().toLowerCase();
             const action = this.pendingConfirm;
@@ -179,7 +193,7 @@ class WebSocketCLI {
 
     _out(data) {
         if (this.ws.readyState === WebSocket.OPEN)
-            this.ws.send(JSON.stringify({ type: 'cli.output', ...data }));
+            this.ws.send(JSON.stringify({ type: 'cli.output', payload: data }));
     }
 
     // ── Commands ─────────────────────────────────────────────
@@ -246,7 +260,7 @@ class WebSocketCLI {
     async cmdVoucher([plan, duration]) {
         if (!plan) { this._out({ type: 'error', message: 'Usage: voucher <plan> [duration]' }); return; }
         try {
-            const code = voucherCode();
+            const code = await voucherAgent.generate(plan);
             const db = await getDatabase();
             const mikrotik = getMikroTikClient();
             const { DEFAULT_PLANS } = require('../database');

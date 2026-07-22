@@ -78,6 +78,15 @@ module.exports = (program) => {
 
             process.on('SIGINT', () => shutdown('SIGINT'));
             process.on('SIGTERM', () => shutdown('SIGTERM'));
+            
+            process.on('uncaughtException', (err) => {
+                logger.error('Uncaught Exception:', err);
+                shutdown('uncaughtException');
+            });
+            process.on('unhandledRejection', (reason, promise) => {
+                logger.error('Unhandled Rejection:', reason);
+                shutdown('unhandledRejection');
+            });
 
             // When launched by PM2, PM2 itself enforces single-instance.
             // The pid-file check is redundant AND harmful: a stale file from
@@ -135,6 +144,39 @@ module.exports = (program) => {
             } else if (fs.existsSync(pidFile)) {
                 // Under PM2 or --force: always remove stale pid to start fresh
                 try { fs.unlinkSync(pidFile); } catch (_) { }
+            }
+
+            // ── Telegram Ghost Process Check ────────────────────────────────────
+            const tgLockFile = path.join(STATE_PATH, '.telegram_bot.lock');
+            if (fs.existsSync(tgLockFile) && !options.force && !underPM2) {
+                const tgPidString = fs.readFileSync(tgLockFile, 'utf8').trim();
+                const tgPid = parseInt(tgPidString, 10);
+                if (!isNaN(tgPid) && tgPid !== process.pid) {
+                    let tgAlive = false;
+                    try { process.kill(tgPid, 0); tgAlive = true; } catch (_) {}
+                    
+                    if (tgAlive) {
+                        log.warn(`Telegram polling already running in another process (PID: ${tgPid})`);
+                        const killTg = await confirm({
+                            message: 'Kill the existing Telegram process to prevent conflicts?',
+                            initialValue: true
+                        });
+                        
+                        if (killTg && !isCancel(killTg)) {
+                            try {
+                                process.kill(tgPid, 'SIGKILL');
+                                log.info(`Killed Telegram PID ${tgPid}`);
+                                if (fs.existsSync(tgLockFile)) fs.unlinkSync(tgLockFile);
+                            } catch (e) {
+                                log.error(`Failed to kill Telegram process: ${e.message}`);
+                            }
+                        }
+                    } else {
+                        try { fs.unlinkSync(tgLockFile); } catch (_) { }
+                    }
+                }
+            } else if (fs.existsSync(tgLockFile)) {
+                try { fs.unlinkSync(tgLockFile); } catch (_) { }
             }
 
             // Kill existing if --force (legacy fallback)

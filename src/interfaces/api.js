@@ -95,9 +95,9 @@ router.get('/sessions', (req, res) => {
     res.json(sessions);
 });
 
-router.post('/voucher/generate', (req, res) => {
+router.post('/voucher/generate', async (req, res) => {
     const { plan } = req.body;
-    const code = voucherAgent.generate(plan);
+    const code = await voucherAgent.generate(plan);
     res.json({ code });
 });
 
