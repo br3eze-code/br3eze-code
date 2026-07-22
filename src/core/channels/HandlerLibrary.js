@@ -4,16 +4,16 @@
  * Shared between Telegram, WhatsApp, Slack, and Discord.
  */
 
-import os from 'os';
-import chalk from 'chalk';
-import { logger } from '../logger.js';
-import { getDatabase } from '../database.js';
+const os = require('os');
+const chalk = require('chalk');
+const { logger } = require('../logger');
 
 const HandlerLibrary = {
   /**
    * /dashboard
    */
   async handleDashboard(channel, jid) {
+    const { getDatabase } = require('../database');
     const db = await getDatabase();
     const stats = await db.getStats();
     const uptime = Math.floor(process.uptime());
@@ -131,6 +131,7 @@ const HandlerLibrary = {
     const qty = parseInt(args[2]);
     if (isNaN(qty) || qty < 1 || qty > 50) return channel.send(jid, '❌ *Quantity must be between 1 and 50.*');
 
+    const { getDatabase } = require('../database');
     const db = await getDatabase();
     const mt = global.mikrotik;
     const codes = [];
@@ -163,6 +164,7 @@ const HandlerLibrary = {
     if (args.length < 2) return channel.send(jid, '📝 *Usage:* `/voucher <plan_name>`');
     
     const plan = args[1];
+    const { getDatabase } = require('../database');
     const db = await getDatabase();
     const mt = global.mikrotik;
 
@@ -195,4 +197,4 @@ const HandlerLibrary = {
   }
 };
 
-export default HandlerLibrary;
+module.exports = HandlerLibrary;

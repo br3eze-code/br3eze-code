@@ -2,9 +2,6 @@
 /**
  * Plugin Registry - Dynamic adapter loading and management
  */
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
 
 class PluginRegistry {
   constructor() {
@@ -100,4 +97,4 @@ class PluginRegistry {
   }
 }
 
-export default new PluginRegistry();
+module.exports = new PluginRegistry();

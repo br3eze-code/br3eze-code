@@ -17,7 +17,7 @@ const { PrintBroker } = require('../print-broker'); // unified broker
 const { BaseChannel } = require('./BaseChannel');
 const { BRAND } = require('../config');
 
-const { acquireBotLock, releaseBotLock } = require('../../utils/bot-lock');
+const { acquireBotLock, releaseBotLock, LOCK_FILE } = require('../../utils/bot-lock');
 
 
 class TelegramChannel extends BaseChannel {
@@ -995,8 +995,17 @@ class TelegramChannel extends BaseChannel {
             } else if (action === 'info') {
                 toolName = 'dahua.device.info';
                 toolArgs = { device };
+            } else if (action === 'channels') {
+                toolName = 'dahua.device.channels';
+                toolArgs = { device };
+            } else if (action === 'stream') {
+                toolName = 'dahua.stream.url';
+                toolArgs = { device: args[1] && isNaN(args[1]) ? args[1] : undefined, channel: Number(args[2] || args[1]) || 1 };
+            } else if (action === 'snapshotall') {
+                toolName = 'dahua.snapshot.getAll';
+                toolArgs = { device };
             } else {
-                return this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, snapshot, info, reboot.`);
+                return this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot.`);
             }
 
             const result = await this.agent.executeTool(toolName, toolArgs, { userId: msg.from.id, channel: 'telegram' });
@@ -1014,6 +1023,19 @@ class TelegramChannel extends BaseChannel {
                 } else {
                     await this.bot.sendMessage(chatId, `❌ Snapshot failed: No data returned`);
                 }
+            } else if (action === 'snapshotall') {
+                for (const shot of result) {
+                    if (shot.base64) {
+                        await this.bot.sendPhoto(chatId, Buffer.from(shot.base64, 'base64'), { caption: `📷 Ch ${shot.channel} — ${shot.name}` });
+                    } else {
+                        await this.bot.sendMessage(chatId, `❌ Ch ${shot.channel} (${shot.name}): ${shot.error}`);
+                    }
+                }
+            } else if (action === 'channels') {
+                const text = `✅ *Channels*\n\n` + result.map(c => `${c.channel}. ${c.name}`).join('\n');
+                await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+            } else if (action === 'stream') {
+                await this.bot.sendMessage(chatId, `🎥 *Live Stream (channel ${result.channel})*\n\nMain: \`${result.main}\`\nSub: \`${result.sub}\`\n\n_Open with VLC or an RTSP-capable player._`, { parse_mode: 'Markdown' });
             } else {
                 await this.bot.sendMessage(chatId, `✅ Success:\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``, { parse_mode: 'Markdown' });
             }
@@ -1962,7 +1984,7 @@ class TelegramChannel extends BaseChannel {
                     const all = await db.getPlans(false);
                     planObj = all.find(p => p.mikrotikProfile === planId || p.name === planId);
                 }
-            } catch (_) { }
+            } catch (_) { /* best-effort plan lookup */ }
 
             if (!planObj) {
                 const { getConfig } = require('../config');
@@ -2269,7 +2291,7 @@ class TelegramChannel extends BaseChannel {
         try {
             const UniversalBilling = require('../universal-billing');
             expiresAt = new UniversalBilling().calculateExpiry(planObj);
-        } catch (_) { }
+        } catch (_) { /* expiry stays null if this fails */ }
 
         const codes = [];
         const errors = [];

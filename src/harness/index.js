@@ -1,9 +1,10 @@
+'use strict';
 /**
  * src/harness/index.js
  *
  * Public API for the AgentOS harness layer.
  */
 
-import { AgentHarness } from './AgentHarness.js';
+const { AgentHarness } = require('./AgentHarness');
 
-export { AgentHarness };
+module.exports = { AgentHarness };

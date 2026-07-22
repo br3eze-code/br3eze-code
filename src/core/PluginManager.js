@@ -13,7 +13,7 @@ class PluginManager {
   }
 
   async load(pluginPath) {
-    const Plugin = (await import(pluginPath)).default;
+    const Plugin = require(pluginPath);
     const instance = new Plugin(this.agent);
     
     // Register hooks
@@ -73,4 +73,4 @@ class AnalyticsPlugin {
   }
 }
 
-export default { PluginManager, AnalyticsPlugin };
+module.exports = { PluginManager, AnalyticsPlugin };

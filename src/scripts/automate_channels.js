@@ -4,11 +4,8 @@
  * Ensures all channels include metadata and self-register.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fs = require('fs');
+const path = require('path');
 
 const channelsDir = path.join(__dirname, '../core/channels');
 const files = fs.readdirSync(channelsDir).filter(f => f.endsWith('Channel.js') && f !== 'BaseChannel.js');

@@ -1,4 +1,6 @@
-import crypto from 'crypto';
+'use strict';
+
+const crypto = require('crypto');
 
 /**
  * Common utilities for AgentOS
@@ -27,8 +29,7 @@ function truncate(s, max = 3500) {
     return s.length > max ? s.slice(0, max) + '\n…(truncated)' : s;
 }
 
-export { sleep, uid, fmtBytes, fmtUptime, truncate };
-export default {
+module.exports = {
     sleep,
     uid,
     fmtBytes,

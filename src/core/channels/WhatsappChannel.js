@@ -315,7 +315,7 @@ class WhatsAppChannel extends BaseChannel {
               if (require('fs').existsSync(credsFile)) {
                 require('fs').renameSync(credsFile, `${credsFile}.bak-${Date.now()}`);
               }
-            } catch (_) { }
+            } catch (_) { /* best-effort auth-state cleanup */ }
           } else if (multideviceFailed) {
             logger.warn(
               `WhatsApp multidevice mismatch (code ${code}). Restart or re-pair the session.`,
@@ -1166,6 +1166,64 @@ class WhatsAppChannel extends BaseChannel {
       } else {
         await this.send(jid, `❌ Snapshot failed.`);
       }
+    } else if (action === "snapshotall") {
+      const shots = await this.agent.executeTool(
+        "dahua.snapshot.getAll",
+        { device },
+        context,
+      );
+      for (const shot of shots) {
+        if (shot.base64) {
+          await this.sendMedia(
+            jid,
+            Buffer.from(shot.base64, "base64"),
+            "image/jpeg",
+            `📷 Ch ${shot.channel} — ${shot.name}`,
+          );
+        } else {
+          await this.send(jid, `❌ Ch ${shot.channel} (${shot.name}): ${shot.error}`);
+        }
+      }
+    } else if (action === "channels") {
+      const result = await this.agent.executeTool(
+        "dahua.device.channels",
+        { device },
+        context,
+      );
+      await this.send(
+        jid,
+        `✅ *Channels*\n\n${result.map((c) => `${c.channel}. ${c.name}`).join("\n")}`,
+      );
+    } else if (action === "stream") {
+      const channel = Number(args[3] || args[2]) || 1;
+      const result = await this.agent.executeTool(
+        "dahua.stream.url",
+        { device, channel },
+        context,
+      );
+      await this.send(
+        jid,
+        `🎥 *Live Stream (channel ${result.channel})*\n\nMain: ${result.main}\nSub: ${result.sub}\n\nOpen with VLC or an RTSP-capable player.`,
+      );
+    } else if (action === "reboot") {
+      const result = await this.agent.executeTool(
+        "dahua.system.reboot",
+        { device, reason: "Manual reboot via WhatsApp" },
+        context,
+      );
+      await this.send(jid, `✅ Reboot sent: ${JSON.stringify(result)}`);
+    } else if (action === "info") {
+      const result = await this.agent.executeTool(
+        "dahua.device.info",
+        { device },
+        context,
+      );
+      await this.send(jid, `✅ *Device Info*\n\`\`\`\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+    } else {
+      await this.send(
+        jid,
+        `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot.`,
+      );
     }
   }
 

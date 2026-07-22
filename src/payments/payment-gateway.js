@@ -2,11 +2,11 @@
 // CommonJS Payment Gateway for AgentOS
 // Supports: Stripe, EcoCash, NetOne, PayNow, Apple Pay, Google Pay
 
-import crypto from 'crypto';
-import https from 'https';
-import http from 'http';
-import PesaPayProvider from './providers/pesapay-provider.js';
-import { URL } from 'url';
+const crypto = require('crypto');
+const https = require('https');
+const http = require('http');
+const PesaPayProvider = require('./providers/pesapay-provider');
+const { URL } = require('url');
 
 class PaymentGateway {
   constructor(config = {}) {
@@ -1018,8 +1018,7 @@ class GooglePayProvider {
   }
 }
 
-export { PaymentGateway, StripeProvider, EcoCashProvider, NetOneProvider, PayNowProvider, ApplePayProvider, GooglePayProvider };
-export default {
+module.exports = {
   PaymentGateway,
   StripeProvider,
   EcoCashProvider,

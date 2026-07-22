@@ -1,9 +1,10 @@
+'use strict';
 /**
  * Anthropic LLM Provider (Claude)
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class AnthropicProvider extends BaseProvider {
     static getMetadata() {
@@ -157,4 +158,4 @@ class AnthropicProvider extends BaseProvider {
 
 BaseProvider.register('anthropic', AnthropicProvider);
 BaseProvider.register('claude', AnthropicProvider);
-export { AnthropicProvider };
+module.exports = { AnthropicProvider };

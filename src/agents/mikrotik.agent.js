@@ -1,10 +1,11 @@
+'use strict';
 /**
  * src/agents/mikrotik.agent.js
  * Thin adapter shim — delegates to src/core/mikrotik via executeTool()
  * so legacy callers (interfaces/api.js, tests, scripts) keep working
  * without needing to know the tool names directly.
  */
-import { getManager } from '../core/mikrotik.js';
+const { getManager } = require('../core/mikrotik');
 
 function getMikrotik() {
   try { return getManager(); } catch (_) { return null; }
@@ -65,4 +66,4 @@ const mikrotik = {
   },
 };
 
-export default mikrotik;
+module.exports = mikrotik;

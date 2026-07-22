@@ -1,3 +1,4 @@
+'use strict';
 // ==========================================
 // AGENTOS ASK COMMAND
 // Query AskEngine from the CLI — proxies to a running gateway over
@@ -5,20 +6,11 @@
 // falls back to a standalone one-shot AskEngine otherwise.
 // ==========================================
 
-import fs from 'fs';
-import path from 'path';
-import http from 'http';
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
 
-import { logger } from '../../core/logger.js';
-import { getManager as getMikroTik } from '../../core/mikrotik.js';
-import { getDatabase } from '../../core/database.js';
-import { getConfig } from '../../core/config.js';
-import FinancialService from '../../core/financial.js';
-import UniversalBilling from '../../core/universal-billing.js';
-import DiscoveryService from '../../core/discovery.js';
-import MemoryManager from '../../core/memory/MemoryManager.js';
-import AskEngine from '../../core/ask-engine.js';
-import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+const { logger } = require('../../core/logger');
 
 function postJSON({ host, port, token }, body) {
     return new Promise((resolve, reject) => {
@@ -66,8 +58,23 @@ function gatewayIsRunning(stateDir) {
 
 /** Standalone, gateway-less one-shot AskEngine — used when no gateway is running. */
 async function runStandalone(prompt, { stream }) {
+    const { getManager: getMikroTik } = require('../../core/mikrotik');
+    const { getDatabase } = require('../../core/database');
+    const { getConfig } = require('../../core/config');
+    const FinancialService = require('../../core/financial');
+    const UniversalBilling = require('../../core/universal-billing');
+    const DiscoveryService = require('../../core/discovery');
+    const MemoryManager = require('../../core/memory/MemoryManager');
+    const AskEngine = require('../../core/ask-engine');
+    const LLMCoordinator = require('../../core/llm/LLMCoordinator');
 
     const config = getConfig();
+
+    // Propagate API key from config into env so LLMCoordinator providers can pick it up
+    if (config.ai?.key && !process.env.GEMINI_API_KEY) {
+        process.env.GEMINI_API_KEY = config.ai.key;
+    }
+
     const mikrotik = getMikroTik();
     const database = await getDatabase();
     const financial = new FinancialService({ database });
@@ -105,7 +112,7 @@ async function runStandalone(prompt, { stream }) {
     return askEngine.run(prompt);
 }
 
-import readline from 'readline';
+const readline = require('readline');
 
 function startRepl(dispatch, { json }) {
     console.log('AgentOS interactive ask — type a message and press Enter. Ctrl+C or "exit" to quit.\n');
@@ -137,7 +144,7 @@ function startRepl(dispatch, { json }) {
     });
 }
 
-export default (program) => {
+module.exports = (program) => {
     program
         .command('ask [prompt...]')
         .description('Ask AgentOS a question or give it a command. Omit the prompt to start an interactive session.')

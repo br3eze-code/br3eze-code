@@ -1,5 +1,5 @@
 // src/domains/developer/index.js
-import BaseDomain from '../BaseDomain.js';
+const BaseDomain = require('../BaseDomain');
 
 class DeveloperDomain extends BaseDomain {
   constructor() {
@@ -20,4 +20,4 @@ class DeveloperDomain extends BaseDomain {
   }
 }
 
-export default DeveloperDomain;
+module.exports = DeveloperDomain;

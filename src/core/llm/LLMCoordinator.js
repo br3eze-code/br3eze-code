@@ -98,17 +98,32 @@ class LLMCoordinator {
      */
     async generate(messages, options = {}) {
         // Convert single string prompt to messages format if needed
-        const msgs = typeof messages === 'string' 
-            ? [{ role: 'user', content: messages }] 
+        const msgs = typeof messages === 'string'
+            ? [{ role: 'user', content: messages }]
             : messages;
-            
+
         await this.hooks.trigger('pre_llm', { messages: msgs, options });
-        
+
         try {
             const result = await this.provider.generate(msgs, options.tools || []);
             await this.hooks.trigger('post_llm', { messages: msgs, result });
             return result;
         } catch (err) {
+            // Fallback to Anthropic/Claude on quota or rate-limit errors
+            const isQuotaErr = err.message && (err.message.includes('429') || err.message.includes('quota') || err.message.includes('rate'));
+            const fallbackKey = process.env.ANTHROPIC_API_KEY;
+            if (isQuotaErr && fallbackKey && this.providerType !== 'anthropic') {
+                logger.warn(`Primary provider (${this.providerType}) quota hit — falling back to Claude`);
+                try {
+                    const fallback = this.createProvider('anthropic', { apiKey: fallbackKey });
+                    await fallback.initialize();
+                    const result = await fallback.generate(msgs, options.tools || []);
+                    await this.hooks.trigger('post_llm', { messages: msgs, result });
+                    return result;
+                } catch (fallbackErr) {
+                    logger.error(`Claude fallback also failed: ${fallbackErr.message}`);
+                }
+            }
             await this.hooks.trigger('llm_error', { messages: msgs, error: err });
             throw err;
         }

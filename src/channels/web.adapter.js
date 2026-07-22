@@ -1,4 +1,6 @@
-import { WebSocketServer } from 'ws';
+'use strict';
+
+const { WebSocketServer } = require('ws');
 
 class WebAdapter {
     constructor(server) {
@@ -55,4 +57,4 @@ class WebAdapter {
     }
 }
 
-export default WebAdapter;
+module.exports = WebAdapter;

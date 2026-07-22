@@ -1,7 +1,7 @@
 // src/payments/webhooks/pesapay-webhook.js
 // Express handler for PesaPay IPN callbacks
 
-import express from 'express';
+const express = require('express');
 const router = express.Router();
 
 /**
@@ -98,4 +98,4 @@ function setupPesaPayWebhooks(gateway, callbacks) {
   return router;
 }
 
-export default setupPesaPayWebhooks;
+module.exports = setupPesaPayWebhooks;

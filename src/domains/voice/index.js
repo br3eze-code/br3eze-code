@@ -1,6 +1,6 @@
 // src/domains/voice/index.js
-import BaseDomain from '../BaseDomain.js';
-import { logger } from '../../core/logger.js';
+const BaseDomain = require('../BaseDomain');
+const { logger } = require('../../core/logger');
 
 class VoiceDomain extends BaseDomain {
   constructor() {
@@ -49,4 +49,4 @@ class VoiceDomain extends BaseDomain {
   }
 }
 
-export default VoiceDomain;
+module.exports = VoiceDomain;

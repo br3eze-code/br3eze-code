@@ -6,7 +6,19 @@
       "Bash(git rm:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm --version)",
+      "Bash(git merge:*)",
+      "Bash(node:*)",
+      "Bash(git status *)",
+      "Bash(grep -rl \"^export\\\\|^export default\\\\|^import \" src/ --include=*.js)",
+      "Bash(wc -l grep -rl \"^export\\\\|^export default\\\\|^import \" src/ --include=*.js 2)",
+      "Bash(/dev/null cat:*)",
+      "Bash(head -10 grep -n \"apiKey\\\\|GEMINI\\\\|process.env\" src/core/llm/providers/OpenAIProvider.js)",
+      "Bash(head -20 grep -n \"hooks\\\\|trigger\" src/core/llm/hooks.js)",
+      "Bash(grep -r \"ANTHROPIC\\\\|anthropic\\\\|claude\" .env* src/core/llm/providers/ --include=*.js --include=*.env)",
+      "Bash(echo \"ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY:-NOT_SET\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k,''''='''',str\\(v\\)[:40]\\) for k,v in d.items\\(\\) if ''''key'''' in k.lower\\(\\) or ''''token'''' in k.lower\\(\\) or ''''api'''' in k.lower\\(\\)]\")"
     ]
   }
 }

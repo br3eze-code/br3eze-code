@@ -13,6 +13,7 @@ const ChannelManager = require('./channels/ChannelManager');
 const MobileBridge = require('../api/mobile-bridge');
 const AICoordinator = require('../ai/coordinator');
 const { metrics } = require('./metrics');
+const { DahuaNotifier } = require('./dahua-notifier');
 
 // A2A Protocol Plugin
 let a2aPlugin;
@@ -156,7 +157,7 @@ class Gateway extends EventEmitter {
 
         if (global.mikrotik?.state?.isConnected) {
           result.mikrotik = true;
-          try { result.router = await global.mikrotik.getSystemResource(); } catch (_) { }
+          try { result.router = await global.mikrotik.getSystemResource(); } catch (_) { /* router unreachable */ }
         }
 
         if (global.database) {
@@ -168,7 +169,7 @@ class Gateway extends EventEmitter {
               used:    stats.used    ?? 0,
               revenue: stats.revenue ?? 0
             };
-          } catch (_) { }
+          } catch (_) { /* voucher stats unavailable */ }
         }
 
         result.metrics = {
@@ -475,7 +476,7 @@ class Gateway extends EventEmitter {
         if (global.database) {
           await global.database.createVoucher(code, {
             planId: plan,
-            planName: planObj.name || planId,
+            planName: planObj.name || plan,
             durationUnit: planObj.durationUnit || null,
             durationValue: planObj.durationValue || null,
             deviceLimit: planObj.deviceLimit || 1,
@@ -669,6 +670,15 @@ class Gateway extends EventEmitter {
       });
     }
 
+    // 6. Dahua camera notifier — polls configured NVR/camera alarm logs and
+    // broadcasts new motion/IVS events to Telegram + WhatsApp.
+    try {
+      this.dahuaNotifier = new DahuaNotifier(this.config, this.channelManager);
+      this.dahuaNotifier.start();
+    } catch (e) {
+      logger.warn(`[Gateway] Dahua notifier not started: ${e.message}`);
+    }
+
     // Start listening
     logger.debug(`Binding server to ${this.config.host}:${this.config.port}...`);
     await new Promise((resolve, reject) => {
@@ -701,6 +711,10 @@ class Gateway extends EventEmitter {
 
   async stop() {
     logger.info('Shutting down Gateway...');
+
+    if (this.dahuaNotifier) {
+      this.dahuaNotifier.stop();
+    }
 
     if (this.channelManager) {
       logger.debug('Closing all channels...');

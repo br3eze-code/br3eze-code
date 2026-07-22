@@ -3,10 +3,10 @@
  * Domain management commands
  */
 
-import _chalk from 'chalk';
+const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
 
-export default (program) => {
+module.exports = (program) => {
   program
     .command('domain <action>')
     .description('Manage infrastructure domains (network, cloud, container, iot)')
@@ -62,4 +62,3 @@ export default (program) => {
       }
     });
 };
-

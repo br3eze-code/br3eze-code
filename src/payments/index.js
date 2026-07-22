@@ -1,18 +1,17 @@
 // src/payments/index.js
 // Payment module entry point for AgentOS
 
-import { PaymentGateway } from './payment-gateway.js';
-import PaymentService from './payment-service.js';
-import webhookHandler from './webhook-handler.js';
+const { PaymentGateway } = require('./payment-gateway');
+const PaymentService = require('./payment-service');
+const webhookHandler = require('./webhook-handler');
 
-import PesaPalIntegration from './pesapay-integration.js';
-import PesaPalProvider from './providers/pesapay-provider.js';
-import setupPesaPalRoutes from './routes/pesapal-webhooks.js';
-import setupPesaPalCommands from './commands/pesapal-commands.js';
+const PesaPalIntegration = require('./pesapay-integration');
+const PesaPalProvider = require('./providers/pesapay-provider');
+const setupPesaPalRoutes = require('./routes/pesapal-webhooks');
+const setupPesaPalCommands = require('./commands/pesapal-commands');
 
 
-export { PaymentGateway, PaymentService, webhookHandler, PesaPalIntegration, PesaPalProvider, setupPesaPalRoutes, setupPesaPalCommands };
-export default {
+module.exports = {
   PaymentGateway,
   PaymentService,
   webhookHandler,

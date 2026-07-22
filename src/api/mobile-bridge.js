@@ -1,11 +1,11 @@
 // src/api/mobile-bridge.js
-import express from 'express';
-import jwt from 'jsonwebtoken';
-import { getManager } from '../core/mikrotik.js';
-import { getDatabase } from '../core/database.js';
-import security from '../core/security.js';
-import { QNAPProcessor } from '../ai/qnap-integration.js';
-import { logger } from '../core/logger.js';
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const { getManager } = require('../core/mikrotik');
+const { getDatabase } = require('../core/database');
+const security = require('../core/security');
+const { QNAPProcessor } = require('../ai/qnap-integration');
+const { logger } = require('../core/logger');
 
 class MobileBridge {
   constructor() {
@@ -152,4 +152,4 @@ class MobileBridge {
   }
 }
 
-export default MobileBridge;
+module.exports = MobileBridge;

@@ -1,6 +1,6 @@
 name: dahua
-version: 1.1.0
-description: Control Dahua cameras/NVRs including PTZ, snapshots, and event monitoring.
+version: 1.2.0
+description: Control Dahua cameras/NVRs including PTZ, snapshots, live streams, channel listing, and event monitoring.
 author: br3eze
 license: Apache-2.0
 
@@ -33,6 +33,34 @@ tools:
         description: Camera channel number.
     returns: object
     
+  - name: dahua.device.channels
+    description: List camera channels configured on a device/NVR (index + name).
+    parameters:
+      - name: device
+        type: string
+        required: false
+    returns: array
+
+  - name: dahua.snapshot.getAll
+    description: Capture a live snapshot from every channel on an NVR.
+    parameters:
+      - name: device
+        type: string
+        required: false
+    returns: array
+
+  - name: dahua.stream.url
+    description: Get live RTSP stream URL(s) (main + sub) for a channel.
+    parameters:
+      - name: device
+        type: string
+        required: false
+      - name: channel
+        type: number
+        required: false
+        default: 1
+    returns: object
+
   - name: dahua.ptz.move
     description: Move the PTZ camera in a specific direction.
     parameters:

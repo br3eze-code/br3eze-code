@@ -1,6 +1,6 @@
 // src/domains/vision/index.js
-import BaseDomain from '../BaseDomain.js';
-import { logger } from '../../core/logger.js';
+const BaseDomain = require('../BaseDomain');
+const { logger } = require('../../core/logger');
 
 class VisionDomain extends BaseDomain {
   constructor() {
@@ -34,4 +34,4 @@ class VisionDomain extends BaseDomain {
   }
 }
 
-export default VisionDomain;
+module.exports = VisionDomain;

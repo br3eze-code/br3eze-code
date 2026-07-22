@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 // src/middleware/AuthMiddleware.js
 class AuthMiddleware {
   constructor(agent) {
@@ -17,6 +16,7 @@ class AuthMiddleware {
   }
 
   verifyToken(token) {
+    const jwt = require('jsonwebtoken');
     return jwt.verify(token, process.env.JWT_SECRET);
   }
 
@@ -25,4 +25,4 @@ class AuthMiddleware {
     return permissions.includes(requiredPermission) || permissions.includes('admin');
   }
 }
-export { AuthMiddleware };
+module.exports = { AuthMiddleware };

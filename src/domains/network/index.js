@@ -1,5 +1,5 @@
 // src/domains/network/index.js
-import BaseDomain from '../BaseDomain.js';
+const BaseDomain = require('../BaseDomain');
 
 class NetworkDomain extends BaseDomain {
   constructor() {
@@ -36,4 +36,4 @@ class NetworkDomain extends BaseDomain {
   }
 }
 
-export default NetworkDomain;
+module.exports = NetworkDomain;

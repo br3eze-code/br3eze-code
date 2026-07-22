@@ -1,3 +1,4 @@
+'use strict';
 /**
  * src/domains/BaseDomain.js
  *
@@ -14,7 +15,7 @@
  *   - capabilities    {Array}   hint strings for AgentKernel.resolveDomain()
  */
 
-import { logger } from '../core/logger.js';
+const { logger } = require('../core/logger');
 
 class BaseDomain {
   constructor() {
@@ -55,7 +56,7 @@ class BaseDomain {
         description: tool.description || tool.name,
         parameters:  tool.parameters  || {},
         risk:        tool.risk        || 'low',
-        execute:     (_ctx, params) => this._executeTool(tool, params),
+        execute:     (ctx, params) => tool.execute(params, ctx),
       };
     }
     return out;
@@ -67,13 +68,9 @@ class BaseDomain {
    */
   async execute(ctx = {}) {
     const { tool, params } = ctx;
-    const skill = this.tools.find((t) => t.name === tool || `${this.name}.${t.name}` === tool);
+    const skill = this.tools.find((t) => t.name === tool || t.name === `${this.name}.${tool}`);
     if (!skill) throw new Error(`Domain "${this.name}": tool not found — "${tool}"`);
-    return this._executeTool(skill, params);
-  }
-
-  _executeTool(tool, params) {
-    return Array.isArray(params) ? tool.execute(...params) : tool.execute(params);
+    return skill.execute(params, ctx);
   }
 
   /**
@@ -96,4 +93,4 @@ class BaseDomain {
   }
 }
 
-export default BaseDomain;
+module.exports = BaseDomain;

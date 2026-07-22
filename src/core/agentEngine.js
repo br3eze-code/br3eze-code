@@ -1,14 +1,15 @@
+'use strict';
 /**
  * AgentEngine
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import EventEmitter from 'events';
-import { TranscriptStore } from './transcript.js';
-import { saveSession, loadSession } from './sessionStore.js';
-import { PermissionMode, PermissionEnforcer, PermissionDenial } from './permissions.js';
-import { getMikroTikClient } from './mikrotik.js';
-import { logger } from './logger.js';
+const { v4: uuidv4 }        = require('uuid');
+const EventEmitter           = require('events');
+const { TranscriptStore }    = require('./transcript');
+const { saveSession, loadSession } = require('./sessionStore');
+const { PermissionMode, PermissionEnforcer, PermissionDenial } = require('./permissions');
+const { getMikroTikClient }  = require('./mikrotik');
+const { logger }             = require('./logger');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -227,4 +228,4 @@ class AgentEngine extends EventEmitter {
     }
 }
 
-export { AgentEngine, TurnResult, UsageSummary };
+module.exports = { AgentEngine, TurnResult, UsageSummary };

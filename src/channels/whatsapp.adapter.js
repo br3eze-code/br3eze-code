@@ -1,4 +1,6 @@
-import axios from 'axios';
+'use strict';
+
+const axios = require('axios');
 
 class WhatsAppAdapter {
     constructor(config) {
@@ -79,4 +81,4 @@ class WhatsAppAdapter {
     }
 }
 
-export default WhatsAppAdapter;
+module.exports = WhatsAppAdapter;

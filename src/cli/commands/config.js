@@ -3,12 +3,11 @@
 // Configuration management
 // ==========================================
 
-import _chalk from 'chalk';
-import { spawn } from 'child_process';
+const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
-import fs from 'fs';
+const fs = require('fs');
 
-export default (program) => {
+module.exports = (program) => {
     const config = program
         .command('config')
         .description('Manage configuration');
@@ -79,6 +78,7 @@ export default (program) => {
             const { CONFIG_PATH } = global.AGENTOS;
             const editor = process.env.EDITOR || 'nano';
 
+            const { spawn } = require('child_process');
             spawn(editor, [CONFIG_PATH], { stdio: 'inherit' });
         });
 
@@ -113,4 +113,3 @@ export default (program) => {
             outro(chalk.green('✓ Done.'));
         });
 };
-

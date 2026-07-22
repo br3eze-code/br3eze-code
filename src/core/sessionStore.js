@@ -1,10 +1,11 @@
+'use strict';
 /**
  * SessionStore — JSON-backed agent session persistence
  */
 
-import fs from 'fs';
-import path from 'path';
-import { STATE_PATH } from './config.js';
+const fs   = require('fs');
+const path = require('path');
+const { STATE_PATH } = require('./config');
 
 const SESSION_DIR = path.join(STATE_PATH, 'sessions');
 
@@ -67,4 +68,4 @@ function deleteSession(sessionId) {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 }
 
-export { saveSession, loadSession, listSessions, deleteSession };
+module.exports = { saveSession, loadSession, listSessions, deleteSession };

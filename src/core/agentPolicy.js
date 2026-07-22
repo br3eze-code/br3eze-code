@@ -201,7 +201,7 @@ function heartbeatIntervalMs(every = DEFAULT_HEARTBEAT_INTERVAL) {
     return HEARTBEAT_INTERVALS[every] || HEARTBEAT_INTERVALS[DEFAULT_HEARTBEAT_INTERVAL];
 }
 
-export default {
+module.exports = {
     AgentPreset, MissingToolBehavior, InstallScope, FileAccess, NetworkAccess,
     resolveAgentPolicy, checkPolicyForTool, inferPresetFromDescription,
     resolveHeartbeat, heartbeatIntervalMs,

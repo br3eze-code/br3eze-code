@@ -1,7 +1,7 @@
 // src/commands/pesapay-commands.js
 // Telegram bot commands for PesaPay integration
 
-export default function setupPesaPayCommands(bot, paymentSvc) {
+module.exports = function setupPesaPayCommands(bot, paymentSvc) {
   // Manual status check instead of IPN
 bot.action(/check_(.+)/, async (ctx) => {
   const [, orderTrackingId] = ctx.match;

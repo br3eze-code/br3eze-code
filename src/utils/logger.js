@@ -7,13 +7,10 @@
 
 'use strict';
 
-import coreLogger from '../core/logger.js';
+const coreLogger = require('../core/logger');
 
 // Named re-exports used in the wild: { Logger }, { logger }, default
-const Logger = coreLogger.logger;
-const logger = coreLogger.logger;
-export { Logger, logger };
-export default {
+module.exports = {
   ...coreLogger,
   // Alias: some files do `const { Logger } = require('../utils/logger')`
   Logger: coreLogger.logger

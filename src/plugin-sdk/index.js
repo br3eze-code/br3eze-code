@@ -1,3 +1,4 @@
+'use strict';
 /**
  * AgentOS Plugin SDK
  * The ONLY surface plugins are allowed to import from core.
@@ -74,8 +75,7 @@ const snapshot = () => ({
   skills:    listSkills(),
 });
 
-export { snapshot };
-export default {
+module.exports = {
   registerDomain, getDomain, hasDomain, listDomains,
   registerChannel, getChannel, listChannels,
   registerProvider, getProvider, listProviders, hasProvider,
