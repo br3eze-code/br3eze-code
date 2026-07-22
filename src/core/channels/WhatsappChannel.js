@@ -1219,10 +1219,26 @@ class WhatsAppChannel extends BaseChannel {
         context,
       );
       await this.send(jid, `✅ *Device Info*\n\`\`\`\n${JSON.stringify(result, null, 2)}\n\`\`\``);
+    } else if (action === "search") {
+      const query = args.slice(2).join(" ");
+      const result = await this.agent.executeTool("dahua.events.search", { query }, context);
+      const lines = result.events.map((e) => `${e.time}  [${e.device}]  ${e.code}${e.channel ? ` ch${e.channel}` : ""}`);
+      await this.send(
+        jid,
+        `🔍 *${result.count} event(s)*${result.truncated ? " (showing most recent 100)" : ""}\n\n${lines.join("\n") || "Nothing found."}`,
+      );
+    } else if (action === "summarize" || action === "ask") {
+      const query = args.slice(2).join(" ");
+      const result = await this.agent.executeTool("dahua.events.summarize", { query }, context);
+      await this.send(jid, `🤖 *Summary* _(via ${result.provider || "n/a"})_\n\n${result.summary}`);
+    } else if (action === "describe") {
+      const channel = Number(args[3] || args[2]) || 1;
+      const result = await this.agent.executeTool("dahua.scene.describe", { device, channel }, context);
+      await this.send(jid, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider})_\n\n${result.summary}`);
     } else {
       await this.send(
         jid,
-        `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot.`,
+        `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot, search, summarize, describe.`,
       );
     }
   }

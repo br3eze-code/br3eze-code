@@ -22,7 +22,7 @@ class AICoordinator extends EventEmitter {
     this.mikrotik = getManager();
 
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       systemInstruction: this.getSystemPrompt()
     });
 
@@ -33,7 +33,10 @@ class AICoordinator extends EventEmitter {
   async _initSkills() {
     const path = require('path');
     const skillsPath = path.join(__dirname, '../skills');
-    await this.skillRegistry.loadFromDirectory(skillsPath);
+    // `workspace` is what BaseSkill-derived skills (e.g. DahuaSkill) receive as their
+    // device/adapter config — without it every skill loads with an empty workspace and
+    // e.g. dahua.device.list silently returns [] even when devices are configured.
+    await this.skillRegistry.loadFromDirectory(skillsPath, { workspace: this.config.adapters?.cctv || {} });
     
     // Build tool-to-skill map
     for (const manifest of this.skillRegistry.list()) {
@@ -50,7 +53,7 @@ class AICoordinator extends EventEmitter {
 
     // Refresh model with new system prompt containing all loaded tools
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       systemInstruction: this.getSystemPrompt()
     });
   }

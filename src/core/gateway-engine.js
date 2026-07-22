@@ -679,6 +679,7 @@ class Gateway extends EventEmitter {
     try {
       this.dahuaNotifier = new DahuaNotifier(this.config, this.channelManager);
       this.dahuaNotifier.start();
+      this.ai.dahuaNotifier = this.dahuaNotifier; // expose to channels for mute/dismiss
     } catch (e) {
       logger.warn(`[Gateway] Dahua notifier not started: ${e.message}`);
     }
