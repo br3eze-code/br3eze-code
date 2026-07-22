@@ -1,5 +1,6 @@
-const PagerDuty = require('node-pagerduty')
-const { BaseSkill } = require('../base.js')
+import { BaseSkill } from '../base.js';
+
+const PD_API = 'https://api.pagerduty.com'
 
 class PagerDutySkill extends BaseSkill {
   static id = 'pagerduty'
@@ -8,7 +9,8 @@ class PagerDutySkill extends BaseSkill {
 
   constructor(config, logger, workspace) {
     super(config, logger, workspace)
-    this.pd = new PagerDuty(config.apiToken)
+    this.apiToken = config.apiToken
+    this.fromEmail = config.fromEmail // PD requires From header for write ops by a user
   }
 
   static getTools() {
@@ -92,27 +94,61 @@ class PagerDutySkill extends BaseSkill {
 
   _svcId(serviceKey) {
     const svc = this.workspace.pd_services[serviceKey]
-    if (!svc || svc.driver!== 'pagerduty') throw new Error(`PD service ${serviceKey} not found`)
+    if (!svc || svc.driver !== 'pagerduty') throw new Error(`PD service ${serviceKey} not found`)
     return svc.id
   }
 
+  // ── thin REST client (replaces node-pagerduty, which pulls in a bundled
+  //    npm@7 CLI as a runtime dependency — source of most Dependabot alerts) ──
+  async _pd(method, path, { query, body } = {}) {
+    const url = new URL(PD_API + path)
+    if (query) {
+      for (const [key, val] of Object.entries(query)) {
+        if (val === undefined) continue
+        if (Array.isArray(val)) val.forEach(v => url.searchParams.append(key, v))
+        else url.searchParams.set(key, val)
+      }
+    }
+
+    const headers = {
+      'Authorization': `Token token=${this.apiToken}`,
+      'Accept': 'application/vnd.pagerduty+json;version=2',
+      'Content-Type': 'application/json'
+    }
+    if (this.fromEmail) headers['From'] = this.fromEmail
+
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    })
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => res.statusText)
+      throw new Error(`PagerDuty API ${method} ${path} -> ${res.status}: ${errBody}`)
+    }
+    if (res.status === 204) return {}
+    return res.json()
+  }
+
   async healthCheck() {
-    const res = await this.pd.abilities.list()
-    return { status: 'ok', abilities: res.body.abilities.length }
+    const abilities = await this._pd('GET', '/abilities')
+    return { status: 'ok', abilities: (abilities.abilities || []).length }
   }
 
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
-        case 'pd.incidents.list':
-          const query = {
-            statuses: args.statuses || ['triggered'],
-            urgencies: args.urgencies,
-            'service_ids[]': args.service? [this._svcId(args.service)] : undefined,
-            limit: 25
-          }
-          const { body } = await this.pd.incidents.listIncidents(query)
-          return body.incidents.map(i => ({
+        case 'pd.incidents.list': {
+          const data = await this._pd('GET', '/incidents', {
+            query: {
+              statuses: args.statuses || ['triggered'],
+              urgencies: args.urgencies,
+              'service_ids[]': args.service ? [this._svcId(args.service)] : undefined,
+              limit: 25
+            }
+          })
+          return data.incidents.map(i => ({
             id: i.id,
             number: i.incident_number,
             title: i.title,
@@ -122,57 +158,64 @@ class PagerDutySkill extends BaseSkill {
             url: i.html_url,
             created_at: i.created_at
           }))
+        }
 
-        case 'pd.incidents.ack':
+        case 'pd.incidents.ack': {
           this.logger.info(`PD ACK ${args.id}`, { user: ctx.userId, note: args.note })
-          await this.pd.incidents.manageIncidents({
-            incidents: [{ id: args.id, type: 'incident_reference', status: 'acknowledged' }]
+          await this._pd('PUT', '/incidents', {
+            body: { incidents: [{ id: args.id, type: 'incident_reference', status: 'acknowledged' }] }
           })
           if (args.note) {
-            await this.pd.incidents.createNote(args.id, { note: { content: args.note } })
+            await this._pd('POST', `/incidents/${args.id}/notes`, { body: { note: { content: args.note } } })
           }
           return { id: args.id, status: 'acknowledged' }
+        }
 
-        case 'pd.incidents.resolve':
+        case 'pd.incidents.resolve': {
           this.logger.warn(`PD RESOLVE ${args.id}`, { user: ctx.userId, reason: args.reason })
-          await this.pd.incidents.manageIncidents({
-            incidents: [{ id: args.id, type: 'incident_reference', status: 'resolved' }],
-            resolution: args.resolution
+          await this._pd('PUT', '/incidents', {
+            body: { incidents: [{ id: args.id, type: 'incident_reference', status: 'resolved', resolution: args.resolution }] }
           })
           return { id: args.id, status: 'resolved' }
+        }
 
-        case 'pd.incidents.trigger':
+        case 'pd.incidents.trigger': {
           this.logger.warn(`PD TRIGGER ${args.service}`, { user: ctx.userId, title: args.title, reason: args.reason })
-          const { body: inc } = await this.pd.incidents.createIncident({
-            incident: {
-              type: 'incident',
-              title: args.title,
-              service: { id: this._svcId(args.service), type: 'service_reference' },
-              body: { type: 'incident_body', details: args.details },
-              urgency: args.urgency || 'high'
+          const data = await this._pd('POST', '/incidents', {
+            body: {
+              incident: {
+                type: 'incident',
+                title: args.title,
+                service: { id: this._svcId(args.service), type: 'service_reference' },
+                body: { type: 'incident_body', details: args.details },
+                urgency: args.urgency || 'high'
+              }
             }
           })
-          return { id: inc.incident.id, number: inc.incident.incident_number, url: inc.incident.html_url }
+          return { id: data.incident.id, number: data.incident.incident_number, url: data.incident.html_url }
+        }
 
-        case 'pd.oncall.list':
-          const { body: oncalls } = await this.pd.oncalls.listOncalls({
-            'service_ids[]': [this._svcId(args.service)]
+        case 'pd.oncall.list': {
+          const data = await this._pd('GET', '/oncalls', {
+            query: { 'service_ids[]': [this._svcId(args.service)] }
           })
-          return oncalls.oncalls.map(o => ({
+          return data.oncalls.map(o => ({
             user: o.user.summary,
             email: o.user.email,
             escalation_level: o.escalation_level,
             start: o.start,
             end: o.end
           }))
+        }
 
-        case 'pd.services.status':
-          const { body: svc } = await this.pd.services.getService(this._svcId(args.service))
+        case 'pd.services.status': {
+          const data = await this._pd('GET', `/services/${this._svcId(args.service)}`)
           return {
-            name: svc.service.name,
-            status: svc.service.status,
-            integrations: svc.service.integrations.map(i => ({ name: i.summary, type: i.type }))
+            name: data.service.name,
+            status: data.service.status,
+            integrations: data.service.integrations.map(i => ({ name: i.summary, type: i.type }))
           }
+        }
 
         default:
           throw new Error(`Unknown tool ${toolName}`)
@@ -184,4 +227,4 @@ class PagerDutySkill extends BaseSkill {
   }
 }
 
-module.exports = PagerDutySkill
+export default PagerDutySkill;

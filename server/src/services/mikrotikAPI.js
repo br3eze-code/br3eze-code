@@ -3,11 +3,11 @@
  * Handles all communication with MikroTik routers
  */
 
-const axios = require('axios');
-const https = require('https');
-const logger = require('../utils/logger');
-const config = require('../config/mikrotik');
-const { retryWithBackoff } = require('../utils/helpers');
+import axios from 'axios';
+import https from 'https';
+import logger from '../utils/logger.js';
+import config from '../config/mikrotik.js';
+import { retryWithBackoff } from '../utils/helpers.js';
 
 class MikroTikAPI {
     constructor() {
@@ -566,4 +566,4 @@ class MikroTikAPI {
     }
 }
 
-module.exports = new MikroTikAPI();
+export default new MikroTikAPI();

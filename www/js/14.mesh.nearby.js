@@ -21,7 +21,7 @@ const GossipService = {
 
             if (this.maintenanceInterval) clearInterval(this.maintenanceInterval);
             this.maintenanceInterval = setInterval(() => this.maintenance(), 30000);
-            console.log("[Mesh] initialized")
+      console.log("[Mesh] intitialized")
         } else {
             console.warn("[Mesh] Plugin not available (Browser Mode). Mesh features disabled.");
             // Simulate for AI Context in dev
@@ -142,12 +142,10 @@ const GossipService = {
         // If I am the recipient, update conversation history
         if (window.currentUser && window.currentUser.id === item.payload.recipientId) {
             console.log("[Mesh] Chat Received from:", item.payload.senderName);
-            if (window.CommunicationHub && typeof window.CommunicationHub.onMessageReceived === 'function') {
+            if (window.CommunicationHub) {
                 window.CommunicationHub.onMessageReceived(item.payload);
             }
-            if (typeof showToast === 'function') {
-                showToast(`📩 Message from ${item.payload.senderName}`, 'info');
-            }
+            showToast(`📩 Message from ${item.payload.senderName}`, 'info');
         }
     },
 
@@ -170,7 +168,7 @@ const GossipService = {
     },
 
     handleBalanceSync(item) {
-        if (window.MeshBilling && typeof window.MeshBilling.handleIncomingGossip === 'function') {
+        if (window.MeshBilling) {
             window.MeshBilling.handleIncomingGossip({
                 userId: item.payload.userId,
                 data: item.payload.data
@@ -274,7 +272,7 @@ const GossipService = {
         this.saveQueue();
 
         // Feed mesh state to AI
-        if (window.ContextManager && typeof window.ContextManager.updateMeshPeers === 'function') {
+        if (window.ContextManager && window.ContextManager.updateMeshPeers) {
             const peerData = {
                 peers: Array.from(this.peers.values()),
                 peerCount: this.peers.size

@@ -1,7 +1,7 @@
 // services/messagingAdapter.js
-const TelegramBot = require('node-telegram-bot-api');
-const WhatsAppService = require('./whatsapp');
-const { logger } = require('../src/core/logger');
+import TelegramBot from 'node-telegram-bot-api';
+import WhatsAppService from './whatsapp.js';
+import logger from '../utils/logger.js';
 
 /**
  * Unified messaging adapter that handles both Telegram and WhatsApp
@@ -252,4 +252,4 @@ class MessagingAdapter {
     }
 }
 
-module.exports = MessagingAdapter;
+export default MessagingAdapter;

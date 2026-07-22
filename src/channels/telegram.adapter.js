@@ -1,6 +1,4 @@
-'use strict';
-
-const TelegramBot = require('node-telegram-bot-api');
+import TelegramBot from 'node-telegram-bot-api';
 
 class TelegramAdapter {
     constructor(token) {
@@ -93,4 +91,4 @@ class TelegramAdapter {
     }
 }
 
-module.exports = TelegramAdapter;
+export default TelegramAdapter;

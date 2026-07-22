@@ -1,14 +1,15 @@
 // tools/mikrotik/createUser.js
 // MikroTik Hotspot User Creation Tool
 
-import { getRouterConnection } from "./connection.js";
+import { getManager } from '../../src/core/mikrotik.js';
+const getRouterConnection = () => getManager();
 
 /**
  * TOOL: mikrotik.createUser
  * Creates a hotspot user on MikroTik router
  */
 
-export async function createUser({ name, password, profile = "default", context }) {
+async function createUser({ name, password, profile = "default", context }) {
     if (!name || !password) {
         throw new Error("Missing required fields: name or password");
     }
@@ -45,3 +46,4 @@ export async function createUser({ name, password, profile = "default", context 
         throw new Error("MikroTik createUser failed: " + err.message);
     }
 }
+export { createUser };

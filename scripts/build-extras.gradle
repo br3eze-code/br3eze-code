@@ -1,14 +1,16 @@
+// Copied to platforms/android/app/build-extras.gradle by config.xml's
+// <resource-file> entry, and applied from the generated build.gradle
+// (standard cordova-android extension point).
+//
+// Enables ProGuard shrinking/obfuscation for release builds. proguard-rules.pro
+// (copied alongside it the same way) keeps the Cordova plugin bridge intact
+// -- see that file for why it's needed.
 android {
     buildTypes {
         release {
             minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-    }
-}
-
-configurations.all {
-    resolutionStrategy {
-        force 'androidx.core:core:1.12.0'
     }
 }

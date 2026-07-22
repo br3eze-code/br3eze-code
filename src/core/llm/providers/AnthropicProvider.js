@@ -1,10 +1,9 @@
-'use strict';
 /**
  * Anthropic LLM Provider (Claude)
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
 
 class AnthropicProvider extends BaseProvider {
     static getMetadata() {
@@ -41,30 +40,68 @@ class AnthropicProvider extends BaseProvider {
         }));
 
         const system = messages.find(m => m.role === 'system')?.content;
+        const hasWebSearch = tools.some(t => t.type === 'web_search_20250305' || t.name === 'web_search');
 
-        const response = await fetch(`${this.base}/messages`, {
-            method: 'POST',
-            headers: {
-                'x-api-key': this.apiKey,
-                'anthropic-version': '2023-06-01',
-                'content-type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: this.model,
-                system: system,
-                messages: anthropicMessages.filter(m => m.role !== 'system'),
-                max_tokens: 4096,
-                tools: tools.length ? tools.map(t => ({
+        const headers = {
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json'
+        };
+        if (hasWebSearch) {
+            headers['anthropic-beta'] = 'web-search-2025-03-05';
+        }
+
+        const body = {
+            model: this.model,
+            system: system,
+            messages: anthropicMessages.filter(m => m.role !== 'system'),
+            max_tokens: 4096,
+            tools: tools.length ? tools.map(t => {
+                if (t.type) {
+                    return { type: t.type, name: t.name };
+                }
+                return {
                     name: t.name,
                     description: t.description,
                     input_schema: t.parameters
-                })) : undefined
-            }),
+                };
+            }) : undefined
+        };
+
+        let response = await fetch(`${this.base}/messages`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
         });
 
-        const data = await response.json();
+        let data = await response.json();
         if (!response.ok) {
             throw new Error(data.error?.message || 'Anthropic API error');
+        }
+
+        // Loop to handle pause_turn (resuming server-side tool execution)
+        let iterations = 0;
+        const MAX_ITER = 8;
+        while (data.stop_reason === 'pause_turn' && iterations < MAX_ITER) {
+            iterations++;
+            body.messages.push({
+                role: 'assistant',
+                content: data.content
+            });
+            if (data.container) {
+                body.container = data.container;
+            }
+
+            response = await fetch(`${this.base}/messages`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body),
+            });
+
+            data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error?.message || 'Anthropic API error');
+            }
         }
 
         let text = '';
@@ -120,4 +157,4 @@ class AnthropicProvider extends BaseProvider {
 
 BaseProvider.register('anthropic', AnthropicProvider);
 BaseProvider.register('claude', AnthropicProvider);
-module.exports = { AnthropicProvider };
+export { AnthropicProvider };

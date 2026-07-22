@@ -1,33 +1,52 @@
-// File: adapters/openclaw/meta.js
-import { AgentOS } from '../../skills/agentos/index.js'
+/**
+ * adapters/openclaw/meta.js
+ *
+ * Produces an OpenClaw-compatible skill manifest from the local AgentKernel instance.
+ * This file is used by the AgentHarness to advertise this node's capabilities
+ * to a parent OpenClaw gateway.
+ *
+ * Usage:
+ *   const makeMeta = require('./adapters/openclaw/meta');
+ *   const manifest = makeMeta(kernelInstance);
+ */
+import pkg from '../../package.json' with { type: 'json' };
 
-// OpenClaw skill format: https://docs.openclaw.org/skills
-export default function agentOSAdapter(agentosInstance) {
-  const skills = []
-  const tools = AgentOS.getTools()
+/**
+ * @param {import('../../src/core/agentKernel')} kernelInstance  Live AgentKernel
+ * @returns {object}  OpenClaw-compatible skill manifest
+ */
+function agentOSAdapter(kernelInstance) {
+  const skills = [];
+
+  // getTools() iterates registered domains and returns { name, description, parameters, risk }
+  const tools = kernelInstance && typeof kernelInstance.getTools === 'function'
+    ? kernelInstance.getTools()
+    : {};
 
   for (const [name, spec] of Object.entries(tools)) {
     skills.push({
       name,
-      description: spec.description,
-      parameters: spec.parameters,
-      risk: spec.risk,
+      description:  spec.description  || '',
+      parameters:   spec.parameters   || {},
+      risk:         spec.risk         || 'low',
       execute: async (args, context) => {
         const ctx = {
-          userId: context.user_id || 'openclaw_user',
-          workspace: context.workspace || '/data/agentos'
-        }
-        return await agentosInstance.execute(name, args, ctx)
-      }
-    })
+          userId:    context?.user_id   || 'openclaw_user',
+          workspace: context?.workspace || process.env.AGENTOS_STATE_PATH || '/data/agentos',
+        };
+        return kernelInstance.execute(name, args, ctx);
+      },
+    });
   }
 
   return {
-    id: 'agentos',
-    name: 'AgentOS Business Suite',
-    version: '1.0.0',
-    description: '27 skills: tours, accounting, unions, permits, tax, merch, CRM. Full music/construction ops.',
-    author: 'AgentOS',
-    skills
-  }
+    id:          process.env.AGENTOS_AGENT_ID || 'agentos',
+    name:        process.env.AGENTOS_AGENT_NAME || 'AgentOS',
+    version:     pkg.version,
+    description: 'Domain-agnostic AI agent with multi-channel, multi-skill support',
+    author:      'AgentOS',
+    skills,
+  };
 }
+
+export default agentOSAdapter;

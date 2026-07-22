@@ -1,6 +1,7 @@
-const { BaseSkill } = require('../base.js')
-const { Chord, Scale, Key, Note, Interval, Progression } = require('tonal')
-const MidiWriter = require('midi-writer-js')
+import fs_promises from 'fs/promises';
+import { BaseSkill } from '../base.js';
+import { Chord, Scale, Key, Note, Interval, Progression } from 'tonal';
+import MidiWriter from 'midi-writer-js';
 
 class MusicSkill extends BaseSkill {
   static id = 'music'
@@ -91,7 +92,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['system']
   }
-}
+},
 'music.performance': {
   risk: 'low',
   description: 'Real-time MIR: onset, pitch tracking, tempo curve, dynamics, articulation',
@@ -157,7 +158,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['chord']
   }
-}
+},
 'music.distributed': {
   risk: 'low',
   description: 'Network music: OSC/MIDI sync, clock, collaborative performance, Ableton Link',
@@ -225,7 +226,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['work']
   }
-}
+},
 'music.live': {
   risk: 'low',
   description: 'Live coding: TidalCycles, Sonic Pi, Strudel patterns, algorithmic composition',
@@ -291,7 +292,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['metric']
   }
-}
+},
 'music.spatial': {
   risk: 'low',
   description: '3D audio: binaural, ambisonics, HRTF, object-based audio, Dolby Atmos specs',
@@ -358,7 +359,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['correction']
   }
-}
+},
 'music.audio_analyze': {
   risk: 'low',
   description: 'Analyze audio file: BPM, key, duration, waveform, spectral features',
@@ -431,7 +432,7 @@ class MusicSkill extends BaseSkill {
     },
     required: ['purpose']
   }
-}
+},
       'music.chord': {
         risk: 'low',
         description: 'Analyze chord: notes, intervals, inversions',
@@ -541,7 +542,7 @@ class MusicSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
-    case 'music.cognition':
+    case 'music.cognition': {
   this.logger.info(`MUSIC COGNITION ${args.model}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Cognition models require llm skill')
 
@@ -562,9 +563,9 @@ JSON: {"groove_score":0.82,"syncopation":0.4,"microtiming":"laid_back","entrainm
   const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.model], model: 'gpt-4' }, ctx.userId)
   try { return { model: args.model,...JSON.parse(res.text) } } catch { return { model: args.model, analysis: res.text } }
 
-case 'music.expectation':
+    }
+case 'music.expectation': {
   this.logger.info(`MUSIC EXPECTATION ${args.metric}`, { user: ctx.userId })
-  const { Note } = require('tonal')
 
   // Simplified surprisal: -log2(p) using corpus probabilities
   const probs = { 'C': 0.2, 'G': 0.15, 'F': 0.12, 'D': 0.08, 'A': 0.07, 'E': 0.06, 'B': 0.05 }
@@ -587,7 +588,8 @@ case 'music.expectation':
     note: 'Higher surprisal = less expected. IDyOM uses Markov models + long-term memory.'
   }
 
-case 'music.entrainment':
+}
+case 'music.entrainment': {
   this.logger.info(`MUSIC ENTRAINMENT ${args.analysis}`, { user: ctx.userId })
   const pattern = args.rhythm.replace(/[^x.]/g, '')
   const onsets = pattern.split('').map((c, i) => c === 'x'? i : null).filter(x => x!== null)
@@ -615,7 +617,8 @@ case 'music.entrainment':
     entrainment: groove > 0.6? 'strong' : groove > 0.3? 'moderate' : 'weak'
   }
 
-case 'music.ethno':
+}
+case 'music.ethno': {
   this.logger.info(`MUSIC ETHNO ${args.tradition} ${args.aspect}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Ethnomusicology requires llm skill')
 
@@ -633,7 +636,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { tradition: args.tradition, analysis: res.text } }
 
-case 'music.transcribe':
+}
+case 'music.transcribe': {
   this.logger.info(`MUSIC TRANSCRIBE ${args.system} ${args.file}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Transcription requires llm skill')
 
@@ -650,9 +654,9 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { file: args.file, transcription: res.text } }
 
-case 'music.tuning':
+}
+case 'music.tuning': {
   this.logger.info(`MUSIC TUNING ${args.system} ${args.root}`, { user: ctx.userId })
-  const { Note, Interval } = require('tonal')
 
   const systems = {
     '12tet': { notes: 12, ratios: Array(12).fill(0).map((_, i) => Math.pow(2, i/12)), name: '12-Tone Equal' },
@@ -680,7 +684,8 @@ case 'music.tuning':
     }
 
   return tuning
-             case 'music.spatial':
+}
+             case 'music.spatial': {
   this.logger.info(`MUSIC SPATIAL ${args.mode}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Spatial audio requires llm skill')
   
@@ -698,7 +703,8 @@ JSON: {"dataset":"CIPIC/KEMAR","subject":"021","itd_func":"azimuth*0.0006","ild_
   const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.mode], model: 'gpt-4' }, ctx.userId)
   try { return { mode: args.mode, ...JSON.parse(res.text) } } catch { return { mode: args.mode, specs: res.text } }
 
-case 'music.ai_stems':
+             }
+case 'music.ai_stems': {
   this.logger.info(`MUSIC AI_STEMS ${args.stems.join(',')} ${args.model}`, { user: ctx.userId })
   // Note: Actual separation requires demucs/spleeter binary. Return workflow + specs.
   const stemFiles = args.stems.map(s => `${args.file.replace(/\.[^.]+$/, '')}_${s}.wav`)
@@ -712,74 +718,8 @@ case 'music.ai_stems':
     note: 'Install demucs: pip install demucs. Spleeter: pip install spleeter. Outputs WAV 44.1kHz.',
     specs: { sr: 44100, bit_depth: 16, format: 'wav' }
   }
-          // Add to static getTools() return object:
-'music.performance': {
-  risk: 'low',
-  description: 'Real-time MIR: onset, pitch tracking, tempo curve, dynamics, articulation',
-  parameters: {
-    type: 'object',
-    properties: {
-      file: { type: 'string', description: 'audio file or attachment://N' },
-      features: { type: 'array', items: { type: 'string' }, enum: ['onset', 'pitch', 'tempo', 'dynamics', 'articulation', 'all'], default: ['all'] },
-      window: { type: 'number', description: 'ms', default: 50 }
-    },
-    required: ['file']
-  }
-},
-'music.gesture': {
-  risk: 'low',
-  description: 'Gesture tracking: conductor, instrumental, dance → music params',
-  parameters: {
-    type: 'object',
-    properties: {
-      source: { type: 'string', enum: ['video', 'midi_controller', 'leap', 'kinect'], default: 'midi_controller' },
-      mapping: { type: 'string', enum: ['tempo', 'dynamics', 'filter', 'spatial'], default: 'tempo' },
-      smoothing: { type: 'number', default: 0.3, description: '0-1' }
-    },
-    required: ['source']
-  }
-},
-'music.schenker': {
-  risk: 'low',
-  description: 'Schenkerian analysis: foreground, middleground, background, Ursatz',
-  parameters: {
-    type: 'object',
-    properties: {
-      chords: { type: 'array', items: { type: 'string' } },
-      melody: { type: 'array', items: { type: 'string' } },
-      key: { type: 'string', default: 'C' },
-      level: { type: 'string', enum: ['foreground', 'middleground', 'background', 'all'], default: 'all' }
-    },
-    required: ['chords']
-  }
-},
-'music.set_theory': {
-  risk: 'low',
-  description: 'Set theory: prime form, interval vector, Forte number, transformations',
-  parameters: {
-    type: 'object',
-    properties: {
-      notes: { type: 'array', items: { type: 'string' } },
-      operation: { type: 'string', enum: ['prime', 'vector', 'forte', 'transform'], default: 'prime' },
-      transform: { type: 'string', enum: ['T0', 'T6', 'I0', 'M', 'MI'], description: 'for transform op' }
-    },
-    required: ['notes']
-  }
-},
-'music.neo_riemann': {
-  risk: 'low',
-  description: 'Neo-Riemannian: P/L/R transforms, Tonnetz, hexatonic cycles',
-  parameters: {
-    type: 'object',
-    properties: {
-      chord: { type: 'string', description: 'C, Am, E' },
-      transform: { type: 'string', enum: ['P', 'L', 'R', 'N', 'S', 'H'], default: 'P' },
-      chain: { type: 'string', description: 'PLR, LPR', default: null }
-    },
-    required: ['chord']
-  }
 }
-case 'music.distributed':
+case 'music.distributed': {
   this.logger.info(`MUSIC DISTRIBUTED ${args.protocol} ${args.action}`, { user: ctx.userId })
 
   if (args.protocol === 'osc') {
@@ -831,7 +771,8 @@ case 'music.distributed':
 
   return { protocol: args.protocol, action: args.action }
 
-case 'music.clock':
+}
+case 'music.clock': {
   this.logger.info(`MUSIC CLOCK ${args.action} ${args.bpm}BPM`, { user: ctx.userId })
   const startTime = Date.now()
   const beatDur = 60000 / args.bpm
@@ -847,7 +788,8 @@ case 'music.clock':
     note: args.action === 'tap'? 'Tap 4 times, avg intervals' : 'Share sync_token with peers'
   }
 
-case 'music.archive':
+}
+case 'music.archive': {
   this.logger.info(`MUSIC ARCHIVE ${args.mode} ${args.corpus}: ${args.query}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Archive search requires llm skill')
 
@@ -865,7 +807,8 @@ JSON: {"attribution":{"composer":"Mozart","confidence":78},"features":{"melodic_
   const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.mode], model: 'gpt-4' }, ctx.userId)
   try { return { mode: args.mode, corpus: args.corpus,...JSON.parse(res.text) } } catch { return { query: args.query, results: res.text } }
 
-case 'music.style':
+}
+case 'music.style': {
   this.logger.info(`MUSIC STYLE analysis`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Style analysis requires llm skill')
 
@@ -884,7 +827,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { style: res.text } }
 
-case 'music.score':
+}
+case 'music.score': {
   this.logger.info(`MUSIC SCORE ${args.work} ${args.format}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Score analysis requires llm skill')
 
@@ -899,7 +843,8 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { work: args.work, analysis: res.text } }
-case 'music.ai_generate':
+}
+case 'music.ai_generate': {
   this.logger.info(`MUSIC AI_GENERATE ${args.mode} ${args.duration}s`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('AI generation requires llm skill')
   
@@ -916,7 +861,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { prompt: args.prompt, generation: res.text } }
 
-case 'music.ai_master':
+}
+case 'music.ai_master': {
   this.logger.info(`MUSIC AI_MASTER ${args.style} ${args.target_lufs}LUFS`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('AI mastering requires llm skill')
   
@@ -934,7 +880,8 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { mastering: res.text } }
-case 'music.live':
+}
+case 'music.live': {
   this.logger.info(`MUSIC LIVE ${args.engine} ${args.action}`, { user: ctx.userId })
 
   const engines = {
@@ -956,7 +903,8 @@ case 'music.live':
     note: `Set cps ${args.bpm/60/2} -- for Tidal. Eval in ${args.engine} REPL.`
   }
 
-case 'music.algo_comp':
+}
+case 'music.algo_comp': {
   this.logger.info(`MUSIC ALGO_COMP ${args.algorithm}`, { user: ctx.userId })
 
   const algorithms = {
@@ -1026,7 +974,8 @@ case 'music.algo_comp':
   const result = algorithms[args.algorithm]()
   return {...result, output: args.output }
 
-case 'music.neuro':
+}
+case 'music.neuro': {
   this.logger.info(`MUSIC NEURO ${args.signal} → ${args.mapping}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Neuro sonification requires llm skill')
 
@@ -1043,7 +992,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { signal: args.signal, mapping: res.text } }
 
-case 'music.bci':
+}
+case 'music.bci': {
   this.logger.info(`MUSIC BCI ${args.paradigm} ${args.control}`, { user: ctx.userId })
 
   const paradigms = {
@@ -1061,7 +1011,8 @@ case 'music.bci':
     setup: `OpenBCI ${args.channels}-ch, Cyton+Daisy. Stream LSL. Map to ${args.control}.`
   }
 
-case 'music.biofeedback':
+}
+case 'music.biofeedback': {
   this.logger.info(`MUSIC BIOFEEDBACK ${args.metric} ${args.target}`, { user: ctx.userId })
 
   const mappings = {
@@ -1087,7 +1038,8 @@ case 'music.biofeedback':
               args.target === 'focus'? 'Lock tempo 60-70 BPM, minimal variation, pink noise' :
               'Increase tempo 5 BPM/min, add harmonics, reduce reverb'
   }
-case 'music.melodyne':
+}
+case 'music.melodyne': {
   this.logger.info(`MUSIC MELODYNE ${args.correction} ${args.strength}`, { user: ctx.userId })
   const corrections = {
     pitch: { retune_speed: args.strength, scale: args.scale || 'chromatic', formant: false, note_transition: args.strength },
@@ -1103,10 +1055,11 @@ case 'music.melodyne':
     plugin: 'Melodyne/Auto-Tune/Elastic Audio',
     note: `Set retune speed ${args.strength}. 0=natural, 100=robotic`
   }
-          case 'music.audio_analyze':
+}
+          case 'music.audio_analyze': {
   this.logger.info(`MUSIC AUDIO_ANALYZE ${args.file}`, { user: ctx.userId })
-  const mm = require('music-metadata')
-  const fs = require('fs/promises')
+  const mm = (await import('music-metadata')).default;
+  const fs = fs_promises
   
   try {
     // Handle attachment://N or path
@@ -1156,7 +1109,8 @@ case 'music.melodyne':
     throw new Error(`Audio analysis failed: ${e.message}`)
   }
 
-case 'music.beat_detect':
+          }
+case 'music.beat_detect': {
   this.logger.info(`MUSIC BEAT_DETECT ${args.file}`, { user: ctx.userId })
   // Simplified: estimate via LLM or return structure
   if (!this.agent.registry.skills.llm) throw new Error('Beat detection requires llm skill')
@@ -1172,7 +1126,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { beats: res.text, note: 'Use librosa/essentia for precise detection' } }
 
-case 'music.key_detect':
+}
+case 'music.key_detect': {
   this.logger.info(`MUSIC KEY_DETECT ${args.file}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Key detection requires llm skill')
   
@@ -1181,7 +1136,8 @@ JSON: {"key":"C","scale":"major","confidence":85,"alternatives":[{"key":"Am","co
   const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { key: res.text } }
 
-case 'music.synth_patch':
+}
+case 'music.synth_patch': {
   this.logger.info(`MUSIC SYNTH_PATCH ${args.type} ${args.mood}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Synth patch requires llm skill')
   
@@ -1199,7 +1155,8 @@ JSON: {
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { patch: res.text } }
 
-case 'music.wavetable':
+}
+case 'music.wavetable': {
   this.logger.info(`MUSIC WAVETABLE ${args.base} ${args.harmonics}`, { user: ctx.userId })
   const harmonics = []
   for (let i = 1; i <= args.harmonics; i++) {
@@ -1222,7 +1179,8 @@ case 'music.wavetable':
     note: 'Import to Serum/Vital/Xfer'
   }
 
-case 'music.fx_chain':
+}
+case 'music.fx_chain': {
   this.logger.info(`MUSIC FX_CHAIN ${args.purpose} ${args.instrument}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('FX chain requires llm skill')
   
@@ -1233,7 +1191,8 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { fx_chain: res.text } }
-        case 'music.chord':
+}
+        case 'music.chord': {
           this.logger.info(`MUSIC CHORD ${args.chord}`, { user: ctx.userId })
           const chord = Chord.get(args.chord)
           return {
@@ -1247,7 +1206,8 @@ JSON: {
             empty: chord.empty
           }
 
-        case 'music.scale':
+        }
+        case 'music.scale': {
           this.logger.info(`MUSIC SCALE ${args.tonic} ${args.type}`, { user: ctx.userId })
           const scale = Scale.get(`${args.tonic} ${args.type}`)
           return {
@@ -1259,7 +1219,8 @@ JSON: {
             degrees: scale.notes.map((n, i) => ({ degree: i + 1, note: n }))
           }
 
-        case 'music.progression':
+        }
+        case 'music.progression': {
           this.logger.info(`MUSIC PROGRESSION ${args.key} ${args.progression}`, { user: ctx.userId })
           const key = Key.majorKey(args.key) || Key.minorKey(args.key)
           const numerals = args.progression.split('-')
@@ -1280,7 +1241,8 @@ JSON: {
             roman: numerals.join('-')
           }
 
-        case 'music.transpose':
+        }
+        case 'music.transpose': {
           this.logger.info(`MUSIC TRANSPOSE ${args.interval}`, { user: ctx.userId })
           const transposed = args.notes.map(n => Note.transpose(n, args.interval))
           return {
@@ -1289,7 +1251,8 @@ JSON: {
             transposed
           }
 
-        case 'music.midi':
+        }
+        case 'music.midi': {
           this.logger.info(`MUSIC MIDI ${args.chords.length} chords`, { user: ctx.userId })
           const track = new MidiWriter.Track()
           track.setTempo(args.tempo)
@@ -1305,7 +1268,7 @@ JSON: {
           const write = new MidiWriter.Writer(track)
           const filename = `${args.filename}.mid`
           const filepath = `${this.workspace}/${filename}`
-          await require('fs/promises').writeFile(filepath, Buffer.from(write.buildFile()))
+          await fs_promises.writeFile(filepath, Buffer.from(write.buildFile()))
 
           return {
             filename,
@@ -1315,7 +1278,8 @@ JSON: {
             path: filepath
           }
 
-        case 'music.lyrics':
+        }
+        case 'music.lyrics': {
           this.logger.info(`MUSIC LYRICS ${args.theme} ${args.structure}`, { user: ctx.userId })
           if (!this.agent.registry.skills.llm) throw new Error('Lyrics require llm skill')
 
@@ -1331,7 +1295,8 @@ Output only lyrics, no explanation.`
             lyrics: res.text.trim()
           }
 
-        case 'music.analyze':
+        }
+        case 'music.analyze': {
           this.logger.info(`MUSIC ANALYZE ${args.chords.length} chords`, { user: ctx.userId })
           const chords2 = args.chords.map(c => Chord.get(c))
           const notes = [...new Set(chords2.flatMap(c => c.notes))]
@@ -1360,7 +1325,8 @@ Output only lyrics, no explanation.`
             chord_types: chords2.map(c => c.type)
           }
 
-        case 'music.harmonize':
+        }
+        case 'music.harmonize': {
           this.logger.info(`MUSIC HARMONIZE ${args.melody.length} notes`, { user: ctx.userId })
           const scale2 = Scale.get(`${args.key} major`)
           const harmonized = args.melody.map(note => {
@@ -1379,8 +1345,10 @@ Output only lyrics, no explanation.`
 
           return { key: args.key, harmonization: harmonized }
 
-        default:
+        }
+        default: {
           throw new Error(`Unknown tool ${toolName}`)
+        }
       }
     } catch (e) {
       this.logger.error(`Music ${toolName} failed: ${e.message}`)
@@ -1389,4 +1357,4 @@ Output only lyrics, no explanation.`
   }
 }
 
-module.exports = MusicSkill
+export default MusicSkill;

@@ -1,5 +1,6 @@
-const { printVoucher } = require('../src/core/printer');
-const { logger } = require('../src/core/logger');
+﻿import { printVoucher } from '../src/core/printer.js';
+import { logger } from '../src/core/logger.js';
+import { discoverBluetoothPrinterPort } from '../src/core/printer.js';
 
 // Override config locally for the test if arguments are provided
 const mockConfig = {
@@ -11,7 +12,7 @@ const mockConfig = {
 };
 
 // Mocking the getConfig temporarily to use our arguments
-const configModule = require('../src/core/config');
+import configModule from '../src/core/config.js';
 const originalGetConfig = configModule.getConfig;
 configModule.getConfig = () => ({ ...originalGetConfig(), printer: mockConfig.printer });
 
@@ -27,7 +28,6 @@ async function runTest() {
 
     console.log('\n[2] Bluetooth Auto-Discovery:');
     try {
-        const { discoverBluetoothPrinterPort } = require('../src/core/printer');
         const btPort = discoverBluetoothPrinterPort();
         if (btPort) {
             console.log(`✅ Discovered BT Printer on: ${btPort}`);
@@ -43,7 +43,7 @@ async function runTest() {
         username: 'debug_user_99',
         password: 'debug_password',
         profile: 'Debug-Profile',
-        loginUrl: 'http://hotspot.local/login?username=debug_user_99&password=debug_password'
+        loginUrl: 'http://br3eze.africa/login?username=debug_user_99&password=debug_password'
     };
 
     logger.info('Sending print command...');

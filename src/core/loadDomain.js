@@ -1,15 +1,20 @@
 // src/core/loadDomain.js
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const registry = require('./ToolRegistry');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+import { logger } from './logger.js';
+import registry from './ToolRegistry.js';
+import BaseDomain from '../domains/BaseDomain.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Automatically loads all domains from src/domains
  */
-function loadAllDomains(config = {}) {
+async function loadAllDomains(config = {}) {
   const domainsDir = path.join(__dirname, '../domains');
   
   if (!fs.existsSync(domainsDir)) {
@@ -27,12 +32,13 @@ function loadAllDomains(config = {}) {
       const indexPath = path.join(itemPath, 'index.js');
       if (fs.existsSync(indexPath)) {
         try {
-          const domainModule = require(indexPath);
+          const imported = await import(pathToFileURL(indexPath).href);
+          const domainModule = imported.default !== undefined ? imported.default : imported;
           
           if (typeof domainModule.register === 'function') {
             // Functional registration pattern
             domainModule.register(registry, config[item] || {});
-          } else if (typeof domainModule === 'function' && domainModule.prototype instanceof require('../domains/BaseDomain')) {
+          } else if (typeof domainModule === 'function' && domainModule.prototype instanceof BaseDomain) {
             // Class registration pattern
             const DomainClass = domainModule;
             const domainInstance = new DomainClass(config[item] || {});
@@ -49,4 +55,4 @@ function loadAllDomains(config = {}) {
   }
 }
 
-module.exports = loadAllDomains;
+export default loadAllDomains;

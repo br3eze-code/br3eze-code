@@ -1,4 +1,4 @@
-const RouterOSClient = require('routeros-client').RouterOSClient;
+import { RouterOSClient as RouterOSClient } from 'routeros-client';
 
 class McPorterSkill {
   constructor() {
@@ -101,4 +101,4 @@ class McPorterSkill {
   }
 }
 
-module.exports = new McPorterSkill();
+export default new McPorterSkill();

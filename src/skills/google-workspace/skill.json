@@ -1,0 +1,8 @@
+{
+  "name": "google-workspace",
+  "version": "1.0.0",
+  "description": "Google Workspace integration: Docs, Sheets, Drive search and management",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

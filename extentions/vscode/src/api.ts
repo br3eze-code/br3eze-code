@@ -44,12 +44,13 @@ export class AgentOSAPI {
     try {
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await res.json() as { message?: string };
       this.output.appendLine(`← ${data.message || 'Success'}`);
       return data;
-    } catch (e: any) {
-      this.output.appendLine(`✗ ${e.message}`);
-      vscode.window.showErrorMessage(`AgentOS error: ${e.message}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      this.output.appendLine(`✗ ${message}`);
+      vscode.window.showErrorMessage(`AgentOS error: ${message}`);
       return null;
     }
   }

@@ -1,8 +1,8 @@
 // system/logger.js
 // AgentOS Logging Core
 
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 
 const LOG_DIR = path.join(process.cwd(), "logs");
 
@@ -58,7 +58,7 @@ function logToConsole(level, message, data = null) {
 }
 
 // Main logger object
-export const logger = {
+const logger = {
     error: (message, data = null) => {
         logToFile(LEVELS.ERROR, message, data);
         logToConsole(LEVELS.ERROR, message, data);
@@ -114,4 +114,4 @@ export const logger = {
         return "";
     }
 };
-
+export { logger };

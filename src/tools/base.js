@@ -1,4 +1,6 @@
 // src/tools/base.js
+import { z } from 'zod';
+
 class BaseTool {
   constructor(config) {
     this.name = config.name;
@@ -62,3 +64,5 @@ class DatabaseMigrationTool extends BaseTool {
     };
   }
 }
+
+export { BaseTool };

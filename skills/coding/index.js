@@ -1,5 +1,5 @@
 // skills/coding/index.js
-module.exports = {
+export default {
   name: 'coding',
   tools: [
     {

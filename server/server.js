@@ -1,4 +1,14 @@
 #!/usr/bin/env node
+import { fileURLToPath, pathToFileURL } from 'url';
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import Database from 'better-sqlite3';
+import https from 'https';
+import net from 'net';
+import { db, admin } from './src/config/firebase.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 // ============================================================
 // AgentOS WiFi Manager - Node.js Backend
 // Version: 2026.5.0
@@ -6,17 +16,14 @@
 // ============================================================
 
 'use strict';
-
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const winston = require('winston');
-const helmet = require('helmet');
-const cors = require('cors');
-const crypto = require('crypto');
-const path = require('path');
-const QRCode = require('qrcode');
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import winston from 'winston';
+import helmet from 'helmet';
+import cors from 'cors';
+import QRCode from 'qrcode';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -92,7 +99,6 @@ class DatabaseService {
 
     async initialize() {
         try {
-            const Database = require('better-sqlite3');
             this.db = new Database('agentos.db');
 
             // Create tables
@@ -162,7 +168,7 @@ class DatabaseService {
 
     // Voucher methods
     createVoucher(code, plan, createdBy = 'system') {
-        const expiresAt = new Date(Date.now() + (CONFIG.VOUCHER_PLANS[plan]?.duration ?? 0)).toISOString();
+        const expiresAt = new Date(Date.now() + CONFIG.VOUCHER_PLANS[plan]?.duration || 0).toISOString();
         const stmt = this.db.prepare(`
             INSERT INTO vouchers (code, plan, expires_at, created_by)
             VALUES (?, ?, ?, ?)
@@ -222,15 +228,14 @@ class DatabaseService {
 
     // Audit log
     logAudit(eventType, actor, payload = {}) {
-        const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
         const hash = crypto.createHash('sha256')
-            .update(JSON.stringify({ event_type: eventType, actor, payload: payloadStr, timestamp: Date.now() }))
+            .update(JSON.stringify({ eventType, actor, payload, timestamp: Date.now() }))
             .digest('hex');
 
         const stmt = this.db.prepare(`
             INSERT INTO audit_log (event_type, actor, payload, hash) VALUES (?, ?, ?, ?)
         `);
-        stmt.run(eventType, actor, payloadStr, hash);
+        stmt.run(eventType, actor, JSON.stringify(payload), hash);
 
         return hash;
     }
@@ -555,8 +560,6 @@ class NetworkDiscoveryService {
 
     // Check if IP is a MikroTik router
     async checkMikrotik(ip, ports) {
-        const http = require('http');
-        const https = require('https');
 
         for (const port of ports) {
             try {
@@ -666,7 +669,6 @@ class NetworkDiscoveryService {
 
     // Ping host (TCP method since ICMP requires admin)
     async pingHost(ip, timeout = 2000) {
-        const net = require('net');
 
         return new Promise((resolve) => {
             const start = Date.now();
@@ -678,13 +680,13 @@ class NetworkDiscoveryService {
                 const responseTime = Date.now() - start;
                 socket.destroy();
 
-                // checkPort() is async — filter() can't await it; resolve without port scan
-                // Port scanning is done separately via checkPort() if needed.
                 resolve({
                     ip,
                     alive: true,
                     responseTime,
-                    ports: [],
+                    ports: [80, 443, 22, 3389].filter(port =>
+                        this.checkPort(ip, port, timeout)
+                    ),
                     foundAt: Date.now()
                 });
             });
@@ -703,7 +705,6 @@ class NetworkDiscoveryService {
     }
 
     async checkPort(ip, port, timeout) {
-        const net = require('net');
         return new Promise((resolve) => {
             const socket = new net.Socket();
             socket.setTimeout(timeout);
@@ -831,8 +832,8 @@ const TOOLS = {
                 .update(JSON.stringify({
                     event_type: log.event_type,
                     actor: log.actor,
-                    payload: log.payload,   // stored as string already
-                    timestamp: log.timestamp_ms  // original ms epoch stored alongside
+                    payload: log.payload,
+                    timestamp: new Date(log.timestamp).getTime()
                 }))
                 .digest('hex');
 
@@ -1111,7 +1112,7 @@ class AgentOSGateway {
             case 'tool.list':
                 this._send(ws, {
                     type: 'tool.list',
-                    tools: commandHandler.getAvailableTools()
+                    tools: global.commandHandler.getAvailableTools()
                 });
                 break;
 
@@ -1123,14 +1124,6 @@ class AgentOSGateway {
 
             case 'broadcast':
                 this._handleBroadcast(clientId, ws, msg);
-                break;
-
-            case 'intent':
-                this._handleIntent(clientId, ws, msg);
-                break;
-
-            case 'auth.identify':
-                this._handleAuthIdentify(clientId, ws, msg);
                 break;
 
             default:
@@ -1158,8 +1151,7 @@ class AgentOSGateway {
             }
         });
 
-        const remoteAddr = ws._socket?.remoteAddress || 'unknown';
-        logger.info(`Node registered: ${payload.nodeId} (${payload.platform}) from ${remoteAddr}`);
+        logger.info(`Node registered: ${payload.nodeId} (${payload.platform}) from ${ws.remoteAddress}`);
 
         // Broadcast node list to all clients
         this._broadcastNodeList();
@@ -1241,7 +1233,7 @@ class AgentOSGateway {
         }
 
         // Also execute locally
-        commandHandler.execute(command, params || [], client.nodeId || clientId)
+        global.commandHandler.execute(command, params || [], client.nodeId || clientId)
             .then(result => {
                 this._send(ws, {
                     type: 'command.result',
@@ -1277,27 +1269,6 @@ class AgentOSGateway {
         });
     }
 
-    _handleIntent(clientId, ws, msg) {
-        const { intent, payload } = msg;
-        logger.info(`[AgentOSGateway] Intent received: ${intent} from client ${clientId}`, payload);
-        this._send(ws, {
-            type: 'intent.result',
-            intent,
-            success: true,
-            message: `Intent ${intent} processed successfully`
-        });
-    }
-
-    _handleAuthIdentify(clientId, ws, msg) {
-        const { uid, email, channel } = msg;
-        logger.info(`[AgentOSGateway] Identity received: uid=${uid}, email=${email}, channel=${channel} from client ${clientId}`);
-        this._send(ws, {
-            type: 'auth.identified',
-            uid,
-            clientId
-        });
-    }
-
     _findNodeById(nodeId) {
         for (const [_, client] of this.clients) {
             if (client.nodeId === nodeId) {
@@ -1308,13 +1279,13 @@ class AgentOSGateway {
     }
 
     async _handleToolInvoke(clientId, ws, msg) {
-        const rateCheck = commandHandler.checkRateLimit(clientId);
+        const rateCheck = global.commandHandler.checkRateLimit(clientId);
         if (!rateCheck.allowed) {
             return this._send(ws, { type: 'error', id: msg.id, error: rateCheck.reason });
         }
 
         try {
-            const result = await commandHandler.execute(msg.tool, msg.params || [], clientId);
+            const result = await global.commandHandler.execute(msg.tool, msg.params || [], clientId);
             this._send(ws, {
                 type: 'tool.result',
                 id: msg.id,
@@ -1369,14 +1340,6 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// URL rewriting for /api/v1/* compatibility
-app.use((req, res, next) => {
-    if (req.url.startsWith('/api/v1/')) {
-        req.url = req.url.replace('/api/v1/', '/api/');
-    }
-    next();
-});
 
 // Auth middleware
 const authMiddleware = (req, res, next) => {
@@ -1437,7 +1400,7 @@ app.post('/api/auth/login', (req, res) => {
 app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, res) => {
     const { tool, params = [] } = req.body;
     try {
-        const result = await commandHandler.execute(tool, params, req.body._actor || 'api');
+        const result = await global.commandHandler.execute(tool, params, req.body._actor || 'api');
         res.json({ success: true, result });
     } catch (error) {
         res.status(400).json({ success: false, error: error.message });
@@ -1445,7 +1408,7 @@ app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, r
 });
 
 app.get('/api/tools', authMiddleware, (req, res) => {
-    res.json({ tools: commandHandler.getAvailableTools() });
+    res.json({ tools: global.commandHandler.getAvailableTools() });
 });
 
 app.get('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
@@ -1486,9 +1449,74 @@ app.get('/api/audit', authMiddleware, (req, res) => {
     res.json(database.getAuditLog(limit));
 });
 
+// ── Stripe card top-up ──────────────────────────────────────────────────────
+// Card payments are server-side (the secret key never touches the browser).
+// Topping up the internal balance makes card payment work for BOTH plans and
+// merch, since everything is bought with credits. Stripe REST via axios so no
+// extra dependency is needed.
+import _stripeAxios from 'axios';
+function _stripeForm(flat) {
+    const p = new URLSearchParams();
+    for (const k in flat) p.append(k, flat[k]);
+    return p.toString();
+}
+app.post('/api/checkout/create', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, amount, label } = req.body || {};
+    const dollars = Number(amount);
+    if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
+    // Stripe's USD minimum is $0.50; the cap keeps a typo from becoming a $10k charge.
+    if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
+    const origin = req.headers.origin || 'https://br3eze-africa-312df.web.app';
+    try {
+        const r = await _stripeAxios.post('https://api.stripe.com/v1/checkout/sessions', _stripeForm({
+            mode: 'payment',
+            success_url: `${origin}/?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/?topup=cancel`,
+            'line_items[0][price_data][currency]': 'usd',
+            'line_items[0][price_data][product_data][name]': label || 'Power Connect credit top-up',
+            'line_items[0][price_data][unit_amount]': Math.round(dollars * 100),
+            'line_items[0][quantity]': 1,
+            'metadata[uid]': uid,
+            'metadata[credits]': String(dollars),
+        }), { auth: { username: SK, password: '' }, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        res.json({ url: r.data.url, id: r.data.id });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+app.post('/api/checkout/verify', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const sessionId = (req.body && req.body.session_id) || req.query.session_id;
+    if (!sessionId) return res.status(400).json({ error: 'session_id required' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        const r = await _stripeAxios.get(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, { auth: { username: SK, password: '' } });
+        const s = r.data;
+        if (s.payment_status !== 'paid') return res.json({ paid: false, status: s.payment_status });
+        const uid = s.metadata && s.metadata.uid;
+        const credits = Number(s.metadata && s.metadata.credits);
+        if (!uid || !(credits > 0)) return res.json({ paid: true, credited: false, reason: 'no metadata' });
+        // Idempotent fulfilment — a session is credited at most once.
+        const ref = db.collection('stripeSessions').doc(sessionId);
+        const credited = await db.runTransaction(async (tx) => {
+            const doc = await tx.get(ref);
+            if (doc.exists && doc.data().processed) return false;
+            tx.set(ref, { processed: true, uid, credits, at: new Date().toISOString() });
+            tx.update(db.collection('users').doc(uid), { credits: admin.firestore.FieldValue.increment(credits) });
+            return true;
+        });
+        res.json({ paid: true, credited, amount: credits });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+
 app.get('/api/router/status', authMiddleware, async (req, res) => {
     try {
-        const result = await commandHandler.execute('router.status');
+        const result = await global.commandHandler.execute('router.status');
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1527,12 +1555,8 @@ app.use((err, req, res, next) => {
 // §8 BOOTSTRAP
 // ============================================================
 
-// Module-level reference so all routes and class methods share the same instance
-let commandHandler = null;
-
 async function boot() {
     // Ensure logs directory exists
-    const fs = require('fs');
     if (!fs.existsSync('logs')) {
         fs.mkdirSync('logs', { recursive: true });
     }
@@ -1540,40 +1564,53 @@ async function boot() {
     // Initialize database
     await database.initialize();
 
-    // Create HTTP server first so gateway can attach to it
-    const server = http.createServer(app);
+    // Create command handler
+    const commandHandler = new CommandHandler(TOOLS, database, null);
+    global.commandHandler = commandHandler;
 
-    // Initialize WebSocket gateway
-    const gateway = new AgentOSGateway(server);
+    // Only start the raw HTTP listener + WebSocket gateway when run as a
+    // standalone process (`node server.js`). When this module is instead
+    // required by the Cloud Functions wrapper (server/index.js), Cloud
+    // Functions manages its own listener and can't proxy a raw WebSocket
+    // server behind onRequest() -- all we need in that mode is `app` wired
+    // up with an initialized database + command handler.
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+        // Create HTTP server
+        const server = http.createServer(app);
 
-    // Create the single shared commandHandler and wire up the gateway
-    commandHandler = new CommandHandler(TOOLS, database, gateway);
+        // Initialize WebSocket gateway
+        const gateway = new AgentOSGateway(server);
+        global.commandHandler.gateway = gateway;
 
-    // Start server
-    server.listen(CONFIG.PORT, CONFIG.HOST, () => {
-        logger.info(`${BRAND.emoji} ${BRAND.name} v${BRAND.version}`);
-        logger.info(`Server running at http://${CONFIG.HOST}:${CONFIG.PORT}`);
-        logger.info(`WebSocket Gateway at ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
-        logger.info(`Health check: http://${CONFIG.HOST}:${CONFIG.PORT}/health`);
-    });
-
-    // Graceful shutdown
-    const shutdown = (signal) => {
-        logger.info(`${signal} received - shutting down...`);
-        gateway.wss.close();
-        server.close(() => {
-            logger.info('Server closed');
-            process.exit(0);
+        // Start server
+        server.listen(CONFIG.PORT, CONFIG.HOST, () => {
+            logger.info(`${BRAND.emoji} ${BRAND.name} v${BRAND.version}`);
+            logger.info(`Server running at http://${CONFIG.HOST}:${CONFIG.PORT}`);
+            logger.info(`WebSocket Gateway at ws://${CONFIG.HOST}:${CONFIG.PORT}/ws`);
+            logger.info(`Health check: http://${CONFIG.HOST}:${CONFIG.PORT}/health`);
         });
-    };
 
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+        // Graceful shutdown
+        const shutdown = (signal) => {
+            logger.info(`${signal} received - shutting down...`);
+            gateway.wss.close();
+            server.close(() => {
+                logger.info('Server closed');
+                process.exit(0);
+            });
+        };
+
+        process.on('SIGTERM', () => shutdown('SIGTERM'));
+        process.on('SIGINT', () => shutdown('SIGINT'));
+    }
 }
+
+// Make commandHandler available globally for this module
+global.commandHandler = null;
 
 boot().catch(err => {
     logger.error('Boot failed:', err);
-    process.exit(1);
+    if (import.meta.url === pathToFileURL(process.argv[1] || '').href) process.exit(1);
 });
 
-module.exports = { app, TOOLS, database };
+export { app, TOOLS, database };

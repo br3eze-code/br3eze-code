@@ -1,204 +1,374 @@
-// ==========================================
-// AGENTOS USERS COMMAND
-// Hotspot user management — @clack/prompts edition
-// ==========================================
-
 'use strict';
+/**
+ * agentos users — manage both MikroTik hotspot users AND AgentOS platform users
+ *
+ * MikroTik subcommands (hotspot / network):
+ *   list [-a] [-l N]   active sessions
+ *   kick <name>        disconnect a user
+ *   add <name>         create a hotspot user
+ *   remove <name> [-f] delete a hotspot user
+ *   status <name>      session stats
+ *   transfer <name>    move between routers
+ *
+ * AgentOS platform subcommands:
+ *   platform list              list all platform users from DB
+ *   platform show <uid>        show a user's full profile + role
+ *   platform role <uid> <role> assign a role (admin only)
+ *   platform sandbox <uid>     toggle sandbox mode (admin only)
+ *   platform delete <uid>      remove a platform user
+ *   platform roles             list all available roles
+ *   platform whoami            show currently authenticated operator's role
+ */
 
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
-const { getMikroTikClient } = require('../../core/mikrotik');
+import chalk from 'chalk';
+import { getManager } from '../../core/mikrotik.js';
+import { getUserSandbox } from '../../core/userSandbox.js';
+import { getDatabase } from '../../core/database.js';
+import rolesJson from '../../policies/roles.json' with { type: 'json' };
+import { _internal } from './login.js';
 
-module.exports = (program) => {
+export default (program) => {
+  // ── MikroTik / Hotspot users ───────────────────────────────────────────
   const users = program
     .command('users')
-    .description('Manage hotspot users')
-    .alias('user');
+    .description('Manage hotspot users (MikroTik) and AgentOS platform users');
 
-  // ── users list ────────────────────────────────────────────────────────────
   users
     .command('list')
-    .description('List active hotspot users')
-    .option('--all, -a', 'Show all users (not just active)')
-    .option('--limit, -l <n>', 'Limit results', '20')
+    .description('List active hotspot sessions')
+    .option('-a, --all', 'Show all users (not just active)')
+    .option('-l, --limit <n>', 'Limit results', '20')
     .action(async (options) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      intro(chalk.cyan('👥  Hotspot Users'));
       const s = spinner();
-      s.start(options.all ? 'Fetching all hotspot users…' : 'Fetching active sessions…');
-
+      s.start('Fetching active sessions...');
       try {
-        const mikrotik = await getMikroTikClient();
-        const limit = parseInt(options.limit) || 20;
-
-        if (options.all) {
-          const all = await mikrotik.getAllHotspotUsers();
-          s.stop(`${all.length} users found`);
-
-          if (!all.length) { log.warn('No hotspot users configured.'); return; }
-
-          const lines = all.slice(0, limit).map((u, i) => {
-            const status = u.disabled === 'yes' ? '🔴 disabled' : '🟢 enabled ';
-            return `${String(i + 1).padStart(2)}. ${status}  ${(u.name || '').padEnd(18)}  ${u.profile || 'default'}`;
-          });
-          if (all.length > limit) lines.push(`   … and ${all.length - limit} more`);
-
-          note(lines.join('\n'), `📋 All Hotspot Users (${all.length})`);
-        } else {
-          const active = await mikrotik.getActiveUsers();
-          s.stop(`${active.length} active session(s)`);
-
-          if (!active.length) { log.warn('No active sessions.'); return; }
-
-          const lines = active.slice(0, limit).map((u, i) => {
-            const dataIn  = formatBytes(u['bytes-in']  || 0);
-            const dataOut = formatBytes(u['bytes-out'] || 0);
-            return [
-              `${String(i + 1).padStart(2)}. ${(u.user || '').padEnd(18)}  ${u.address || ''}`,
-              `    MAC: ${u['mac-address'] || '—'}  Uptime: ${u.uptime || '—'}  ↓${dataIn} ↑${dataOut}`,
-            ].join('\n');
-          });
-
-          note(lines.join('\n'), `👥 Active Sessions (${active.length})`);
-        }
-
-        outro('Done.');
-      } catch (error) {
-        log.error(`Failed: ${error.message}`);
+        const mikrotik = getManager();
+        const users = await mikrotik.executeTool(
+          options.all ? 'mikrotik.hotspot.user.getAll' : 'users.active', {}, {}
+        );
+        s.stop(`Found ${users.length} user(s)`);
+        if (!users.length) { log.warn('No active sessions'); outro(''); return; }
+        const rows = users.slice(0, parseInt(options.limit));
+        rows.forEach(u => {
+          log.info(`${chalk.green(u.name || u['mac-address'] || u.id)} — IP: ${chalk.yellow(u.address || '—')} uptime: ${u.uptime || '—'}`);
+        });
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
       }
+      outro('');
     });
 
-  // ── users kick ────────────────────────────────────────────────────────────
   users
-    .command('kick <username>')
-    .description('Disconnect an active user')
-    .action(async (username) => {
+    .command('kick <name>')
+    .description('Kick / disconnect a hotspot user')
+    .action(async (name) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      intro(chalk.red('🦵  Kick User'));
       const s = spinner();
-      s.start(`Kicking ${username}…`);
+      s.start(`Disconnecting ${name}...`);
       try {
-        const mikrotik = await getMikroTikClient();
-        const kicked = await mikrotik.kickUser(username);
-        if (kicked) {
-          s.stop(`${username} disconnected`);
-          outro(`✓ ${username} kicked.`);
-        } else {
-          s.stop(`${username} not found in active sessions`);
-          log.warn(`User "${username}" is not currently active.`);
-        }
-      } catch (error) {
-        log.error(`Failed: ${error.message}`);
+        const mikrotik = getManager();
+        await mikrotik.executeTool('user.kick', { target: name }, {});
+        s.stop('Disconnected');
+        log.success(`${name} has been disconnected`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
       }
+      outro('');
     });
 
-  // ── users add ─────────────────────────────────────────────────────────────
   users
-    .command('add <username> [password]')
-    .description('Add a hotspot user')
+    .command('add <name>')
+    .description('Add a MikroTik hotspot user')
+    .option('--password <pw>', 'Password (auto-generated if omitted)')
     .option('--profile <profile>', 'User profile / plan', 'default')
-    .action(async (username, password, options) => {
-      const pass = password || username;
+    .action(async (name, options) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      intro(chalk.green('➕  Add Hotspot User'));
       const s = spinner();
-      s.start(`Creating user "${username}" (profile: ${options.profile})…`);
+      s.start(`Creating ${name}...`);
       try {
-        const mikrotik = await getMikroTikClient();
-        await mikrotik.addHotspotUser(username, pass, options.profile);
-        s.stop(`User "${username}" created`);
-        note(
-          [`Username :  ${username}`, `Profile  :  ${options.profile}`].join('\n'),
-          '✅ User Added'
-        );
-        outro('Done.');
-      } catch (error) {
-        log.error(`Failed: ${error.message}`);
+        const mikrotik = getManager();
+        const password = options.password || Math.random().toString(36).slice(2, 10);
+        await mikrotik.executeTool('mikrotik.hotspot.user.add', { name, password, profile: options.profile }, {});
+        s.stop('Created');
+        log.success(`User ${chalk.bold(name)} created — password: ${chalk.yellow(password)}`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
       }
+      outro('');
     });
 
-  // ── users remove ──────────────────────────────────────────────────────────
   users
-    .command('remove <username>')
+    .command('remove <name>')
     .description('Remove a hotspot user')
-    .option('--force, -f', 'Force removal even if currently active')
-    .action(async (username, options) => {
-      try {
-        const mikrotik = await getMikroTikClient();
-
-        if (!options.force) {
-          const active = await mikrotik.getUserStatus(username);
-          if (active) {
-            const ok = await confirm({
-              message: `${username} is currently active. Remove anyway?`,
-              initialValue: false,
-            });
-            if (isCancel(ok) || !ok) { log.warn('Cancelled.'); return; }
-          }
-        }
-
-        const s = spinner();
-        s.start(`Removing "${username}"…`);
-        await mikrotik.removeHotspotUser(username);
-        s.stop(`"${username}" removed`);
-        outro('Done.');
-      } catch (error) {
-        log.error(`Failed: ${error.message}`);
+    .option('-f, --force', 'Force removal even if currently active')
+    .action(async (name, options) => {
+      const { intro, outro, confirm, spinner, log, isCancel } = await import('@clack/prompts');
+      intro(chalk.red('🗑️  Remove Hotspot User'));
+      if (!options.force) {
+        const ok = await confirm({ message: `Remove ${chalk.bold(name)}? This cannot be undone.` });
+        if (isCancel(ok) || !ok) { outro('Cancelled'); return; }
       }
+      const s = spinner();
+      s.start(`Removing ${name}...`);
+      try {
+        const mikrotik = getManager();
+        await mikrotik.executeTool('mikrotik.hotspot.user.remove', { name }, {});
+        s.stop('Removed');
+        log.success(`${name} has been removed`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
     });
 
-  // ── users status ──────────────────────────────────────────────────────────
   users
-    .command('status <username>')
-    .description('Check user connection status')
-    .action(async (username) => {
+    .command('status <name>')
+    .description('Show session stats for a hotspot user')
+    .action(async (name) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
+      intro(chalk.cyan('📊  User Status'));
       const s = spinner();
-      s.start(`Looking up ${username}…`);
+      s.start(`Fetching ${name}...`);
       try {
-        const mikrotik = await getMikroTikClient();
-        const status = await mikrotik.getUserStatus(username);
-        s.stop(status ? `${username} is ONLINE` : `${username} is OFFLINE`);
-
-        if (status) {
-          note(
-            [
-              `User    :  ${username}`,
-              `IP      :  ${status.address}`,
-              `MAC     :  ${status['mac-address']}`,
-              `Uptime  :  ${status.uptime}`,
-              `Data    :  ↓${formatBytes(status['bytes-in'] || 0)}  ↑${formatBytes(status['bytes-out'] || 0)}`,
-            ].join('\n'),
-            '🟢 Online Session'
-          );
-        } else {
-          log.warn(`${username} is offline.`);
-        }
-        outro('Done.');
-      } catch (error) {
-        log.error(`Failed: ${error.message}`);
-      }
-    });
-
-  // ── users transfer ────────────────────────────────────────────────────────
-  users
-    .command('transfer <from> <to> <amount>')
-    .description('Transfer credits between users (P2P)')
-    .action(async (from, to, amount) => {
-      const s = spinner();
-      s.start(`Transferring ${amount} credits  ${from} → ${to}…`);
-      try {
-        const { getDatabase } = require('../../core/database');
-        const db = await getDatabase();
-        await db.p2pTransfer(from, to, parseFloat(amount));
-        s.stop('Transfer complete');
+        const mikrotik = getManager();
+        const stats = await mikrotik.executeTool('system.stats', { user: name }, {});
+        s.stop('Done');
         note(
-          [`From   :  ${from}`, `To     :  ${to}`, `Amount :  ${amount} credits`].join('\n'),
-          '💸 Transfer Complete'
+          Object.entries(stats).map(([k, v]) => `${chalk.gray(k.padEnd(16))} ${chalk.white(v)}`).join('\n'),
+          `Stats: ${name}`
         );
-        outro('Done.');
-      } catch (error) {
-        log.error(`Transfer failed: ${error.message}`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
       }
+      outro('');
+    });
+
+  users
+    .command('transfer <name>')
+    .description('Transfer a user to another router')
+    .option('--to <routerId>', 'Target router ID')
+    .action(async (name, options) => {
+      const { intro, outro, text, spinner, log, isCancel } = await import('@clack/prompts');
+      intro(chalk.yellow('🔀  Transfer User'));
+      const routerId = options.to || await text({ message: 'Target router ID:' });
+      if (isCancel(routerId)) { outro('Cancelled'); return; }
+      const s = spinner();
+      s.start(`Transferring ${name} → ${routerId}...`);
+      try {
+        const mikrotik = getManager();
+        await mikrotik.executeTool('mikrotik.user.transfer', { name, targetRouter: routerId }, {});
+        s.stop('Transferred');
+        log.success(`${name} transferred to ${routerId}`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
+    });
+
+  // ── AgentOS Platform Users ─────────────────────────────────────────────
+  const platform = users
+    .command('platform')
+    .description('Manage AgentOS platform users, roles, and sandbox');
+
+  platform
+    .command('list')
+    .description('List all platform users from the AgentOS database')
+    .option('--role <role>', 'Filter by role')
+    .option('-l, --limit <n>', 'Max results', '50')
+    .option('--json', 'Print as JSON')
+    .action(async (options) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      if (!options.json) intro(chalk.cyan('👥  Platform Users'));
+      const s = options.json ? null : spinner();
+      if (s) s.start('Loading...');
+      try {
+        const db = await getDatabase().catch(() => null);
+        const sandbox = getUserSandbox({ db });
+        const userList = await sandbox.listUsers({ role: options.role, limit: parseInt(options.limit) });
+        if (s) s.stop(`${userList.length} user(s)`);
+
+        if (options.json) { console.log(JSON.stringify(userList, null, 2)); return; }
+
+        if (!userList.length) { log.warn('No users found'); outro(''); return; }
+        const { roles } = rolesJson;
+        userList.forEach(u => {
+          const roleLabel = roles[u.role]?.label || u.role || 'user';
+          const sandboxFlag = roles[u.role]?.sandbox ? chalk.yellow(' [sandbox]') : '';
+          log.info(`${chalk.bold(u.uid || u.email || '—')} ${chalk.gray(roleLabel)}${sandboxFlag} ${chalk.dim(u.lastSeen || u.createdAt || '')}`);
+        });
+      } catch (e) {
+        if (s) s.stop('Failed');
+        if (!options.json) console.error(chalk.red(e.message));
+        else console.error(JSON.stringify({ error: e.message }));
+      }
+      if (!options.json) outro('');
+    });
+
+  platform
+    .command('show <uid>')
+    .description('Show full profile and role for a platform user')
+    .action(async (uid) => {
+      const { intro, outro, note, spinner, log } = await import('@clack/prompts');
+      intro(chalk.cyan(`👤  User: ${uid}`));
+      const s = spinner();
+      s.start('Loading...');
+      try {
+        const db = await getDatabase().catch(() => null);
+        const sandbox = getUserSandbox({ db });
+        const user = await sandbox.getUser(uid);
+        if (!user) { s.stop('Not found'); log.warn(`User ${uid} not found`); outro(''); return; }
+        const role = await sandbox.getRole(uid);
+        s.stop('Found');
+        note(
+          `UID:      ${chalk.white(user.uid || uid)}\n` +
+          `Name:     ${chalk.white(user.fullname || user.username || '—')}\n` +
+          `Email:    ${chalk.white(user.email || '—')}\n` +
+          `Role:     ${chalk.yellow(role.label || user.role || 'user')}\n` +
+          `Sandbox:  ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
+          `Source:   ${chalk.dim(user._source || '—')}\n` +
+          `Created:  ${chalk.dim(user.createdAt || '—')}\n` +
+          `Last seen:${chalk.dim(user.lastSeen || '—')}\n` +
+          `Tools:    ${chalk.dim((role.tools || []).join(', '))}`,
+          'User Profile'
+        );
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
+    });
+
+  platform
+    .command('role <uid> <role>')
+    .description('Assign a role to a platform user (requires admin)')
+    .action(async (uid, role) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      intro(chalk.yellow(`🔑  Set Role`));
+      const s = spinner();
+      s.start(`Setting ${uid} → ${role}...`);
+      try {
+        const db = await getDatabase().catch(() => null);
+        const sandbox = getUserSandbox({ db });
+        const operatorId = global.AGENTOS?.WHOAMI?.login || 'cli-operator';
+        await sandbox.setRole(operatorId, uid, role);
+        s.stop('Done');
+        log.success(`${uid} is now ${chalk.bold(role)}`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
+    });
+
+  platform
+    .command('sandbox <uid>')
+    .description('Enable developer sandbox mode for a user (no real mutations)')
+    .action(async (uid) => {
+      const { intro, outro, spinner, log } = await import('@clack/prompts');
+      intro(chalk.magenta('🧪  Sandbox Mode'));
+      const s = spinner();
+      s.start(`Enabling sandbox for ${uid}...`);
+      try {
+        const db = await getDatabase().catch(() => null);
+        const sandbox = getUserSandbox({ db });
+        const operatorId = global.AGENTOS?.WHOAMI?.login || 'cli-operator';
+        await sandbox.setRole(operatorId, uid, 'developer');
+        s.stop('Done');
+        log.success(`${uid} is now in sandbox mode — tool calls will be intercepted, not applied`);
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
+    });
+
+  platform
+    .command('delete <uid>')
+    .description('Delete a platform user from the database')
+    .option('-f, --force', 'Skip confirmation')
+    .action(async (uid, options) => {
+      const { intro, outro, confirm, spinner, log, isCancel } = await import('@clack/prompts');
+      intro(chalk.red('🗑️  Delete Platform User'));
+      if (!options.force) {
+        const ok = await confirm({ message: `Permanently delete ${chalk.bold(uid)}?` });
+        if (isCancel(ok) || !ok) { outro('Cancelled'); return; }
+      }
+      const s = spinner();
+      s.start(`Deleting ${uid}...`);
+      try {
+        const db = await getDatabase().catch(() => null);
+        if (db && typeof db.deleteUser === 'function') {
+          await db.deleteUser(uid);
+          s.stop('Deleted');
+          log.success(`${uid} has been removed from the platform`);
+        } else {
+          s.stop('Unavailable');
+          log.warn('Database not connected — cannot delete user');
+        }
+      } catch (e) {
+        s.stop('Failed');
+        log.error(e.message);
+      }
+      outro('');
+    });
+
+  platform
+    .command('roles')
+    .description('List all available roles and their permissions')
+    .option('--json', 'Print as JSON')
+    .action(async (options) => {
+      const { intro, outro, note } = await import('@clack/prompts');
+      const { roles } = rolesJson;
+
+      if (options.json) { console.log(JSON.stringify(roles, null, 2)); return; }
+
+      intro(chalk.cyan('🎭  Available Roles'));
+      for (const [id, role] of Object.entries(roles)) {
+        const sandboxBadge = role.sandbox ? chalk.yellow(' [sandbox]') : '';
+        const approvalBadge = role.requireApproval?.length ? chalk.red(' [some approval required]') : '';
+        note(
+          `Tools: ${chalk.dim((role.tools || []).join(', '))}\n` +
+          `Approval required: ${chalk.dim((role.requireApproval || []).join(', ') || 'none')}`,
+          `${chalk.bold(id)} — ${role.label}${sandboxBadge}${approvalBadge}`
+        );
+      }
+      outro('');
+    });
+
+  platform
+    .command('whoami')
+    .description('Show the current CLI operator role and permissions')
+    .action(async () => {
+      const { intro, outro, note } = await import('@clack/prompts');
+      const { readCredentials } = _internal;
+      intro(chalk.cyan('👤  CLI Operator Identity'));
+      const creds = readCredentials();
+      const login = creds?.login || 'anonymous';
+      try {
+        const db = await getDatabase().catch(() => null);
+        const sandbox = getUserSandbox({ db });
+        const role = await sandbox.getRole(login);
+        note(
+          `Login:   ${chalk.white(creds?.login || '— not logged in')}\n` +
+          `Name:    ${chalk.white(creds?.name || '—')}\n` +
+          `Role:    ${chalk.yellow(role.label || 'user')}\n` +
+          `Sandbox: ${role.sandbox ? chalk.yellow('yes') : chalk.gray('no')}\n` +
+          `Tools:   ${chalk.dim((role.tools || []).join(', '))}`,
+          'Your Identity'
+        );
+      } catch (e) {
+        console.error(chalk.red(e.message));
+      }
+      outro('');
     });
 };
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}

@@ -31,4 +31,4 @@ class SessionService {
     }
 }
 
-module.exports = SessionService;
+export default SessionService;

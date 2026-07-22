@@ -1,3 +1,4 @@
+import { promises as fs } from 'fs';
 // src/core/TelemetryCollector.js
 class TelemetryCollector {
   constructor(config = {}) {
@@ -69,7 +70,6 @@ class TelemetryCollector {
       
       // Also log to file if configured
       if (this.config.logFile) {
-        const fs = require('fs').promises;
         const lines = batch.map(e => JSON.stringify(e)).join('\n');
         await fs.appendFile(this.config.logFile, lines + '\n');
       }
@@ -90,4 +90,4 @@ class TelemetryCollector {
   }
 }
 
-module.exports = TelemetryCollector;
+export default TelemetryCollector;

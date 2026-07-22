@@ -1,5 +1,4 @@
-'use strict';
-const { logger } = require('./logger');
+import { logger } from './logger.js';
 
 /**
  * DiscoveryService — Handles network exploration, IP scanning, 
@@ -84,4 +83,4 @@ class DiscoveryService {
     }
 }
 
-module.exports = DiscoveryService;
+export default DiscoveryService;

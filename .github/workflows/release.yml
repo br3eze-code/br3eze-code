@@ -16,12 +16,12 @@ jobs:
     name: Auto-release
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      released: ${{ steps.release.outputs.released }}
+      version:  ${{ steps.version.outputs.version }}
+      released: ${{ steps.bump.outputs.bumped }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -34,21 +34,23 @@ jobs:
           registry-url: https://npm.pkg.github.com
 
       - name: Install dependencies
-        run: npm ci --prefer-offline
+        # Fix: --ignore-scripts avoids postinstall issues; no --prefer-offline (fragile in CI)
+        run: npm ci --ignore-scripts
 
       - name: Compute CalVer
         id: version
         run: |
-          # Format: YYYY.M.PATCH — patch = commit count today
-          TODAY=$(date -u +"%Y.%-m")
-          COUNT=$(git log --oneline --after="$(date -u +%Y-%m-%d)T00:00:00Z" | wc -l | tr -d ' ')
-          # Pad count so 0 → 1
+          # Format: YYYY.M.PATCH  (patch = commits pushed today UTC)
+          TODAY_DATE=$(date -u +%Y-%m-%d)
+          TODAY_FMT=$(date -u +"%Y.%-m")
+          # Fix: use --after with explicit midnight UTC so runner TZ doesn't matter
+          COUNT=$(git log --oneline --after="${TODAY_DATE}T00:00:00Z" | wc -l | tr -d ' ')
           PATCH=$((COUNT > 0 ? COUNT : 1))
-          NEW_VERSION="${TODAY}.${PATCH}"
+          NEW_VERSION="${TODAY_FMT}.${PATCH}"
           CURRENT=$(node -p "require('./package.json').version")
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "AgentOS version: $NEW_VERSION (was $CURRENT)"
+          echo "AgentOS $CURRENT → $NEW_VERSION"
 
       - name: Bump package.json
         id: bump
@@ -60,6 +62,7 @@ jobs:
             echo "bumped=true" >> $GITHUB_OUTPUT
           else
             echo "bumped=false" >> $GITHUB_OUTPUT
+            echo "Version unchanged ($NEW) — skipping release"
           fi
 
       - name: Generate changelog
@@ -72,13 +75,13 @@ jobs:
             LOG=$(git log "${PREV_TAG}..HEAD" --oneline --pretty="- %s (%h)")
           fi
           echo "log<<EOF" >> $GITHUB_OUTPUT
-          echo "$LOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "$LOG"     >> $GITHUB_OUTPUT
+          echo "EOF"      >> $GITHUB_OUTPUT
 
       - name: Commit version bump
         if: steps.bump.outputs.bumped == 'true'
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
@@ -101,7 +104,7 @@ jobs:
 
             ### Install
             ```bash
-            npm install br3eze-code@${{ steps.version.outputs.version }}
+            npm install @br3eze-code/agentos@${{ steps.version.outputs.version }}
             ```
           draft: false
           prerelease: false
@@ -110,7 +113,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Packages
+        # Non-blocking: a publish failure (version already exists, registry
+        # auth, transient) must not fail the release — the GitHub Release above
+        # is the source of truth.
         if: steps.bump.outputs.bumped == 'true'
+        continue-on-error: true
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

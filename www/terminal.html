@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentOS — Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan:   #00e5ff;
+    --amber:  #ffab00;
+    --green:  #00e676;
+    --red:    #ff1744;
+    --bg:     #050a0e;
+    --surface:#0a1520;
+    --border: #0d2535;
+    --dim:    #1a3040;
+    --text:   #b0c4d8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* animated grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridScroll 20s linear infinite;
+    pointer-events: none; z-index: 0;
+  }
+  @keyframes gridScroll { to { background-position: 40px 40px; } }
+
+  /* scanlines */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px, rgba(0,0,0,.15) 2px, rgba(0,0,0,.15) 4px
+    );
+    pointer-events: none; z-index: 1;
+  }
+
+  #app { position: relative; z-index: 2; display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── top bar ── */
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+    background: rgba(5,10,14,.9);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+  }
+  .logo { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 1.1rem; color: var(--cyan); letter-spacing: .15em; }
+  .logo span { color: var(--amber); }
+  .status-pill {
+    font-size: .68rem; padding: 3px 10px; border-radius: 20px; letter-spacing: .08em;
+    border: 1px solid currentColor;
+  }
+  .pill-online { color: var(--green); }
+  .pill-offline { color: var(--red); }
+  .pill-sandbox { color: var(--amber); }
+  header .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .clock { font-size: .75rem; color: var(--dim); letter-spacing: .05em; }
+  .operator-badge { font-size: .72rem; color: var(--amber); }
+
+  /* ── layout ── */
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  /* ── panel ── */
+  .panel {
+    background: rgba(10,21,32,.85);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel.span2 { grid-column: span 2; }
+  @media (max-width: 900px) { .panel.span2 { grid-column: span 1; } }
+
+  .panel-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px;
+    background: rgba(0,229,255,.04);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Orbitron', sans-serif;
+    font-size: .65rem; font-weight: 700; letter-spacing: .18em;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  .panel-head .badge {
+    margin-left: auto; font-family: 'Share Tech Mono', monospace;
+    font-size: .7rem; color: var(--amber); letter-spacing: 0;
+  }
+
+  .panel-body { flex: 1; padding: 10px 14px; overflow-y: auto; }
+
+  /* scrollbar */
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  /* ── user table ── */
+  .user-table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+  .user-table th {
+    text-align: left; color: var(--dim); padding: 4px 8px 6px;
+    border-bottom: 1px solid var(--border); font-weight: 400; letter-spacing: .06em;
+  }
+  .user-table td { padding: 5px 8px; border-bottom: 1px solid rgba(13,37,53,.5); }
+  .user-table tr:hover td { background: rgba(0,229,255,.03); }
+  .role-badge {
+    display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: .65rem;
+    border: 1px solid;
+  }
+  .role-admin     { color: #ff4081; border-color: #ff4081; }
+  .role-operator  { color: var(--cyan); border-color: var(--cyan); }
+  .role-reseller  { color: var(--amber); border-color: var(--amber); }
+  .role-helpdesk  { color: #69f0ae; border-color: #69f0ae; }
+  .role-viewer    { color: var(--dim); border-color: var(--dim); }
+  .role-developer { color: #ea80fc; border-color: #ea80fc; }
+  .role-user      { color: var(--text); border-color: var(--text); }
+  .sandbox-chip {
+    display: inline-block; margin-left: 4px;
+    font-size: .6rem; color: var(--amber); letter-spacing: .04em;
+    border: 1px solid var(--amber); border-radius: 2px; padding: 0 4px;
+  }
+  .online-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 5px; box-shadow: 0 0 6px var(--green); }
+
+  /* ── roles panel ── */
+  .role-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid rgba(13,37,53,.5);
+    font-size: .73rem;
+  }
+  .role-row:last-child { border-bottom: none; }
+  .role-id { font-family: 'Orbitron', sans-serif; font-size: .6rem; color: var(--cyan); width: 80px; flex-shrink: 0; padding-top: 2px; }
+  .role-info { flex: 1; }
+  .role-label { color: var(--text); margin-bottom: 3px; }
+  .role-tools { color: var(--dim); font-size: .65rem; line-height: 1.4; }
+  .sandbox-flag { color: var(--amber); font-size: .62rem; }
+
+  /* ── sandbox log ── */
+  .log-entry {
+    padding: 5px 0; border-bottom: 1px solid rgba(13,37,53,.5);
+    font-size: .72rem; line-height: 1.5;
+  }
+  .log-ts { color: var(--dim); margin-right: 6px; }
+  .log-sandbox { color: var(--amber); }
+  .log-allowed { color: var(--green); }
+  .log-denied  { color: var(--red); }
+  .log-user { color: var(--cyan); }
+  .log-tool { color: var(--amber); }
+
+  /* ── ask bar ── */
+  .ask-panel { grid-column: span 2; }
+  @media (max-width: 900px) { .ask-panel { grid-column: span 1; } }
+  .ask-form { display: flex; gap: 8px; align-items: stretch; padding: 10px 14px; }
+  .ask-prompt-label { color: var(--cyan); font-size: .9rem; align-self: center; flex-shrink: 0; }
+  .ask-input {
+    flex: 1;
+    background: rgba(0,229,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: .82rem;
+    padding: 6px 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .ask-input:focus { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,229,255,.15); }
+  .ask-input::placeholder { color: var(--dim); }
+  .ask-btn {
+    background: rgba(0,229,255,.08);
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: .62rem;
+    font-weight: 700; letter-spacing: .12em;
+    padding: 6px 16px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background .2s;
+  }
+  .ask-btn:hover { background: rgba(0,229,255,.18); }
+  .ask-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .ask-output {
+    margin: 0 14px 12px;
+    background: rgba(0,0,0,.3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 12px;
+    font-size: .75rem;
+    line-height: 1.6;
+    min-height: 48px;
+    color: var(--text);
+    white-space: pre-wrap;
+    display: none;
+  }
+  .ask-output.visible { display: block; }
+  .ask-output.streaming::after { content: '▋'; animation: blink .6s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ask-output .tool-call { color: var(--amber); }
+  .ask-output .err { color: var(--red); }
+
+  /* ── empty state ── */
+  .empty { color: var(--dim); font-size: .72rem; text-align: center; padding: 20px 0; }
+
+  /* ── footer ── */
+  footer {
+    padding: 6px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 20px; align-items: center;
+    font-size: .65rem; color: var(--dim);
+  }
+  footer a { color: var(--dim); text-decoration: none; }
+  footer a:hover { color: var(--cyan); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="logo">AGENT<span>OS</span></span>
+    <span class="status-pill pill-online" id="gwStatus">GATEWAY ONLINE</span>
+    <span class="status-pill pill-sandbox" id="sbStatus" style="display:none">SANDBOX</span>
+    <div class="right">
+      <span class="operator-badge" id="opBadge">—</span>
+      <span class="clock" id="clock">00:00:00</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- Platform Users -->
+    <div class="panel">
+      <div class="panel-head">
+        Platform Users
+        <span class="badge" id="platformCount">—</span>
+      </div>
+      <div class="panel-body">
+        <table class="user-table">
+          <thead>
+            <tr><th>User</th><th>Role</th><th>Last Seen</th></tr>
+          </thead>
+          <tbody id="platformUsers">
+            <tr><td colspan="3" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Active Hotspot Sessions -->
+    <div class="panel">
+      <div class="panel-head">
+        Hotspot Sessions
+        <span class="badge" id="hotspotCount">—</span>
+      </div>
+      <div class="panel-body">
+        <table class="user-table">
+          <thead>
+            <tr><th>User</th><th>IP</th><th>Uptime</th><th></th></tr>
+          </thead>
+          <tbody id="hotspotUsers">
+            <tr><td colspan="4" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Roles -->
+    <div class="panel">
+      <div class="panel-head">Roles &amp; Capabilities</div>
+      <div class="panel-body" id="rolesPanel">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Sandbox / Audit Log -->
+    <div class="panel">
+      <div class="panel-head">
+        Audit Log
+        <span class="badge" id="auditCount">0</span>
+      </div>
+      <div class="panel-body" id="auditLog">
+        <div class="empty">No events yet</div>
+      </div>
+    </div>
+
+    <!-- Ask Bar -->
+    <div class="panel ask-panel">
+      <div class="panel-head">Ask AgentOS</div>
+      <div class="ask-form">
+        <span class="ask-prompt-label">›</span>
+        <input class="ask-input" id="askInput" placeholder="Type a command or question… (e.g. 'show active users', 'create a 1-day voucher')" autocomplete="off">
+        <button class="ask-btn" id="askBtn" onclick="sendAsk()">SEND</button>
+      </div>
+      <div class="ask-output" id="askOutput"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>AgentOS</span>
+    <span id="footerVersion">v—</span>
+    <span>|</span>
+    <a href="/api/v1/tasks">Tasks</a>
+    <a href="/api/v1/status">Status</a>
+    <a href="#" onclick="refreshAll()">↻ Refresh</a>
+  </footer>
+</div>
+
+<script>
+// ── config ────────────────────────────────────────────────────────────────
+const API_BASE = window.AGENTOS_GATEWAY || '';
+const GATEWAY_TOKEN = window.AGENTOS_TOKEN || '';
+
+// ── clock ─────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── gateway token header ──────────────────────────────────────────────────
+function authHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (GATEWAY_TOKEN) h['Authorization'] = `Bearer ${GATEWAY_TOKEN}`;
+  return h;
+}
+
+// ── fetch helpers ─────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API_BASE + path, {
+    headers: authHeaders(),
+    ...opts
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+// ── load platform users ───────────────────────────────────────────────────
+async function loadPlatformUsers() {
+  const tbody = document.getElementById('platformUsers');
+  try {
+    const data = await apiFetch('/api/v1/users/platform');
+    const users = data.users || data || [];
+    document.getElementById('platformCount').textContent = users.length;
+    tbody.innerHTML = users.length ? users.map(u => {
+      const roleClass = 'role-' + (u.role || 'user').toLowerCase().replace(/\W/g, '');
+      const sandboxBadge = (u.sandbox || u.role === 'developer')
+        ? '<span class="sandbox-chip">SANDBOX</span>' : '';
+      const seen = u.lastSeen ? new Date(u.lastSeen).toLocaleDateString() : '—';
+      return `<tr>
+        <td>${escHtml(u.uid || u.email || u.username || '—')}</td>
+        <td><span class="role-badge ${roleClass}">${escHtml(u.roleLabel || u.role || 'user')}</span>${sandboxBadge}</td>
+        <td>${seen}</td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="3" class="empty">No platform users</td></tr>';
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+// ── load hotspot sessions ─────────────────────────────────────────────────
+async function loadHotspotUsers() {
+  const tbody = document.getElementById('hotspotUsers');
+  try {
+    const data = await apiFetch('/api/v1/users/active');
+    const users = data.users || data || [];
+    document.getElementById('hotspotCount').textContent = users.length;
+    tbody.innerHTML = users.length ? users.map(u => `
+      <tr>
+        <td><span class="online-dot"></span>${escHtml(u.name || u['mac-address'] || '—')}</td>
+        <td>${escHtml(u.address || u.ip || '—')}</td>
+        <td>${escHtml(u.uptime || '—')}</td>
+        <td>
+          <button onclick="kickUser('${escHtml(u.name || u.id)}', this)"
+            style="background:none;border:1px solid var(--red);color:var(--red);font-family:inherit;font-size:.62rem;padding:1px 6px;cursor:pointer;border-radius:2px">
+            kick
+          </button>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="4" class="empty">No active sessions</td></tr>';
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+// ── kick user ─────────────────────────────────────────────────────────────
+async function kickUser(name, btn) {
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    await apiFetch('/api/v1/tools/user.kick', {
+      method: 'POST',
+      body: JSON.stringify({ target: name })
+    });
+    appendAudit('ALLOWED', 'system', 'user.kick', name);
+    setTimeout(loadHotspotUsers, 500);
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'kick';
+    appendAudit('DENIED', 'ui', 'user.kick', e.message);
+  }
+}
+
+// ── load roles ────────────────────────────────────────────────────────────
+async function loadRoles() {
+  const panel = document.getElementById('rolesPanel');
+  try {
+    const data = await apiFetch('/api/v1/users/roles');
+    const roles = data.roles || data || {};
+    panel.innerHTML = Object.entries(roles).map(([id, r]) => `
+      <div class="role-row">
+        <span class="role-id">${escHtml(id)}</span>
+        <div class="role-info">
+          <div class="role-label">${escHtml(r.label || id)}${r.sandbox ? ' <span class="sandbox-flag">[sandbox]</span>' : ''}</div>
+          <div class="role-tools">${(r.tools || []).slice(0,6).map(t => escHtml(t)).join(', ')}${(r.tools||[]).length > 6 ? '…' : ''}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    panel.innerHTML = `<div class="empty">${escHtml(e.message)}</div>`;
+    // fallback: render hardcoded roles for a fully-offline page
+    renderOfflineRoles(panel);
+  }
+}
+
+function renderOfflineRoles(panel) {
+  const ROLES = {
+    admin: { label: 'Administrator', tools: ['*'], sandbox: false },
+    operator: { label: 'Network Operator', tools: ['mikrotik.*','dahua.*','voucher.*'], sandbox: false },
+    reseller: { label: 'Reseller', tools: ['voucher.*','users.active'], sandbox: false },
+    helpdesk: { label: 'Help Desk', tools: ['users.active','user.kick','system.stats'], sandbox: false },
+    developer: { label: 'Developer / Sandbox', tools: ['*'], sandbox: true },
+    viewer: { label: 'Read-Only Viewer', tools: ['system.stats','users.active'], sandbox: false },
+    user: { label: 'End User', tools: ['agentos.voucher.create'], sandbox: false }
+  };
+  panel.innerHTML = Object.entries(ROLES).map(([id, r]) => `
+    <div class="role-row">
+      <span class="role-id">${escHtml(id)}</span>
+      <div class="role-info">
+        <div class="role-label">${escHtml(r.label)}${r.sandbox ? ' <span class="sandbox-flag">[sandbox]</span>' : ''}</div>
+        <div class="role-tools">${r.tools.join(', ')}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── audit log ─────────────────────────────────────────────────────────────
+let auditCount = 0;
+function appendAudit(status, userId, tool, detail) {
+  const log = document.getElementById('auditLog');
+  const empty = log.querySelector('.empty');
+  if (empty) empty.remove();
+  auditCount++;
+  document.getElementById('auditCount').textContent = auditCount;
+  const cls = status === 'ALLOWED' ? 'log-allowed' : status === 'SANDBOX' ? 'log-sandbox' : 'log-denied';
+  const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const el = document.createElement('div');
+  el.className = 'log-entry';
+  el.innerHTML = `<span class="log-ts">${ts}</span><span class="${cls}">${escHtml(status)}</span> <span class="log-user">${escHtml(userId)}</span> → <span class="log-tool">${escHtml(tool)}</span> ${detail ? '<span style="color:var(--dim)">'+escHtml(String(detail).slice(0,60))+'</span>' : ''}`;
+  log.prepend(el);
+}
+
+// ── ask bar ───────────────────────────────────────────────────────────────
+async function sendAsk() {
+  const input = document.getElementById('askInput');
+  const output = document.getElementById('askOutput');
+  const btn = document.getElementById('askBtn');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
+  btn.disabled = true;
+  output.className = 'ask-output visible streaming';
+  output.textContent = '';
+  input.value = '';
+
+  try {
+    const res = await fetch(API_BASE + '/api/v1/ask', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ prompt, stream: false })
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const data = await res.json();
+
+    output.classList.remove('streaming');
+    const text = data.result?.text || data.result || data.response || JSON.stringify(data.result, null, 2);
+    output.textContent = text;
+
+    if (data.result?.toolCalls?.length) {
+      data.result.toolCalls.forEach(tc => appendAudit('ALLOWED', 'ui', tc.name, ''));
+    }
+    appendAudit('ALLOWED', 'ui', 'ask', prompt.slice(0, 40));
+    setTimeout(loadHotspotUsers, 1000);
+  } catch(e) {
+    output.classList.remove('streaming');
+    output.innerHTML = `<span class="err">Error: ${escHtml(e.message)}</span>`;
+    appendAudit('DENIED', 'ui', 'ask', e.message);
+  }
+  btn.disabled = false;
+}
+
+document.getElementById('askInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAsk(); }
+});
+
+// ── gateway status ────────────────────────────────────────────────────────
+async function checkGateway() {
+  const pill = document.getElementById('gwStatus');
+  try {
+    const data = await apiFetch('/api/v1/health');
+    pill.className = 'status-pill pill-online';
+    pill.textContent = 'GATEWAY ONLINE';
+    if (data.version) document.getElementById('footerVersion').textContent = 'v' + data.version;
+    if (data.operator) {
+      document.getElementById('opBadge').textContent = data.operator;
+      if (data.role === 'developer') document.getElementById('sbStatus').style.display = '';
+    }
+  } catch {
+    pill.className = 'status-pill pill-offline';
+    pill.textContent = 'GATEWAY OFFLINE';
+  }
+}
+
+// ── user collection routes — register in gateway-engine ──────────────────
+// These endpoints don't exist yet; graceful fallback to offline render
+
+// ── escape ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── init ──────────────────────────────────────────────────────────────────
+async function refreshAll() {
+  await Promise.allSettled([
+    checkGateway(),
+    loadPlatformUsers(),
+    loadHotspotUsers(),
+    loadRoles()
+  ]);
+}
+refreshAll();
+setInterval(loadHotspotUsers, 30000);
+setInterval(checkGateway, 15000);
+</script>
+</body>
+</html>

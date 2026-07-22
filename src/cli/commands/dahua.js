@@ -5,11 +5,11 @@
 
 'use strict';
 
-const fs   = require('fs');
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
-const { CONFIG_PATH } = require('../../core/config');
+import fs from 'fs';
+import { CONFIG_PATH } from '../../core/config.js';
+import DahuaSkill from '../../skills/dahua/index.js';
 
-module.exports = (program) => {
+export default (program) => {
   const dahua = program
     .command('dahua')
     .description('Manage Dahua cameras');
@@ -17,10 +17,10 @@ module.exports = (program) => {
   // ── Resolve skill (lazy, exits on bad config) ─────────────────────────────
   const getSkill = () => {
     if (!fs.existsSync(CONFIG_PATH)) {
-      log.error('No configuration found — run: agentos onboard');
+      // Module-scope helper — clack's `log` is only imported inside actions.
+      console.error('No configuration found — run: agentos onboard');
       process.exit(1);
     }
-    const DahuaSkill = require('../../skills/dahua/index.js');
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     return new DahuaSkill({ config });
   };
@@ -30,6 +30,7 @@ module.exports = (program) => {
     .command('list')
     .description('List configured Dahua devices')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📷 Dahua Devices');
       const s = spinner();
       s.start('Fetching device list…');
@@ -57,6 +58,7 @@ module.exports = (program) => {
     .option('-d, --device <id>', 'Device ID')
     .option('-c, --channel <n>', 'Channel number')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('📸 Dahua Snapshot');
       const s = spinner();
       s.start(`Fetching snapshot${options.device ? ` for device ${options.device}` : ''}…`);
@@ -87,6 +89,7 @@ module.exports = (program) => {
     .option('-d, --device <id>', 'Device ID')
     .option('--force', 'Skip confirmation prompt')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       if (!options.force) {
         const target = options.device || 'all devices';
         const ok = await confirm({ message: `Reboot ${target}?`, initialValue: false });

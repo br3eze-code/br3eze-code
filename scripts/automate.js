@@ -1,15 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
-const http = require('http');
-const https = require('https');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import http from 'http';
+import https from 'https';
 
 // Configuration
 const CONFIG = {
   dbPath: path.join(process.env.HOME || process.env.USERPROFILE, '.agentos/state/agentos.db'),
   backupDir: path.join(process.env.HOME || process.env.USERPROFILE, '.agentos/backups'),
   serverUrl: process.env.SERVER_URL || 'http://127.0.0.1:3000/health',
-  alertEmail: process.env.ALERT_EMAIL || 'admin@example.com',
+  alertEmail: process.env.ALERT_EMAIL || 'admin@br3eze.africa',
   logFile: path.join(process.env.HOME || process.env.USERPROFILE, '.agentos/logs/automate.log'),
   checkIntervalMs: 60 * 1000, // 1 minute
   backupIntervalMs: 24 * 60 * 60 * 1000, // 24 hours

@@ -1,5 +1,5 @@
-const { Client } = require('ssh2')
-const { BaseSkill } = require('../base.js')
+import { Client } from 'ssh2';
+import { BaseSkill } from '../base.js';
 
 class MacOSSkill extends BaseSkill {
   static id = 'macos'
@@ -208,4 +208,4 @@ class MacOSSkill extends BaseSkill {
   }
 }
 
-module.exports = MacOSSkill
+export default MacOSSkill;

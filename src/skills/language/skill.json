@@ -1,0 +1,8 @@
+{
+  "name": "language",
+  "version": "1.0.0",
+  "description": "Translation, grammar check, style rewrite, language detect, vocabulary, readability",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

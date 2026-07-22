@@ -94,4 +94,4 @@ const ResourceTypes = {
   }
 };
 
-module.exports = { Resource, ResourceTypes };
+export { Resource, ResourceTypes };

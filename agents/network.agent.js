@@ -1,4 +1,3 @@
-'use strict';
 // agents/network.agent.js
 // AgentOS - Network Intelligence Agent (MikroTik / ISP control)
 
@@ -10,7 +9,7 @@
  */
 const networkAgent = {
     name: 'networkAgent',
- 
+
     description: `
 Handles MikroTik router operations including:
 - hotspot user management
@@ -19,7 +18,10 @@ Handles MikroTik router operations including:
 - disconnections
 - IP tracking
 `,
- 
+
+    /**
+     * TOOL ACCESS CONTROL
+     */
     allowedTools: [
         'mikrotik.createUser',
         'mikrotik.removeUser',
@@ -28,7 +30,10 @@ Handles MikroTik router operations including:
         'mikrotik.setBandwidth',
         'mikrotik.getUserStats'
     ],
- 
+
+    /**
+     * SYSTEM RULES (VERY IMPORTANT)
+     */
     rules: [
         'Never create a user without a valid name',
         'Never disconnect admin users',
@@ -36,22 +41,33 @@ Handles MikroTik router operations including:
         'Never modify billing or payment data',
         'Always log network actions'
     ],
- 
+
+    /**
+     * OPTIONAL PRE-PLANNING HOOK
+     * Can modify or enrich input before planner runs
+     */
     preprocess(input, context) {
         return {
             ...input,
-            priority: 'high',
+            priority: 'high', // network operations are critical
             safeMode: context.systemState?.mode !== 'production'
         };
     },
- 
-    postprocess(results) {
+
+    /**
+     * OPTIONAL POST-EXECUTION HOOK
+     */
+    postprocess(results, context) {
         return results.map(r => {
-            if (!r.success) return { ...r, alert: 'Network operation failed' };
+            if (!r.success) {
+                return {
+                    ...r,
+                    alert: 'Network operation failed'
+                };
+            }
             return r;
         });
     }
 };
- 
 
-module.exports = { networkAgent };
+export { networkAgent };

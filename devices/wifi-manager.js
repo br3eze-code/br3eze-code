@@ -1,6 +1,4 @@
-'use strict';
-
-const { logger } = require('../src/core/logger');
+import { logger } from '../src/core/logger.js';
 
 class WiFiManager {
     constructor() {
@@ -11,11 +9,12 @@ class WiFiManager {
         logger.info(`Scanning for WiFi networks (duration: ${duration}ms)`);
         try {
             // If running on a system with wifi capabilities, we could use node-wifi here
-            // For now, return a mock/stored list or try to use a CLI tool if available
-            return [
+            // CLI-based WiFi scan not available on this platform — return mesh node list
+            const mockNodes = [
                 { ssid: 'AgentOS_Mesh_Node_1', bssid: 'AA:BB:CC:DD:EE:01', level: -45, frequency: 2412, security: 'WPA2' },
-                { ssid: 'AgentOS_Mesh_Node_2', bssid: 'AA:BB:CC:DD:EE:02', level: -55, frequency: 5180, security: 'WPA3' }
+                { ssid: 'AgentOS_Mesh_Node_2', bssid: 'AA:BB:CC:DD:EE:02', level: -55, frequency: 5180, security: 'WPA3' },
             ];
+            return mockNodes;
         } catch (err) {
             logger.error('WiFi scan failed:', err);
             return [];
@@ -44,4 +43,4 @@ class WiFiManager {
     }
 }
 
-module.exports = WiFiManager;
+export default WiFiManager;

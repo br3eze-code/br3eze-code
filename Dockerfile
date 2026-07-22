@@ -1,46 +1,45 @@
-# Multi-stage build for production
-FROM node:20-alpine
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY server/package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+# Copy package files from repo root (not server/)
+COPY package*.json ./
 
-# Production stage
-FROM node:20-alpine AS production
+# Install production deps only — npm 7+ syntax, skip lifecycle scripts
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-# Install dumb-init for proper signal handling
+# ── Stage 2: production ───────────────────────────────────────────────────────
+FROM node:22-alpine AS production
+
+# dumb-init for proper PID 1 / signal handling
 RUN apk add --no-cache dumb-init
 
-# Create app directory
 WORKDIR /app
 
-# Create non-root user
+# Non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser  -S nodejs -u 1001
 
-# Copy dependencies from builder
+# Copy production node_modules from builder
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy application code
-COPY --chown=nodejs:nodejs server/ ./
+# Copy application code — server.js lives in server/, source in src/
+COPY --chown=nodejs:nodejs server/server.js ./server.js
+COPY --chown=nodejs:nodejs src/ ./src/
+COPY --chown=nodejs:nodejs bin/ ./bin/
+COPY --chown=nodejs:nodejs scripts/ ./scripts/
+COPY --chown=nodejs:nodejs package.json ./
 
-# Create logs directory
-RUN mkdir -p logs && chown -R nodejs:nodejs logs
+# Create runtime directories as root before switching user
+RUN mkdir -p logs skills && chown -R nodejs:nodejs logs skills
 
-# Switch to non-root user
 USER nodejs
 
-# Expose port
 EXPOSE 3000
-# Create skills directory
-RUN mkdir -p /app/skills
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (r) => r.statusCode === 200 ? process.exit(0) : process.exit(1))"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health',(r)=>r.statusCode===200?process.exit(0):process.exit(1))"
 
-# Start application
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "server.js"]

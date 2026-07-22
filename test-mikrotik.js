@@ -1,4 +1,4 @@
-const { RouterOSClient } = require('routeros-client');
+import { RouterOSClient } from 'routeros-client';
 
 const client = new RouterOSClient({
     host: '192.168.88.1',

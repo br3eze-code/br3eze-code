@@ -1,0 +1,8 @@
+{
+  "name": "music",
+  "version": "1.0.0",
+  "description": "Music theory, chords, scales, MIDI, progressions, lyrics, audio analysis",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

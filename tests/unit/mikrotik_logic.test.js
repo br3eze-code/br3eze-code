@@ -1,10 +1,9 @@
-'use strict';
+﻿'use strict';
 
-const { MikroTikManager, ToolExecutionError } = require('../../src/core/mikrotik');
-const { logger } = require('../../src/core/logger');
+import { jest } from '@jest/globals';
 
 // Mock dependencies
-jest.mock('../../src/core/logger', () => ({
+jest.unstable_mockModule('../../src/core/logger.js', () => ({
     logger: {
         info:  jest.fn(),
         warn:  jest.fn(),
@@ -15,14 +14,22 @@ jest.mock('../../src/core/logger', () => ({
     }
 }));
 
-jest.mock('../../src/core/config', () => ({
+jest.unstable_mockModule('../../src/core/config.js', () => ({
+    BRAND: 'AgentOS',
+    PROFILE_DIR: '/tmp/agentos-test',
+    CONFIG_PATH: '/tmp/agentos-test/config.json',
+    STATE_PATH: '/tmp/agentos-test/state',
+    DEFAULT_CONFIG: {},
+    loadConfig: () => ({}),
+    saveConfig: () => {},
     getConfig: jest.fn(() => ({
         tools: { mikrotik: { connection: { host: '192.168.88.1' } } }
     }))
 }));
 
-jest.mock('../../src/core/database', () => ({
-    getDatabase: jest.fn()
+jest.unstable_mockModule('../../src/core/database.js', () => ({
+    getDatabase: jest.fn(),
+    DEFAULT_PLANS: {}
 }));
 
 const mockMenu = {
@@ -47,9 +54,12 @@ const mockClient = {
     removeAllListeners: jest.fn()
 };
 
-jest.mock('routeros-client', () => ({
+jest.unstable_mockModule('routeros-client', () => ({
     RouterOSClient: jest.fn(() => mockClient)
 }));
+
+const { MikroTikManager, ToolExecutionError } = await import('../../src/core/mikrotik.js');
+const { logger } = await import('../../src/core/logger.js');
 
 describe('MikroTikManager Logic', () => {
     let manager;
@@ -66,7 +76,7 @@ describe('MikroTikManager Logic', () => {
 
     describe('addHotspotUser', () => {
         test('adds a new user with default profile', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'hotspot.local' }]); // 1. Profiles for DNS name
+            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
             mockMenu.get.mockResolvedValueOnce([]); // 2. No existing user
             mockMenu.add.mockResolvedValueOnce('*1'); // Return ID
 
@@ -78,11 +88,11 @@ describe('MikroTikManager Logic', () => {
                 profile: 'default',
                 disabled: 'no'
             });
-            expect(result).toBe('http://hotspot.local/login?username=testuser&password=password123');
+            expect(result).toBe('http://br3eze.africa/login?username=testuser&password=password123');
         });
 
         test('updates an existing user', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'hotspot.local' }]); // 1. Profiles for DNS name
+            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
             mockMenu.get.mockResolvedValueOnce([{ '.id': '*1', name: 'testuser' }]); // 2. Existing user
 
             await manager.addHotspotUser('testuser', 'newpassword');

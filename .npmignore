@@ -1,14 +1,41 @@
-node_modules/
-.git/
+# Tests
+tests/
+test-planner/
+test*.js
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
+
+# CI
+.github/
+.vscode/
+.idea/
+
+# Secrets
 .env
-.env.local
+.env.*
+!.env.example
+serviceAccountKey.json
+
+# Build artifacts
+platforms/
+.cordova/
+
+# Logs & temp
 logs/
 *.log
 .DS_Store
-coverage/
-.nyc_output/
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+
+# Heavy assets
+docs/images/
+www/img/
+docs/images/
+
+# Dev only
+docker-compose.yml
+nginx/
+deploy.sh
+AgentOS.bat
+AgentOS.desktop
+Setup-AgentOS.ps1

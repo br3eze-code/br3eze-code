@@ -21,25 +21,24 @@
         <!-- Required permissions -->
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.CAMERA" />
-            <uses-feature android:name="android.hardware.camera" android:required="false" />
             <uses-permission android:name="android.permission.INTERNET" /> <!-- For potential model updates via Play Services -->
         </config-file>
 
         <!-- Register the native plugin -->
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="AICorePlugin">
-                <param name="android-package" value="com.powerconnect.www.AICorePlugin" />
+                <param name="android-package" value="zw.power.www.AICorePlugin" />
             </feature>
         </config-file>
 
         <!-- Java source files -->
-        <source-file src="src/android/AICorePlugin.java"        target-dir="src/com/powerconnect/www" />
-        <source-file src="src/android/AiCapabilityDetector.java" target-dir="src/com/powerconnect/www" />
-        <source-file src="src/android/AiRouter.java"            target-dir="src/com/powerconnect/www" />
+        <source-file src="src/android/AICorePlugin.java" target-dir="src/zw/power/www" />
+        <source-file src="src/android/AiCapabilityDetector.java" target-dir="src/zw/power/www" />
+        <source-file src="src/android/AiRouter.java" target-dir="src/zw/power/www" />
 
         <!-- ML Kit Dependencies (as of December 2025) -->
         <!-- GenAI Prompt API for Gemini Nano (still in beta/alpha in late 2025) -->
-        <framework src="com.google.mlkit:genai-prompt:1.0.0-beta2" /> <!-- Use latest stable beta; check Google Maven for updates -->
+        <framework src="com.google.mlkit:genai-prompt:1.0.0-alpha09" /> <!-- Use latest alpha; check Google Maven for updates -->
 
         <!-- Pose Detection (beta) -->
         <framework src="com.google.mlkit:pose-detection:18.0.0-beta5" />

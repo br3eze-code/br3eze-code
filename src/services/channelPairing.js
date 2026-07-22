@@ -1,8 +1,6 @@
-'use strict';
-
-const crypto = require('crypto');
-const EventEmitter = require('events');
-const { ErrorCodes, AgentOSError } = require('../core/errors');
+import crypto from 'crypto';
+import EventEmitter from 'events';
+import { ErrorCodes, AgentOSError } from '../core/errors.js';
 
 /**
  * ChannelPairingService — Universal multi-channel router onboarding
@@ -389,4 +387,4 @@ class ChannelPairingService extends EventEmitter {
     }
 }
 
-module.exports = ChannelPairingService;
+export default ChannelPairingService;

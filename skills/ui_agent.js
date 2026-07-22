@@ -1,5 +1,5 @@
-const fs = require('fs/promises');
-const { chromium } = require('playwright'); // npm install playwright
+import fs from 'fs/promises';
+import { chromium } from 'playwright'; // npm install playwright
 
 const ui_agent = {
   name: "ui_agent",
@@ -126,4 +126,4 @@ const ui_agent = {
   }
 };
 
-module.exports = { ui_agent };
+export default { ui_agent };

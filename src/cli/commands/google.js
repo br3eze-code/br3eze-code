@@ -5,11 +5,10 @@
 
 'use strict';
 
-const { intro, outro, spinner, note, log } = require('@clack/prompts');
-const GoogleWorkspaceSkill = require('../../skills/google-workspace');
-const { getGateway } = require('../../core/gateway-engine');
+import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
+import { getGateway } from '../../core/gateway-engine.js';
 
-module.exports = (program) => {
+export default (program) => {
   const googleCmd = program
     .command('google')
     .description('Google Workspace integration tools');
@@ -26,6 +25,7 @@ module.exports = (program) => {
     .description('List Google Drive documents')
     .option('-q, --query <string>', 'Search query')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📄 Google Drive — Documents');
       const s = spinner();
       s.start('Fetching documents…');
@@ -55,6 +55,7 @@ module.exports = (program) => {
     .description('Create a new Google Doc')
     .requiredOption('-t, --title <string>', 'Document title')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📝 Google Docs — Create Document');
       const s = spinner();
       s.start(`Creating "${options.title}"…`);
@@ -85,6 +86,7 @@ module.exports = (program) => {
     .option('--start <iso>', 'Start time (ISO 8601, defaults to now)')
     .option('--end <iso>',   'End time (ISO 8601, defaults to +1 hour)')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       intro('📅 Google Calendar — Create Event');
       const s = spinner();
       s.start(`Creating event "${options.summary}"…`);

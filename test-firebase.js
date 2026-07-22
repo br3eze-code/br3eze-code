@@ -1,11 +1,13 @@
-require('dotenv').config();
-const admin = require('firebase-admin');
+import 'dotenv/config';
+import admin from 'firebase-admin';
 
 try {
-    admin.firestore.setLogFunction(console.log);
-    const serviceAccount = require('./serviceAccountKey.json');
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+        })
     });
 
     console.log('✅ Firebase connected!');
@@ -13,7 +15,6 @@ try {
 
     // Test write
     const db = admin.firestore();
-    db.settings({ ignoreUndefinedProperties: true, preferRest: true });
     db.collection('test').doc('connection').set({
         timestamp: new Date(),
         status: 'working'

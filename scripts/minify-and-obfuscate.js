@@ -1,239 +1,96 @@
-const fs = require('fs');
-const path = require('path');
+#!/usr/bin/env node
+/**
+ * Cordova after_prepare hook (declared in config.xml).
+ *
+ * Obfuscates the PLATFORM COPY of www/*.js (e.g. platforms/android/app/src/
+ * main/assets/www/js/) after `cordova prepare` stages it -- the source
+ * www/ tree is left untouched so it stays readable for browser/PWA
+ * development and debugging.
+ *
+ * Kept deliberately conservative: string-array obfuscation + hex identifier
+ * renaming for local scopes only. `renameGlobals` stays false because many
+ * files share state across separate <script> tags via bare globals
+ * (DataStore, Auth, currentUser, db, HardwarePrinter, ...) -- renaming those
+ * declarations would break every other file that references them by name.
+ * Control-flow flattening / dead-code injection are off too: this app is
+ * large (app.js alone is 5000+ lines) and those transforms meaningfully
+ * bloat parse/execution time on a mobile WebView for limited extra benefit.
+ */
+'use strict';
 
-module.exports = function(context) {
-    console.log('------------------------------------------------------------');
-    console.log('⚡ STARTING CORDOVA ASSETS SECURITY & MINIFICATION HOOK ⚡');
-    console.log('------------------------------------------------------------');
+import fs from 'fs';
+import path from 'path';
+import { createRequire } from 'module';
 
-    // Dynamic requires (installed as devDependencies)
-    let JavaScriptObfuscator, CleanCSS, htmlMinifier;
+const require = createRequire(import.meta.url);
+
+const SKIP_FILES = new Set(['cordova.js', 'cordova_plugins.js', 'html5-qrcode.min.js']);
+const SKIP_DIRS = new Set(['plugins', 'res']);
+
+function findPlatformWww(platformRoot) {
+    const candidates = [
+        path.join(platformRoot, 'app', 'src', 'main', 'assets', 'www'), // cordova-android 9+ (Gradle)
+        path.join(platformRoot, 'assets', 'www'),                       // older cordova-android
+        path.join(platformRoot, 'www'),                                 // ios / browser
+        path.join(platformRoot, 'platform_www')
+    ];
+    return candidates.find(p => fs.existsSync(p));
+}
+
+function walkJsFiles(dir, onFile) {
+    if (!fs.existsSync(dir)) return;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walkJsFiles(full, onFile);
+        else onFile(full);
+    }
+}
+
+export default function (context) {
+    let JavaScriptObfuscator;
     try {
         JavaScriptObfuscator = require('javascript-obfuscator');
-        CleanCSS = require('clean-css');
-        htmlMinifier = require('html-minifier');
-    } catch (err) {
-        console.error('❌ Failed to require minification / obfuscation libraries. Make sure to install dependencies:');
-        console.error('   npm install --save-dev javascript-obfuscator clean-css html-minifier');
-        console.error(err);
+    } catch (e) {
+        console.warn('[obfuscate] javascript-obfuscator is not installed (npm install) -- skipping obfuscation for this build.');
         return;
     }
 
-    const projectRoot = context.opts.projectRoot;
-    const platforms = context.opts.platforms || [];
+    const platforms = (context.opts.platforms && context.opts.platforms.length)
+        ? context.opts.platforms
+        : ['android'];
 
-    platforms.forEach(platform => {
-        let wwwPath;
-        if (platform === 'android') {
-            wwwPath = path.join(projectRoot, 'platforms/android/app/src/main/assets/www');
-        } else if (platform === 'ios') {
-            wwwPath = path.join(projectRoot, 'platforms/ios/www');
-        } else if (platform === 'browser') {
-            wwwPath = path.join(projectRoot, 'platforms/browser/www');
-        } else {
-            console.log(`ℹ️ [minify-and-obfuscate] Platform "${platform}" not configured/supported for minification, skipping.`);
+    platforms.forEach((platform) => {
+        const platformRoot = path.join(context.opts.projectRoot, 'platforms', platform);
+        const wwwDir = findPlatformWww(platformRoot);
+        if (!wwwDir) {
+            console.warn(`[obfuscate] Could not find a www directory for platform "${platform}" (looked under ${platformRoot}) -- skipping.`);
             return;
         }
 
-        if (!fs.existsSync(wwwPath)) {
-            console.log(`⚠️ [minify-and-obfuscate] Directory not found for platform ${platform}: ${wwwPath}`);
-            return;
-        }
+        let count = 0;
+        walkJsFiles(path.join(wwwDir, 'js'), (file) => {
+            if (!file.endsWith('.js') || file.endsWith('.min.js')) return;
+            if (SKIP_FILES.has(path.basename(file))) return;
 
-        console.log(`🔑 [minify-and-obfuscate] Processing assets for ${platform} in: ${wwwPath}`);
-        
-        let stats = { js: 0, css: 0, html: 0, errors: 0 };
-        processDirectory(wwwPath, wwwPath, stats);
-        
-        console.log(`✅ [minify-and-obfuscate] Completed ${platform}: Obfuscated ${stats.js} JS, Minified ${stats.css} CSS, Minified ${stats.html} HTML. Errors: ${stats.errors}`);
-    });
-
-    // Run AndroidManifest cleaning if android platform is prepared
-    if (platforms.includes('android')) {
-        cleanAndroidManifest();
-    }
-
-    console.log('------------------------------------------------------------');
-    console.log('⚡ CORDOVA ASSETS SECURITY & MINIFICATION HOOK COMPLETE ⚡');
-    console.log('------------------------------------------------------------');
-
-    function processDirectory(dir, baseWww, stats) {
-        const files = fs.readdirSync(dir);
-
-        files.forEach(file => {
-            const filePath = path.join(dir, file);
-            const relativePath = path.relative(baseWww, filePath);
-            const stat = fs.statSync(filePath);
-
-            if (stat.isDirectory()) {
-                processDirectory(filePath, baseWww, stats);
-            } else {
-                const ext = path.extname(file).toLowerCase();
-
-                // Skip pre-minified files
-                if (file.endsWith('.min.js') || file.endsWith('.min.css')) {
-                    return;
-                }
-
-                try {
-                    const originalContent = fs.readFileSync(filePath, 'utf8');
-
-                    if (ext === '.js') {
-                        // Obfuscate and minify JS
-                        const obfuscationResult = JavaScriptObfuscator.obfuscate(originalContent, {
-                            compact: true,
-                            controlFlowFlattening: false,
-                            deadCodeInjection: false,
-                            debugProtection: false,
-                            disableConsoleLog: false,
-                            identifierNamesGenerator: 'hexadecimal',
-                            log: false,
-                            numbersToExpressions: false,
-                            renameGlobals: false,
-                            selfDefending: false,
-                            simplify: true,
-                            splitStrings: false,
-                            stringArray: true,
-                            stringArrayCallsTransform: false,
-                            stringArrayEncoding: [],
-                            stringArrayIndexShift: true,
-                            stringArrayRotate: true,
-                            stringArrayShuffle: true,
-                            stringArrayWrappersCount: 1,
-                            stringArrayWrappersChainedCalls: true,
-                            stringArrayWrappersParametersMaxCount: 2,
-                            stringArrayWrappersType: 'variable',
-                            stringArrayThreshold: 0.75,
-                            unicodeEscapeSequence: false
-                        });
-                        fs.writeFileSync(filePath, obfuscationResult.getObfuscatedCode(), 'utf8');
-                        stats.js++;
-                    } else if (ext === '.css') {
-                        // Minify CSS
-                        const cleanCSSResult = new CleanCSS({}).minify(originalContent);
-                        if (cleanCSSResult.errors && cleanCSSResult.errors.length > 0) {
-                            throw new Error(cleanCSSResult.errors.join(', '));
-                        }
-                        fs.writeFileSync(filePath, cleanCSSResult.styles, 'utf8');
-                        stats.css++;
-                    } else if (ext === '.html') {
-                        // Minify HTML
-                        const minifiedHtml = htmlMinifier.minify(originalContent, {
-                            collapseWhitespace: true,
-                            removeComments: true,
-                            minifyJS: true,
-                            minifyCSS: true
-                        });
-                        fs.writeFileSync(filePath, minifiedHtml, 'utf8');
-                        stats.html++;
-                    }
-                } catch (err) {
-                    console.error(`❌ [minify-and-obfuscate] Error processing file ${relativePath}:`, err.message);
-                    stats.errors++;
-                }
+            const source = fs.readFileSync(file, 'utf8');
+            try {
+                const result = JavaScriptObfuscator.obfuscate(source, {
+                    compact: true,
+                    controlFlowFlattening: false,
+                    deadCodeInjection: false,
+                    stringArray: true,
+                    stringArrayThreshold: 0.6,
+                    identifierNamesGenerator: 'hexadecimal',
+                    renameGlobals: false,
+                    selfDefending: false
+                });
+                fs.writeFileSync(file, result.getObfuscatedCode(), 'utf8');
+                count++;
+            } catch (e) {
+                console.warn(`[obfuscate] Failed to obfuscate ${file}, leaving it as-is:`, e.message);
             }
         });
-    }
-
-    // Clean Manifest function to deduplicate and fix manifest entries
-    function cleanAndroidManifest() {
-        const manifestPath = path.join(projectRoot, 'platforms/android/app/src/main/AndroidManifest.xml');
-        if (!fs.existsSync(manifestPath)) {
-            return;
-        }
-
-        console.log('🧹 [minify-and-obfuscate] Cleaning AndroidManifest.xml for duplicates...');
-        try {
-            let content = fs.readFileSync(manifestPath, 'utf8');
-
-            // Find all uses-permission tags
-            const permissionRegex = /<uses-permission[^>]+android:name="([^"]+)"[^>]*\/>/g;
-            let permissions = [];
-            let match;
-            while ((match = permissionRegex.exec(content)) !== null) {
-                const fullTag = match[0];
-                const name = match[1];
-                permissions.push({ tag: fullTag, name: name });
-            }
-
-            // Find all uses-feature tags
-            const featureRegex = /<uses-feature[^>]+android:name="([^"]+)"[^>]*\/>/g;
-            let features = [];
-            while ((match = featureRegex.exec(content)) !== null) {
-                const fullTag = match[0];
-                const name = match[1];
-                features.push({ tag: fullTag, name: name });
-            }
-
-            // Deduplicate permissions
-            const uniquePermissions = {};
-            permissions.forEach(p => {
-                const name = p.name;
-                const tag = p.tag;
-
-                // Rules for deciding which permission tag to keep
-                if (!uniquePermissions[name]) {
-                    uniquePermissions[name] = tag;
-                } else {
-                    const currentTag = uniquePermissions[name];
-                    // Prefer tags with tools:node="replace"
-                    if (tag.includes('tools:node="replace"') && !currentTag.includes('tools:node="replace"')) {
-                        uniquePermissions[name] = tag;
-                    } 
-                    // Prefer tags with maxSdkVersion
-                    else if (tag.includes('android:maxSdkVersion') && !currentTag.includes('android:maxSdkVersion')) {
-                        uniquePermissions[name] = tag;
-                    }
-                    // Else, if current tag has replace or maxSdkVersion, keep current; otherwise just keep either
-                }
-            });
-
-            // Deduplicate features
-            const uniqueFeatures = {};
-            features.forEach(f => {
-                const name = f.name;
-                const tag = f.tag;
-
-                if (!uniqueFeatures[name]) {
-                    uniqueFeatures[name] = tag;
-                } else {
-                    const currentTag = uniqueFeatures[name];
-                    // For GPS feature, prefer the one with required="false" and replace
-                    if (name === 'android.hardware.location.gps') {
-                        if (tag.includes('android:required="false"') || tag.includes('tools:node="replace"')) {
-                            uniqueFeatures[name] = tag;
-                        }
-                    } else if (tag.includes('tools:node="replace"') && !currentTag.includes('tools:node="replace"')) {
-                        uniqueFeatures[name] = tag;
-                    }
-                }
-            });
-
-            // Remove all original uses-permission tags from XML
-            let cleanContent = content;
-            permissions.forEach(p => {
-                cleanContent = cleanContent.replace(p.tag, '');
-            });
-
-            // Remove all original uses-feature tags from XML
-            features.forEach(f => {
-                cleanContent = cleanContent.replace(f.tag, '');
-            });
-
-            // Re-insert clean permissions and features right before </manifest> tag
-            const cleanPermissionsStr = Object.values(uniquePermissions).map(t => '    ' + t.trim()).join('\n');
-            const cleanFeaturesStr = Object.values(uniqueFeatures).map(t => '    ' + t.trim()).join('\n');
-
-            const insertStr = '\n' + cleanPermissionsStr + '\n' + cleanFeaturesStr + '\n';
-            cleanContent = cleanContent.replace('</manifest>', insertStr + '</manifest>');
-
-            // Clean up any double blank lines
-            cleanContent = cleanContent.replace(/\n\s*\n\s*\n/g, '\n\n');
-
-            fs.writeFileSync(manifestPath, cleanContent, 'utf8');
-            console.log('✅ [minify-and-obfuscate] Cleaned AndroidManifest.xml successfully.');
-        } catch (err) {
-            console.error('❌ [minify-and-obfuscate] Failed to clean AndroidManifest.xml:', err.message);
-        }
-    }
+        console.log(`[obfuscate] Obfuscated ${count} file(s) for platform "${platform}" at ${wwwDir}/js`);
+    });
 };

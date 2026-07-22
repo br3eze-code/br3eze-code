@@ -1,13 +1,13 @@
 // scripts/debug-domains.js
-const loadAllDomains = require('../src/core/loadDomain');
-const registry = require('../src/core/ToolRegistry');
-const { logger } = require('../src/core/logger');
+import loadAllDomains from '../src/core/loadDomain.js';
+import registry from '../src/core/ToolRegistry.js';
+import { logger } from '../src/core/logger.js';
 
 async function debugDomains() {
   console.log('--- AgentOS Domain Audit ---');
   
   // Load domains
-  loadAllDomains({
+  await loadAllDomains({
     mikrotik: { /* dummy config */ host: '192.168.88.1' }
   });
 

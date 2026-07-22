@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Terms of Service · Power Connect</title>
+  <meta name="description" content="Br3eze Africa AgentOS Terms of Service — the rules and conditions governing use of our hotspot network.">
+  <link rel="stylesheet" href="css/index.css">
+  <style>
+    /* ── Page layout (adapts index.css tokens/components to a long-form legal page) ── */
+    html, body { overflow: auto; }
+    body { -webkit-user-select: text; user-select: text; }
+
+    .legal-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding-bottom: var(--safe-bottom);
+    }
+
+    .legal-hero {
+      text-align: center;
+      padding: 40px 0 32px;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 32px;
+    }
+    .legal-hero .icon { font-size: 44px; margin-bottom: 12px; }
+    .legal-hero h1 { font-size: 20px; letter-spacing: 2px; margin-bottom: 6px; }
+    .legal-hero .sub { font-size: 12px; color: var(--color-text-medium); }
+    .legal-hero .badge {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 4px 14px;
+      border: 1px solid var(--color-info-text);
+      border-radius: 20px;
+      font-size: 10px;
+      color: var(--color-info-text);
+      letter-spacing: 1.5px;
+    }
+
+    .accept-banner {
+      background: rgba(32, 48, 96, 0.35);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .accept-banner .icon { font-size: 20px; flex-shrink: 0; }
+    .accept-banner .text { font-size: 13px; color: var(--color-text-medium); line-height: 1.65; }
+    .accept-banner .text strong { color: var(--color-text-light); }
+
+    .toc {
+      background: var(--color-sidebar);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      columns: 2;
+      column-gap: 20px;
+    }
+    @media (max-width: 480px) { .toc { columns: 1; } }
+    .toc-title { font-size: 11px; color: var(--color-info-text); letter-spacing: 2px; margin-bottom: 12px; column-span: all; font-weight: 600; }
+    .toc a { display: block; color: var(--color-text-medium); font-size: 12px; padding: 3px 0; }
+    .toc a:hover { color: var(--color-text-light); }
+
+    .section-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .section-hdr .num { margin-left: auto; font-size: 11px; color: var(--color-text-medium); }
+    .card p { color: var(--color-text-medium); font-size: 13px; line-height: 1.7; margin-bottom: 10px; }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul, .card ol { margin: 10px 0; padding-left: 20px; color: var(--color-text-medium); font-size: 13px; line-height: 1.65; }
+    .card li { margin-bottom: 6px; }
+    .card li strong { color: var(--color-text-light); }
+
+    .note-box { border-radius: 4px; padding: 12px 16px; margin: 14px 0; font-size: 12px; line-height: 1.6; }
+    .note-info { background: rgba(32, 48, 96, 0.5); color: var(--color-info-text); }
+    .note-danger { background: rgba(128, 48, 48, 0.4); color: var(--color-danger-text); }
+    .note-warn { background: rgba(128, 48, 48, 0.55); color: var(--color-danger-text); }
+
+    .contact-card {
+      background: var(--color-sidebar);
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .contact-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-medium); }
+    .contact-row .icon { width: 20px; text-align: center; }
+    .contact-row a { color: var(--color-info-text); }
+
+    .legal-footer { text-align: center; padding: 28px 0 10px; border-top: 1px solid var(--color-border); margin-top: 32px; }
+    .legal-footer p { color: var(--color-text-medium); font-size: 11px; line-height: 1.8; }
+    .legal-footer a { color: var(--color-text-medium); }
+  </style>
+</head>
+<body>
+  <header class="main-header">
+    <div class="header-left"><span class="logo">POWER CONNECT</span></div>
+  </header>
+
+  <main class="content-panel">
+    <div class="legal-wrap">
+
+      <div class="legal-hero">
+        <div class="icon">📜</div>
+        <h1>TERMS OF SERVICE</h1>
+        <p class="sub">Br3eze Africa · AgentOS Network Platform</p>
+        <span class="badge">EFFECTIVE: JUNE 2026 · VERSION 2.0</span>
+      </div>
+
+      <!-- Acceptance banner -->
+      <div class="accept-banner">
+        <span class="icon">⚡</span>
+        <div class="text">
+          <strong>By connecting to a Br3eze Africa hotspot or using AgentOS services, you agree to these Terms.</strong>
+          If you are under 18, a parent or guardian must consent on your behalf. If you do not agree, disconnect immediately and do not use our services.
+        </div>
+      </div>
+
+      <!-- Table of Contents -->
+      <div class="toc">
+        <div class="toc-title">TABLE OF CONTENTS</div>
+        <a href="#s01">01 · Definitions</a>
+        <a href="#s02">02 · Service Description</a>
+        <a href="#s03">03 · Account & Vouchers</a>
+        <a href="#s04">04 · Acceptable Use</a>
+        <a href="#s05">05 · Prohibited Conduct</a>
+        <a href="#s06">06 · Fees & Billing</a>
+        <a href="#s07">07 · Refund Policy</a>
+        <a href="#s08">08 · Network Performance</a>
+        <a href="#s09">09 · Intellectual Property</a>
+        <a href="#s10">10 · Disclaimers</a>
+        <a href="#s11">11 · Limitation of Liability</a>
+        <a href="#s12">12 · Indemnification</a>
+        <a href="#s13">13 · Termination</a>
+        <a href="#s14">14 · Governing Law</a>
+        <a href="#s15">15 · Changes to Terms</a>
+        <a href="#s16">16 · Contact</a>
+      </div>
+
+      <!-- § 01 — Definitions -->
+      <div id="s01" class="card">
+        <div class="section-hdr"><span>📖</span><span>DEFINITIONS</span><span class="num">§ 01</span></div>
+        <p>In these Terms, the following definitions apply:</p>
+        <ul>
+          <li><strong>"Br3eze Africa"</strong> — Br3eze Africa (Pty) Ltd, the operator of the AgentOS platform.</li>
+          <li><strong>"AgentOS"</strong> — Our AI-powered network management and hotspot billing platform.</li>
+          <li><strong>"Services"</strong> — All hotspot Wi-Fi access, portal functionality, billing, and AgentOS software features.</li>
+          <li><strong>"User" / "you"</strong> — Any person who connects to or uses the Services.</li>
+          <li><strong>"Operator"</strong> — A reseller or venue owner who deploys Br3eze Africa's infrastructure.</li>
+          <li><strong>"Voucher"</strong> — A unique credential (code, QR code, or token) granting timed or data-capped access.</li>
+          <li><strong>"Session"</strong> — A single authenticated connection to the hotspot network.</li>
+          <li><strong>"Platform"</strong> — The AgentOS web dashboard, API, and backend services hosted at br3eze.africa.</li>
+        </ul>
+      </div>
+
+      <!-- § 02 — Service Description -->
+      <div id="s02" class="card">
+        <div class="section-hdr"><span>📡</span><span>SERVICE DESCRIPTION</span><span class="num">§ 02</span></div>
+        <p>
+          Br3eze Africa provides AI-assisted hotspot network management software (AgentOS) and operates
+          managed Wi-Fi hotspot access points across partner venues in South Africa and surrounding regions.
+        </p>
+        <p>Our services include:</p>
+        <ul>
+          <li>Captive portal authentication for hotspot users (login.html, status.html)</li>
+          <li>Voucher-based and time-limited internet access management</li>
+          <li>Real-time network monitoring, diagnostics, and AI-driven troubleshooting</li>
+          <li>Operator dashboard for reseller and venue management</li>
+          <li>Automated billing, reporting, and MikroTik RouterOS integration</li>
+          <li>Telegram bot, WhatsApp, and multi-channel communication tools for operators</li>
+        </ul>
+        <div class="note-box note-info">◈ Services may vary by location depending on the operator's configuration and available infrastructure.</div>
+      </div>
+
+      <!-- § 03 — Account & Vouchers -->
+      <div id="s03" class="card">
+        <div class="section-hdr"><span>🎫</span><span>ACCOUNT & VOUCHERS</span><span class="num">§ 03</span></div>
+        <p><strong>Voucher Terms:</strong></p>
+        <ul>
+          <li>Vouchers are single-use unless otherwise stated and expire on the date/time shown.</li>
+          <li>Unused balance or time on a voucher is forfeited upon expiry — no automatic rollover.</li>
+          <li>Vouchers may not be transferred, resold, or shared beyond any usage limits set by the operator.</li>
+          <li>Lost or stolen vouchers are non-replaceable unless the operator has verification records.</li>
+          <li>Data limits on vouchers are hard caps — sessions end automatically when the limit is reached.</li>
+        </ul>
+        <p><strong>Operator Accounts:</strong></p>
+        <ul>
+          <li>Operator accounts must be registered with accurate business information.</li>
+          <li>You are responsible for all activity under your operator account credentials.</li>
+          <li>You must not share admin access with unauthorised personnel.</li>
+          <li>We may suspend accounts that show signs of unauthorised access or abuse.</li>
+        </ul>
+        <div class="note-box note-danger">⚠ Keep your voucher codes and operator credentials secure. We are not liable for unauthorized use arising from your failure to protect your credentials.</div>
+      </div>
+
+      <!-- § 04 — Acceptable Use -->
+      <div id="s04" class="card">
+        <div class="section-hdr"><span>✅</span><span>ACCEPTABLE USE</span><span class="num">§ 04</span></div>
+        <p>You may use our Services only for lawful purposes. Acceptable uses include:</p>
+        <ul>
+          <li>General web browsing, email, and social media</li>
+          <li>Video streaming and audio playback within fair-use limits set by the operator</li>
+          <li>Remote work, VoIP calls, and video conferencing</li>
+          <li>Software updates and cloud synchronisation</li>
+          <li>Operating the AgentOS dashboard and network management tools (for operators)</li>
+        </ul>
+        <p>
+          You agree to use the Services in a manner that does not degrade the experience of other users
+          or overload network infrastructure beyond your allocated plan.
+        </p>
+      </div>
+
+      <!-- § 05 — Prohibited Conduct -->
+      <div id="s05" class="card">
+        <div class="section-hdr"><span>🚫</span><span>PROHIBITED CONDUCT</span><span class="num">§ 05</span></div>
+        <p>The following are strictly prohibited and may result in immediate suspension:</p>
+        <ul>
+          <li>Hacking, port scanning, network probing, or any form of cyber attack against any target</li>
+          <li>Downloading, distributing, or hosting child sexual abuse material (CSAM) — this will be reported to SAPS and relevant authorities immediately</li>
+          <li>Torrenting, P2P file sharing, or distributing copyrighted content without authorisation</li>
+          <li>Running servers, proxies, VPN exit nodes, or crypto mining operations on our network</li>
+          <li>ARP spoofing, DNS poisoning, man-in-the-middle attacks, or intercepting other users' traffic</li>
+          <li>Attempting to bypass captive portal authentication, session limits, or data caps</li>
+          <li>Spamming, phishing, or conducting fraudulent transactions</li>
+          <li>Reverse engineering, decompiling, or tampering with AgentOS software</li>
+          <li>Reselling access without being an authorised Br3eze Africa operator/reseller</li>
+          <li>Using our network to violate any applicable South African law or international treaty</li>
+        </ul>
+        <div class="note-box note-warn">🚨 Violations of this section may result in permanent banning, referral to law enforcement, and civil or criminal liability under the Cybercrimes Act (Act 19 of 2020) and the Electronic Communications and Transactions Act (ECT Act, Act 25 of 2002).</div>
+      </div>
+
+      <!-- § 06 — Fees & Billing -->
+      <div id="s06" class="card">
+        <div class="section-hdr"><span>💳</span><span>FEES & BILLING</span><span class="num">§ 06</span></div>
+        <p>
+          Access fees are set by the operator of each hotspot venue and displayed on the captive portal
+          before purchase. Br3eze Africa acts as the platform provider; individual pricing may vary by location.
+        </p>
+
+        <table class="admin-table">
+          <thead>
+            <tr><th>BILLING PRINCIPLE</th><th>DETAIL</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pre-paid vouchers</td><td>Payment is required before access is granted. No credit or deferred billing.</td></tr>
+            <tr><td>Currency</td><td>All prices are in South African Rand (ZAR) unless otherwise stated.</td></tr>
+            <tr><td>Taxes</td><td>Prices may be inclusive or exclusive of VAT (15%) depending on the operator's display setting.</td></tr>
+            <tr><td>Payment methods</td><td>Accepted methods are displayed at checkout and may include cash, EFT, card, or mobile payment.</td></tr>
+            <tr><td>Operator pricing</td><td>Operators set their own retail prices within Br3eze Africa's wholesale framework.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- § 07 — Refund Policy -->
+      <div id="s07" class="card">
+        <div class="section-hdr"><span>↩️</span><span>REFUND POLICY</span><span class="num">§ 07</span></div>
+        <p>Due to the nature of pre-paid digital access services:</p>
+        <ul>
+          <li>Vouchers that have been <strong>activated and partially or fully used</strong> are non-refundable.</li>
+          <li>Vouchers that have <strong>never been used</strong> may be eligible for a refund within 48 hours of purchase, subject to operator discretion.</li>
+          <li>If a network outage lasting more than 2 hours occurs during your paid session, you may request a credit or replacement voucher by contacting the operator at the venue.</li>
+          <li>Technical faults attributable to our platform (not your device) will be assessed on a case-by-case basis and may result in a replacement voucher of equal value.</li>
+        </ul>
+        <div class="note-box note-info">◈ Refund requests must be submitted to the operator where the voucher was purchased. Br3eze Africa handles platform-level disputes only; venue billing disputes are the operator's responsibility.</div>
+      </div>
+
+      <!-- § 08 — Network Performance -->
+      <div id="s08" class="card">
+        <div class="section-hdr"><span>📶</span><span>NETWORK PERFORMANCE</span><span class="num">§ 08</span></div>
+        <p>
+          We do not guarantee specific speeds, uptime, or latency. Network performance depends on factors
+          including but not limited to: number of simultaneous users, ISP upstream quality, hardware conditions,
+          and physical interference at the venue.
+        </p>
+        <ul>
+          <li>Advertised speeds are maximum theoretical speeds — actual speeds may be lower.</li>
+          <li>We may implement fair-use throttling to prevent any single user from saturating shared bandwidth.</li>
+          <li>Scheduled maintenance may cause temporary service interruptions; we will provide notice where possible.</li>
+          <li>We target 99% monthly platform uptime for the AgentOS dashboard but do not guarantee this.</li>
+        </ul>
+        <div class="note-box note-danger">⚠ Satellite-dependent locations (e.g. Starlink-linked nodes) may experience higher latency and intermittent outages based on orbital and weather conditions.</div>
+      </div>
+
+      <!-- § 09 — Intellectual Property -->
+      <div id="s09" class="card">
+        <div class="section-hdr"><span>©️</span><span>INTELLECTUAL PROPERTY</span><span class="num">§ 09</span></div>
+        <p>
+          All content, software, design, trademarks, and technology constituting AgentOS and the Br3eze Africa
+          platform are the exclusive intellectual property of Br3eze Africa (Pty) Ltd or its licensors,
+          protected under South African and international copyright, trademark, and trade secret law.
+        </p>
+        <ul>
+          <li>You may not copy, reproduce, distribute, or create derivative works from our software or content.</li>
+          <li>You may not use the Br3eze Africa name, logo, or brand assets without prior written consent.</li>
+          <li>Operators are granted a limited, non-exclusive, non-transferable licence to use the platform solely for operating hotspot services under an active agreement with Br3eze Africa.</li>
+          <li>Any feedback, suggestions, or bug reports you submit may be used by us to improve the platform without compensation.</li>
+        </ul>
+      </div>
+
+      <!-- § 10 — Disclaimers -->
+      <div id="s10" class="card">
+        <div class="section-hdr"><span>⚠️</span><span>DISCLAIMERS</span><span class="num">§ 10</span></div>
+        <p>
+          THE SERVICES ARE PROVIDED <strong>"AS IS"</strong> AND
+          <strong>"AS AVAILABLE"</strong> WITHOUT WARRANTIES OF ANY KIND,
+          EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+          FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+        </p>
+        <ul>
+          <li>We do not warrant that the Services will be uninterrupted, error-free, or virus-free.</li>
+          <li>We do not warrant that internet content accessed through our network is accurate, legal, or safe.</li>
+          <li>We are not responsible for any content you access or download via our network.</li>
+          <li>AI-generated responses from AgentOS tools are advisory only and should not replace qualified professional advice.</li>
+        </ul>
+      </div>
+
+      <!-- § 11 — Limitation of Liability -->
+      <div id="s11" class="card">
+        <div class="section-hdr"><span>🔐</span><span>LIMITATION OF LIABILITY</span><span class="num">§ 11</span></div>
+        <p>
+          TO THE MAXIMUM EXTENT PERMITTED BY LAW, BR3EZE AFRICA SHALL NOT BE LIABLE FOR ANY INDIRECT,
+          INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS, DATA,
+          GOODWILL, OR BUSINESS INTERRUPTION, ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICES.
+        </p>
+        <p>
+          In all cases, our total liability to you for any claim shall not exceed the amount you paid
+          for the specific voucher or service giving rise to the claim in the 30 days preceding the incident.
+        </p>
+        <div class="note-box note-info">◈ Some jurisdictions do not allow the exclusion of certain warranties or limitation of liability, so some of the above may not apply to you.</div>
+      </div>
+
+      <!-- § 12 — Indemnification -->
+      <div id="s12" class="card">
+        <div class="section-hdr"><span>🛡️</span><span>INDEMNIFICATION</span><span class="num">§ 12</span></div>
+        <p>
+          You agree to defend, indemnify, and hold harmless Br3eze Africa, its officers, directors,
+          employees, operators, and service providers from and against any claims, liabilities, damages,
+          costs, and expenses (including legal fees) arising from:
+        </p>
+        <ul>
+          <li>Your violation of these Terms</li>
+          <li>Your violation of any applicable law or third-party rights</li>
+          <li>Your use of the Services to cause harm, transmit malware, or conduct cyber attacks</li>
+          <li>Any content you upload, transmit, or access through our network</li>
+        </ul>
+      </div>
+
+      <!-- § 13 — Termination -->
+      <div id="s13" class="card">
+        <div class="section-hdr"><span>🔌</span><span>TERMINATION</span><span class="num">§ 13</span></div>
+        <p>We may suspend or terminate your access to the Services at any time:</p>
+        <ul>
+          <li>Immediately for violations of the Prohibited Conduct section (§ 05)</li>
+          <li>With notice for continued breach of these Terms after a warning</li>
+          <li>Upon expiry of your voucher or data/time allowance</li>
+          <li>For non-payment (operators) or breach of the operator agreement</li>
+          <li>At our discretion if we discontinue a service or location</li>
+        </ul>
+        <p>
+          Upon termination, your right to use the Services immediately ceases. No refunds will be
+          issued for terminations due to Terms violations.
+        </p>
+      </div>
+
+      <!-- § 14 — Governing Law -->
+      <div id="s14" class="card">
+        <div class="section-hdr"><span>⚖️</span><span>GOVERNING LAW & DISPUTE RESOLUTION</span><span class="num">§ 14</span></div>
+        <p>
+          These Terms are governed by and construed in accordance with the laws of the
+          <strong>Republic of South Africa</strong>, without regard to conflict
+          of law principles. You submit to the exclusive jurisdiction of the courts of South Africa.
+        </p>
+        <p>
+          Before initiating formal legal proceedings, parties agree to attempt to resolve disputes
+          through good-faith negotiation for at least 30 days. Unresolved disputes may be referred to
+          arbitration under the rules of the Arbitration Foundation of South Africa (AFSA) before
+          court proceedings are commenced.
+        </p>
+        <div class="note-box note-info">◈ The Consumer Protection Act (CPA, Act 68 of 2008) and National Consumer Commission may provide additional remedies for individual consumers.</div>
+      </div>
+
+      <!-- § 15 — Changes to Terms -->
+      <div id="s15" class="card">
+        <div class="section-hdr"><span>📋</span><span>CHANGES TO TERMS</span><span class="num">§ 15</span></div>
+        <p>
+          We reserve the right to update these Terms at any time. Changes will be effective when posted
+          to br3eze.africa with an updated "Effective" date. For material changes, we will provide notice
+          via the hotspot login page or direct notification to registered operators.
+        </p>
+        <p>
+          Your continued use of our Services after the effective date of any change constitutes your
+          acceptance of the revised Terms. If you do not agree, you must stop using the Services.
+        </p>
+      </div>
+
+      <!-- § 16 — Contact -->
+      <div id="s16" class="card">
+        <div class="section-hdr"><span>📬</span><span>CONTACT</span><span class="num">§ 16</span></div>
+        <p>For questions about these Terms, operator agreements, or legal notices:</p>
+        <div class="contact-card">
+          <div class="contact-row"><span class="icon">🏢</span><span>Br3eze Africa (Pty) Ltd — Legal Department</span></div>
+          <div class="contact-row"><span class="icon">🌍</span><span>South Africa</span></div>
+          <div class="contact-row"><span class="icon">✉️</span><a href="mailto:legal@br3eze.africa">legal@br3eze.africa</a></div>
+          <div class="contact-row"><span class="icon">📋</span><a href="mailto:privacy@br3eze.africa">privacy@br3eze.africa (Privacy / POPIA)</a></div>
+          <div class="contact-row"><span class="icon">🌐</span><a href="https://br3eze.africa" target="_blank" rel="noopener">br3eze.africa</a></div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="legal-footer">
+        <p style="margin-bottom:20px;"><a href="index.html" class="btn btn-primary btn-sm">← Back to Dashboard</a></p>
+        <p>
+          © 2024–2026 Br3eze Africa (Pty) Ltd · All rights reserved<br>
+          <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+          <a href="index.html">Dashboard</a> &nbsp;·&nbsp;
+          <a href="status.html">My Session</a> &nbsp;·&nbsp;
+          <a href="mailto:legal@br3eze.africa">Contact Legal</a>
+        </p>
+        <p style="margin-top:12px; font-size:10px; letter-spacing:1px;">AGENTOS v2026.6 · POWERED BY BR3EZE AFRICA · SOUTH AFRICA</p>
+      </div>
+
+    </div>
+  </main>
+</body>
+</html>

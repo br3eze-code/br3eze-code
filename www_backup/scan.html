@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Power Connect — Scan your WiFi voucher QR code or enter the code manually to get online instantly." />
+    <title>Scan Voucher — Power Connect</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ── Design Tokens ── */
+        :root {
+            --bg:           #0a0f1e;
+            --surface:      rgba(255,255,255,0.05);
+            --border:       rgba(255,255,255,0.1);
+            --cyan:         #00f5ff;
+            --green:        #00ff88;
+            --purple:       #a855f7;
+            --red:          #ff4d6d;
+            --text:         #e2e8f0;
+            --text-muted:   rgba(255,255,255,0.45);
+            --gradient:     linear-gradient(135deg, #00f5ff, #a855f7);
+            --radius:       16px;
+            --blur:         blur(20px);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 16px 48px;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated starfield background ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(0,245,255,0.05) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(168,85,247,0.06) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .stars {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Layout ── */
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--gradient);
+            margin-bottom: 16px;
+            box-shadow: 0 0 32px rgba(0,245,255,0.3);
+        }
+
+        .logo-mark svg { width: 32px; height: 32px; fill: #0a0f1e; }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* ── Glass card ── */
+        .card {
+            background: var(--surface);
+            backdrop-filter: var(--blur);
+            -webkit-backdrop-filter: var(--blur);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .card:hover { border-color: rgba(0,245,255,0.25); }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── QR Scanner ── */
+        #qr-reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        #qr-reader video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scan-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .scan-frame {
+            width: 65%;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        .scan-frame::before,
+        .scan-frame::after,
+        .scan-frame span::before,
+        .scan-frame span::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-color: var(--cyan);
+            border-style: solid;
+        }
+
+        .scan-frame::before  { top: 0;    left: 0;  border-width: 3px 0 0 3px; }
+        .scan-frame::after   { top: 0;    right: 0; border-width: 3px 3px 0 0; }
+        .scan-frame span::before { bottom: 0; left: 0;  border-width: 0 0 3px 3px; }
+        .scan-frame span::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+        .scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+            animation: scanMove 2s ease-in-out infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes scanMove {
+            0%   { top: 5%; opacity: 1; }
+            50%  { top: 95%; opacity: 1; }
+            100% { top: 5%; opacity: 1; }
+        }
+
+        #scan-status {
+            text-align: center;
+            padding: 12px 0 4px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            min-height: 24px;
+        }
+
+        /* ── Manual entry ── */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin: 4px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .input-group { display: flex; gap: 10px; }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: 'Outfit', monospace;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+            padding: 12px 16px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]::placeholder { color: var(--text-muted); }
+
+        input[type="text"]:focus {
+            border-color: rgba(0,245,255,0.5);
+            box-shadow: 0 0 0 3px rgba(0,245,255,0.08);
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn:active { transform: scale(0.97); }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: #0a0f1e;
+            box-shadow: 0 4px 20px rgba(0,245,255,0.2);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 6px 28px rgba(0,245,255,0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-ghost {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-ghost:hover { border-color: rgba(0,245,255,0.3); }
+
+        .btn-full { width: 100%; margin-top: 12px; }
+
+        /* ── Result card ── */
+        #result-card {
+            display: none;
+            animation: fadeUp 0.4s ease forwards;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 1.5rem;
+        }
+
+        .result-icon.success { background: rgba(0,255,136,0.15); border: 1px solid rgba(0,255,136,0.3); }
+        .result-icon.error   { background: rgba(255,77,109,0.15); border: 1px solid rgba(255,77,109,0.3); }
+
+        .result-title {
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .result-title.success { color: var(--green); }
+        .result-title.error   { color: var(--red);   }
+
+        .result-detail {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .plan-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 999px;
+            background: rgba(0,245,255,0.12);
+            border: 1px solid rgba(0,245,255,0.25);
+            color: var(--cyan);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            width: 22px;
+            height: 22px;
+            border: 2px solid rgba(10,15,30,0.3);
+            border-top-color: #0a0f1e;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-top: 32px;
+        }
+
+        .footer a { color: var(--cyan); text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<canvas class="stars" id="stars"></canvas>
+
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+        <div class="logo-mark">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 6.5C4.17 3.33 8.38 1.5 12 1.5s7.83 1.83 11 5L21 8.5C18.44 5.94 15.3 4.5 12 4.5S5.56 5.94 3 8.5L1 6.5ZM12 9.5c-2.21 0-4.17.91-5.59 2.41L4 9.5C5.98 7.52 8.86 6.5 12 6.5s6.02 1.02 8 3l-2.41 2.41C16.17 10.41 14.21 9.5 12 9.5ZM12 13.5a3 3 0 0 0-2.12.88L12 16.5l2.12-2.12A3 3 0 0 0 12 13.5ZM12 19.5l-1.5-1.5L12 21l1.5-1.5L12 19.5Z"/>
+            </svg>
+        </div>
+        <h1>Scan Voucher</h1>
+        <p class="subtitle">Point your camera at the QR code or enter your voucher code below</p>
+    </div>
+
+    <!-- QR Scanner Card -->
+    <div class="card" id="scanner-card">
+        <div class="card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13 0h-2v2h2v2h-2v2h2v-2h2v2h2v-2h-2v-2h2v-2h-2v2h-2v-2zm-2 0v2h2v-2h-2z"/></svg>
+            Camera Scan
+        </div>
+        <div id="qr-reader">
+            <div class="scan-overlay">
+                <div class="scan-frame">
+                    <span></span>
+                    <div class="scan-line"></div>
+                </div>
+            </div>
+        </div>
+        <p id="scan-status">Initialising camera…</p>
+    </div>
+
+    <!-- Manual entry -->
+    <div class="divider">or enter code manually</div>
+
+    <div class="card" style="margin-top:16px;">
+        <div class="card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Manual Code Entry
+        </div>
+        <div class="input-group">
+            <input id="manual-code" type="text" placeholder="STAR-XXXX-XXXX"
+                   autocomplete="off" autocapitalize="characters" spellcheck="false"
+                   maxlength="14" aria-label="Voucher code" />
+            <button class="btn btn-ghost" id="paste-btn" title="Paste from clipboard">📋</button>
+        </div>
+        <button class="btn btn-primary btn-full" id="redeem-btn" aria-live="polite">
+            Activate Voucher
+        </button>
+    </div>
+
+    <!-- Result card (shown after redemption) -->
+    <div class="card" id="result-card">
+        <div id="result-icon-wrap">
+            <div class="result-icon success" id="result-icon">✓</div>
+        </div>
+        <div class="result-title success" id="result-title">Connected!</div>
+        <div class="result-detail" id="result-detail">Your WiFi access has been activated.</div>
+        <div style="text-align:center;margin-bottom:16px;" id="plan-badge-wrap">
+            <span class="plan-badge" id="plan-badge"></span>
+        </div>
+        <button class="btn btn-ghost btn-full" id="try-again-btn">Scan Another</button>
+    </div>
+
+    <div class="footer">
+        Powered by <a href="https://br3eze.africa" target="_blank">Br3eze Africa</a> · Power Connect
+    </div>
+
+</div>
+
+<!-- html5-qrcode (bundled) -->
+<script src="js/html5-qrcode.min.js"></script>
+
+<script>
+/* ── Stars canvas ── */
+(function () {
+    const c = document.getElementById('stars');
+    const ctx = c.getContext('2d');
+    let stars = [];
+
+    function resize() {
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        stars = Array.from({ length: 120 }, () => ({
+            x: Math.random() * c.width,
+            y: Math.random() * c.height,
+            r: Math.random() * 1.2 + 0.2,
+            a: Math.random()
+        }));
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, c.width, c.height);
+        stars.forEach(s => {
+            s.a += 0.004 * (Math.random() > 0.5 ? 1 : -1);
+            s.a = Math.max(0.1, Math.min(0.8, s.a));
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+            ctx.fill();
+        });
+        requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    draw();
+})();
+
+/* ── DOM refs ── */
+const statusEl    = document.getElementById('scan-status');
+const manualInput = document.getElementById('manual-code');
+const redeemBtn   = document.getElementById('redeem-btn');
+const pasteBtn    = document.getElementById('paste-btn');
+const resultCard  = document.getElementById('result-card');
+const scannerCard = document.getElementById('scanner-card');
+const resultTitle = document.getElementById('result-title');
+const resultDetail= document.getElementById('result-detail');
+const resultIcon  = document.getElementById('result-icon');
+const planBadge   = document.getElementById('plan-badge');
+const planBadgeWrap = document.getElementById('plan-badge-wrap');
+const tryAgainBtn = document.getElementById('try-again-btn');
+
+/* ── Format code input ── */
+manualInput.addEventListener('input', () => {
+    let v = manualInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    // Auto-insert dashes: STAR-XXXX-XXXX
+    if (!v.startsWith('STAR-') && v.length >= 4) {
+        v = v.replace(/^(STAR)?-?/, 'STAR-');
+    }
+    manualInput.value = v;
+});
+
+/* ── Paste button ── */
+pasteBtn.addEventListener('click', async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        manualInput.value = text.trim().toUpperCase();
+    } catch (_) { manualInput.focus(); }
+});
+
+/* ── Redeem voucher via API ── */
+async function redeemCode(code) {
+    if (!code || code.length < 5) {
+        showResult(false, 'Invalid Code', 'Please enter a valid voucher code (e.g. STAR-XXXX-XXXX)');
+        return;
+    }
+
+    redeemBtn.disabled = true;
+    redeemBtn.innerHTML = '<span class="spinner"></span> Activating…';
+
+    // Detect username from device or use 'guest' fallback
+    const username = localStorage.getItem('pc_username') || 'guest-' + Math.random().toString(36).slice(2, 7);
+    localStorage.setItem('pc_username', username);
+
+    try {
+        const resp = await fetch('/voucher/redeem', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ code, user: username })
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok) {
+            showResult(true,
+                '🎉 Connected!',
+                `Welcome, ${username}. You are now online.`,
+                data.plan
+            );
+        } else {
+            showResult(false, 'Activation Failed', data.error || 'Unknown error. Please try again.');
+        }
+    } catch (err) {
+        showResult(false, 'Network Error', 'Could not reach the server. Are you connected to the WiFi?');
+    }
+}
+
+function showResult(success, title, detail, plan) {
+    resultCard.style.display = 'block';
+    resultTitle.textContent  = title;
+    resultDetail.textContent = detail;
+
+    resultIcon.className = 'result-icon ' + (success ? 'success' : 'error');
+    resultIcon.textContent = success ? '✓' : '✗';
+    resultTitle.className  = 'result-title ' + (success ? 'success' : 'error');
+
+    if (plan) {
+        planBadgeWrap.style.display = 'block';
+        planBadge.textContent = plan;
+    } else {
+        planBadgeWrap.style.display = 'none';
+    }
+
+    // Scroll to result
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    redeemBtn.disabled = false;
+    redeemBtn.innerHTML = 'Activate Voucher';
+}
+
+/* ── Manual redeem ── */
+redeemBtn.addEventListener('click', () => redeemCode(manualInput.value.trim()));
+
+manualInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') redeemCode(manualInput.value.trim());
+});
+
+/* ── Try again ── */
+tryAgainBtn.addEventListener('click', () => {
+    resultCard.style.display = 'none';
+    manualInput.value = '';
+    redeemBtn.disabled = false;
+    redeemBtn.innerHTML = 'Activate Voucher';
+    startScanner();
+});
+
+/* ── QR scanner ── */
+let scanner = null;
+
+function startScanner() {
+    if (scanner) {
+        scanner.clear().catch(() => {});
+        scanner = null;
+    }
+
+    statusEl.textContent = 'Initialising camera…';
+
+    if (typeof Html5QrcodeScanner === 'undefined') {
+        statusEl.textContent = 'QR scanner not available. Use manual entry below.';
+        return;
+    }
+
+    scanner = new Html5QrcodeScanner('qr-reader', {
+        fps: 10,
+        qrbox: { width: 220, height: 220 },
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true,
+        showZoomSliderIfSupported: true
+    });
+
+    scanner.render(
+        (decodedText) => {
+            // Stop scanner on first hit
+            scanner.clear().catch(() => {});
+            statusEl.textContent = `✓ Code detected`;
+
+            // Parse code from QR (may be JSON or raw string)
+            let code = decodedText;
+            try {
+                const parsed = JSON.parse(decodedText);
+                code = parsed.code || decodedText;
+            } catch (_) {}
+
+            manualInput.value = code;
+            redeemCode(code);
+        },
+        (err) => {
+            // Ignore scan errors (expected when no QR in frame)
+            if (!statusEl.textContent.includes('Scanning')) {
+                statusEl.textContent = 'Scanning… Point at QR code';
+            }
+        }
+    );
+}
+
+// Start scanner on load
+document.addEventListener('DOMContentLoaded', startScanner);
+// Also handle Cordova deviceready
+document.addEventListener('deviceready', startScanner, false);
+</script>
+</body>
+</html>

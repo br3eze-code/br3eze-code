@@ -2,7 +2,7 @@
 // manage_vouchers dispatcher — create, redeem, list, stats, recurring billing
 // SPEC.md §4.1 Voucher System
 
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 class VoucherSkill {
   async execute(params, context) {
@@ -171,4 +171,4 @@ class VoucherSkill {
   }
 }
 
-module.exports = new VoucherSkill();
+export default new VoucherSkill();

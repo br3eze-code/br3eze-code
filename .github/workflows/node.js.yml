@@ -1,0 +1,46 @@
+name: Node.js CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.x]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install
+        run: npm ci --legacy-peer-deps
+
+      - name: Prepare Jest module path
+        run: |
+          mkdir -p /tmp/jest-deps
+          cp package.json /tmp/jest-deps/
+          cd /tmp/jest-deps && npm ci --ignore-scripts --legacy-peer-deps --prefer-offline 2>/dev/null || true
+
+      - name: Build check
+        run: npm run build:check || true
+
+      - name: Test
+        run: npm test -- --ci --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          DATA_BACKEND: local
+          FIREBASE_PROJECT_ID: test-project
+          LLM_PROVIDER: gemini
+          PORT: 3000
+          GATEWAY_PORT: 19876

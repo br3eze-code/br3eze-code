@@ -1,4 +1,4 @@
-const fs = require('fs/promises');
+import fs from 'fs/promises';
 
 const ui_record = {
   name: "ui_record",
@@ -132,4 +132,4 @@ Saved to: \`${recorderPath}\``;
   }
 };
 
-module.exports = { ui_record };
+export { ui_record };

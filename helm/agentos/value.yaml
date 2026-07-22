@@ -22,14 +22,14 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
   hosts:
-    - host: agentos.yourdomain.com
+    - host: agentos.br3eze.africa
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: agentos-tls
       hosts:
-        - agentos.yourdomain.com
+        - agentos.br3eze.africa
 
 config:
   GATEWAY_TOKEN: ""

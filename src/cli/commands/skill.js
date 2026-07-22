@@ -4,12 +4,12 @@
 // List, run, and manage agent skills
 // ==========================================
 
-const _chalk = require('chalk');
+import _chalk from 'chalk';
+import SkillRegistry from '../../core/SkillRegistry.js';
 const chalk  = _chalk.default || _chalk;
-const { intro, outro, note, log } = require('@clack/prompts');
-const path   = require('path');
+import path from 'path';
 
-module.exports = (program) => {
+export default (program) => {
   const skill = program
     .command('skill')
     .description('Manage and execute agent skills');
@@ -19,8 +19,8 @@ module.exports = (program) => {
     .command('list')
     .description('List all installed skills')
     .action(async () => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});
         const skillsDir = path.join(process.cwd(), 'src', 'skills');
         await registry.loadFromDirectory(skillsDir);
@@ -54,8 +54,8 @@ module.exports = (program) => {
       return { ...prev, [k]: val };
     }, {})
     .action(async (skillName, options) => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 
@@ -81,8 +81,8 @@ module.exports = (program) => {
     .command('info <skillName>')
     .description('Show skill manifest and parameters')
     .action(async (skillName) => {
+      const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 

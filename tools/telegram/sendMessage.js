@@ -8,7 +8,7 @@
 
 const TELEGRAM_API = "https://api.telegram.org";
 
-export async function sendMessage({ chatId, message, parseMode = "HTML" }) {
+async function sendMessage({ chatId, message, parseMode = "HTML" }) {
     if (!chatId || !message) {
         throw new Error("Missing chatId or message");
     }
@@ -42,3 +42,4 @@ export async function sendMessage({ chatId, message, parseMode = "HTML" }) {
         throw new Error("telegram.sendMessage failed: " + err.message);
     }
 }
+export { sendMessage };

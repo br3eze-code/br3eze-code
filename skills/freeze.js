@@ -1,4 +1,4 @@
-const fs = require('fs/promises');
+import fs from 'fs/promises';
 
 const freeze = {
   name: "freeze",
@@ -43,4 +43,4 @@ const freeze = {
   }
 };
 
-module.exports = { freeze };
+export { freeze };

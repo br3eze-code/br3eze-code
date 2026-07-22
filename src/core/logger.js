@@ -1,22 +1,22 @@
-'use strict';
-
+import fs from 'fs';
+import crypto from 'crypto';
+import path from 'path';
+import dgram from 'dgram';
 /**
  * Structured Logger with Winston
  * @module core/logger
  */
-const { v4: uuidv4 } = require('uuid');
-const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
-const { AsyncLocalStorage } = require('async_hooks');
-const { A } = require('./constants');
-const util = require('util');
+const { randomUUID } = crypto;
+import winston from 'winston';
+import { AsyncLocalStorage } from 'async_hooks';
+import { A } from './constants.js';
+import util from 'util';
 
 // Create async local storage for correlation IDs
 const asyncLocalStorage = new AsyncLocalStorage();
 
 const correlationIdMiddleware = (req, res, next) => {
-  const id = req.headers['x-correlation-id'] || uuidv4();
+  const id = req.headers['x-correlation-id'] || randomUUID();
   req.correlationId = id;
   res.setHeader('x-correlation-id', id);
 
@@ -136,16 +136,19 @@ const logger = winston.createLogger({
         super(opts);
         this.port = opts.port || 5001;
         this.host = opts.host || '127.0.0.1';
-        this.client = require('dgram').createSocket('udp4');
+        this.client = dgram.createSocket('udp4');
         this.client.unref();
       }
       log(info, callback) {
         setImmediate(() => this.emit('logged', info));
         const message = Buffer.from(JSON.stringify(info));
         this.client.send(message, 0, message.length, this.port, this.host, (err) => {
-          if (err) console.error('UDP Log Error:', err);
+          // Only report UDP errors in non-production; do not crash the process
+          if (err && process.env.NODE_ENV !== 'production') {
+            process.stderr.write(`UDP Log Error: ${err.message}\n`);
+          }
+          if (callback) callback(); // call after send attempt completes
         });
-        if (callback) callback();
       }
     })({ level: 'debug' })
   ],
@@ -170,9 +173,10 @@ logger.cyber = logger.cyber.bind(logger);
 logger.fatal = logger.fatal.bind(logger);
 logger.trace = logger.trace.bind(logger);
 
-module.exports = {
+export { logger, correlationIdMiddleware, asyncLocalStorage };
+export default {
   logger,
   correlationIdMiddleware,
   asyncLocalStorage
 };
-
+

@@ -1,6 +1,6 @@
 // src/domains/voice/index.js
-const BaseDomain = require('../BaseDomain');
-const { logger } = require('../../core/logger');
+import BaseDomain from '../BaseDomain.js';
+import { logger } from '../../core/logger.js';
 
 class VoiceDomain extends BaseDomain {
   constructor() {
@@ -14,7 +14,7 @@ class VoiceDomain extends BaseDomain {
         logger.info(`[VoiceDomain] Generating TTS via ${provider}`);
         if (provider === 'minimax') {
           // Placeholder for minimax TTS
-          return { success: true, url: 'https://cdn.agentos.local/voice/minimax_mock.mp3', provider };
+          return { success: true, url: 'https://cdn.br3eze.africa/voice/minimax_mock.mp3', provider };
         }
         return { success: false, error: 'Unsupported TTS provider' };
       }
@@ -25,7 +25,7 @@ class VoiceDomain extends BaseDomain {
       description: 'Clone a voice using audio samples',
       execute: async (audioSampleUrl, targetText) => {
         logger.info(`[VoiceDomain] Cloning voice from ${audioSampleUrl}`);
-        return { success: true, url: 'https://cdn.agentos.local/voice/cloned_mock.mp3' };
+        return { success: true, url: 'https://cdn.br3eze.africa/voice/cloned_mock.mp3' };
       }
     });
 
@@ -34,7 +34,7 @@ class VoiceDomain extends BaseDomain {
       description: 'Enhance or generate sound effects',
       execute: async (prompt) => {
         logger.info(`[VoiceDomain] Generating sound design for: ${prompt}`);
-        return { success: true, url: 'https://cdn.agentos.local/voice/sfx_mock.mp3' };
+        return { success: true, url: 'https://cdn.br3eze.africa/voice/sfx_mock.mp3' };
       }
     });
     
@@ -49,4 +49,4 @@ class VoiceDomain extends BaseDomain {
   }
 }
 
-module.exports = VoiceDomain;
+export default VoiceDomain;

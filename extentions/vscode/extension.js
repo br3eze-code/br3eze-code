@@ -1,4 +1,4 @@
-const vscode = require('vscode');
+import vscode from 'vscode';
 let outputChannel;
 
 function activate(context) {
@@ -136,4 +136,4 @@ class SkillsProvider {
 }
 
 function deactivate() {}
-module.exports = { activate, deactivate };
+export { activate, deactivate };

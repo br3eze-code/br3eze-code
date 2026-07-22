@@ -5,9 +5,10 @@
  * It uses the core onboarding service to apply templates and provision agents.
  */
 
-require('dotenv').config();
-const { onboardRouter, provisionAgents } = require('./src/core/onboard');
-const { logger } = require('./src/core/logger');
+import { pathToFileURL } from 'url';
+import 'dotenv/config';
+import { onboardRouter, provisionAgents } from './src/core/onboard.js';
+import { logger } from './src/core/logger.js';
 
 async function main() {
     const args = process.argv.slice(2);
@@ -30,7 +31,7 @@ async function main() {
         port,
         dryRun: isDryRun,
         // Map common .env names to template variables
-        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || 'http://hotspot.local',
+        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || 'http://br3eze.africa',
         FIREBASE_URL: process.env.FIREBASE_URL || process.env.FIREBASE_DATABASE_URL,
         FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || 'AIzaSy_DEFAULT_KEY',
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
@@ -50,9 +51,9 @@ async function main() {
         
         // Verify we can load the core module
         try {
-            const { templateRsc } = require('./src/core/onboard');
-            const fs = require('fs/promises');
-            const path = require('path');
+            const { templateRsc } = await import('./src/core/onboard.js');
+            const fs = (await import('fs/promises')).default;
+            const path = (await import('path')).default;
             
             const files = ['setup.rsc', 'mikro.rsc', 'agentos-sentinel.rsc'];
             for (const file of files) {
@@ -94,7 +95,7 @@ async function main() {
     }
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     main().catch(err => {
         console.error('Fatal error:', err);
         process.exit(1);

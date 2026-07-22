@@ -5,12 +5,12 @@ author: br3eze
 license: Apache-2.0
 
 tools:
-  - name: list
+  - name: dahua.device.list
     description: List all configured Dahua devices.
     parameters: {}
     returns: array
     
-  - name: info
+  - name: dahua.device.info
     description: Get detailed device information (model, serial, version).
     parameters:
       - name: device
@@ -19,7 +19,7 @@ tools:
         description: ID of the device to query.
     returns: object
     
-  - name: snapshot
+  - name: dahua.snapshot.get
     description: Capture a live snapshot from a camera.
     parameters:
       - name: device
@@ -33,7 +33,7 @@ tools:
         description: Camera channel number.
     returns: object
     
-  - name: ptz.move
+  - name: dahua.ptz.move
     description: Move the PTZ camera in a specific direction.
     parameters:
       - name: device
@@ -56,7 +56,7 @@ tools:
         required: true
     returns: object
     
-  - name: ptz.preset
+  - name: dahua.ptz.preset
     description: Move camera to a predefined preset position.
     parameters:
       - name: device
@@ -74,7 +74,7 @@ tools:
         required: true
     returns: object
     
-  - name: events.query
+  - name: dahua.events.subscribe
     description: Query recent camera events (motion, IVS).
     parameters:
       - name: device
@@ -86,7 +86,7 @@ tools:
         default: 60
     returns: array
     
-  - name: system.reboot
+  - name: dahua.system.reboot
     description: Reboot the Dahua device.
     parameters:
       - name: device

@@ -1,6 +1,4 @@
-'use strict';
-
-const DeviceController = require('../src/core/device-controller');
+import DeviceController from '../src/core/device-controller.js';
 
 class DeviceRegistry {
     constructor() {
@@ -29,4 +27,4 @@ class DeviceRegistry {
     }
 }
 
-module.exports = DeviceRegistry;
+export default DeviceRegistry;

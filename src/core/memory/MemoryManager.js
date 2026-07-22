@@ -1,27 +1,33 @@
 // src/core/memory/MemoryManager.js
 class MemoryManager {
   constructor(adapter = 'memory') {
-    this.adapter = this.createAdapter(adapter);
+    this._adapterType = adapter;
+    this.adapter = null;
   }
 
-  createAdapter(type) {
+  async createAdapter(type) {
+    let AdapterClass;
     switch (type) {
       case 'memory':
-        return new (require('./adapters/MemoryAdapter'))();
+        AdapterClass = (await import('./adapters/MemoryAdapter.js')).default;
+        break;
       case 'firebase':
-        return new (require('./adapters/FirebaseAdapter'))();
+        AdapterClass = (await import('./adapters/FirebaseAdapter.js')).default;
+        break;
       case 'redis':
-        return new (require('./adapters/RedisAdapter'))();
+        AdapterClass = (await import('./adapters/RedisAdapter.js')).default;
+        break;
       case 'sqlite':
-        return new (require('./adapters/SQLiteAdapter'))();
-      case 'obsidian':
-        return new (require('./adapters/ObsidianAdapter'))();
+        AdapterClass = (await import('./adapters/SQLiteAdapter.js')).default;
+        break;
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }
+    return new AdapterClass();
   }
 
   async initialize() {
+    this.adapter = await this.createAdapter(this._adapterType);
     return this.adapter.initialize();
   }
 
@@ -70,28 +76,28 @@ class MemoryManager {
     return this.adapter.set(`user:${userId}:permissions`, permissions);
   }
 
-  async delete(key) {
-    if (typeof this.adapter.delete === 'function') {
-      return this.adapter.delete(key);
-    }
-    return false;
-  }
-
-  async list(prefix = '') {
-    if (typeof this.adapter.list === 'function') {
-      return this.adapter.list(prefix);
-    }
-    return [];
-  }
-
   async close() {
     return this.adapter.close();
   }
 
-
   getStatus() {
     return this.adapter.getStatus();
   }
+
+  // ── Low-level KV passthrough ──────────────────────────────────────────
+  // Skills (e.g. tasks/index.js) are written against a direct get/set/push
+  // store interface, not the higher-level session/user methods above.
+  async get(key) {
+    return this.adapter.get(key);
+  }
+
+  async set(key, value, ttlSeconds = null) {
+    return this.adapter.set(key, value, ttlSeconds);
+  }
+
+  async push(key, value) {
+    return this.adapter.push(key, value);
+  }
 }
 
-module.exports = MemoryManager;
+export default MemoryManager;

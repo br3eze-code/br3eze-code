@@ -1,3 +1,5 @@
+import { getMikroTikClient } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
 // ==========================================
 // AGENTOS NETWORK COMMAND
 // Network diagnostics — @clack/prompts edition
@@ -5,9 +7,8 @@
 
 'use strict';
 
-const { intro, outro, spinner, note, log, confirm, isCancel } = require('@clack/prompts');
 
-module.exports = (program) => {
+export default (program) => {
   const network = program
     .command('network')
     .description('Network diagnostics and RouterOS tools')
@@ -19,10 +20,10 @@ module.exports = (program) => {
     .description('Ping test from router')
     .option('--count, -c <n>', 'Number of pings', '4')
     .action(async (host, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Pinging ${host}…`);
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const result   = await mikrotik.ping(host, parseInt(options.count) || 4);
         s.stop(`Ping complete — ${result.filter(r => r.received > 0).length}/${result.length} replies`);
@@ -43,10 +44,10 @@ module.exports = (program) => {
     .command('scan')
     .description('Scan for connected devices (DHCP leases)')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start('Scanning DHCP leases…');
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const leases   = await mikrotik.getDhcpLeases();
         s.stop(`${leases.length} device(s) found`);
@@ -70,10 +71,10 @@ module.exports = (program) => {
     .description('Show firewall rules')
     .option('--type <type>', 'Rule type: filter | nat | mangle', 'filter')
     .action(async (options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Fetching ${options.type} rules…`);
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const rules    = await mikrotik.getFirewallRules(options.type);
         s.stop(`${rules.length} ${options.type} rule(s)`);
@@ -98,10 +99,10 @@ module.exports = (program) => {
     .description('Block an IP or MAC address')
     .option('--reason <reason>', 'Block reason', 'Manual block via CLI')
     .action(async (target, options) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const s = spinner();
       s.start(`Blocking ${target}…`);
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         await mikrotik.addToBlockList(target, options.reason);
         s.stop(`${target} blocked`);
@@ -117,13 +118,13 @@ module.exports = (program) => {
     .command('unblock <target>')
     .description('Unblock an IP or MAC address')
     .action(async (target) => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       const ok = await confirm({ message: `Unblock ${target}?` });
       if (isCancel(ok) || !ok) { log.warn('Cancelled.'); return; }
 
       const s = spinner();
       s.start(`Unblocking ${target}…`);
       try {
-        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         await mikrotik.removeFromBlockList(target);
         s.stop(`${target} unblocked`);
@@ -138,13 +139,12 @@ module.exports = (program) => {
     .command('sync-profiles')
     .description('Sync hotspot user profiles from MikroTik → database')
     .action(async () => {
+      const { intro, outro, spinner, note, log, confirm, isCancel } = await import('@clack/prompts');
       intro('🔄 Profile Sync');
       const s = spinner();
       s.start('Fetching profiles from MikroTik…');
 
       try {
-        const { getMikroTikClient }  = require('../../core/mikrotik');
-        const { getDatabase }        = require('../../core/database');
 
         const mikrotik = await getMikroTikClient();
         const profiles = await mikrotik.getHotspotProfiles();

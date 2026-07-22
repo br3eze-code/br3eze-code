@@ -102,4 +102,4 @@ class WorkflowEngine {
   }
 }
 
-module.exports = WorkflowEngine;
+export default WorkflowEngine;

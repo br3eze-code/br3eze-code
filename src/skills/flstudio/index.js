@@ -1,6 +1,8 @@
-const { BaseSkill } = require('../base.js')
-const osc = require('osc')
-const MidiWriter = require('midi-writer-js')
+import fs_promises from 'fs/promises';
+import path from 'path';
+import { BaseSkill } from '../base.js';
+import osc from 'osc';
+import MidiWriter from 'midi-writer-js';
 
 class FLStudioSkill extends BaseSkill {
   static id = 'flstudio'
@@ -103,7 +105,7 @@ class FLStudioSkill extends BaseSkill {
     },
     required: ['type']
   }
-}
+},
 'flstudio.arrangement': {
   risk: 'low',
   description: 'Song structure AI: generate arrangements, apply templates, auto-arrange',
@@ -177,7 +179,7 @@ class FLStudioSkill extends BaseSkill {
     },
     required: ['action']
   }
-}
+},
 'flstudio.performance': {
   risk: 'low',
   description: 'Performance mode: launch clips, scenes, record loops, track status',
@@ -248,7 +250,7 @@ class FLStudioSkill extends BaseSkill {
     },
     required: ['type', 'path']
   }
-}
+},
 'flstudio.patcher': {
   risk: 'low',
   description: 'Control Patcher: presets, modules, routing, macros',
@@ -321,7 +323,7 @@ class FLStudioSkill extends BaseSkill {
     },
     required: ['action']
   }
-}
+},
       'flstudio.transport': {
         risk: 'low',
         description: 'Control transport: play, stop, record, loop, tempo',
@@ -417,7 +419,7 @@ class FLStudioSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
-             case 'flstudio.ai':
+             case 'flstudio.ai': {
   this.logger.info(`FL AI ${args.action} ${args.model}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('AI generation requires llm skill')
 
@@ -451,7 +453,8 @@ JSON: {"notes":[...]}`
     return { action: args.action, result: res.text }
   }
 
-case 'flstudio.ai_master':
+             }
+case 'flstudio.ai_master': {
   this.logger.info(`FL AI_MASTER ${args.action}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('AI mastering requires llm skill')
 
@@ -488,7 +491,8 @@ JSON: {
     }
   }
 
-case 'flstudio.video':
+}
+case 'flstudio.video': {
   this.logger.info(`FL VIDEO ${args.action}`, { user: ctx.userId })
   const videoMap = {
     load_video: '/ZGameEditor/loadVideo',
@@ -512,7 +516,8 @@ case 'flstudio.video':
     return { action: 'export', resolution: args.resolution, note: 'Renders to FL Studio/Projects/Rendered' }
   }
 
-case 'flstudio.sync':
+}
+case 'flstudio.sync': {
   this.logger.info(`FL SYNC ${args.action}`, { user: ctx.userId })
   const syncMap = {
     set_tc: '/Sync/timecode',
@@ -526,7 +531,8 @@ case 'flstudio.sync':
   this._sendOSC(syncMap[args.action], val)
   return { action: args.action, timecode: args.timecode, fps: args.fps, marker: args.marker }
 
-case 'flstudio.visualizer':
+}
+case 'flstudio.visualizer': {
   this.logger.info(`FL VISUALIZER ${args.type} ${args.reactive}`, { user: ctx.userId })
   const visConfig = {
     type: args.type,
@@ -540,7 +546,8 @@ case 'flstudio.visualizer':
     ...visConfig,
     note: `ZGameEditor will react to ${args.reactive} from ${args.audio_source}. Link param in ZGE to audio input.`
   }
-          case 'flstudio.arrangement':
+}
+          case 'flstudio.arrangement': {
   this.logger.info(`FL ARRANGEMENT ${args.action} ${args.template}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Arrangement AI requires llm skill')
 
@@ -579,7 +586,8 @@ JSON: {"sections":[{"name":"Intro","bars":4,"energy":0.2,"clips":["drums"]},{"na
     try { return JSON.parse(res.text) } catch { return { analysis: res.text } }
   }
 
-case 'flstudio.structure':
+          }
+case 'flstudio.structure': {
   this.logger.info(`FL STRUCTURE ${args.sections.length} sections`, { user: ctx.userId })
   let pos = 0
   const layout = args.sections.map(sec => {
@@ -600,7 +608,8 @@ case 'flstudio.structure':
 
   return { total_bars: pos, sections: layout, clips: args.clips }
 
-case 'flstudio.hardware':
+}
+case 'flstudio.hardware': {
   this.logger.info(`FL HARDWARE ${args.device} ${args.action}`, { user: ctx.userId })
   const deviceMap = {
     akai_fire: '/Fire',
@@ -630,7 +639,8 @@ case 'flstudio.hardware':
     return { device: args.device, display: args.map_to }
   }
 
-case 'flstudio.fire':
+}
+case 'flstudio.fire': {
   this.logger.info(`FL FIRE ${args.mode}`, { user: ctx.userId })
   if (args.mode === 'step' && args.pattern) {
     this._sendOSC('/Fire/stepSeq', args.pattern)
@@ -650,7 +660,8 @@ case 'flstudio.fire':
   this._sendOSC('/Fire/mode', args.mode)
   return { mode: args.mode }
 
-case 'flstudio.launchpad':
+}
+case 'flstudio.launchpad': {
   this.logger.info(`FL LAUNCHPAD ${args.action}`, { user: ctx.userId })
   if (args.action === 'led') {
     this._sendOSC(`/Launchpad/led/${args.x}/${args.y}`, args.color)
@@ -671,7 +682,8 @@ case 'flstudio.launchpad':
     this._sendOSC('/Launchpad/userMode', 1)
     return { action: 'user_mode', note: 'Launchpad in User Mode for custom mapping' }
   }
-    case 'flstudio.performance':
+}
+    case 'flstudio.performance': {
   this.logger.info(`FL PERFORMANCE ${args.action} T${args.track}C${args.clip}`, { user: ctx.userId })
   const perfMap = {
     launch_clip: `/performance/launch/${args.track}/${args.clip}`,
@@ -691,7 +703,8 @@ case 'flstudio.launchpad':
     note: 'Enable Performance Mode in FL: View → Playlist → Performance mode'
   }
 
-case 'flstudio.api':
+    }
+case 'flstudio.api': {
   this.logger.info(`FL API ${args.module}.${args.method}`, { user: ctx.userId })
   // FL Studio Python API via MIDI Script - returns code to execute
   const apiModules = {
@@ -739,7 +752,8 @@ case 'flstudio.api':
     note: 'Add to FL MIDI Script OnMidiMsg/OnRefresh. See: https://il.be/FLP/API'
   }
 
-case 'flstudio.mixer_fx':
+}
+case 'flstudio.mixer_fx': {
   this.logger.info(`FL MIXER_FX T${args.track}S${args.slot} ${args.action}`, { user: ctx.userId })
   const fxMap = {
     add: `/Mixer/track${args.track}/slot${args.slot}/add`,
@@ -757,7 +771,8 @@ case 'flstudio.mixer_fx':
     address: fxMap[args.action]
   }
 
-case 'flstudio.playlist_marker':
+}
+case 'flstudio.playlist_marker': {
   this.logger.info(`FL MARKER ${args.action} ${args.name}`, { user: ctx.userId })
   const markerMap = {
     add: '/Playlist/addMarker',
@@ -769,7 +784,8 @@ case 'flstudio.playlist_marker':
   this._sendOSC(markerMap[args.action], val)
   return { action: args.action, position: args.position, name: args.name, address: markerMap[args.action] }
 
-case 'flstudio.browse':
+}
+case 'flstudio.browse': {
   this.logger.info(`FL BROWSE ${args.type} ${args.path}`, { user: ctx.userId })
   const browseMap = {
     sample: '/Browser/loadSample',
@@ -785,7 +801,8 @@ case 'flstudio.browse':
     slot: args.slot,
     note: 'Path relative to FL Browser root. E.g: Packs/Drums/Kicks/808.wav'
   }
-          case 'flstudio.patcher':
+}
+          case 'flstudio.patcher': {
   this.logger.info(`FL PATCHER ${args.action}`, { user: ctx.userId })
   const patcherMap = {
     load_preset: '/Patcher/loadPreset',
@@ -805,10 +822,10 @@ case 'flstudio.browse':
     note: args.action === 'load_preset'? 'Load .fst preset' : 'Value 0-1 normalized'
   }
 
-case 'flstudio.script':
+          }
+case 'flstudio.script': {
   this.logger.info(`FL SCRIPT ${args.action} ${args.name}`, { user: ctx.userId })
-  const fs = require('fs/promises')
-  const path = require('path')
+  const fs = fs_promises
 
   const scriptPath = `${this.workspace}/fl_scripts`
   await fs.mkdir(scriptPath, { recursive: true })
@@ -851,7 +868,8 @@ def OnRefresh(flags):
     install: 'Restart FL Studio → Options → MIDI Settings → select controller → Script'
   }
 
-case 'flstudio.channel':
+}
+case 'flstudio.channel': {
   this.logger.info(`FL CHANNEL ${args.channel} ${args.action}`, { user: ctx.userId })
   const channelMap = {
     select: '/Channel/select',
@@ -867,7 +885,8 @@ case 'flstudio.channel':
   this._sendOSC(channelMap[args.action], val)
   return { channel: args.channel, action: args.action, value: val, address: channelMap[args.action] }
 
-case 'flstudio.plugin':
+}
+case 'flstudio.plugin': {
   this.logger.info(`FL PLUGIN ${args.plugin} ${args.param}=${args.value}`, { user: ctx.userId })
   const addr = `/Plugin/${args.plugin}/${args.param}`
   this._sendOSC(addr, args.value)
@@ -880,7 +899,8 @@ case 'flstudio.plugin':
     note: 'Link plugin param to OSC in FL: Right-click → Link to controller → OSC'
   }
 
-case 'flstudio.piano_roll':
+}
+case 'flstudio.piano_roll': {
   this.logger.info(`FL PIANO_ROLL ${args.action}`, { user: ctx.userId })
   const pianoMap = {
     add_note: '/PianoRoll/addNote',
@@ -903,7 +923,8 @@ case 'flstudio.piano_roll':
 
   this._sendOSC(pianoMap[args.action], 1)
   return { action: args.action, channel: args.channel }
-        case 'flstudio.transport':
+}
+        case 'flstudio.transport': {
           this.logger.info(`FL TRANSPORT ${args.action}`, { user: ctx.userId })
           const transportMap = {
             play: '/transport/play',
@@ -915,13 +936,15 @@ case 'flstudio.piano_roll':
           this._sendOSC(transportMap[args.action], args.action === 'tempo'? args.value : 1)
           return { action: args.action, value: args.value, address: transportMap[args.action] }
 
-        case 'flstudio.mixer':
+        }
+        case 'flstudio.mixer': {
           this.logger.info(`FL MIXER T${args.track} ${args.param}=${args.value}`, { user: ctx.userId })
           const addr = `/Mixer/track${args.track}/${args.param}`
           this._sendOSC(addr, args.value)
           return { track: args.track, param: args.param, value: args.value, address: addr }
 
-        case 'flstudio.pattern':
+        }
+        case 'flstudio.pattern': {
           this.logger.info(`FL PATTERN ${args.output} ch${args.channel}`, { user: ctx.userId })
 
           if (args.output === 'midi') {
@@ -941,7 +964,7 @@ case 'flstudio.piano_roll':
             const write = new MidiWriter.Writer(track)
             const filename = `pattern_ch${args.channel}.mid`
             const filepath = `${this.workspace}/${filename}`
-            await require('fs/promises').writeFile(filepath, Buffer.from(write.buildFile()))
+            await fs_promises.writeFile(filepath, Buffer.from(write.buildFile()))
             return { output: 'midi', file: filename, path: filepath, steps: steps.length }
           }
 
@@ -954,7 +977,8 @@ case 'flstudio.piano_roll':
           }
           return { output: 'osc', channel: args.channel, pattern: args.pattern, notes: args.notes }
 
-        case 'flstudio.playlist':
+        }
+        case 'flstudio.playlist': {
           this.logger.info(`FL PLAYLIST ${args.action}`, { user: ctx.userId })
           const playlistMap = {
             play_pattern: '/playlist/playPattern',
@@ -966,7 +990,8 @@ case 'flstudio.piano_roll':
           this._sendOSC(playlistMap[args.action], val)
           return { action: args.action, value: val }
 
-        case 'flstudio.automation':
+        }
+        case 'flstudio.automation': {
           this.logger.info(`FL AUTO ${args.target} ${args.curve}`, { user: ctx.userId })
           // FL Studio OSC: automation via /Mixer/trackN/automation or /Channel/N/param
           this._sendOSC(args.target, args.end)
@@ -978,7 +1003,8 @@ case 'flstudio.piano_roll':
             note: `Send LFO or envelope to ${args.target} for curves. FL: Link to controller.`
           }
 
-        case 'flstudio.export':
+        }
+        case 'flstudio.export': {
           this.logger.info(`FL EXPORT ${args.mode} ${args.format}`, { user: ctx.userId })
           const exportMap = {
             mix: '/file/exportMix',
@@ -996,8 +1022,10 @@ case 'flstudio.piano_roll':
             note: 'FL Studio will render to disk. Check FL export folder.'
           }
 
-        default:
+        }
+        default: {
           throw new Error(`Unknown tool ${toolName}`)
+        }
       }
     } catch (e) {
       this.logger.error(`FLStudio ${toolName} failed: ${e.message}`)
@@ -1006,4 +1034,4 @@ case 'flstudio.piano_roll':
   }
 }
 
-module.exports = FLStudioSkill
+export default FLStudioSkill;

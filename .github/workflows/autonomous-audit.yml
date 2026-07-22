@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -31,7 +31,7 @@ jobs:
 
       # --ignore-scripts skips postinstall.js and preuninstall.js
       - name: Install (no hooks)
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps
 
       - name: Run Audit Skill Chain
         run: node .github/scripts/run-skill-chain.js
@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload audit artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: audit-${{ github.run_id }}
           path: docs/audit/
@@ -91,14 +91,7 @@ jobs:
           STATUS="${{ job.status }}"
           EMOJI="✅"; [ "$STATUS" != "success" ] && EMOJI="❌"
 
-          MSG="${EMOJI} *AgentOS Weekly Audit — ${DATE}*
-
-🛡 Security: CRITICAL=\`${SEC_C}\` HIGH=\`${SEC_H}\`
-🐛 Bugs: CRASH=\`${BUG_C}\`
-🔬 Research: \`${RES}\` items
-🔧 Auto-patched: \`${PAT}\` fixes pushed to main
-📄 Report: \`docs/audit/${DATE}.md\`
-🔗 [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          MSG="${EMOJI} *AgentOS Weekly Audit — ${DATE}*\n\n🛡 Security: CRITICAL=\`${SEC_C}\` HIGH=\`${SEC_H}\`\n🐛 Bugs: CRASH=\`${BUG_C}\`\n🔬 Research: \`${RES}\` items\n🔧 Auto-patched: \`${PAT}\` fixes pushed to main\n📄 Report: \`docs/audit/${DATE}.md\`\n🔗 View run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_ALLOWED_CHAT_ID}" \

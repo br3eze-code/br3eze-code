@@ -22,7 +22,7 @@ Environment=AGENT_NO_RESPAWN=1
 PublishPort=127.0.0.1:19876:19876
 PublishPort=127.0.0.1:19877:19877
 Pull=never
-Exec=node dist/index.js gateway --bind lan --port 19876
+Exec=node bin/agentos.js gateway --bind lan --port 19876
 
 [Service]
 TimeoutStartSec=300

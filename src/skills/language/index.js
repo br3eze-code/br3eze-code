@@ -1,6 +1,8 @@
-const { BaseSkill } = require('../base.js')
-const franc = require('franc')
-const nlp = require('compromise')
+import { BaseSkill } from '../base.js';
+import franc from 'franc';
+import nlp from 'compromise';
+import { execSync } from 'child_process';
+import deepl from 'deepl-node';
 
 class LanguageSkill extends BaseSkill {
   static id = 'language'
@@ -13,6 +15,7 @@ class LanguageSkill extends BaseSkill {
   }
 
   static getTools() {
+    return {
 'language.discourse': {
   risk: 'low',
   description: 'Discourse analysis: speech acts, coherence, cohesion, pragmatics, implicature',
@@ -61,7 +64,7 @@ class LanguageSkill extends BaseSkill {
     },
     required: ['text']
   }
-}
+},
 'language.dialect': {
   risk: 'low',
   description: 'Map dialects: identify variety, features, regional variants, sociolects',
@@ -112,7 +115,7 @@ class LanguageSkill extends BaseSkill {
     },
     required: ['text']
   }
-}
+},
 'language.prosody': {
   risk: 'low',
   description: 'Analyze prosody: intonation, rhythm, stress, pitch contour, meter',
@@ -163,8 +166,7 @@ class LanguageSkill extends BaseSkill {
     },
     required: ['word']
   }
-}
-    return {
+},
 'language.ipa': {
   risk: 'low',
   description: 'Convert text to IPA pronunciation, phonetics, syllables, stress',
@@ -216,7 +218,7 @@ class LanguageSkill extends BaseSkill {
     },
     required: ['word1', 'word2']
   }
-}
+},
 'language.thesaurus': {
   risk: 'low',
   description: 'Advanced thesaurus: hypernyms, hyponyms, meronyms, holonyms, related terms',
@@ -255,7 +257,7 @@ class LanguageSkill extends BaseSkill {
     },
     required: ['word']
   }
-}
+},
       'language.detect': {
         risk: 'low',
         description: 'Detect language of text',
@@ -340,7 +342,7 @@ class LanguageSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
-          case 'language.discourse':
+          case 'language.discourse': {
   this.logger.info(`LANGUAGE DISCOURSE ${args.mode}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Discourse analysis requires llm skill')
 
@@ -355,7 +357,8 @@ class LanguageSkill extends BaseSkill {
   const res = await this.agent.registry.execute('llm.chat', { prompt: prompts[args.mode], model: 'gpt-4' }, ctx.userId)
   try { return { mode: args.mode, lang: args.lang,...JSON.parse(res.text) } } catch { return { mode: args.mode, analysis: res.text } }
 
-case 'language.typology':
+          }
+case 'language.typology': {
   this.logger.info(`LANGUAGE TYPOLOGY ${args.lang} ${args.feature}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Typology requires llm skill')
 
@@ -373,7 +376,8 @@ Feature focus: ${args.feature}.`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { lang: args.lang, typology: res.text } }
 
-case 'language.compare_typology':
+}
+case 'language.compare_typology': {
   this.logger.info(`LANGUAGE COMPARE TYPOLOGY ${args.langs.join(',')}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Typology comparison requires llm skill')
 
@@ -382,7 +386,8 @@ JSON: {"feature":"","comparison":[{"lang":"","value":"","note":""}],"pattern":""
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { langs: args.langs, comparison: res.text } }
 
-case 'language.pragmatics':
+}
+case 'language.pragmatics': {
   this.logger.info(`LANGUAGE PRAGMATICS`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Pragmatics requires llm skill')
 
@@ -397,12 +402,14 @@ JSON: {
 Text:\n${args.text}`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { text: args.text, pragmatics: res.text } }
-        case 'language.detect':
+}
+        case 'language.detect': {
           this.logger.info(`LANGUAGE DETECT`, { user: ctx.userId })
           const code = franc(args.text)
           const names = { eng: 'English', spa: 'Spanish', fra: 'French', deu: 'German', zho: 'Chinese', jpn: 'Japanese', por: 'Portuguese', rus: 'Russian' }
           return { code, language: names[code] || code, confidence: code === 'und'? 0 : 1 }
-          case 'language.dialect':
+        }
+          case 'language.dialect': {
   this.logger.info(`LANGUAGE DIALECT ${args.mode} ${args.lang}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Dialect analysis requires llm skill')
 
@@ -424,9 +431,9 @@ Text:\n${args.text}`
     return { mode: args.mode, analysis: res.text }
   }
 
-case 'language.syntax':
+          }
+case 'language.syntax': {
   this.logger.info(`LANGUAGE SYNTAX ${args.format}`, { user: ctx.userId })
-  const nlp = require('compromise')
   const doc = nlp(args.text)
 
   const result = { text: args.text, lang: args.lang }
@@ -455,7 +462,8 @@ Text: ${args.text}`
 
   return result
 
-case 'language.register':
+}
+case 'language.register': {
   this.logger.info(`LANGUAGE REGISTER ${args.context || 'general'}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Register analysis requires llm skill')
 
@@ -472,7 +480,8 @@ Text:\n${args.text}`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { text: args.text, analysis: res.text } }
 
-case 'language.variation':
+}
+case 'language.variation': {
   this.logger.info(`LANGUAGE VARIATION ${args.lang}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Variation analysis requires llm skill')
 
@@ -490,9 +499,9 @@ JSON: {
 Text:\n${args.text}`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { text: args.text, analysis: res.text } }
-    case 'language.prosody':
+}
+    case 'language.prosody': {
   this.logger.info(`LANGUAGE PROSODY ${args.mode}: ${args.text.slice(0, 40)}`, { user: ctx.userId })
-  const nlp = require('compromise')
   const doc = nlp(args.text)
   const terms = doc.terms().json()
 
@@ -501,7 +510,6 @@ Text:\n${args.text}`
   if (args.mode === 'stress' || args.mode === 'all') {
     // Syllables + stress via espeak if available
     try {
-      const { execSync } = require('child_process')
       const ipa = execSync(`espeak-ng -v ${args.lang} -q -x --ipa "${args.text.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim()
       const stress_marks = [...ipa.matchAll(/[ˈˌ]/g)].map((m, i) => ({ position: m.index, type: m[0] === 'ˈ'? 'primary' : 'secondary' }))
       result.stress = { ipa, marks: stress_marks, pattern: ipa.replace(/[^ˈˌ]/g, '').split('').join('-') }
@@ -542,7 +550,8 @@ Text:\n${args.text}`
 
   return result
 
-case 'language.morphology':
+    }
+case 'language.morphology': {
   this.logger.info(`LANGUAGE MORPHOLOGY ${args.word} ${args.type}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Morphology requires llm skill')
 
@@ -560,7 +569,8 @@ case 'language.morphology':
     return { word: args.word, analysis: res.text }
   }
 
-case 'language.scan':
+}
+case 'language.scan': {
   this.logger.info(`LANGUAGE SCAN: ${args.text.slice(0, 30)}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Scansion requires llm skill')
 
@@ -572,7 +582,8 @@ Text:\n${args.text}`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { text: args.text, scansion: res.text } }
 
-case 'language.etymon':
+}
+case 'language.etymon': {
   this.logger.info(`LANGUAGE ETYMON ${args.word} ${args.depth}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Etymon requires llm skill')
 
@@ -587,11 +598,11 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { word: args.word, etymology: res.text } }
-  case 'language.ipa':
+}
+  case 'language.ipa': {
   this.logger.info(`LANGUAGE IPA ${args.lang}: ${args.text.slice(0, 30)}`, { user: ctx.userId })
   // Use eSpeak NG if available, else LLM
   try {
-    const { execSync } = require('child_process')
     const escaped = args.text.replace(/"/g, '\\"')
     const voice = args.lang.replace('-', '_') // en-us -> en_us
     let cmd = `espeak-ng -v ${voice} -q -x --ipa "${escaped}"`
@@ -613,9 +624,9 @@ JSON: {
     return { text: args.text, lang: args.lang, [args.format]: res.text.trim() }
   }
 
-case 'language.phonetics':
+  }
+case 'language.phonetics': {
   this.logger.info(`LANGUAGE PHONETICS ${args.word}`, { user: ctx.userId })
-  const nlp = require('compromise')
   const doc = nlp(args.word)
   const term = doc.terms().json()[0] || {}
 
@@ -625,7 +636,6 @@ case 'language.phonetics':
   // Try espeak for stress pattern
   let stress = null, phonemes = null
   try {
-    const { execSync } = require('child_process')
     const ipa = execSync(`espeak-ng -v en -q -x --ipa "${args.word}"`, { encoding: 'utf8' }).trim()
     stress = (ipa.match(/ˈ/g) || []).length? 'primary' : 'none'
     if (ipa.includes('ˌ')) stress = 'secondary'
@@ -641,7 +651,8 @@ case 'language.phonetics':
     sounds: term.tags || []
   }
 
-case 'language.corpus':
+}
+case 'language.corpus': {
   this.logger.info(`LANGUAGE CORPUS ${args.word} ${args.metric}`, { user: ctx.userId })
   // Use Datamuse + Google Ngrams approximation via LLM
   const base = 'https://api.datamuse.com/words'
@@ -688,7 +699,8 @@ case 'language.corpus':
     throw new Error(`Corpus analysis failed: ${e.message}`)
   }
 
-case 'language.compare':
+}
+case 'language.compare': {
   this.logger.info(`LANGUAGE COMPARE ${args.word1} vs ${args.word2}`, { user: ctx.userId })
   if (!this.agent.registry.skills.llm) throw new Error('Compare requires llm skill')
 
@@ -702,7 +714,8 @@ JSON: {
 }`
   const res = await this.agent.registry.execute('llm.chat', { prompt, model: 'gpt-4' }, ctx.userId)
   try { return JSON.parse(res.text) } catch { return { word1: args.word1, word2: args.word2, analysis: res.text } }
-case 'language.thesaurus':
+}
+case 'language.thesaurus': {
   this.logger.info(`LANGUAGE THESAURUS ${args.word} ${args.relation}`, { user: ctx.userId })
   // Datamuse API supports semantic relations
   const base = 'https://api.datamuse.com/words'
@@ -742,7 +755,8 @@ Hypernym = broader category. Hyponym = specific type. Meronym = part of. Holonym
     try { return { word: args.word, lang: args.lang,...JSON.parse(res.text) } } catch { return { word: args.word, note: res.text } }
   }
 
-case 'language.etymology':
+}
+case 'language.etymology': {
   this.logger.info(`LANGUAGE ETYMOLOGY ${args.word}`, { user: ctx.userId })
   // Wiktionary API
   try {
@@ -763,7 +777,8 @@ Be concise but scholarly.`
     throw new Error(`Etymology lookup failed: ${e.message}`)
   }
 
-case 'language.rhymes':
+}
+case 'language.rhymes': {
   this.logger.info(`LANGUAGE RHYMES ${args.word} ${args.type}`, { user: ctx.userId })
   const rhymeBase = 'https://api.datamuse.com/words'
   const typeMap = {
@@ -784,12 +799,12 @@ case 'language.rhymes':
     const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
     try { return { word: args.word, type: args.type,...JSON.parse(res.text) } } catch { return { word: args.word, note: res.text } }
   }
-        case 'language.translate':
+}
+        case 'language.translate': {
           this.logger.info(`LANGUAGE TRANSLATE to ${args.target}`, { user: ctx.userId })
 
           // Use DeepL if key available, else LLM fallback
           if (this.deeplKey) {
-            const deepl = require('deepl-node')
             const translator = new deepl.Translator(this.deeplKey)
             const res = await translator.translateText(args.text, args.source || null, args.target, { formality: args.formality })
             return { source: res.detectedSourceLang, target: args.target, text: res.text }
@@ -801,7 +816,8 @@ case 'language.rhymes':
             throw new Error('No translation backend: set DEEPL_KEY or enable llm skill')
           }
 
-        case 'language.grammar':
+        }
+        case 'language.grammar': {
           this.logger.info(`LANGUAGE GRAMMAR ${args.language}`, { user: ctx.userId })
           const doc = nlp(args.text)
 
@@ -820,7 +836,8 @@ case 'language.rhymes':
 
           return { language: args.language, issues, suggestions, corrected: doc.text('normal') }
 
-        case 'language.rewrite':
+        }
+        case 'language.rewrite': {
           this.logger.info(`LANGUAGE REWRITE ${args.style}`, { user: ctx.userId })
           if (!this.agent.registry.skills.llm) throw new Error('Rewrite requires llm skill')
 
@@ -828,7 +845,8 @@ case 'language.rhymes':
           const res = await this.agent.registry.execute('llm.chat', { prompt }, ctx.userId)
           return { style: args.style, original: args.text, rewritten: res.text }
 
-        case 'language.readability':
+        }
+        case 'language.readability': {
           this.logger.info(`LANGUAGE READABILITY`, { user: ctx.userId })
           const words = args.text.split(/\s+/).length
           const sentences = args.text.split(/[.!?]+/).length - 1 || 1
@@ -850,7 +868,8 @@ case 'language.rhymes':
             level
           }
 
-        case 'language.vocab':
+        }
+        case 'language.vocab': {
           this.logger.info(`LANGUAGE VOCAB ${args.action}`, { user: ctx.userId })
           if (args.action === 'extract') {
             const doc2 = nlp(args.text)
@@ -869,8 +888,10 @@ case 'language.rhymes':
             return { action: 'simplify', level: args.level, text: res3.text }
           }
 
-        default:
+        }
+        default: {
           throw new Error(`Unknown tool ${toolName}`)
+        }
       }
     } catch (e) {
       this.logger.error(`Language ${toolName} failed: ${e.message}`)
@@ -879,4 +900,4 @@ case 'language.rhymes':
   }
 }
 
-module.exports = LanguageSkill
+export default LanguageSkill;

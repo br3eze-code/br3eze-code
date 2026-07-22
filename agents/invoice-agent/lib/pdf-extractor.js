@@ -9,9 +9,12 @@
  *   4. Raw byte grep (last resort — pulls ASCII text from raw buffer)
  */
 
-const fs   = require('fs');
-const path = require('path');
-const { execFile } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import http from 'http';
+import https from 'https';
+import { execFile } from 'child_process';
 
 /* ─── Try loading optional PDF libraries ──────────────────────────── */
 /* ─── PDF libraries (lazy loaded) ────────────────────────────────── */
@@ -33,7 +36,7 @@ async function extractPDF(input) {
 
     // 1. pdf-parse (best for most invoices)
     if (pdfParse === undefined) {
-        try { pdfParse = require('pdf-parse'); } catch (e) { pdfParse = null; }
+        try { pdfParse = (await import('pdf-parse')).default; } catch (e) { pdfParse = null; }
     }
 
     if (pdfParse) {
@@ -47,7 +50,7 @@ async function extractPDF(input) {
 
     // 2. pdfjs-dist
     if (pdfjsLib === undefined) {
-        try { pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js'); } catch (e) { pdfjsLib = null; }
+        try { pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.js'); } catch (e) { pdfjsLib = null; }
     }
 
     if (pdfjsLib) {
@@ -83,20 +86,20 @@ async function extractPDF(input) {
 function parseInvoiceFields(text) {
     return {
         invoiceNumber: _matchFirst(text, [
-            /invoice\s*#?\s*[:\-]?\s*([A-Z0-9\-]+)/i,
-            /inv\.?\s*no\.?\s*[:\-]?\s*([A-Z0-9\-]+)/i
+            /invoice\s*#?\s*[:-]?\s*([A-Z0-9-]+)/i,
+            /inv\.?\s*no\.?\s*[:-]?\s*([A-Z0-9-]+)/i
         ]),
         date: _matchFirst(text, [
-            /(?:invoice\s+)?date\s*[:\-]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
-            /dated?\s*[:\-]?\s*(\w+ \d{1,2},?\s*\d{4})/i
+            /(?:invoice\s+)?date\s*[:-]?\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4})/i,
+            /dated?\s*[:-]?\s*(\w+ \d{1,2},?\s*\d{4})/i
         ]),
         amount: _matchFirst(text, [
-            /total\s+(?:amount\s+)?(?:due\s+)?[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i,
-            /amount\s+payable\s*[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i,
-            /grand\s+total\s*[:\-]?\s*\$?([\d,]+\.?\d{0,2})/i
+            /total\s+(?:amount\s+)?(?:due\s+)?[:-]?\s*\$?([\d,]+\.?\d{0,2})/i,
+            /amount\s+payable\s*[:-]?\s*\$?([\d,]+\.?\d{0,2})/i,
+            /grand\s+total\s*[:-]?\s*\$?([\d,]+\.?\d{0,2})/i
         ]),
         vendor: _matchFirst(text, [
-            /(?:from|vendor|billed?\s+by|supplier)\s*[:\-]?\s*([^\n]{3,60})/i
+            /(?:from|vendor|billed?\s+by|supplier)\s*[:-]?\s*([^\n]{3,60})/i
         ]),
         lineItems: _extractLineItems(text),
         raw: text
@@ -126,7 +129,7 @@ async function _toBuffer(input) {
 
 function _fetchUrl(url) {
     return new Promise((resolve, reject) => {
-        const mod = url.startsWith('https') ? require('https') : require('http');
+        const mod = url.startsWith('https') ? https : http;
         const chunks = [];
         mod.get(url, res => {
             if (res.statusCode >= 400) reject(new Error(`HTTP ${res.statusCode} fetching PDF`));
@@ -138,7 +141,7 @@ function _fetchUrl(url) {
 
 async function _fetchGCS(gsUri) {
     // Requires @google-cloud/storage installed
-    const { Storage } = require('@google-cloud/storage');
+    const { Storage } = await import('@google-cloud/storage');
     const [, , bucket, ...parts] = gsUri.replace('gs://', '').split('/');
     const file   = new Storage().bucket(bucket).file(parts.join('/'));
     const chunks = [];
@@ -160,7 +163,7 @@ async function _extractViaPdfjs(buffer) {
 
 function _extractViaPdftotext(buffer) {
     return new Promise((resolve, reject) => {
-        const tmp = path.join(require('os').tmpdir(), `br3eze_pdf_${Date.now()}.pdf`);
+        const tmp = path.join(os.tmpdir(), `br3eze_pdf_${Date.now()}.pdf`);
         fs.writeFileSync(tmp, buffer);
         execFile('pdftotext', [tmp, '-'], (err, stdout) => {
             fs.unlink(tmp, () => {});
@@ -204,4 +207,5 @@ function _extractLineItems(text) {
     return items;
 }
 
-module.exports = { extractPDF, parseInvoiceFields };
+export { extractPDF, parseInvoiceFields };
+export default { extractPDF, parseInvoiceFields };

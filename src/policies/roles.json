@@ -1,38 +1,86 @@
 {
-  "mobile": {
-    "tools": ["cordova.info", "cordova.build", "cordova.run"],
-    "requireApproval": ["cordova.build", "cordova.run"]
+  "roles": {
+    "admin": {
+      "label": "Administrator",
+      "tools": ["*"],
+      "routers": ["*"],
+      "requireApproval": [],
+      "limits": {},
+      "canManageRoles": true,
+      "sandbox": false
+    },
+    "operator": {
+      "label": "Network Operator",
+      "tools": ["mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
+      "routers": ["*"],
+      "requireApproval": ["system.reboot","mikrotik.firewall.*","mikrotik.ip.route.*"],
+      "limits": {"voucher.create":{"maxDuration":"30day"}},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "reseller": {
+      "label": "Reseller",
+      "tools": ["voucher.create","voucher.list","voucher.revoke","users.active","agentos.voucher.create"],
+      "routers": [],
+      "requireApproval": [],
+      "limits": {"voucher.create":{"maxDuration":"7day","maxBatch":50}},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "helpdesk": {
+      "label": "Help Desk",
+      "tools": ["users.active","user.kick","system.stats","voucher.list"],
+      "routers": [],
+      "requireApproval": ["user.kick"],
+      "limits": {},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "viewer": {
+      "label": "Read-Only Viewer",
+      "tools": ["system.stats","users.active","voucher.list"],
+      "routers": [],
+      "requireApproval": ["*"],
+      "limits": {},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "developer": {
+      "label": "Developer / Sandbox",
+      "tools": ["*"],
+      "routers": [],
+      "requireApproval": [],
+      "limits": {},
+      "canManageRoles": false,
+      "sandbox": true
+    },
+    "researcher": {
+      "label": "Research Agent",
+      "tools": ["research.*","language.*"],
+      "routers": [],
+      "requireApproval": ["research.synthesize","research.zotero.sync"],
+      "limits": {},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "writer": {
+      "label": "Content Writer",
+      "tools": ["language.*"],
+      "routers": [],
+      "requireApproval": [],
+      "limits": {},
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "user": {
+      "label": "End User",
+      "tools": ["agentos.voucher.create","agentos.channels.status","system.stats"],
+      "routers": [],
+      "requireApproval": [],
+      "limits": {"agentos.voucher.create":{"maxDuration":"1day","maxBatch":1}},
+      "canManageRoles": false,
+      "sandbox": false
+    }
   },
-  "build": {
-    "tools": ["cordova.platform.add", "cordova.plugin.add", "cordova.build", "cordova.sign.android", "cordova.ios.upload"],
-    "requireApproval": ["cordova.platform.add", "cordova.plugin.add", "cordova.build", "cordova.sign.android", "cordova.ios.upload"]
-  },
-  "td": {
-    "tools": ["cordova.*"],
-    "requireApproval": ["cordova.platform.add", "cordova.plugin.add", "cordova.build", "cordova.run", "cordova.sign.android", "cordova.ios.upload"]
-  }
-  "analyst": {
-    "tools": ["research.mendeley.search", "research.endnote.search", "research.endnote.export"],
-    "requireApproval": []
-  },
-  "researcher": {
-    "tools": ["research.mendeley.*", "research.endnote.*"],
-    "requireApproval": ["research.mendeley.sync", "research.mendeley.annotate", "research.endnote.import"]
-  },
-  "td": {
-    "tools": ["research.*"],
-    "requireApproval": ["research.synthesize", "research.zotero.sync", "research.zotero.add", "research.notion.export", "research.obsidian.sync", "research.obsidian.write", "research.readwise.sync", "research.roam.sync", "research.roam.write", "research.logseq.sync", "research.logseq.write", "research.mendeley.sync", "research.mendeley.annotate", "research.endnote.import"]
-  }
-  "writer": {
-    "tools": ["language.*"],
-    "requireApproval": []
-  },
-  "editor": {
-    "tools": ["language.*"],
-    "requireApproval": []
-  },
-  "td": {
-    "tools": ["language.*"],
-    "requireApproval": []
-  }
+  "users": {}
 }

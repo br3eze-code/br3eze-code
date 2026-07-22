@@ -2,6 +2,9 @@
 /**
  * Plugin Registry - Dynamic adapter loading and management
  */
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 class PluginRegistry {
   constructor() {
@@ -9,13 +12,22 @@ class PluginRegistry {
     this.resourceIndex = new Map();
   }
 
-  // Register built-in adapters
+  // Register built-in adapters — optional SDKs are wrapped gracefully
   registerBuiltins() {
-    this.register('mikrotik', require('./adapters/mikrotik-adapter'));
-    this.register('aws', require('./adapters/aws-adapter'));
-    this.register('docker', require('./adapters/docker-adapter'));
-    this.register('kubernetes', require('./adapters/kubernetes-adapter'));
-    this.register('proxmox', require('./adapters/proxmox-adapter'));
+    const builtin = [
+      ['mikrotik',    './adapters/mikrotik-adapter'],
+      ['aws',         './adapters/aws-adapter'],
+      ['docker',      './adapters/docker-adapter'],
+      ['kubernetes',  './adapters/kubernetes-adapter'],
+      ['proxmox',     './adapters/proxmox-adapter'],
+    ];
+    for (const [name, path] of builtin) {
+      try {
+        this.register(name, require(path));
+      } catch (err) {
+        console.warn(`⚠️  Adapter '${name}' skipped: ${err.message.split('\n')[0]}`);
+      }
+    }
   }
 
   // Register custom adapter
@@ -88,4 +100,4 @@ class PluginRegistry {
   }
 }
 
-module.exports = new PluginRegistry();
+export default new PluginRegistry();

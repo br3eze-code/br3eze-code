@@ -2,7 +2,7 @@
  * Helper utilities
  */
 
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Format bytes to human readable string
@@ -161,7 +161,8 @@ const retryWithBackoff = async (fn, maxRetries = 3, delay = 1000) => {
     throw lastError;
 };
 
-module.exports = {
+export { formatBytes, formatUptime, parseMikrotikTime, sanitizeMacAddress, generateSessionId, deepMerge, rateLimitKeyGenerator, isValidEmail, sleep, retryWithBackoff };
+export default {
     formatBytes,
     formatUptime,
     parseMikrotikTime,

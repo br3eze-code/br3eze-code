@@ -1,0 +1,8 @@
+{
+  "name": "research",
+  "version": "1.0.0",
+  "description": "Deep research: search, scrape, parse PDFs, track citations, synthesize reports",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}

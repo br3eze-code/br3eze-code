@@ -1,11 +1,11 @@
 // src/core/agent.js
 
-const { ToolRegistry } = require('./registry')
-const { AuthEngine } = require('./auth')
-const { ApprovalEngine } = require('./approvals')
-const { AuditLogger } = require('./audit')
-const { AskEngine } = require('./askengine')
-const { logger } = require('../utils/logger')
+import { ToolRegistry } from './tool-registry.js';
+import { AuthEngine } from './auth.js';
+import { ApprovalEngine } from './approval.js';
+import { AuditLogger } from './audit.js';
+import AskEngine from './ask-engine.js';
+import { logger } from '../utils/logger.js';
 
 class Agent {
   constructor(config, db, workspace) {
@@ -41,4 +41,4 @@ class Agent {
   }
 }
 
-module.exports = { Agent }
+export { Agent };

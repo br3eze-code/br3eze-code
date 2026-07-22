@@ -1,0 +1,8 @@
+{
+  "name": "gossip",
+  "version": "1.0.0",
+  "description": "Distributed gossip: peer discovery, state sync, failure detection, rumor spreading",
+  "entry": "index.js",
+  "author": "AgentOS",
+  "license": "Apache-2.0"
+}
