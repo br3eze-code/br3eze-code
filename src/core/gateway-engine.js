@@ -648,7 +648,11 @@ class Gateway extends EventEmitter {
       logger.debug('Registering Telegram channel...');
       await this.channelManager.register({
         type: 'telegram',
-        config: this.config.telegram
+        config: {
+          ...this.config.telegram,
+          // TelegramChannel reads allowed_ids; config stores allowedChats — bridge both
+          allowed_ids: this.config.telegram.allowed_ids || this.config.telegram.allowedChats || []
+        }
       });
     }
 

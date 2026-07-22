@@ -74,18 +74,68 @@ class DahuaNotifier {
   }
 
   async _notify(deviceId, ev) {
+    // Only fire on Start events (Dahua sends Start then Stop per motion cycle)
+    if (ev.action && ev.action !== 'Start') return;
+
     const key = `${deviceId}|${ev.code}|${ev.channel}`;
     const now = Date.now();
     const last = this.lastAlert.get(key) || 0;
-    if (now - last < COOLDOWN_MS) return; // debounce Start/Stop chatter on the same channel+code
+    if (now - last < COOLDOWN_MS) return;
     this.lastAlert.set(key, now);
 
     const dev = this.workspace.dahua_devices[deviceId] || {};
     const label = dev.name || deviceId;
-    const message = `📹 *${label}*: ${ev.code}${ev.channel ? ` (channel ${ev.channel})` : ''}`;
-    logger.info(`DahuaNotifier: ${message}`);
+    const ch = ev.channel || 1;
+    const ts = new Date().toLocaleString();
+    const rtspAuth = `${encodeURIComponent(dev.user)}:${encodeURIComponent(dev.password)}`;
+    const streamUrl = `rtsp://${rtspAuth}@${dev.host}:${dev.rtspPort || 554}/cgi-bin/realmonitor?channel=${ch}&subtype=0`;
+
+    const caption = [
+      `🚨 *Security Alert — ${label}*`,
+      `⚡ *${ev.code}*${ev.channel ? ` · Ch ${ch}` : ''}`,
+      `🕐 ${ts}`,
+      `📡 Stream: \`${streamUrl}\``
+    ].join('\n');
+
+    logger.info(`DahuaNotifier: [${label}] ${ev.code} ch${ch}`);
     if (!this.channelManager) return;
-    await this.channelManager.broadcast(message, (type) => type === 'telegram' || type === 'whatsapp');
+
+    // Try to grab a snapshot and send as photo; fall back to text-only
+    let imgBuffer = null;
+    try {
+      const snap = await this.skill.execute('dahua.snapshot.get', { device: deviceId, channel: ch });
+      if (snap?.base64) imgBuffer = Buffer.from(snap.base64, 'base64');
+    } catch (e) {
+      logger.warn(`DahuaNotifier: snapshot failed for ${deviceId}: ${e.message}`);
+    }
+
+    for (const [type, channel] of this.channelManager.channels) {
+      if (type !== 'telegram' && type !== 'whatsapp') continue;
+      try {
+        if (imgBuffer) {
+          if (type === 'telegram' && channel.bot) {
+            const chats = channel.config?.allowed_ids || channel.config?.allowedChats || [];
+            for (const chatId of chats) {
+              await channel.bot.sendPhoto(chatId, imgBuffer, { caption, parse_mode: 'Markdown' }).catch(() =>
+                channel.bot.sendMessage(chatId, caption, { parse_mode: 'Markdown' })
+              );
+            }
+          } else if (type === 'whatsapp' && channel.sock && channel.connected) {
+            const { getChatRegistry } = require('./chat-registry');
+            const jids = getChatRegistry().getChats('whatsapp');
+            for (const jid of jids) {
+              await channel.sock.sendMessage(jid, { image: imgBuffer, caption }).catch(e2 =>
+                logger.warn(`WA send failed ${jid}: ${e2.message}`)
+              );
+            }
+          }
+        } else {
+          await channel.broadcast(caption);
+        }
+      } catch (e) {
+        logger.warn(`DahuaNotifier: send failed on ${type}: ${e.message}`);
+      }
+    }
   }
 
   stop() {
