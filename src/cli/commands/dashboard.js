@@ -5,19 +5,17 @@
 
 'use strict';
 
-import { getManager as getMikroTikManager } from '../../core/mikrotik.js';
-import { getDatabase } from '../../core/database.js';
+const { getManager: getMikroTikManager } = require('../../core/mikrotik');
 
-export default (program) => {
+module.exports = (program) => {
   program
     .command('dashboard')
     .description('Show comprehensive system dashboard')
     .option('--refresh <seconds>', 'Auto-refresh interval (seconds)')
     .action(async (options) => {
-      // @clack/prompts is ESM-only — imported once at the action scope so both
-      // render() and the auto-refresh block below share `log`.
-      const { intro, outro, spinner, note, log } = await import('@clack/prompts');
       const render = async () => {
+        // @clack/prompts is ESM-only — must be dynamically imported
+        const { intro, outro, spinner, note, log } = await import('@clack/prompts');
         console.clear();
         intro('📊 AgentOS Dashboard');
 
@@ -32,6 +30,7 @@ export default (program) => {
             mikrotik.getAllHotspotUsers(),
             mikrotik.getInterfaces(),
             (async () => {
+              const { getDatabase } = require('../../core/database');
               const db = await getDatabase();
               return db.getStats();
             })()

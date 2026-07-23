@@ -4,17 +4,13 @@
 
 'use strict';
 
-import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const path = require('path');
 
 const SKILL_PATH = path.join(__dirname, '../../skills/codegen/index.js');
 
 /** Lazy-load the skill so this file is safe to require without deps ready */
-async function getSkill() {
-  return (await import(pathToFileURL(SKILL_PATH).href)).default;
+function getSkill() {
+  return require(SKILL_PATH);
 }
 
 const codeGenTool = {
@@ -32,4 +28,4 @@ const codeGenTool = {
   }
 };
 
-export default codeGenTool;
+module.exports = codeGenTool;

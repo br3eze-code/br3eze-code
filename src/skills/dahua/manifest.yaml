@@ -1,6 +1,6 @@
 name: dahua
-version: 1.1.0
-description: Control Dahua cameras/NVRs including PTZ, snapshots, and event monitoring.
+version: 1.4.0
+description: Control Dahua cameras/NVRs including PTZ, snapshots, live streams, channel listing, and event monitoring.
 author: br3eze
 license: Apache-2.0
 
@@ -33,6 +33,95 @@ tools:
         description: Camera channel number.
     returns: object
     
+  - name: dahua.device.channels
+    description: List camera channels configured on a device/NVR (index + name).
+    parameters:
+      - name: device
+        type: string
+        required: false
+    returns: array
+
+  - name: dahua.snapshot.getAll
+    description: Capture a live snapshot from every channel on an NVR.
+    parameters:
+      - name: device
+        type: string
+        required: false
+    returns: array
+
+  - name: dahua.stream.url
+    description: Get live RTSP stream URL(s) (main + sub) for a channel.
+    parameters:
+      - name: device
+        type: string
+        required: false
+      - name: channel
+        type: number
+        required: false
+        default: 1
+    returns: object
+
+  - name: dahua.device.discover
+    description: Scan a /24 subnet for Dahua/OEM devices via an unauthenticated HTTP digest-challenge fingerprint.
+    parameters:
+      - name: cidr
+        type: string
+        required: false
+        description: e.g. "192.168.1.0/24" — defaults to the /24 of the first configured device.
+      - name: port
+        type: number
+        required: false
+        default: 80
+      - name: timeoutMs
+        type: number
+        required: false
+        default: 800
+      - name: concurrency
+        type: number
+        required: false
+        default: 32
+    returns: object
+
+  - name: dahua.events.search
+    description: Free-text search across recent motion (persisted locally, since Dahua doesn't retain motion history) and the device historical log. Understands "yesterday", "last night", "this morning", "last N hours/minutes", channel names, and keywords — no AI required.
+    parameters:
+      - name: query
+        type: string
+        required: true
+      - name: device
+        type: string
+        required: false
+      - name: minutes
+        type: number
+        required: false
+    returns: object
+
+  - name: dahua.scene.describe
+    description: AI vision summary of what's happening right now on a channel — takes a live snapshot and describes it.
+    parameters:
+      - name: device
+        type: string
+        required: false
+      - name: channel
+        type: number
+        required: false
+        default: 1
+    returns: object
+
+  - name: dahua.events.summarize
+    description: Same as dahua.events.search but returns a short AI-written plain-English summary instead of a raw list.
+    parameters:
+      - name: query
+        type: string
+        required: true
+      - name: device
+        type: string
+        required: false
+      - name: minutes
+        type: number
+        required: false
+    returns: object
+
   - name: dahua.ptz.move
     description: Move the PTZ camera in a specific direction.
     parameters:

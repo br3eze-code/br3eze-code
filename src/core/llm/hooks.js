@@ -1,9 +1,10 @@
+'use strict';
 /**
  * Hook Registry — Lifecycle hooks for tool execution
  * Ported from 36.js §4.5
  */
 
-import { logger } from '../logger.js';
+const { logger } = require('../logger');
 
 class HookRegistry {
     constructor() {
@@ -71,6 +72,12 @@ class HookRegistry {
             }
         }
     }
+
+    async trigger(event, payload) {
+        if (event.startsWith('pre_')) return this.runBefore(event.slice(4), payload);
+        if (event.startsWith('post_')) return this.runAfter(event.slice(5), payload);
+        if (event.endsWith('_error')) return this.runError(event.slice(0, -6), payload);
+    }
 }
 
-export default HookRegistry;
+module.exports = HookRegistry;

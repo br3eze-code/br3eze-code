@@ -1,9 +1,10 @@
+'use strict';
 /**
  * ChatRegistry — Manages persistent mapping of chat IDs across channels
  * Used for broadcasting notifications and alerts to known users.
  */
-import { getDatabase } from './database.js';
-import { logger } from './logger.js';
+const { getDatabase } = require('./database');
+const { logger } = require('./logger');
 
 class ChatRegistry {
     constructor() {
@@ -59,4 +60,4 @@ function getChatRegistry() {
     return instance;
 }
 
-export { getChatRegistry };
+module.exports = { getChatRegistry };

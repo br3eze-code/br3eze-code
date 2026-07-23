@@ -3,15 +3,16 @@
  * WhatsApp Channel
  */
 
-import makeWASocket, { 
+const { 
+  default: makeWASocket, 
   DisconnectReason, 
   useMultiFileAuthState,
   Browsers
-} from '@whiskeysockets/baileys';
-import { BaseChannel } from './base.js';
-import { Logger } from '../utils/logger.js';
-import QRCode from 'qrcode-terminal';
-import path from 'path';
+} = require('@whiskeysockets/baileys');
+const { BaseChannel } = require('./base');
+const { Logger } = require('../utils/logger');
+const QRCode = require('qrcode-terminal');
+const path = require('path');
 
 class WhatsAppChannel extends BaseChannel {
   constructor(options = {}) {
@@ -134,6 +135,4 @@ class WhatsAppChannel extends BaseChannel {
   }
 }
 
-export default { WhatsAppChannel };
-
-
+module.exports = { WhatsAppChannel };

@@ -1,5 +1,7 @@
-import { google } from 'googleapis';
-import axios from 'axios';
+'use strict';
+
+const { google } = require('googleapis');
+const axios = require('axios');
 
 /**
  * Base Calendar Adapter
@@ -476,10 +478,9 @@ class CalendarSkill {
 }
 
 // Export both the skill and adapters for testing
-export default new CalendarSkill();
-export { CalendarSkill };
-export { GoogleCalendarAdapter };
-export { OutlookCalendarAdapter };
-export { LocalCalendarAdapter };
-export { BaseCalendarAdapter };
-
+module.exports = new CalendarSkill();
+module.exports.CalendarSkill = CalendarSkill;
+module.exports.GoogleCalendarAdapter = GoogleCalendarAdapter;
+module.exports.OutlookCalendarAdapter = OutlookCalendarAdapter;
+module.exports.LocalCalendarAdapter = LocalCalendarAdapter;
+module.exports.BaseCalendarAdapter = BaseCalendarAdapter;

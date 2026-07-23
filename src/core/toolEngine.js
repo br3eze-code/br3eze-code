@@ -1,3 +1,4 @@
+'use strict';
 /**
  * ToolEngine — Permission-gated tool dispatcher
  *
@@ -5,9 +6,9 @@
  * Emits structured events on deny/allow for audit log.
  */
 
-import EventEmitter from 'events';
-import { PermissionEnforcer, PermissionMode, PermissionDenial } from './permissions.js';
-import { logger } from './logger.js';
+const EventEmitter = require('events');
+const { PermissionEnforcer, PermissionMode, PermissionDenial } = require('./permissions');
+const { logger } = require('./logger');
 
 class ToolEngine extends EventEmitter {
     /**
@@ -88,4 +89,4 @@ class ToolEngine extends EventEmitter {
     }
 }
 
-export default new ToolEngine();
+module.exports = new ToolEngine();

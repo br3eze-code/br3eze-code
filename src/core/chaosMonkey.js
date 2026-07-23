@@ -1,7 +1,3 @@
-import { fileURLToPath } from 'url';
-import net from 'net';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 /**
  * ╔══════════════════════════════════════════════════════════════╗
  * ║          AgentOS — ChaosMonkey.js  (src/core/)              ║
@@ -39,11 +35,11 @@ const __dirname = path.dirname(__filename);
 
 'use strict';
 
-import { RouterOSClient } from 'routeros-client';
-import { EventEmitter } from 'events';
-import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
-import path from 'path';
+const { RouterOSClient } = require('routeros-client');
+const { EventEmitter }   = require('events');
+const { v4: uuidv4 }     = require('uuid');
+const fs                  = require('fs');
+const path                = require('path');
 
 // ─── paths ────────────────────────────────────────────────────
 const BACKUP_PATH  = path.resolve(__dirname, '../../config/backup.json');
@@ -286,6 +282,7 @@ const NetworkingChaos = {
   ghostAPI: async function(rosCfg, opts = {}) {
     const count = opts.count ?? 3;
     return _exec('Networking', 'ghostAPI', async (chaos_id) => {
+      const net = require('net');
       const host = rosCfg.host || process.env.ROS_HOST;
       const port = rosCfg.port || 8728;
 
@@ -636,4 +633,4 @@ const ChaosMonkey = Object.assign(new EventEmitter(), {
   _exec,
 });
 
-export default ChaosMonkey;
+module.exports = ChaosMonkey;

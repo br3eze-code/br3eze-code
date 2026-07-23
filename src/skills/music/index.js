@@ -1,7 +1,6 @@
-import fs_promises from 'fs/promises';
-import { BaseSkill } from '../base.js';
-import { Chord, Scale, Key, Note, Interval, Progression } from 'tonal';
-import MidiWriter from 'midi-writer-js';
+const { BaseSkill } = require('../base.js')
+const { Chord, Scale, Key, Note, Interval, Progression } = require('tonal')
+const MidiWriter = require('midi-writer-js')
 
 class MusicSkill extends BaseSkill {
   static id = 'music'
@@ -566,6 +565,7 @@ JSON: {"groove_score":0.82,"syncopation":0.4,"microtiming":"laid_back","entrainm
     }
 case 'music.expectation': {
   this.logger.info(`MUSIC EXPECTATION ${args.metric}`, { user: ctx.userId })
+  const { Note } = require('tonal')
 
   // Simplified surprisal: -log2(p) using corpus probabilities
   const probs = { 'C': 0.2, 'G': 0.15, 'F': 0.12, 'D': 0.08, 'A': 0.07, 'E': 0.06, 'B': 0.05 }
@@ -657,6 +657,7 @@ JSON: {
 }
 case 'music.tuning': {
   this.logger.info(`MUSIC TUNING ${args.system} ${args.root}`, { user: ctx.userId })
+  const { Note, Interval } = require('tonal')
 
   const systems = {
     '12tet': { notes: 12, ratios: Array(12).fill(0).map((_, i) => Math.pow(2, i/12)), name: '12-Tone Equal' },
@@ -1058,8 +1059,8 @@ case 'music.melodyne': {
 }
           case 'music.audio_analyze': {
   this.logger.info(`MUSIC AUDIO_ANALYZE ${args.file}`, { user: ctx.userId })
-  const mm = (await import('music-metadata')).default;
-  const fs = fs_promises
+  const mm = require('music-metadata')
+  const fs = require('fs/promises')
   
   try {
     // Handle attachment://N or path
@@ -1268,7 +1269,7 @@ JSON: {
           const write = new MidiWriter.Writer(track)
           const filename = `${args.filename}.mid`
           const filepath = `${this.workspace}/${filename}`
-          await fs_promises.writeFile(filepath, Buffer.from(write.buildFile()))
+          await require('fs/promises').writeFile(filepath, Buffer.from(write.buildFile()))
 
           return {
             filename,
@@ -1357,4 +1358,4 @@ Output only lyrics, no explanation.`
   }
 }
 
-export default MusicSkill;
+module.exports = MusicSkill

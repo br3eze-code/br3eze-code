@@ -2,8 +2,8 @@
  * Safety Envelope
  */
 
-import { RateLimiterMemory } from 'rate-limiter-flexible';
-import { Logger } from '../utils/logger.js';
+const { RateLimiterMemory } = require('rate-limiter-flexible');
+const { Logger } = require('../utils/logger');
 
 class SafetyEnvelope {
   constructor(options = {}) {
@@ -94,5 +94,4 @@ class SafetyEnvelope {
   }
 }
 
-export { SafetyEnvelope };
-
+module.exports = { SafetyEnvelope };

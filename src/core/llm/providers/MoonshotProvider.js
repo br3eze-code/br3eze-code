@@ -1,9 +1,10 @@
+'use strict';
 /**
  * Moonshot LLM Provider (Kimi)
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class MoonshotProvider extends BaseProvider {
     static getMetadata() {
@@ -92,4 +93,4 @@ class MoonshotProvider extends BaseProvider {
 
 BaseProvider.register('moonshot', MoonshotProvider);
 BaseProvider.register('kimi', MoonshotProvider);
-export { MoonshotProvider };
+module.exports = { MoonshotProvider };

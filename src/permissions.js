@@ -1,3 +1,4 @@
+'use strict';
 // src/permissions.js — permission modes and enforcement
 // Mirrors the smartcomputer-ai PermissionMode / PermissionEnforcer pattern
 const PermissionMode = Object.freeze({ AUTO: 'auto', PROMPT: 'prompt', DENY: 'deny' });
@@ -20,4 +21,4 @@ class PermissionEnforcer {
     return true; // PROMPT mode: in production, emit an approval event
   }
 }
-export { PermissionMode, PermissionEnforcer, PermissionDenial };
+module.exports = { PermissionMode, PermissionEnforcer, PermissionDenial };

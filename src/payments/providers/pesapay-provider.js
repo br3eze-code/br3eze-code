@@ -2,9 +2,9 @@
 // PesaPal Integration for Br3eze Africa - AgentOS
 // Credentials: Br3eze Africa Production Account
 
-import crypto from 'crypto';
-import https from 'https';
-import { URL } from 'url';
+const crypto = require('crypto');
+const https = require('https');
+const { URL } = require('url');
 
 class PesaPalProvider {
   constructor(config = {}) {
@@ -419,4 +419,4 @@ class PesaPalProvider {
   }
 }
 
-export default PesaPalProvider;
+module.exports = PesaPalProvider;

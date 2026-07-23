@@ -17,7 +17,7 @@ const { PrintBroker } = require('../print-broker'); // unified broker
 const { BaseChannel } = require('./BaseChannel');
 const { BRAND } = require('../config');
 
-const { acquireBotLock, releaseBotLock } = require('../../utils/bot-lock');
+const { acquireBotLock, releaseBotLock, LOCK_FILE } = require('../../utils/bot-lock');
 
 
 class TelegramChannel extends BaseChannel {
@@ -979,6 +979,10 @@ class TelegramChannel extends BaseChannel {
         try {
             if (!this.agent) throw new Error('Agent not initialized');
 
+            if (action === 'menu') {
+                return this._sendDahuaMenu(chatId);
+            }
+
             await this.bot.sendMessage(chatId, `📹 *Dahua Control*\nExecuting: \`${action}\`...`, { parse_mode: 'Markdown' });
 
             let toolName, toolArgs;
@@ -995,8 +999,26 @@ class TelegramChannel extends BaseChannel {
             } else if (action === 'info') {
                 toolName = 'dahua.device.info';
                 toolArgs = { device };
+            } else if (action === 'channels') {
+                toolName = 'dahua.device.channels';
+                toolArgs = { device };
+            } else if (action === 'stream') {
+                toolName = 'dahua.stream.url';
+                toolArgs = { device: args[1] && isNaN(args[1]) ? args[1] : undefined, channel: Number(args[2] || args[1]) || 1 };
+            } else if (action === 'snapshotall') {
+                toolName = 'dahua.snapshot.getAll';
+                toolArgs = { device };
+            } else if (action === 'search') {
+                toolName = 'dahua.events.search';
+                toolArgs = { query: args.slice(1).join(' ') };
+            } else if (action === 'summarize' || action === 'ask') {
+                toolName = 'dahua.events.summarize';
+                toolArgs = { query: args.slice(1).join(' ') };
+            } else if (action === 'describe') {
+                toolName = 'dahua.scene.describe';
+                toolArgs = { device: args[1] && isNaN(args[1]) ? args[1] : undefined, channel: Number(args[2] || args[1]) || 1 };
             } else {
-                return this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, snapshot, info, reboot.`);
+                return this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot, search, summarize, describe, menu.`);
             }
 
             const result = await this.agent.executeTool(toolName, toolArgs, { userId: msg.from.id, channel: 'telegram' });
@@ -1014,12 +1036,83 @@ class TelegramChannel extends BaseChannel {
                 } else {
                     await this.bot.sendMessage(chatId, `❌ Snapshot failed: No data returned`);
                 }
+            } else if (action === 'snapshotall') {
+                for (const shot of result) {
+                    if (shot.base64) {
+                        await this.bot.sendPhoto(chatId, Buffer.from(shot.base64, 'base64'), { caption: `📷 Ch ${shot.channel} — ${shot.name}` });
+                    } else {
+                        await this.bot.sendMessage(chatId, `❌ Ch ${shot.channel} (${shot.name}): ${shot.error}`);
+                    }
+                }
+            } else if (action === 'channels') {
+                const text = `✅ *Channels*\n\n` + result.map(c => `${c.channel}. ${c.name}`).join('\n');
+                await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
+            } else if (action === 'stream') {
+                await this.bot.sendMessage(chatId, `🎥 *Live Stream (channel ${result.channel})*\n\nMain: \`${result.main}\`\nSub: \`${result.sub}\`\n\n_Open with VLC or an RTSP-capable player._`, { parse_mode: 'Markdown' });
+            } else if (action === 'search') {
+                const lines = result.events.map(e => `${e.time}  [${e.device}]  ${e.code}${e.channel ? ` ch${e.channel}` : ''}`);
+                await this.bot.sendMessage(chatId, `🔍 *${result.count} event(s)*${result.truncated ? ' (showing most recent 100)' : ''}\n\n${lines.join('\n') || 'Nothing found.'}`, { parse_mode: 'Markdown' });
+            } else if (action === 'summarize' || action === 'ask') {
+                await this.bot.sendMessage(chatId, `🤖 *Summary* _(via ${result.provider || 'n/a'})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
+            } else if (action === 'describe') {
+                await this.bot.sendMessage(chatId, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
             } else {
                 await this.bot.sendMessage(chatId, `✅ Success:\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``, { parse_mode: 'Markdown' });
             }
         } catch (err) {
             logger.error('TelegramChannel Dahua error:', err);
             await this.bot.sendMessage(chatId, `❌ Dahua error: ${err.message}`);
+        }
+    }
+
+    /**
+     * Proactive control panel (vs. the reactive buttons attached to alert messages) — lets the
+     * user configure alerts on/off, jump to voucher/user creation (reusing the existing
+     * process:voucher flow — same MikroTik voucher system, one panel for both), reboot a camera,
+     * or search events, without waiting for an alert to fire first.
+     */
+    async _sendDahuaMenu(chatId, opts = {}) {
+        const notifier = this.agent && this.agent.dahuaNotifier;
+        const alertsOn = notifier ? notifier.enabled !== false : null;
+        const deviceList = await this.agent.executeTool('dahua.device.list', {}, { userId: chatId, channel: 'telegram' }).catch(() => []);
+        const devices = deviceList.map(d => d.id);
+
+        const deviceRows = devices.map(id => ([
+            { text: `📷 ${id}`, callback_data: `dahua:devmenu:${id}` }
+        ]));
+
+        const reply_markup = {
+            inline_keyboard: [
+                alertsOn === null ? [] : alertsOn
+                    ? [{ text: '🔕 Turn Alerts OFF', callback_data: 'dahua:alertsoff' }]
+                    : [{ text: '🔔 Turn Alerts ON', callback_data: 'dahua:alertson' }],
+                ...deviceRows,
+                [{ text: '🎫 Add User / Voucher', callback_data: 'process:voucher' }],
+                [{ text: '🔍 Search Events', callback_data: 'dahua:searchprompt' }]
+            ].filter(row => row.length)
+        };
+
+        const text = `📹 *Dahua Control Panel*\n\nAlerts: ${alertsOn === null ? 'notifier not running' : alertsOn ? '🔔 ON' : '🔕 OFF'}\nDevices: ${devices.join(', ') || 'none configured'}`;
+
+        if (opts.editMessageId) {
+            return this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup });
+        }
+        await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
+    }
+
+    /** Persists the alerts toggle so it survives a gateway restart (the live notifier is toggled separately, in memory). */
+    _persistNotifyEnabled(enabled) {
+        try {
+            const { CONFIG_PATH } = require('../config');
+            if (!fs.existsSync(CONFIG_PATH)) return;
+            const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+            cfg.adapters = cfg.adapters || {};
+            cfg.adapters.cctv = cfg.adapters.cctv || {};
+            cfg.adapters.cctv.notify = cfg.adapters.cctv.notify || {};
+            cfg.adapters.cctv.notify.enabled = enabled;
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2));
+        } catch (e) {
+            logger.warn(`TelegramChannel: failed to persist notify.enabled: ${e.message}`);
         }
     }
 
@@ -1412,9 +1505,82 @@ class TelegramChannel extends BaseChannel {
             case 'vupdate':
                 await this._handleVupdateCallback(chatId, action, extra, messageId);
                 break;
-            case 'reprint':
+                        case 'reprint':
                 await this._handleReprint({ chat: { id: chatId } });
                 break;
+            case 'dahua':
+                await this._handleDahuaCallback(chatId, action, extra, messageId, query);
+                break;
+        }
+    }
+
+    async _handleDahuaCallback(chatId, action, deviceAndCh, _messageId, _query) {
+        const [deviceId, chStr] = (deviceAndCh || '').split(':');
+        const ch = parseInt(chStr) || 1;
+        if (action === 'dismiss') { await this.bot.sendMessage(chatId, 'Alert dismissed.').catch(() => {}); return; }
+        await this.bot.sendChatAction(chatId, 'typing').catch(() => {});
+        const toolCtx = { userId: chatId, channel: 'telegram' };
+        try {
+            if (action === 'snap') {
+                const r = await this.agent.executeTool('dahua.snapshot.get', { device: deviceId, channel: ch }, toolCtx);
+                if (r && r.base64) await this.bot.sendPhoto(chatId, Buffer.from(r.base64, 'base64'), { caption: `Snapshot ${deviceId} ch${ch}` });
+                else await this.bot.sendMessage(chatId, 'No snapshot data.');
+            } else if (action === 'stream') {
+                const r = await this.agent.executeTool('dahua.stream.url', { device: deviceId, channel: ch }, toolCtx);
+                await this.bot.sendMessage(chatId, `*Stream ${deviceId} ch${ch}*\nMain: \`${r.main}\`\nSub: \`${r.sub}\`\nOpen with VLC.`, { parse_mode: 'Markdown' });
+            } else if (action === 'snapall') {
+                const rs = await this.agent.executeTool('dahua.snapshot.getAll', { device: deviceId }, toolCtx);
+                for (const s of rs) {
+                    if (s.base64) await this.bot.sendPhoto(chatId, Buffer.from(s.base64, 'base64'), { caption: `Ch${s.channel} ${s.name || deviceId}` });
+                    else await this.bot.sendMessage(chatId, `Ch${s.channel}: ${s.error}`);
+                }
+            } else if (action === 'mute') {
+                const notifier = this.agent && this.agent.dahuaNotifier;
+                if (notifier) {
+                    notifier.muteChannel(deviceId, ch, 60 * 60 * 1000);
+                    await this.bot.sendMessage(chatId, `Muted ${deviceId} ch${ch} for 1h.`);
+                } else {
+                    await this.bot.sendMessage(chatId, 'No notifier running — cannot mute.');
+                }
+            } else if (action === 'info') {
+                const r = await this.agent.executeTool('dahua.device.info', { device: deviceId }, toolCtx);
+                await this.bot.sendMessage(chatId, `Info ${deviceId}\n\`\`\`json\n${JSON.stringify(r, null, 2).slice(0, 3000)}\n\`\`\``, { parse_mode: 'Markdown' });
+            } else if (action === 'reboot') {
+                await this.bot.sendMessage(chatId, `Rebooting ${deviceId}...`);
+                await this.agent.executeTool('dahua.system.reboot', { device: deviceId, reason: 'Telegram quick-action' }, toolCtx);
+            } else if (action === 'events') {
+                const result = await this.agent.executeTool('dahua.events.search', { query: 'today', device: deviceId }, toolCtx);
+                const lines = result.events.slice(-20).map(e => `${e.time} [${e.device}] ${e.code}${e.channel ? ` ch${e.channel}` : ''}`);
+                await this.bot.sendMessage(chatId, `Last ${lines.length} event(s):\n\`\`\`\n${lines.join('\n') || 'None'}\n\`\`\``, { parse_mode: 'Markdown' });
+            } else if (action === 'ask') {
+                await this.bot.sendMessage(chatId, `Ask me anything about the ${deviceId} ch${ch} alert — just type your question.`);
+            } else if (action === 'alertson' || action === 'alertsoff') {
+                const notifier = this.agent && this.agent.dahuaNotifier;
+                const turnOn = action === 'alertson';
+                if (notifier) {
+                    if (turnOn) notifier.enable(); else notifier.disable();
+                }
+                this._persistNotifyEnabled(turnOn);
+                await this.bot.sendMessage(chatId, turnOn ? '🔔 Alerts turned ON.' : '🔕 Alerts turned OFF.');
+                await this._sendDahuaMenu(chatId);
+            } else if (action === 'devmenu') {
+                const reply_markup = {
+                    inline_keyboard: [
+                        [{ text: '📸 Snapshot', callback_data: `dahua:snap:${deviceId}:1` }, { text: '🎞 All Channels', callback_data: `dahua:snapall:${deviceId}` }],
+                        [{ text: '📡 Stream Ch1', callback_data: `dahua:stream:${deviceId}:1` }, { text: 'ℹ️ Info', callback_data: `dahua:info:${deviceId}` }],
+                        [{ text: '📋 Today\'s Events', callback_data: `dahua:events:${deviceId}` }, { text: '🔄 Reboot', callback_data: `dahua:reboot:${deviceId}` }],
+                        [{ text: '⬅️ Back', callback_data: 'dahua:menu' }]
+                    ]
+                };
+                await this.bot.sendMessage(chatId, `📷 *${deviceId}*`, { parse_mode: 'Markdown', reply_markup });
+            } else if (action === 'searchprompt') {
+                await this.bot.sendMessage(chatId, '🔍 Type your question, e.g.:\n`/dahua search front door last night`\n`/dahua summarize what happened today`', { parse_mode: 'Markdown' });
+            } else if (action === 'menu') {
+                await this._sendDahuaMenu(chatId);
+            }
+        } catch (err) {
+            logger.error(`TelegramChannel dahua callback (${action}):`, err.message);
+            await this.bot.sendMessage(chatId, `Error: ${err.message}`);
         }
     }
 
@@ -1962,7 +2128,7 @@ class TelegramChannel extends BaseChannel {
                     const all = await db.getPlans(false);
                     planObj = all.find(p => p.mikrotikProfile === planId || p.name === planId);
                 }
-            } catch (_) { }
+            } catch (_) { /* best-effort plan lookup */ }
 
             if (!planObj) {
                 const { getConfig } = require('../config');
@@ -2269,7 +2435,7 @@ class TelegramChannel extends BaseChannel {
         try {
             const UniversalBilling = require('../universal-billing');
             expiresAt = new UniversalBilling().calculateExpiry(planObj);
-        } catch (_) { }
+        } catch (_) { /* expiry stays null if this fails */ }
 
         const codes = [];
         const errors = [];

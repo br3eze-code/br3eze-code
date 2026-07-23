@@ -1,4 +1,4 @@
-import eventBus from '../core/eventBus.js';
+const eventBus = require('../core/eventBus');
 
 class SessionAgent {
     constructor() {
@@ -25,4 +25,4 @@ class SessionAgent {
     }
 }
 
-export default new SessionAgent();
+module.exports = new SessionAgent();

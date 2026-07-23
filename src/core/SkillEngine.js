@@ -1,3 +1,4 @@
+'use strict';
 /**
  * SkillEngine — validated skill registry with before/after hooks
  * ─────────────────────────────────────────────────────────────────
@@ -76,4 +77,4 @@ class SkillEngine {
   }
 }
 
-export default SkillEngine;
+module.exports = SkillEngine;

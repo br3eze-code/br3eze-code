@@ -1,42 +1,32 @@
-import { roles, users } from '../policies/role.json'
-import { approvals } from './approvals.js'
-import { audit } from './audit.js'
+'use strict';
+/**
+ * auth.js — thin shim that delegates to UserSandbox.
+ * Kept for backward compatibility with src/core/agent.js and other callers
+ * that require('./auth'). New code should require('./userSandbox') directly.
+ */
+const { UserSandbox, getUserSandbox, AuthError, anyMatch } = require('./userSandbox');
+const { audit } = require('./audit');
 
-export class AuthError extends Error {}
+async function authorize({ userId, tool, args, routerId }) {
+  const sandbox = getUserSandbox();
+  const toolName = typeof tool === 'string' ? tool : tool?.name;
 
-export async function authorize({ userId, tool, args, routerId }) {
-  const user = users[userId]?? { role: 'readonly' }
-  const role = roles[user.role]
-
-  // 1. Tool allowlist check
-  if (!role.tools.includes(tool.name) &&!role.tools.includes('*')) {
-    await audit.log({ userId, tool, status: 'DENIED', reason: 'RBAC: tool not allowed' })
-    throw new AuthError(`Your role '${user.role}' cannot run ${tool.name}`)
+  const can = await sandbox.canUse(userId, toolName);
+  if (!can) {
+    await audit.log({ userId, tool: toolName, status: 'DENIED', reason: 'RBAC: tool not allowed' });
+    throw new AuthError(`Your role cannot run ${toolName}`, 'TOOL_NOT_ALLOWED');
   }
 
-  // 2. Router scope check
-  if (!user.routers.includes(routerId) &&!user.routers.includes('*')) {
-    await audit.log({ userId, tool, status: 'DENIED', reason: 'RBAC: router scope' })
-    throw new AuthError(`No access to router ${routerId}`)
+  const needs = await sandbox.needsApproval(userId, toolName);
+  if (needs) {
+    const req = await sandbox.requestApproval({ userId, toolName: toolName, args, routerId });
+    await audit.log({ userId, tool: toolName, status: 'PENDING_APPROVAL', approvalId: req.id });
+    return { status: 'needs_approval', approvalId: req.id };
   }
 
-  // 3. Param limits - e.g. helpdesk can't make 30Day vouchers
-  const limits = role.limits?.[tool.name]
-  if (limits) {
-    for (const [key, max] of Object.entries(limits)) {
-      if (args[key] > max) throw new AuthError(`${key} exceeds limit: ${max}`)
-    }
-  }
-
-  // 4. Approval check for high-risk tools
-  if (role.requireApproval?.includes(tool.name)) {
-    const id = await approvals.create({ userId, tool, args, routerId })
-    await audit.log({ userId, tool, status: 'PENDING_APPROVAL', approvalId: id })
-    return { status: 'needs_approval', approvalId: id }
-  }
-
-  // 5. Rate limiting
-  await checkRateLimit(userId, tool.name) // throws if exceeded
-
-  return { status: 'ok' }
+  sandbox.checkRateLimit(userId, toolName);
+  await audit.log({ userId, tool: toolName, status: 'ALLOWED' });
+  return { status: 'ok' };
 }
+
+module.exports = { AuthError, authorize, getUserSandbox, UserSandbox };

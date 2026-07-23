@@ -17,16 +17,13 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-import path from 'path';
-import crypto from 'crypto';
-import { EventEmitter } from 'events';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
+const path = require('path');
+const crypto = require('crypto');
+const { EventEmitter } = require('events');
 
 let CronExpressionParser = null;
 try {
-  ({ CronExpressionParser } = await import('cron-parser'));
+  ({ CronExpressionParser } = require('cron-parser'));
 } catch (_) {
   // optional dependency — cron schedules unavailable, interval/once still work
 }
@@ -331,6 +328,6 @@ class TaskScheduler extends EventEmitter {
   }
 }
 
-export default TaskScheduler;
-export { computeInitialNextRun };
-export { computeNextRun };
+module.exports = TaskScheduler;
+module.exports.computeInitialNextRun = computeInitialNextRun;
+module.exports.computeNextRun = computeNextRun;

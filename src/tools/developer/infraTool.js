@@ -1,4 +1,4 @@
-import { BaseTool } from '../base.js';
+const { BaseTool } = require('../base');
 // src/tools/developer/infraTool.js
 class InfraTool extends BaseTool {
   async execute(params) {

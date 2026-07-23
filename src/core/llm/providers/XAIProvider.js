@@ -1,9 +1,10 @@
+'use strict';
 /**
  * xAI LLM Provider (Grok)
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class XAIProvider extends BaseProvider {
     static getMetadata() {
@@ -92,4 +93,4 @@ class XAIProvider extends BaseProvider {
 
 BaseProvider.register('xai', XAIProvider);
 BaseProvider.register('grok', XAIProvider);
-export { XAIProvider };
+module.exports = { XAIProvider };

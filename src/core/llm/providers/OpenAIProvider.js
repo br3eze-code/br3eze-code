@@ -1,9 +1,10 @@
+'use strict';
 /**
  * OpenAI LLM Provider
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class OpenAIProvider extends BaseProvider {
     static getMetadata() {
@@ -143,4 +144,4 @@ class OpenAIProvider extends BaseProvider {
 
 BaseProvider.register('openai', OpenAIProvider);
 BaseProvider.register('gpt', OpenAIProvider);
-export { OpenAIProvider };
+module.exports = { OpenAIProvider };

@@ -1,8 +1,8 @@
-import { BaseSkill } from '../base.js';
-import WebSocket from 'ws';
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
+const { BaseSkill } = require('../base.js')
+const WebSocket = require('ws')
+const crypto = require('crypto')
+const fs = require('fs/promises')
+const path = require('path')
 
 class GossipSkill extends BaseSkill {
   static id = 'gossip'
@@ -341,4 +341,4 @@ class GossipSkill extends BaseSkill {
   }
 }
 
-export default GossipSkill;
+module.exports = GossipSkill

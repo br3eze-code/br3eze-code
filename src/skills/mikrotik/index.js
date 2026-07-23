@@ -1,12 +1,9 @@
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-import { BaseDriver } from '../base.js';
-import { getManager } from '../../core/mikrotik.js';
-import { logger } from '../../core/logger.js';
-import fs from 'fs';
-import path from 'path';
-import yaml from 'js-yaml';
+const { BaseDriver } = require('../base.js');
+const { getManager } = require('../../core/mikrotik');
+const { logger } = require('../../core/logger');
+const fs = require('fs');
+const path = require('path');
+const yaml = require('js-yaml');
 
 class MikroTikSkill extends BaseDriver {
   static id = 'mikrotik';
@@ -97,4 +94,4 @@ class MikroTikSkill extends BaseDriver {
   }
 }
 
-export default MikroTikSkill;
+module.exports = MikroTikSkill;

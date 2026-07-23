@@ -1,14 +1,14 @@
+'use strict';
 /**
  * OS Adapters — Linux SSH and Windows PowerShell.
  * Ported from 36.js §7.5
  */
 
-import { logger } from './logger.js';
-import { spawn } from 'child_process';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { NodeSSH } from 'node-ssh';
+const { logger } = require('./logger');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 class OSAdapter {
     async connect() { throw new Error('Not implemented'); }
@@ -29,6 +29,7 @@ class LinuxSSHAdapter extends OSAdapter {
 
     async connect() {
         try {
+            const { NodeSSH } = require('node-ssh');
             this.ssh = new NodeSSH();
             await this.ssh.connect({
                 host: this.host,
@@ -150,4 +151,4 @@ class WindowsPowerShellAdapter extends OSAdapter {
     }
 }
 
-export { LinuxSSHAdapter, WindowsPowerShellAdapter };
+module.exports = { LinuxSSHAdapter, WindowsPowerShellAdapter };

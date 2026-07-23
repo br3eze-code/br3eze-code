@@ -212,4 +212,4 @@ class PaymentService {
   }
 }
 
-export default PaymentService;
+module.exports = PaymentService;

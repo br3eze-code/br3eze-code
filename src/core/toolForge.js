@@ -1,10 +1,10 @@
-import fs from 'fs';
-import crypto from 'crypto';
-import path from 'path';
-import perf_hooks from 'perf_hooks';
-import vm from 'vm';
-import { EventEmitter } from 'events';
-import { logger } from './logger.js';
+'use strict';
+const crypto = require('crypto');
+const vm = require('vm');
+const fs = require('fs');
+const path = require('path');
+const { EventEmitter } = require('events');
+const { logger } = require('./logger');
 
 const FORGE_DIR = process.env.TOOLFORGE_DIR
   || path.join(process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'), 'toolforge');
@@ -81,7 +81,7 @@ class VMSandbox {
       // Without these, even basic operations like filter(Boolean), new Map(),
       // Array.from(), parseInt(), etc. silently fail or return wrong results.
       JSON, Math, Date, Promise,
-      parseInt, parseFloat, isNaN, isFinite,
+      parseInt, parseFloat, isNaN, isFinite, isFinite,
       encodeURIComponent, decodeURIComponent,
       // Type constructors and built-in classes
       Boolean, Number, String, Array, Object, Symbol, BigInt,
@@ -96,9 +96,9 @@ class VMSandbox {
       TextEncoder: typeof TextEncoder !== 'undefined' ? TextEncoder : undefined,
       TextDecoder: typeof TextDecoder !== 'undefined' ? TextDecoder : undefined,
       // Crypto (non-sensitive — random UUIDs, hashing)
-      crypto: { randomUUID: () => crypto.randomUUID() },
+      crypto: { randomUUID: () => require('crypto').randomUUID() },
       // Timing (read-only — no side effects)
-      performance: { now: () => perf_hooks.performance.now() },
+      performance: { now: () => require('perf_hooks').performance.now() },
     };
 
     if (spec.capabilities.includes(CAPABILITY.FETCH)) {
@@ -436,4 +436,4 @@ function getToolForge(opts) {
   return _instance;
 }
 
-export { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };
+module.exports = { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };

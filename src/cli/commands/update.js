@@ -1,14 +1,14 @@
 'use strict';
 
-import { execSync } from 'child_process';
+const { execSync } = require('child_process');
 
-export default (program) => {
+module.exports = (program) => {
     program
         .command('update')
         .description('Update AgentOS to the latest version')
         .action(async () => {
             const { intro, outro, spinner, log, note } = await import('@clack/prompts');
-            const chalk = (await import('chalk')).default;
+            const chalk = (await import('chalk')).default || require('chalk');
 
             console.clear();
             intro(chalk.cyan('🚀 AgentOS Update'));

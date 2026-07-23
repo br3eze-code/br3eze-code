@@ -3,10 +3,10 @@
  * Memory Store
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import yaml from 'js-yaml';
-import { Logger } from '../utils/logger.js';
+const fs = require('fs').promises;
+const path = require('path');
+const yaml = require('js-yaml');
+const { Logger } = require('../utils/logger');
 
 class MemoryStore {
   constructor(options = {}) {
@@ -164,5 +164,4 @@ class MemoryStore {
   }
 }
 
-export { MemoryStore };
-
+module.exports = { MemoryStore };

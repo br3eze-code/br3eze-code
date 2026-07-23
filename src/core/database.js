@@ -104,7 +104,7 @@ class Database {
 
     // ── Init ──────────────────────────────────────────────────────────────────
 
-    _init() {
+    async _init() {
         try {
             // Always initialize SQLite as the persistent local state
             const { getSQLite } = require('./sqlite-db');
@@ -538,6 +538,7 @@ class Database {
             const v = this._vouchers.get(code);
             if (v) { this._vouchers.set(code, { ...v, ...update }); this._saveLocal('vouchers'); }
         }
+    }
 
     async createVoucher(code, data = {}) {
             if (!data.plan && (!data.durationUnit || data.durationValue == null)) {

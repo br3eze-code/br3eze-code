@@ -1,33 +1,25 @@
 // src/core/memory/MemoryManager.js
 class MemoryManager {
   constructor(adapter = 'memory') {
-    this._adapterType = adapter;
-    this.adapter = null;
+    this.adapter = this.createAdapter(adapter);
   }
 
-  async createAdapter(type) {
-    let AdapterClass;
+  createAdapter(type) {
     switch (type) {
       case 'memory':
-        AdapterClass = (await import('./adapters/MemoryAdapter.js')).default;
-        break;
+        return new (require('./adapters/MemoryAdapter'))();
       case 'firebase':
-        AdapterClass = (await import('./adapters/FirebaseAdapter.js')).default;
-        break;
+        return new (require('./adapters/FirebaseAdapter'))();
       case 'redis':
-        AdapterClass = (await import('./adapters/RedisAdapter.js')).default;
-        break;
+        return new (require('./adapters/RedisAdapter'))();
       case 'sqlite':
-        AdapterClass = (await import('./adapters/SQLiteAdapter.js')).default;
-        break;
+        return new (require('./adapters/SQLiteAdapter'))();
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }
-    return new AdapterClass();
   }
 
   async initialize() {
-    this.adapter = await this.createAdapter(this._adapterType);
     return this.adapter.initialize();
   }
 
@@ -83,21 +75,6 @@ class MemoryManager {
   getStatus() {
     return this.adapter.getStatus();
   }
-
-  // ── Low-level KV passthrough ──────────────────────────────────────────
-  // Skills (e.g. tasks/index.js) are written against a direct get/set/push
-  // store interface, not the higher-level session/user methods above.
-  async get(key) {
-    return this.adapter.get(key);
-  }
-
-  async set(key, value, ttlSeconds = null) {
-    return this.adapter.set(key, value, ttlSeconds);
-  }
-
-  async push(key, value) {
-    return this.adapter.push(key, value);
-  }
 }
 
-export default MemoryManager;
+module.exports = MemoryManager;

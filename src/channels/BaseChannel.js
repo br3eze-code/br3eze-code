@@ -18,4 +18,4 @@ class BaseChannel {
   }
 }
 
-export { BaseChannel };
+module.exports = { BaseChannel };

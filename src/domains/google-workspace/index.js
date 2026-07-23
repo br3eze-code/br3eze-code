@@ -1,6 +1,6 @@
 // src/domains/google-workspace/index.js
-import BaseDomain from '../BaseDomain.js';
-import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
+const BaseDomain = require('../BaseDomain');
+const GoogleWorkspaceSkill = require('../../skills/google-workspace/index');
 
 class GoogleWorkspaceDomain extends BaseDomain {
   constructor(agentOS) {
@@ -28,4 +28,4 @@ class GoogleWorkspaceDomain extends BaseDomain {
   }
 }
 
-export default GoogleWorkspaceDomain;
+module.exports = GoogleWorkspaceDomain;

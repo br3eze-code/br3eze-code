@@ -1,8 +1,8 @@
-import os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+const os = require('os')
+const { exec } = require('child_process')
+const { promisify } = require('util')
 const execAsync = promisify(exec)
-import { BaseDriver } from '../base.js';
+const { BaseDriver } = require('../base.js')
 
 class SystemDriver extends BaseDriver {
   static id = 'system'
@@ -141,4 +141,4 @@ class SystemDriver extends BaseDriver {
   }
 }
 
-export default SystemDriver;
+module.exports = SystemDriver

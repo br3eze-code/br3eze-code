@@ -1,8 +1,8 @@
-import { EventEmitter } from 'events';
+const { EventEmitter } = require('events');
 // src/plugins/adapters/mikrotik-adapter.js
-import BaseAdapter from '../base-adapter.js';
-import { RouterOSClient } from 'routeros-client';
-import { Resource } from '../../core/resource-model.js';
+const BaseAdapter = require('../base-adapter');
+const { RouterOSClient } = require('routeros-client');
+const { Resource } = require('../../core/resource-model');
 
 class MikroTikAdapter extends BaseAdapter {
   constructor(config) {
@@ -121,4 +121,4 @@ class MikroTikAdapter extends BaseAdapter {
   }
 }
 
-export default MikroTikAdapter;
+module.exports = MikroTikAdapter;

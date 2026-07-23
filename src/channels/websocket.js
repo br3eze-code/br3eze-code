@@ -3,8 +3,8 @@
  * WebSocket Channel
  */
 
-import { BaseChannel } from './base.js';
-import { Logger } from '../utils/logger.js';
+const { BaseChannel } = require('./base');
+const { Logger } = require('../utils/logger');
 
 class WebSocketChannel extends BaseChannel {
   constructor(options = {}) {
@@ -54,5 +54,4 @@ class WebSocketChannel extends BaseChannel {
   }
 }
 
-export { WebSocketChannel };
-
+module.exports = { WebSocketChannel };

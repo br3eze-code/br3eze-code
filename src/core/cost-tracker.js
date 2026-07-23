@@ -1,3 +1,4 @@
+'use strict';
 /**
  * CostTracker — tracks LLM token usage and estimated costs.
  * Ported from 36.js §4
@@ -69,4 +70,4 @@ class CostTracker {
 // Singleton instance
 const costTracker = new CostTracker();
 
-export { CostTracker, costTracker };
+module.exports = { CostTracker, costTracker };

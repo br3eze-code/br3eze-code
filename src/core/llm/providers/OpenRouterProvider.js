@@ -1,9 +1,10 @@
+'use strict';
 /**
  * OpenRouter LLM Provider
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class OpenRouterProvider extends BaseProvider {
     static getMetadata() {
@@ -93,4 +94,4 @@ class OpenRouterProvider extends BaseProvider {
 }
 
 BaseProvider.register('openrouter', OpenRouterProvider);
-export { OpenRouterProvider };
+module.exports = { OpenRouterProvider };

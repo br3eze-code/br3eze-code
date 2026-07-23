@@ -1,8 +1,8 @@
-import { EventEmitter } from 'events';
+const { EventEmitter } = require('events');
 // src/plugins/adapters/aws-adapter.js
-import BaseAdapter from '../base-adapter.js';
-import { Resource } from '../../core/resource-model.js';
-import AWS from 'aws-sdk';
+const BaseAdapter = require('../base-adapter');
+const { Resource } = require('../../core/resource-model');
+const AWS = require('aws-sdk');
 
 class AWSAdapter extends BaseAdapter {
   constructor(config) {
@@ -77,4 +77,4 @@ class AWSAdapter extends BaseAdapter {
   // ... other AWS methods
 }
 
-export default AWSAdapter;
+module.exports = AWSAdapter;

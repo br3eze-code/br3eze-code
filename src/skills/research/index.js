@@ -1,10 +1,10 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs/promises';
-import pdf from 'pdf-parse';
-import cheerio from 'cheerio';
-import { BaseSkill } from '../base.js';
+const { exec } = require('child_process')
+const { promisify } = require('util')
+const path = require('path')
+const fs = require('fs/promises')
+const pdf = require('pdf-parse')
+const cheerio = require('cheerio')
+const { BaseSkill } = require('../base.js')
 
 const execAsync = promisify(exec)
 
@@ -245,4 +245,4 @@ Structure: Executive Summary, Key Findings, Analysis, Conclusion, References.`
   }
 }
 
-export default ResearchSkill;
+module.exports = ResearchSkill

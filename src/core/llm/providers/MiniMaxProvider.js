@@ -1,9 +1,10 @@
+'use strict';
 /**
  * MiniMax LLM Provider
  */
 
-import { BaseProvider } from './BaseProvider.js';
-import { logger } from '../../logger.js';
+const { BaseProvider } = require('./BaseProvider');
+const { logger } = require('../../logger');
 
 class MiniMaxProvider extends BaseProvider {
     static getMetadata() {
@@ -143,4 +144,4 @@ class MiniMaxProvider extends BaseProvider {
 }
 
 BaseProvider.register('minimax', MiniMaxProvider);
-export { MiniMaxProvider };
+module.exports = { MiniMaxProvider };

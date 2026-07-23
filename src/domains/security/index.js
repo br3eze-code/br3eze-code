@@ -1,5 +1,5 @@
 // src/domains/security/index.js
-import BaseDomain from '../BaseDomain.js';
+const BaseDomain = require('../BaseDomain');
 
 class SecurityDomain extends BaseDomain {
   constructor() {
@@ -37,4 +37,4 @@ class SecurityDomain extends BaseDomain {
   }
 }
 
-export default SecurityDomain;
+module.exports = SecurityDomain;

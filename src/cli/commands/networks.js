@@ -1,5 +1,3 @@
-import { getMikroTikClient } from '../../core/mikrotik.js';
-import { getDatabase } from '../../core/database.js';
 // ==========================================
 // AGENTOS NETWORK COMMAND
 // Network diagnostics — @clack/prompts edition
@@ -8,7 +6,7 @@ import { getDatabase } from '../../core/database.js';
 'use strict';
 
 
-export default (program) => {
+module.exports = (program) => {
   const network = program
     .command('network')
     .description('Network diagnostics and RouterOS tools')
@@ -24,6 +22,7 @@ export default (program) => {
       const s = spinner();
       s.start(`Pinging ${host}…`);
       try {
+        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const result   = await mikrotik.ping(host, parseInt(options.count) || 4);
         s.stop(`Ping complete — ${result.filter(r => r.received > 0).length}/${result.length} replies`);
@@ -48,6 +47,7 @@ export default (program) => {
       const s = spinner();
       s.start('Scanning DHCP leases…');
       try {
+        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const leases   = await mikrotik.getDhcpLeases();
         s.stop(`${leases.length} device(s) found`);
@@ -75,6 +75,7 @@ export default (program) => {
       const s = spinner();
       s.start(`Fetching ${options.type} rules…`);
       try {
+        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         const rules    = await mikrotik.getFirewallRules(options.type);
         s.stop(`${rules.length} ${options.type} rule(s)`);
@@ -103,6 +104,7 @@ export default (program) => {
       const s = spinner();
       s.start(`Blocking ${target}…`);
       try {
+        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         await mikrotik.addToBlockList(target, options.reason);
         s.stop(`${target} blocked`);
@@ -125,6 +127,7 @@ export default (program) => {
       const s = spinner();
       s.start(`Unblocking ${target}…`);
       try {
+        const { getMikroTikClient } = require('../../core/mikrotik');
         const mikrotik = await getMikroTikClient();
         await mikrotik.removeFromBlockList(target);
         s.stop(`${target} unblocked`);
@@ -145,6 +148,8 @@ export default (program) => {
       s.start('Fetching profiles from MikroTik…');
 
       try {
+        const { getMikroTikClient }  = require('../../core/mikrotik');
+        const { getDatabase }        = require('../../core/database');
 
         const mikrotik = await getMikroTikClient();
         const profiles = await mikrotik.getHotspotProfiles();

@@ -1,5 +1,5 @@
-import { BaseDriver } from '../base.js';
-import { logger } from '../../core/logger.js';
+const { BaseDriver } = require('../base.js');
+const { logger } = require('../../core/logger');
 
 class CodegenSkill extends BaseDriver {
   static id = 'codegen';
@@ -83,4 +83,4 @@ Target Hardware: ${board}`;
   }
 }
 
-export default CodegenSkill;
+module.exports = CodegenSkill;

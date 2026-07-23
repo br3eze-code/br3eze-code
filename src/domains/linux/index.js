@@ -1,6 +1,6 @@
-import BaseDomain from '../BaseDomain.js';
-import { exec } from 'child_process';
-import util from 'util';
+const BaseDomain = require('../BaseDomain');
+const { exec } = require('child_process');
+const util = require('util');
 const execAsync = util.promisify(exec);
 
 class LinuxDomain extends BaseDomain {
@@ -32,4 +32,4 @@ class LinuxDomain extends BaseDomain {
   }
 }
 
-export default LinuxDomain;
+module.exports = LinuxDomain;
