@@ -37,19 +37,31 @@ Two brains, one wired generically, one hardcoded, neither aware of the other. Ev
 fix has to be made twice or one path silently lags — which is exactly what happened:
 Dahua worked in Telegram chat weeks before it worked at all in `agentos ask`.
 
-## Orphaned domain: the shop
+## Orphaned domain: the shop — RESOLVED
 
-`src/core/shop.js` is a real, complete e-commerce backend — product catalog, per-chat
-cart, atomic checkout with stock decrement, invoices, Firebase-backed. It is currently:
+`src/core/shop.js` was a real, complete e-commerce backend (product catalog, per-chat
+cart, atomic checkout, invoices, Firebase-backed) sitting completely dead — ESM syntax
+in a CommonJS project, required by nothing. Since this was written it's been:
 
-- Written in ES module syntax (`import` / `export default`) in a project declared
-  `"type": "commonjs"` — it throws `SyntaxError: Cannot use import statement outside
-  a module` the moment anything tries to `require()` it.
-- Required by **nothing**. No skill, no tool map, no command references it.
-
-It's a fully-built domain sitting completely dead — can't load, can't be reached. This
-is the same class of problem `CLAUDE.md` already warns about elsewhere in the repo
-("many near-duplicate files coexist... rewritten multiple times in place").
+- Converted to CommonJS and wired as `src/skills/shop/` (`manifest.yaml` + `index.js`,
+  same shape as Dahua) — reasoning-accessible via both `ask-engine.js` and
+  `AICoordinator` with zero extra glue, confirmed live via `SkillRegistry.execute()`.
+- Extended: `card`/`cash` payment methods (settled immediately, no balance ledger),
+  PDF invoice/receipt generation (`src/core/invoice-pdf.js`, pdf-lib), an admin order
+  notifier broadcasting to Telegram/WhatsApp `allowed_ids` on every sale
+  (`src/core/order-notifier.js`), and a pluggable courier gateway
+  (`src/core/courier-gateway.js` + `src/core/couriers/{dhl,pargo,courier_guy}-provider.js`
+  — DHL tracking and the AfterShip-backed Courier Guy tracking are verified against
+  real public docs; Pargo and DHL shipment-creation are best-effort scaffolds, clearly
+  flagged `verified: false` in code, since their real API references weren't
+  reachable/public).
+- Reachable everywhere: CLI (`agentos shop`), REST (`/api/v1/shop/*`), web
+  (`/shop`, `/product/:id`, `/order/:id`), and chat (`/shop` on both Telegram and
+  WhatsApp, including inline buttons and on-demand invoice delivery).
+- Not yet resolved: the shared single-`workspace`-config limitation noted below
+  didn't end up mattering for shop (it doesn't consume workspace config at all), but
+  will still need addressing before some future skill that *does* need its own
+  workspace slice is added alongside Dahua and shop.
 
 ## What "domain agnostic" actually requires
 
@@ -66,10 +78,7 @@ every skill that exists, the way `AICoordinator` already is:
    handful for latency-sensitive, extremely common phrasings — but once Tier 3 is
    properly skill-aware, arbitrary phrasing should fall through to real reasoning
    instead of failing outright.
-3. **Fix or retire `shop.js`.** Either convert it to CommonJS and wire it as a proper
-   skill (`src/skills/shop/manifest.yaml` + `index.js`, same shape as Dahua) so both
-   AI paths pick it up automatically — or confirm it's abandoned and delete it. Right
-   now it's neither usable nor gone.
+3. ~~Fix or retire `shop.js`.~~ **Done** — see "Orphaned domain: the shop" above.
 4. **Long-term: pick one brain.** Either make `ask-engine.js`'s CLI/REST path delegate
    to the same `AICoordinator` instance the chat channels use, or keep them
    architecturally separate but force both to read tool definitions from the same
@@ -84,7 +93,6 @@ every skill that exists, the way `AICoordinator` already is:
   correct standard protocol (Recording/Search/Replay services) for real video clip
   retrieval — current admin credentials are rejected specifically for ONVIF, which
   is typically a separate toggle/account under Setup → Network → ONVIF.
-- **A decision on `shop.js`** — finish wiring it as a real skill, or delete it.
 
 ## Progress
 
@@ -106,6 +114,11 @@ every skill that exists, the way `AICoordinator` already is:
     while the LLM keys are down. Once a key is fixed and this path is confirmed
     working end-to-end with a real model call, those shortcuts become redundant and
     can be removed.
+- [x] **Step 3 done.** `shop.js` fixed and wired as a real skill — see "Orphaned
+  domain: the shop" above for the full scope (checkout methods, PDFs, courier
+  gateway, admin notifications, every channel). Confirmed live via
+  `SkillRegistry.execute('shop', ...)` and the running gateway's `/api/v1/shop/*`
+  routes — same verification method used for step 1.
 
 ## Remaining next steps, in order
 
@@ -114,5 +127,16 @@ every skill that exists, the way `AICoordinator` already is:
    generate-with-tools round trip isn't, since both keys are currently down).
 2. Remove the Dahua-specific Tier 2 regexes once step 1 is confirmed — they're
    redundant once Tier 3 covers the same ground for real, for any domain.
-3. Resolve `shop.js`'s fate (wire it in, or remove it) so it's no longer a landmine
-   for the next person who greps for "shop" and assumes it works.
+3. ~~Resolve `shop.js`'s fate.~~ **Done.**
+4. Get real credentials for the Pargo and DHL courier adapters (shipment creation)
+   and verify the payload shapes against their actual current API references — both
+   are best-effort scaffolds right now, not confirmed against live docs.
+5. Decide whether `www/index.html`'s dashboard (Firestore-direct) and `server/`'s
+   captive-portal backend (separate Express app, deployed as the real Firebase
+   Function serving `br3eze.africa/api/**`) should stay two separate systems long
+   term, or converge — see the two real issues found while building the forgot-
+   password flow: `server/src/routes/auth.js`'s `/email` route never verifies the
+   password it's given, and Firestore's `users` collection rule requires
+   `isAuthenticated()` for any read, which likely already breaks username-based
+   (not email-based) login in `07.auth.js`. Neither was touched — both need your
+   call, not a silent fix.

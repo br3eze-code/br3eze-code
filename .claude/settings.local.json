@@ -44,7 +44,11 @@
       "Bash(curl -s -o /dev/null -w \"gateway still healthy: %{http_code}\\\\n\" http://localhost:19876/health)",
       "WebSearch",
       "WebFetch(domain:developer.dhl.com)",
-      "WebFetch(domain:www.aftership.com)"
+      "WebFetch(domain:www.aftership.com)",
+      "Bash(curl -s -o /dev/null -w \"gateway health after more wait: %{http_code}\\\\n\" http://localhost:19876/health --max-time 5)",
+      "Bash(curl -s -H 'Authorization: Bearer __CMDSUB_OUTPUT__' http://localhost:19876/api/v1/shop/couriers)",
+      "Bash(curl -s -X POST -H 'Authorization: Bearer __CMDSUB_OUTPUT__' -H 'Content-Type: application/json' -d '{\"provider\":\"dhl\"}' http://localhost:19876/api/v1/shop/orders/xyz/ship)",
+      "Bash(curl -s -H 'Authorization: Bearer __CMDSUB_OUTPUT__' http://localhost:19876/api/v1/shop/orders/xyz/track)"
     ]
   }
 }
