@@ -1,5 +1,5 @@
 import express from 'express';
-import shop from '../../core/shop.js';
+import * as shop from '../../core/shop.js';
 import { generateOrderPdf } from '../../core/invoice-pdf.js';
 import { logger } from '../../core/logger.js';
 

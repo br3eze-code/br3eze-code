@@ -18,7 +18,7 @@ class AICoordinator extends EventEmitter {
     super();
     this.config = config;
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    this.skillRegistry = new (require('../core/skills/SkillRegistry'))();
+    this.skillRegistry = new (require('../core/skills/SkillRegistry').default)();
     this.qnap = new QNAPProcessor();
     this.conversationContext = new Map(); // Context per user
     this.toolRegistry = new Map();

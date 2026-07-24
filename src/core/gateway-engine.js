@@ -587,7 +587,7 @@ class Gateway extends EventEmitter {
     }
 
     // ── Shop ─────────────────────────────────────────────────────────────────
-    this.app.use('/api/v1/shop', require('../api/routes/shop'));
+    this.app.use('/api/v1/shop', require('../api/routes/shop').default);
 
     this.app.use((err, req, res, next) => {
       logger.error('Express error:', err);

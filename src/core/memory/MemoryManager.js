@@ -11,7 +11,7 @@ class MemoryManager {
   createAdapter(type) {
     switch (type) {
       case 'memory':
-        return new (require('./adapters/MemoryAdapter'))();
+        return new (require('./adapters/MemoryAdapter').default)();
       case 'firebase':
         return new (require('./adapters/FirebaseAdapter'))();
       case 'redis':

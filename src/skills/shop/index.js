@@ -1,5 +1,5 @@
 import { BaseSkill } from '../base.js';
-import shop from '../../core/shop.js';
+import * as shop from '../../core/shop.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
