@@ -88,6 +88,7 @@ require('./src/cli/commands/status')(program);
 require('./src/cli/commands/dashboard')(program);
 require('./src/cli/commands/skill')(program);
 require('./src/cli/commands/dahua')(program);
+require('./src/cli/commands/shop')(program);
 require('./src/cli/commands/wacli')(program);
 require('./src/cli/commands/telegram')(program);
 require('./src/cli/commands/google')(program);

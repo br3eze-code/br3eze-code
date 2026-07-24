@@ -440,6 +440,7 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/help/, this._rl(this._handleHelp.bind(this)));
         this.bot.onText(/\/pay(?:\s+(.+))?/, this._rl(this._handlePay.bind(this)));
         this.bot.onText(/\/dahua(?:\s+(.+))?/, this._rl(this._handleDahua.bind(this)));
+        this.bot.onText(/\/shop(?:\s+(.+))?/, this._rl(this._handleShop.bind(this)));
         this.bot.onText(/\/claim/, this._rl(this._handleClaim.bind(this)));
         this.bot.onText(/\/token/, this._rl(this._handleToken.bind(this)));
         this.bot.onText(/\/ask\s+(.+)/, this._rl(this._handleAsk.bind(this)));
@@ -1522,6 +1523,9 @@ class TelegramChannel extends BaseChannel {
             case 'dahua':
                 await this._handleDahuaCallback(chatId, action, extra, messageId, query);
                 break;
+            case 'shop':
+                await this._handleShopCallback(chatId, action, extra, messageId, query);
+                break;
         }
     }
 
@@ -1593,6 +1597,131 @@ class TelegramChannel extends BaseChannel {
             logger.error(`TelegramChannel dahua callback (${action}): ${err.message}`);
             await this.bot.sendMessage(chatId, `Error: ${err.message}`);
         }
+    }
+
+    async _handleShop(msg, match) {
+        const chatId = msg.chat.id;
+        const args = match?.[1]?.trim().split(/\s+/) || [];
+        const action = args[0] || 'list';
+        const toolCtx = { userId: msg._uid || msg.from.id, channel: 'telegram' };
+
+        try {
+            if (!this.agent) throw new Error('Agent not initialized');
+
+            if (action === 'list') {
+                const products = await this.agent.executeTool('shop.list_products', { search: args.slice(1).join(' ') || undefined }, toolCtx);
+                if (!products.length) return this.bot.sendMessage(chatId, '🛍️ No products found.');
+                for (const p of products.slice(0, 20)) {
+                    const reply_markup = { inline_keyboard: [
+                        [
+                            { text: '🛒 Add to cart', callback_data: `shop:add:${p.id}` },
+                            { text: 'ℹ️ Details', callback_data: `shop:view:${p.id}` }
+                        ],
+                        [{ text: '🔗 View in browser', url: p.url }]
+                    ] };
+                    await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : 'sold out'}`, { parse_mode: 'Markdown', reply_markup });
+                }
+            } else if (action === 'product') {
+                const p = await this.agent.executeTool('shop.get_product', { productRef: args[1] }, toolCtx);
+                if (!p) return this.bot.sendMessage(chatId, `❌ No product matching "${args[1]}".`);
+                await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price}\n${p.description || ''}\n${p.stock > 0 ? `${p.stock} in stock` : 'Sold out'}\n🔗 ${p.url}`, { parse_mode: 'Markdown' });
+            } else if (action === 'cart') {
+                const items = await this.agent.executeTool('shop.view_cart', { platform: 'telegram', channelId: chatId }, toolCtx);
+                if (!items.length) return this.bot.sendMessage(chatId, '🛒 Your cart is empty.');
+                const lines = items.map(i => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ''} — $${(i.price * i.qty).toFixed(2)}`);
+                const reply_markup = { inline_keyboard: [[{ text: '✅ Checkout', callback_data: 'shop:checkout:' }]] };
+                await this.bot.sendMessage(chatId, `🛒 *Your Cart*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup });
+            } else if (action === 'add') {
+                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: args[1], size: args[2] }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart.`);
+            } else if (action === 'remove') {
+                await this.agent.executeTool('shop.remove_from_cart', { platform: 'telegram', channelId: chatId, keyOrProductId: args[1] }, toolCtx);
+                await this.bot.sendMessage(chatId, '🗑️ Removed from cart.');
+            } else if (action === 'checkout') {
+                const result = await this.agent.executeTool('shop.checkout', { platform: 'telegram', channelId: chatId, payMethod: args[1] || 'cod' }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Order placed! Invoice ${result.invoiceNumber}\nTotal: $${result.total.toFixed(2)}\n🔗 ${result.url}`);
+                await this._sendOrderPdf(chatId, result.orderId).catch(e => logger.warn(`TelegramChannel: failed to send order PDF: ${e.message}`));
+            } else if (action === 'invoice') {
+                const orderId = args[1];
+                if (!orderId) return this.bot.sendMessage(chatId, '❌ Usage: /shop invoice <orderId> [email]');
+                if (args[2] === 'email') {
+                    await this._emailOrderPdf(chatId, orderId, toolCtx);
+                } else {
+                    await this._sendOrderPdf(chatId, orderId);
+                }
+            } else {
+                await this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice.`);
+            }
+        } catch (err) {
+            logger.error('TelegramChannel Shop error:', err);
+            await this.bot.sendMessage(chatId, `❌ Shop error: ${err.message}`);
+        }
+    }
+
+    async _handleShopCallback(chatId, action, extra, _messageId, query) {
+        const toolCtx = { userId: query?._uid || chatId, channel: 'telegram' };
+        try {
+            if (action === 'view') {
+                const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);
+                if (!p) return this.bot.sendMessage(chatId, '❌ Product not found.');
+                await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price}\n${p.description || ''}\n${p.stock > 0 ? `${p.stock} in stock` : 'Sold out'}\n🔗 ${p.url}`, { parse_mode: 'Markdown' });
+            } else if (action === 'add') {
+                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: extra }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart. Send /shop cart to review.`);
+            } else if (action === 'checkout') {
+                const result = await this.agent.executeTool('shop.checkout', { platform: 'telegram', channelId: chatId, payMethod: 'cod' }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Order placed! Invoice ${result.invoiceNumber}\nTotal: $${result.total.toFixed(2)}\n🔗 ${result.url}`);
+                await this._sendOrderPdf(chatId, result.orderId).catch(e => logger.warn(`TelegramChannel: failed to send order PDF: ${e.message}`));
+            }
+        } catch (err) {
+            logger.error(`TelegramChannel shop callback (${action}): ${err.message}`);
+            await this.bot.sendMessage(chatId, `Error: ${err.message}`);
+        }
+    }
+
+    /** Generates and sends an order's invoice (cod) or receipt (paid) PDF as a document. */
+    async _sendOrderPdf(chatId, orderId, caption) {
+        const shop = require('../shop');
+        const { generateOrderPdf } = require('../invoice-pdf');
+        const order = await shop.getOrder(orderId);
+        if (!order) { await this.bot.sendMessage(chatId, '❌ Order not found.'); return; }
+        const label = order.status === 'paid' ? 'Receipt' : 'Invoice';
+        const pdf = await generateOrderPdf({ ...order, orderId: order.id });
+        await this.bot.sendDocument(
+            chatId, pdf,
+            { caption: caption || `${label} ${order.invoiceNumber}` },
+            { filename: `${order.invoiceNumber || order.id}.pdf`, contentType: 'application/pdf' }
+        );
+    }
+
+    /** Emails an order's invoice/receipt PDF to the caller's linked email address. */
+    async _emailOrderPdf(chatId, orderId, toolCtx) {
+        const shop = require('../shop');
+        const { generateOrderPdf } = require('../invoice-pdf');
+        const { getDatabase } = require('../database');
+        const db = await getDatabase();
+
+        const order = await shop.getOrder(orderId);
+        if (!order) return this.bot.sendMessage(chatId, '❌ Order not found.');
+
+        const userDoc = toolCtx.userId ? await db.getUser(toolCtx.userId).catch(() => null) : null;
+        const email = userDoc?.email;
+        if (!email) {
+            return this.bot.sendMessage(chatId, '❌ No linked email on file. Use `/link your@email.com` first.', { parse_mode: 'Markdown' });
+        }
+
+        const channelManager = global.gateway?.channelManager;
+        const emailChannel = channelManager?.channels?.get('email');
+        if (!emailChannel) return this.bot.sendMessage(chatId, '❌ Email delivery is not configured on this gateway.');
+
+        const label = order.status === 'paid' ? 'Receipt' : 'Invoice';
+        const pdf = await generateOrderPdf({ ...order, orderId: order.id });
+        await emailChannel.send(email, {
+            subject: `${label} ${order.invoiceNumber}`,
+            text: `Your ${label.toLowerCase()} for order ${order.invoiceNumber} is attached.`,
+            attachments: [{ filename: `${order.invoiceNumber || order.id}.pdf`, content: pdf }],
+        });
+        await this.bot.sendMessage(chatId, `✅ Sent to ${email}.`);
     }
 
     async _handlePrintCallback(chatId, code, messageId) {

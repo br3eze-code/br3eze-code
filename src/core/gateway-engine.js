@@ -121,6 +121,11 @@ class Gateway extends EventEmitter {
     // Serve static frontend files from www/
     this.app.use(express.static(path.join(process.cwd(), 'www')));
 
+    // Shop pages — express.static alone won't route a path param to a fixed shell
+    this.app.get('/shop', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'shop.html')));
+    this.app.get('/product/:id', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'product.html')));
+    this.app.get('/order/:id', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'order.html')));
+
     // ── Health ────────────────────────────────────────────────────────────────
     this.app.get('/health', (req, res) => {
       res.json({
@@ -184,17 +189,27 @@ class Gateway extends EventEmitter {
 
     // ── Bearer token middleware for /api routes ────────────────────────────────
     // Accepts: Authorization: Bearer <token>  OR  x-gateway-token: <token>
-    this.app.use('/api', (req, res, next) => {
+    // OR a real Firebase ID token, which resolves to req.firebaseUser = {uid, email, role}.
+    this.app.use('/api', async (req, res, next) => {
       const token = this.config.token;
-      if (!token) return next(); // No token configured — open access
       const auth = req.headers['authorization'] || '';
       const bearerToken = auth.startsWith('Bearer ') ? auth.slice(7) : null;
       const headerToken = req.headers['x-gateway-token'] || null;
       const provided = bearerToken || headerToken;
-      if (provided !== token) {
-        return res.status(401).json({ error: 'Unauthorized — invalid or missing Bearer token' });
+
+      if (token && provided === token) return next(); // shared-secret path unchanged
+
+      if (bearerToken) {
+        const { verifyFirebaseIdToken } = require('./firebase-auth');
+        const firebaseUser = await verifyFirebaseIdToken(bearerToken);
+        if (firebaseUser) {
+          req.firebaseUser = firebaseUser;
+          return next();
+        }
       }
-      next();
+
+      if (!token) return next(); // No shared token configured AND no valid Firebase user — keep existing open-access fallback
+      return res.status(401).json({ error: 'Unauthorized — invalid or missing Bearer token' });
     });
 
     // ── SSE streaming /ask ────────────────────────────────────────────────────
@@ -203,10 +218,12 @@ class Gateway extends EventEmitter {
       if (!prompt) return res.status(400).json({ error: 'prompt required' });
       if (!this.askEngine) return res.status(503).json({ error: 'AskEngine not initialized' });
 
+      const askContext = { userId: req.firebaseUser?.uid, role: req.firebaseUser?.role, channel: 'rest' };
+
       if (wantStream) {
         res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
         try {
-          for await (const ev of this.askEngine.stream(prompt)) {
+          for await (const ev of this.askEngine.stream(prompt, askContext)) {
             res.write(`data: ${JSON.stringify(ev)}\n\n`);
           }
         } catch (e) {
@@ -215,7 +232,7 @@ class Gateway extends EventEmitter {
         res.end();
       } else {
         try {
-          const result = await this.askEngine.run(prompt);
+          const result = await this.askEngine.run(prompt, askContext);
           res.json({ ok: true, ...result });
         } catch (e) {
           res.status(500).json({ error: e.message });
@@ -437,6 +454,9 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/users/:id/memory', async (req, res) => {
       try {
+        if (req.firebaseUser && req.firebaseUser.role !== 'admin' && req.firebaseUser.uid !== req.params.id) {
+          return res.status(403).json({ error: 'Forbidden — you may only read your own memory' });
+        }
         if (!global.memoryManager) return res.status(503).json({ error: 'Memory service not ready' });
         const history = await global.memoryManager.adapter.get(`user:${req.params.id}:history`) || [];
         const context = await global.memoryManager.getUserContext(req.params.id);
@@ -446,6 +466,9 @@ class Gateway extends EventEmitter {
 
     this.app.post('/api/v1/users/:id/permissions', async (req, res) => {
       try {
+        if (req.firebaseUser && req.firebaseUser.role !== 'admin') {
+          return res.status(403).json({ error: 'Forbidden — admin role required' });
+        }
         if (!global.memoryManager) return res.status(503).json({ error: 'Memory service not ready' });
         const { permissions } = req.body;
         if (!Array.isArray(permissions)) return res.status(400).json({ error: 'permissions must be an array' });
@@ -558,6 +581,9 @@ class Gateway extends EventEmitter {
     } catch (e) {
       logger.warn('MobileBridge not available:', e.message);
     }
+
+    // ── Shop ─────────────────────────────────────────────────────────────────
+    this.app.use('/api/v1/shop', require('../api/routes/shop'));
 
     this.app.use((err, req, res, next) => {
       logger.error('Express error:', err);
