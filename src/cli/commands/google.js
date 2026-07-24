@@ -6,7 +6,8 @@
 'use strict';
 
 import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
-import { getGateway } from '../../core/gateway-engine.js';
+import { getConfig } from '../../core/config.js';
+import { logger } from '../../core/logger.js';
 
 export default (program) => {
   const googleCmd = program
@@ -15,8 +16,7 @@ export default (program) => {
 
   // ── Helper: build skill instance ──────────────────────────────────────────
   const buildSkill = async () => {
-    const gateway = await getGateway();
-    return new GoogleWorkspaceSkill(gateway.config, gateway.logger, gateway.workspace);
+    return new GoogleWorkspaceSkill(getConfig(), logger);
   };
 
   // ── google list-docs ──────────────────────────────────────────────────────

@@ -1894,6 +1894,8 @@ async function testConnection(config = null) {
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 export { MikroTikManager, MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager, testConnection };
+export const getMikroTikClient = getManager;
+export const testMikroTikConnection = testConnection;
 export default {
     // Classes
     MikroTikManager,

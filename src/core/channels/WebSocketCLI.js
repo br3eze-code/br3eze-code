@@ -4,7 +4,7 @@ import { logger } from '../logger.js';
 import { getConfig } from '../config.js';
 import { getMikroTikClient } from '../mikrotik.js';
 import { getDatabase } from '../database.js';
-import { generate as voucherCode } from '../voucher.js';
+import voucherAgent from '../voucher.js';
 import { DEFAULT_PLANS } from '../database.js';
 
 /**
@@ -245,7 +245,7 @@ class WebSocketCLI {
     async cmdVoucher([plan, duration]) {
         if (!plan) { this._out({ type: 'error', message: 'Usage: voucher <plan> [duration]' }); return; }
         try {
-            const code = voucherCode();
+            const code = voucherAgent.generate();
             const db = await getDatabase();
             const mikrotik = getMikroTikClient();
             

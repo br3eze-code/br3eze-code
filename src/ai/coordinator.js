@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { getDatabase, DEFAULT_PLANS } from '../core/database.js';
 import voucherAgent from '../core/voucher.js';
 import QRCode from 'qrcode';
-import { getUserSandbox } from './userSandbox.js';
+import { getUserSandbox } from '../core/userSandbox.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

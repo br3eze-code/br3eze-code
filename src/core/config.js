@@ -20,6 +20,13 @@ const BRAND = {
     tagline: 'Network Intelligence, Simplified'
 };
 
+// Default captive-portal DNS name used as the login-URL fallback when a
+// connected router's own host/IP isn't known yet. Provisioned onto routers
+// via src/core/onboard.js's RouterOS sentinel script (dns-name=...). This
+// used to be the literal string 'br3eze.africa' copy-pasted across 13
+// files — one constant now, overridable per-deployment via env.
+const DEFAULT_LOGIN_DOMAIN = process.env.AGENTOS_LOGIN_DOMAIN || 'br3eze.africa';
+
 function getProfileDir() {
     const profile = process.env.AGENTOS_PROFILE ||
         (process.argv.includes('--dev') ? 'dev' : 'default');
@@ -297,13 +304,14 @@ function getConfig() {
     return loaded;
 }
 
-export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, DEFAULT_LOGIN_DOMAIN, loadConfig, saveConfig, getConfig };
 export default {
     BRAND,
     PROFILE_DIR,
     CONFIG_PATH,
     STATE_PATH,
     DEFAULT_CONFIG,
+    DEFAULT_LOGIN_DOMAIN,
     loadConfig,
     saveConfig,
     getConfig,

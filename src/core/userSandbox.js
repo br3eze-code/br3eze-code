@@ -327,4 +327,5 @@ function getUserSandbox(opts) {
   return _instance;
 }
 
+export { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
 export default { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
