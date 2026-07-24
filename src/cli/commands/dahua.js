@@ -271,7 +271,8 @@ module.exports = (program) => {
         const skill = getSkill();
         const result = await skill.execute('dahua.events.summarize', { query, device: options.device });
         s.stop(`Answered via ${result.provider || 'n/a'}`);
-        note(result.summary, '🤖 Summary');
+        const confLine = result.confidence !== null && result.confidence !== undefined ? `\n\nConfidence: ${result.confidence}%` : '';
+        note(result.summary + confLine, '🤖 Summary');
         outro('Done.');
       } catch (e) {
         s.stop(`Failed: ${e.message}`);
@@ -294,7 +295,8 @@ module.exports = (program) => {
         const skill = getSkill();
         const result = await skill.execute('dahua.scene.describe', { device: options.device, channel: Number(options.channel) });
         s.stop(`Described via ${result.provider}`);
-        note(result.summary, `👁️  ${result.device} — Channel ${result.channel}`);
+        const confLine = result.confidence !== null && result.confidence !== undefined ? `\n\nConfidence: ${result.confidence}%` : '';
+        note(result.summary + confLine, `👁️  ${result.device} — Channel ${result.channel}`);
         outro('Done.');
       } catch (e) {
         s.stop(`Failed: ${e.message}`);

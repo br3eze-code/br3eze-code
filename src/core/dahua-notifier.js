@@ -142,14 +142,14 @@ class DahuaNotifier {
     const label = dev.name || deviceId;
     const ch = ev.channel || 1;
     const ts = new Date().toLocaleString();
-    const rtspAuth = `${encodeURIComponent(dev.user)}:${encodeURIComponent(dev.password)}`;
-    const streamUrl = `rtsp://${rtspAuth}@${dev.host}:${dev.rtspPort || 554}/cgi-bin/realmonitor?channel=${ch}&subtype=0`;
 
+    // No credentials in the caption — every alert used to embed the raw rtsp://user:pass@
+    // URL in plain visible text, which is how it ended up exposed. The "📡 Stream URL"
+    // button (below) fetches it on demand instead, spoiler-hidden (see _handleDahuaCallback).
     const caption = [
       `🚨 *Security Alert — ${label}*`,
       `⚡ *${ev.code}*${ev.channel ? ` · Ch ${ch}` : ''}`,
-      `🕐 ${ts}`,
-      `📡 Stream: \`${streamUrl}\``
+      `🕐 ${ts}`
     ].join('\n');
 
     logger.info(`DahuaNotifier: [${label}] ${ev.code} ch${ch}`);

@@ -19,6 +19,15 @@ const { BRAND } = require('../config');
 
 const { acquireBotLock, releaseBotLock, LOCK_FILE } = require('../../utils/bot-lock');
 
+/** Minimal escaping for Telegram's HTML parse_mode — only &, <, > are special there. */
+function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Wraps credential-bearing text (e.g. rtsp://user:pass@host/...) so it isn't visible until tapped. */
+function spoiler(s) {
+    return `<tg-spoiler>${escapeHtml(s)}</tg-spoiler>`;
+}
 
 class TelegramChannel extends BaseChannel {
     static getMetadata() {
@@ -1048,14 +1057,16 @@ class TelegramChannel extends BaseChannel {
                 const text = `✅ *Channels*\n\n` + result.map(c => `${c.channel}. ${c.name}`).join('\n');
                 await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown' });
             } else if (action === 'stream') {
-                await this.bot.sendMessage(chatId, `🎥 *Live Stream (channel ${result.channel})*\n\nMain: \`${result.main}\`\nSub: \`${result.sub}\`\n\n_Open with VLC or an RTSP-capable player._`, { parse_mode: 'Markdown' });
+                await this.bot.sendMessage(chatId, `🎥 <b>Live Stream (channel ${result.channel})</b>\n\nMain: ${spoiler(result.main)}\nSub: ${spoiler(result.sub)}\n\n<i>Tap to reveal, then open with VLC or an RTSP-capable player.</i>`, { parse_mode: 'HTML' });
             } else if (action === 'search') {
                 const lines = result.events.map(e => `${e.time}  [${e.device}]  ${e.code}${e.channel ? ` ch${e.channel}` : ''}`);
                 await this.bot.sendMessage(chatId, `🔍 *${result.count} event(s)*${result.truncated ? ' (showing most recent 100)' : ''}\n\n${lines.join('\n') || 'Nothing found.'}`, { parse_mode: 'Markdown' });
             } else if (action === 'summarize' || action === 'ask') {
-                await this.bot.sendMessage(chatId, `🤖 *Summary* _(via ${result.provider || 'n/a'})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
+                const conf = (result.confidence ?? null) !== null ? ` · confidence ${result.confidence}%` : '';
+                await this.bot.sendMessage(chatId, `🤖 *Summary* _(via ${result.provider || 'n/a'}${conf})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
             } else if (action === 'describe') {
-                await this.bot.sendMessage(chatId, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
+                const conf = (result.confidence ?? null) !== null ? ` · confidence ${result.confidence}%` : '';
+                await this.bot.sendMessage(chatId, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider}${conf})_\n\n${result.summary}`, { parse_mode: 'Markdown' });
             } else {
                 await this.bot.sendMessage(chatId, `✅ Success:\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``, { parse_mode: 'Markdown' });
             }
@@ -1527,7 +1538,7 @@ class TelegramChannel extends BaseChannel {
                 else await this.bot.sendMessage(chatId, 'No snapshot data.');
             } else if (action === 'stream') {
                 const r = await this.agent.executeTool('dahua.stream.url', { device: deviceId, channel: ch }, toolCtx);
-                await this.bot.sendMessage(chatId, `*Stream ${deviceId} ch${ch}*\nMain: \`${r.main}\`\nSub: \`${r.sub}\`\nOpen with VLC.`, { parse_mode: 'Markdown' });
+                await this.bot.sendMessage(chatId, `🎥 <b>Stream ${escapeHtml(deviceId)} ch${ch}</b>\nMain: ${spoiler(r.main)}\nSub: ${spoiler(r.sub)}\n<i>Tap to reveal, then open with VLC.</i>`, { parse_mode: 'HTML' });
             } else if (action === 'snapall') {
                 const rs = await this.agent.executeTool('dahua.snapshot.getAll', { device: deviceId }, toolCtx);
                 for (const s of rs) {

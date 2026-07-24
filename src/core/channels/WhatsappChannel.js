@@ -1212,7 +1212,7 @@ class WhatsAppChannel extends BaseChannel {
       );
       await this.send(
         jid,
-        `🎥 *Live Stream (channel ${result.channel})*\n\nMain: ${result.main}\nSub: ${result.sub}\n\nOpen with VLC or an RTSP-capable player.`,
+        `🎥 *Live Stream (channel ${result.channel})*\n\nMain: ||${result.main}||\nSub: ||${result.sub}||\n\nTap to reveal, then open with VLC or an RTSP-capable player.`,
       );
     } else if (action === "reboot") {
       const result = await this.agent.executeTool(
@@ -1239,11 +1239,13 @@ class WhatsAppChannel extends BaseChannel {
     } else if (action === "summarize" || action === "ask") {
       const query = args.slice(2).join(" ");
       const result = await this.agent.executeTool("dahua.events.summarize", { query }, context);
-      await this.send(jid, `🤖 *Summary* _(via ${result.provider || "n/a"})_\n\n${result.summary}`);
+      const conf = (result.confidence ?? null) !== null ? ` · confidence ${result.confidence}%` : "";
+      await this.send(jid, `🤖 *Summary* _(via ${result.provider || "n/a"}${conf})_\n\n${result.summary}`);
     } else if (action === "describe") {
       const channel = Number(args[3] || args[2]) || 1;
       const result = await this.agent.executeTool("dahua.scene.describe", { device, channel }, context);
-      await this.send(jid, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider})_\n\n${result.summary}`);
+      const conf = (result.confidence ?? null) !== null ? ` · confidence ${result.confidence}%` : "";
+      await this.send(jid, `👁️ *${result.device} — Channel ${result.channel}* _(via ${result.provider}${conf})_\n\n${result.summary}`);
     } else {
       await this.send(
         jid,

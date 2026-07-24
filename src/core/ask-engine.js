@@ -184,6 +184,100 @@ class AskEngine {
         this._toolMap = { ...TOOL_MAP };
         this._declarations = FUNCTION_DECLARATIONS;
         this._dahua = undefined; // lazy — see _dahuaSkill()
+        this._registry = undefined; // lazy — see _skillRegistry()
+        this._skillDeclarations = null;
+        this._skillToolMap = null;
+    }
+
+    /**
+     * Generic bridge to *any* skill, instead of hand-writing a "manage_X" function +
+     * dispatch block per domain (the pattern above this comment — doesn't scale, and
+     * is exactly why Dahua needed its own Tier-2 regex rules earlier: Tier 3 had no
+     * idea it existed). Loads every skill via the same SkillRegistry mechanism
+     * src/ai/coordinator.js already uses for Telegram/WhatsApp, so a new skill with a
+     * manifest.yaml becomes reasoning-accessible here automatically, with zero new
+     * code in this file. See AGENT_ROADMAP.md.
+     */
+    async _skillRegistry() {
+        if (this._registry !== undefined) return this._registry;
+        try {
+            const path = require('path');
+            const fs = require('fs');
+            const { CONFIG_PATH } = require('./config');
+            const SkillRegistry = require('./skills/SkillRegistry');
+            const registry = new SkillRegistry();
+            const skillsPath = path.join(__dirname, '../skills');
+            let workspace = {};
+            if (fs.existsSync(CONFIG_PATH)) {
+                const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+                workspace = config.adapters?.cctv || {};
+            }
+            await registry.loadFromDirectory(skillsPath, { workspace });
+            this._registry = registry;
+        } catch (e) {
+            logger.warn(`AskEngine: failed to load SkillRegistry: ${e.message}`);
+            this._registry = null;
+        }
+        return this._registry;
+    }
+
+    /**
+     * Turns every loaded skill's declared tools into Gemini function declarations.
+     * Handles both manifest.yaml's array-style parameters and a skill class's static
+     * getTools() JSON-schema style — Dahua's manifest currently carries both (a known
+     * duplication, see AGENT_ROADMAP.md) so this accepts either shape defensively.
+     * Cached after first call; safe to call repeatedly.
+     */
+    async _skillFunctionDeclarations() {
+        const registry = await this._skillRegistry();
+        if (!registry) return [];
+        if (this._skillDeclarations) return this._skillDeclarations;
+
+        const declarations = [];
+        this._skillToolMap = new Map(); // generatedName -> { skillName, toolName }
+
+        for (const manifest of registry.list()) {
+            const tools = manifest.tools;
+            if (!tools) continue;
+            const entries = Array.isArray(tools) ? tools.map(t => [t.name, t]) : Object.entries(tools);
+
+            for (const [toolName, tool] of entries) {
+                if (!toolName) continue;
+                const genName = toolName.replace(/[^a-zA-Z0-9_]/g, '__');
+                const properties = {};
+                const required = [];
+
+                if (Array.isArray(tool.parameters)) {
+                    // manifest.yaml array style: [{name, type, required, description}]
+                    for (const p of tool.parameters) {
+                        properties[p.name] = { type: p.type === 'number' ? 'number' : 'string', description: p.description };
+                        if (p.required) required.push(p.name);
+                    }
+                } else if (tool.parameters?.properties) {
+                    // static getTools() JSON-schema style: {type, properties, required}
+                    for (const [pname, pdef] of Object.entries(tool.parameters.properties)) {
+                        properties[pname] = { type: pdef.type === 'number' ? 'number' : 'string', description: pdef.description };
+                    }
+                    if (Array.isArray(tool.parameters.required)) required.push(...tool.parameters.required);
+                }
+
+                declarations.push({
+                    name: genName,
+                    description: tool.description || `Call ${toolName}`,
+                    parameters: { type: 'object', properties, required }
+                });
+                this._skillToolMap.set(genName, { skillName: manifest.name, toolName });
+            }
+        }
+
+        this._skillDeclarations = declarations;
+        return declarations;
+    }
+
+    /** Static MikroTik/voucher/user/finance declarations + everything every loaded skill declares. */
+    async _allDeclarations() {
+        const dynamic = await this._skillFunctionDeclarations();
+        return [...this._declarations, ...dynamic];
     }
 
     /**
@@ -421,6 +515,33 @@ class AskEngine {
             }
 
             // "is anyone at shop2", "what's happening at shop1", "events for shop2"
+            // "summarize what happened at shop2 yesterday" — routes to the AI-written
+            // summary. The routing itself needs no AI; dahua.events.summarize handles
+            // its own Gemini/Claude fallback and throws a clear error if both are down.
+            if (/summar(y|ize|ise)|what happened/.test(lower)) {
+                const device = dahuaIds.find(id => lower.includes(id));
+                if (device) {
+                    return async () => {
+                        const result = await this._dahuaSkill().execute('dahua.events.summarize', { query: input, device });
+                        const conf = (result.confidence ?? null) !== null ? ` (confidence ${result.confidence}%)` : '';
+                        return `${result.summary}${conf}`;
+                    };
+                }
+            }
+
+            // "describe shop2" / "what's happening at shop1 right now" — AI vision
+            // description of the live scene (same no-AI-needed routing as above).
+            if (/describe|what'?s happening|what does .* look like/.test(lower)) {
+                const device = dahuaIds.find(id => lower.includes(id));
+                if (device) {
+                    return async () => {
+                        const result = await this._dahuaSkill().execute('dahua.scene.describe', { device });
+                        const conf = (result.confidence ?? null) !== null ? ` (confidence ${result.confidence}%)` : '';
+                        return `${result.summary}${conf}`;
+                    };
+                }
+            }
+
             const activityMatch = lower.match(new RegExp(`(?:anyone|anybody|someone|activity|happening|events?)[^,.?]*?(${dev})|(${dev})[^,.?]*?(?:anyone|anybody|activity|happening|events?)`));
             if (activityMatch) {
                 const device = activityMatch[1] || activityMatch[2];
@@ -561,7 +682,7 @@ class AskEngine {
         const MAX_TURNS = 5;
 
         while (turns < MAX_TURNS) {
-            const response = await this.llm.generate(messages, { tools: this._declarations });
+            const response = await this.llm.generate(messages, { tools: await this._allDeclarations() });
 
             // Record usage
             if (response.usage) {
@@ -617,6 +738,18 @@ class AskEngine {
 
 
     async _dispatchFunctionCall({ name, args }, context = {}) {
+        // Generic skill-tool bridge — checked first so any loaded skill (Dahua today,
+        // whatever gets a manifest.yaml next) is reachable without a hand-written
+        // dispatch branch. _allDeclarations() must have run at least once this turn
+        // (it always has, by the time the model can even call something), so
+        // _skillToolMap is populated; the extra call here is a no-op cache hit.
+        await this._skillFunctionDeclarations();
+        if (this._skillToolMap && this._skillToolMap.has(name)) {
+            const { skillName, toolName } = this._skillToolMap.get(name);
+            const registry = await this._skillRegistry();
+            return registry.execute(skillName, toolName, args || {}, context);
+        }
+
         const { action, plan, target, amount, code, userId, username } = args || {};
         const currentUid = context.userId || context._uid;
 

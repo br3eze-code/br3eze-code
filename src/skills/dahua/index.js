@@ -650,31 +650,51 @@ class DahuaSkill extends BaseSkill {
     throw new Error(`Both AI providers failed — ${errors.join(' | ')}`)
   }
 
-  /** "What's happening right now" — snapshot + vision description of the live scene. */
+  /**
+   * Parses the "SUMMARY: ...\nCONFIDENCE: NN" structure requested in prompts below.
+   * Falls back to treating the whole response as the summary with no confidence
+   * score if the model doesn't follow the format — never throws.
+   */
+  _parseConfidence(text) {
+    const summaryMatch = text.match(/SUMMARY:\s*([\s\S]*?)(?:\n+CONFIDENCE:|$)/i)
+    const confidenceMatch = text.match(/CONFIDENCE:\s*(\d{1,3})/i)
+    const summary = (summaryMatch ? summaryMatch[1] : text).trim()
+    const confidence = confidenceMatch ? Math.min(100, parseInt(confidenceMatch[1], 10)) : null
+    return { summary, confidence }
+  }
+
+  /** "What's happening right now" — snapshot + vision description of the live scene, with a self-reported confidence score. */
   async _describeScene(deviceId, channel = 1) {
     const dev = this._devConfig(deviceId)
     const snap = await this._get(deviceId, `snapshot.cgi?channel=${channel}`)
     const buf = Buffer.from(await snap.arrayBuffer())
     const prompt = `This is a live security camera snapshot from channel ${channel} of "${dev.name || dev.deviceId}". ` +
       `Describe what's happening in one or two short sentences — focus on people, movement, and anything notable. ` +
-      `If the scene looks empty/normal, just say so plainly.`
+      `If the scene looks empty/normal, just say so plainly. Image quality, lighting, or an obstructed view can make ` +
+      `this hard to judge, so also rate your own confidence in this description.\n\n` +
+      `Respond in exactly this format:\nSUMMARY: <your description>\nCONFIDENCE: <0-100, your certainty in that description>`
     const { text, provider } = await this._askVisionAI({ imageBase64: buf.toString('base64'), prompt })
-    return { device: dev.deviceId, channel, summary: text.trim(), provider }
+    const { summary, confidence } = this._parseConfidence(text)
+    return { device: dev.deviceId, channel, summary, confidence, provider }
   }
 
   /** Turns a dahua.events.search result set into a natural-language summary instead of a raw list. */
   async _summarizeEvents({ query, device, minutes }) {
     const search = await this._searchEvents({ query, device, minutes })
     if (!search.events.length) {
-      return { ...search, summary: 'Nothing found in that time range.', provider: null }
+      return { ...search, summary: 'Nothing found in that time range.', confidence: 100, provider: null }
     }
     const compact = search.events.map(e => `${e.time} [${e.device}] ${e.code}${e.channel ? ` ch${e.channel}` : ''}`).join('\n')
     const prompt = `Here is a raw event log from CCTV cameras (motion detections and system events), oldest first:\n\n${compact}\n\n` +
       `The user asked: "${query}". Write a short, plain-English summary (3-5 sentences max) answering their question — ` +
       `group repeated/similar events instead of listing every line, call out anything that looks notable (tampering, unusual hours, repeated logins), ` +
-      `and mention if nothing significant happened.`
+      `and mention if nothing significant happened. Respond in the SAME language the user asked in, whatever that is. ` +
+      `Also rate your confidence that this summary fully answers their question, given the event log may be incomplete ` +
+      `(e.g. a device was unreachable during part of the search).\n\n` +
+      `Respond in exactly this format:\nSUMMARY: <your answer, in the user's language>\nCONFIDENCE: <0-100>`
     const { text, provider } = await this._askTextAI({ prompt })
-    return { ...search, summary: text.trim(), provider }
+    const { summary, confidence } = this._parseConfidence(text)
+    return { ...search, summary, confidence, provider }
   }
 
   /**

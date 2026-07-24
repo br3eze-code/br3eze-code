@@ -25,7 +25,10 @@ function postJSON({ host, port, token }, body) {
                 'Content-Length': Buffer.byteLength(data),
                 ...(token ? { Authorization: `Bearer ${token}` } : {})
             },
-            timeout: 30_000
+            // 90s, not 30s: dahua.events.summarize chains a device log search (occasionally
+            // 20-30s on a slow/busy NVR) with an actual AI call on top — 30s cut it too close
+            // and produced a silent timeout with no error surfaced in time to matter.
+            timeout: 90_000
         }, (res) => {
             let chunks = '';
             res.on('data', (c) => { chunks += c; });

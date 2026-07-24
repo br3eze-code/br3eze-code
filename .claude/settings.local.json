@@ -23,7 +23,9 @@
       "Bash(tasklist)",
       "Bash(netstat -ano)",
       "Bash(taskkill /PID 23180 /F)",
-      "Bash(cmd //c \"taskkill /PID 23180 /F\")"
+      "Bash(cmd //c \"taskkill /PID 23180 /F\")",
+      "Skill(loop)",
+      "Skill(loop:*)"
     ]
   }
 }
