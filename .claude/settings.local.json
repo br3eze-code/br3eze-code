@@ -25,7 +25,16 @@
       "Bash(taskkill /PID 23180 /F)",
       "Bash(cmd //c \"taskkill /PID 23180 /F\")",
       "Skill(loop)",
-      "Skill(loop:*)"
+      "Skill(loop:*)",
+      "Bash(stat -c '%y' \"$HOME/.agentos/state/whatsapp-qr.txt\" 2>&1 *)",
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\render_qr.js\")",
+      "Bash(npm install *)",
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\test_scheduler.js\")",
+      "Bash(node bin/agentos.js gateway --daemon --force > \"$HOME/AppData/Local/Temp/claude/gateway-scheduler.log\" 2>&1 & *)",
+      "Bash(grep \"AGENTOS_STATE_PATH\" .env 2>&1 *)",
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\test_live_scheduler.js\")",
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\check_db.js\")",
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\cleanup_test_task.js\")"
     ]
   }
 }

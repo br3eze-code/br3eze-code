@@ -83,6 +83,7 @@
 		"compression": "^1.7.4",
 		"cordova-plugin-bluetooth-serial": "^0.4.7",
 		"cors": "^2.8.6",
+		"cron-parser": "^5.6.2",
 		"debug": "^4.4.3",
 		"digest-fetch": "^3.1.1",
 		"discord.js": "^14.26.4",

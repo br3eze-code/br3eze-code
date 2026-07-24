@@ -61,6 +61,10 @@ module.exports = (program) => {
                 }, 10000); // 10s for full cleanup
                 forceExit.unref();
 
+                if (global.taskScheduler) {
+                    try { global.taskScheduler.stop(); } catch (_) { /* best effort */ }
+                }
+
                 if (global.gateway) {
                     try {
                         await global.gateway.stop();
@@ -68,7 +72,7 @@ module.exports = (program) => {
                         logger.error('Error during gateway stop:', e);
                     }
                 }
-                
+
                 try { if (fs.existsSync(pidFile)) fs.unlinkSync(pidFile); } catch (_) { }
                 
                 clearTimeout(forceExit);
@@ -251,6 +255,20 @@ module.exports = (program) => {
                     ai: aiInstance
                 });
                 global.askEngine = askEngine;
+
+                // 2b. Scheduled task runner ("agent employee") — built (SQLite-backed
+                // cron/interval/once), just never instantiated anywhere until now.
+                // Dispatches through askEngine.run() since AgentKernel isn't wired
+                // into the live gateway (see taskScheduler.js's own doc comment).
+                try {
+                    const TaskScheduler = require('../../core/taskScheduler');
+                    const taskScheduler = new TaskScheduler({ engine: askEngine });
+                    taskScheduler.start();
+                    global.taskScheduler = taskScheduler;
+                    logger.info(`TaskScheduler started (${taskScheduler.listTasks().length} task(s) loaded)`);
+                } catch (err) {
+                    logger.warn(`TaskScheduler not started: ${err.message}`);
+                }
 
                 // 3. Connect to MikroTik (non-fatal)
                 try {
