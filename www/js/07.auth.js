@@ -51,5 +51,21 @@ window.Auth = {
     async logout() {
         await auth.signOut();
         window.location.reload();
+    },
+
+    async requestPasswordReset(email) {
+        if (!email) return showToast('Enter your email first.', 'error');
+        Loading.show('Sending reset link...');
+        try {
+            await auth.sendPasswordResetEmail(email);
+            Loading.hide();
+            showToast('If that email has an account, a reset link is on its way.', 'success');
+            toggleForgotPassword();
+        } catch (e) {
+            Loading.hide();
+            // Firebase's own message is safe to show (doesn't reveal account existence
+            // when email-enumeration protection is enabled in the Firebase console).
+            showToast(e.message, 'error');
+        }
     }
 };

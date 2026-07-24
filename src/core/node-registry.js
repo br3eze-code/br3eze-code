@@ -27,8 +27,8 @@ class NodeRegistry extends EventEmitter {
         }
 
         // Lazy-require to avoid circular deps at startup
-        const { getManager } = require('./mikrotik');
-        const node = getManager({ host: ip, port, username: user, password: pass });
+        const { createManager } = require('./mikrotik');
+        const node = createManager({ host: ip, port, username: user, password: pass });
         this._nodes.set(name, node);
         logger.info(`NodeRegistry: registered "${name}" (${ip}:${port})`);
         this.emit('nodeAdded', { name, ip });

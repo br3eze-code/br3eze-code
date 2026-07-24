@@ -1,0 +1,135 @@
+name: shop
+version: 1.0.0
+description: Browse the product catalog, manage a per-channel cart, and check out orders (server-authoritative, Firestore-Admin backed).
+author: br3eze
+license: Apache-2.0
+
+tools:
+  - name: shop.list_products
+    description: List active products, optionally filtered by category or free-text search.
+    parameters:
+      - name: category
+        type: string
+        required: false
+        description: Product category to filter by.
+      - name: search
+        type: string
+        required: false
+        description: Free-text search across name/description/category.
+    returns: array
+
+  - name: shop.get_product
+    description: Get a single product by ID, exact name, or slug.
+    parameters:
+      - name: productRef
+        type: string
+        required: true
+        description: Product ID, name, or slug.
+    returns: object
+
+  - name: shop.view_cart
+    description: View the current cart for this channel (Telegram/WhatsApp chat or web session).
+    parameters:
+      - name: platform
+        type: string
+        required: true
+        description: Origin channel, e.g. telegram, whatsapp, web.
+      - name: channelId
+        type: string
+        required: true
+        description: Stable per-chat/session identifier.
+    returns: array
+
+  - name: shop.add_to_cart
+    description: Add a product to the cart.
+    parameters:
+      - name: platform
+        type: string
+        required: true
+      - name: channelId
+        type: string
+        required: true
+      - name: productRef
+        type: string
+        required: true
+        description: Product ID, name, or slug.
+      - name: size
+        type: string
+        required: false
+      - name: qty
+        type: number
+        required: false
+        default: 1
+    returns: object
+
+  - name: shop.remove_from_cart
+    description: Remove an item (by cart key or product ID) from the cart.
+    parameters:
+      - name: platform
+        type: string
+        required: true
+      - name: channelId
+        type: string
+        required: true
+      - name: keyOrProductId
+        type: string
+        required: true
+    returns: array
+
+  - name: shop.clear_cart
+    description: Empty the cart entirely.
+    parameters:
+      - name: platform
+        type: string
+        required: true
+      - name: channelId
+        type: string
+        required: true
+    returns: object
+
+  - name: shop.checkout
+    description: Close the sale — atomic stock decrement, order + invoice creation. Commits stock and optionally charges balance.
+    parameters:
+      - name: platform
+        type: string
+        required: true
+      - name: channelId
+        type: string
+        required: true
+      - name: uid
+        type: string
+        required: false
+        description: Buyer's user ID for order history / balance pay; omit for a guest cash-on-delivery sale.
+      - name: address
+        type: object
+        required: false
+      - name: payMethod
+        type: string
+        required: false
+        description: "cod (pay on delivery), credits (account balance), card, or cash (card/cash are recorded as already settled)"
+    returns: object
+
+  - name: shop.create_shipment
+    description: Book a real shipment for an order with a courier provider (dhl, pargo, courier_guy).
+    parameters:
+      - name: orderId
+        type: string
+        required: true
+      - name: provider
+        type: string
+        required: true
+        description: "dhl, pargo, or courier_guy"
+    returns: object
+
+  - name: shop.track_shipment
+    description: Get live courier tracking status for an order's shipment.
+    parameters:
+      - name: orderId
+        type: string
+        required: true
+    returns: object
+
+  - name: shop.list_couriers
+    description: List available courier providers and whether each is configured.
+    parameters: {}
+    returns: array

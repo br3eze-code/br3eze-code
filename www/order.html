@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order — AgentOS Shop</title>
+<style>
+  :root {
+    --bg: #0a0f14; --surface: #10171f; --border: #1c2732;
+    --text: #c8d6e0; --accent: #00e5ff; --muted: #6b7d8c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+  a.back { color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  #order-detail { max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+  h1 { font-size: 1.3rem; margin-bottom: 10px; }
+  .order-status { display: inline-block; padding: 4px 10px; border-radius: 6px; background: var(--border); color: var(--accent); font-size: .8rem; margin-bottom: 14px; }
+  .order-items { list-style: none; margin-bottom: 14px; }
+  .order-items li { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .order-total { font-weight: 600; color: var(--accent); margin-bottom: 16px; }
+  #download-pdf-btn { display: block; width: 100%; padding: 10px; background: var(--accent); color: #001; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; }
+  #pdf-status { margin-top: 8px; color: var(--muted); font-size: .85rem; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+  <a class="back" href="/shop">← Back to shop</a>
+  <div id="order-detail"><p class="empty">Loading…</p></div>
+
+  <script src="js/env.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/06.firebase.js"></script>
+  <script src="js/16.api.client.js"></script>
+  <script src="js/17.shop.js"></script>
+</body>
+</html>

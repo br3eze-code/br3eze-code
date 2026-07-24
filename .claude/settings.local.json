@@ -34,7 +34,17 @@
       "Bash(grep \"AGENTOS_STATE_PATH\" .env 2>&1 *)",
       "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\test_live_scheduler.js\")",
       "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\check_db.js\")",
-      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\cleanup_test_task.js\")"
+      "Bash(NODE_PATH=\"C:\\\\Users\\\\user\\\\br3eze-code\\\\node_modules\" node \"C:\\\\Users\\\\user\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-user-br3eze-code\\\\1c219688-a06e-480a-ae20-cd96d71c9a2e\\\\scratchpad\\\\cleanup_test_task.js\")",
+      "Bash(node bin/agentos.js gateway --force)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"gateway still up: %{http_code}\\\\n\" http://localhost:19876/health)",
+      "Bash(curl -s -o /dev/null -w \"gateway health: %{http_code}\\\\n\" http://localhost:19876/health --max-time 5)",
+      "Bash(curl -s -H 'Authorization: Bearer __CMDSUB_OUTPUT__' http://localhost:19876/api/v1/shop/orders/nonexistent/pdf)",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s -o /dev/null -w \"gateway still healthy: %{http_code}\\\\n\" http://localhost:19876/health)",
+      "WebSearch",
+      "WebFetch(domain:developer.dhl.com)",
+      "WebFetch(domain:www.aftership.com)"
     ]
   }
 }

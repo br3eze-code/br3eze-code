@@ -158,16 +158,18 @@ class EmailChannel extends BaseChannel {
     message = this.formatMessage(message);
     let subject = message.subject || 'Message from AgentOS';
     let text = message.text || '';
-    
+    let attachments = message.attachments || undefined;
+
     console.log(`[Email to ${userId}] Subject: ${subject}\nBody: ${text}`);
 
     if (this.transporter) {
       try {
         await this.transporter.sendMail({
-          from: process.env.SMTP_FROM || 'agentos@localhost',
+          from: process.env.SMTP_FROM || 'noreply@br3eze.africa',
           to: userId,
           subject: subject,
-          text: text
+          text: text,
+          attachments
         });
       } catch (err) {
         console.error(`EmailChannel failed to send to ${userId}: ${err.message}`);

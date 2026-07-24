@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop — AgentOS</title>
+<style>
+  :root {
+    --bg: #0a0f14; --surface: #10171f; --border: #1c2732;
+    --text: #c8d6e0; --accent: #00e5ff; --muted: #6b7d8c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  h1 { font-size: 1.4rem; color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+  .product-card { display: block; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-decoration: none; color: var(--text); transition: border-color .15s; }
+  .product-card:hover { border-color: var(--accent); }
+  .product-name { font-weight: 600; margin-bottom: 6px; }
+  .product-price { color: var(--accent); margin-bottom: 4px; }
+  .product-stock { font-size: .8rem; color: var(--muted); }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Shop</h1>
+  </header>
+  <div id="shop-grid" class="grid"><p class="empty">Loading products…</p></div>
+
+  <script src="js/env.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/06.firebase.js"></script>
+  <script src="js/16.api.client.js"></script>
+  <script src="js/17.shop.js"></script>
+</body>
+</html>

@@ -11,10 +11,14 @@
  */
 'use strict';
 
-import { getDatabase } from './database.js';
-import { logger } from './logger.js';
+const { getDatabase } = require('./database');
+const { logger } = require('./logger');
 
 const SHIPPING_FLAT = 5;
+const PUBLIC_URL = process.env.PUBLIC_URL || 'https://br3eze.africa';
+
+function productUrl(id) { return `${PUBLIC_URL}/product/${id}`; }
+function orderUrl(id) { return `${PUBLIC_URL}/order/${id}`; }
 
 async function _fs() {
     const db = await getDatabase();
@@ -88,6 +92,45 @@ async function removeFromCart(platform, channelId, keyOrProductId) {
 
 async function clearCart(platform, channelId) { await _saveCart(platform, channelId, []); }
 
+async function getOrder(orderId) {
+    const { fs } = await _fs();
+    const doc = await fs.collection('orders').doc(String(orderId)).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+}
+
+async function getOrdersByUser(uid) {
+    const { fs } = await _fs();
+    const snap = await fs.collection('orders').where('userId', '==', uid).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/** Books a real shipment with a courier provider (see src/core/courier-gateway.js) and records it on the order. */
+async function createShipment(orderId, providerId) {
+    const order = await getOrder(orderId);
+    if (!order) throw new Error(`Order ${orderId} not found.`);
+    const { getCourierGateway } = require('./courier-gateway');
+    const shipment = await getCourierGateway().createShipment(providerId, order);
+    const { fs } = await _fs();
+    const courier = { provider: providerId, trackingId: shipment.trackingId, status: 'created', createdAt: new Date().toISOString() };
+    await fs.collection('orders').doc(orderId).update({ courier });
+    logger.info(`[Shop] Shipment created for order ${orderId} via ${providerId}: ${shipment.trackingId}`);
+    return { ...courier, raw: shipment.raw };
+}
+
+/** Pulls live tracking status for an order's already-created shipment. */
+async function trackShipment(orderId) {
+    const order = await getOrder(orderId);
+    if (!order) throw new Error(`Order ${orderId} not found.`);
+    if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
+    const { getCourierGateway } = require('./courier-gateway');
+    return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId);
+}
+
+// card/cash are recorded as already-settled at time of sale (POS-style — payment
+// was collected outside this system), same as credits but without touching any
+// balance ledger. Only 'cod' leaves the order pending_payment.
+const SETTLED_METHODS = new Set(['credits', 'card', 'cash']);
+
 /**
  * Close the sale: atomic stock decrement + (optional) balance charge + order +
  * invoice. `uid` links the sale to a Power Connect account (for balance pay and
@@ -129,7 +172,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
         for (const pid in need) tx.update(prod[pid].ref, { stock: prod[pid].stock - need[pid] });
         if (payMethod === 'credits' && total > 0) tx.update(userRef, { credits: bal - total });
 
-        const status = payMethod === 'credits' ? 'paid' : 'pending_payment';
+        const status = SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment';
         tx.set(orderRef, {
             userId: uid || null, channel: platform, channelId: String(channelId),
             items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod,
@@ -140,17 +183,26 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
             userId: uid || null, orderId: orderRef.id, number,
             lineItems: items.map((i) => ({ description: `${i.name}${i.size ? ' (' + i.size + ')' : ''}`, qty: i.qty, unitPrice: i.price, amount: +(i.price * i.qty).toFixed(2) })),
             subtotal: sub, shipping, total, currency: 'USD',
-            billingAddress: address, status: payMethod === 'credits' ? 'paid' : 'unpaid',
+            billingAddress: address, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'unpaid',
             createdAt: new Date().toISOString(),
         });
     });
 
     await clearCart(platform, channelId);
     logger.info(`[Shop] Sale closed via ${platform}: order ${orderRef.id} (${number}), $${total}, ${payMethod}`);
-    return { orderId: orderRef.id, invoiceNumber: number, subtotal: sub, shipping, total, payMethod, items };
+
+    const order = { orderId: orderRef.id, invoiceNumber: number, subtotal: sub, shipping, total, payMethod, items, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment', platform, channelId, uid };
+    try {
+        const { notifyNewOrder } = require('./order-notifier');
+        await notifyNewOrder(order);
+    } catch (e) {
+        logger.warn(`[Shop] order notification failed: ${e.message}`);
+    }
+    return order;
 }
 
-export default {
+module.exports = {
     SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart,
-    removeFromCart, clearCart, checkout, subtotal,
+    removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser,
+    productUrl, orderUrl, createShipment, trackShipment,
 };

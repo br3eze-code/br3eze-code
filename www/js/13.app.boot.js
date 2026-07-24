@@ -50,6 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
+    document.getElementById('forgotPasswordFormElement')?.addEventListener('submit', e => {
+        e.preventDefault();
+        Auth.requestPasswordReset(document.getElementById('forgotPasswordEmail').value);
+    });
+
     // ── P2P chat send ───────────────────────────────────────
     document.getElementById('unifiedChatForm')?.addEventListener('submit', e => {
         e.preventDefault();

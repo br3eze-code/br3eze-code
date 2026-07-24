@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product — AgentOS Shop</title>
+<style>
+  :root {
+    --bg: #0a0f14; --surface: #10171f; --border: #1c2732;
+    --text: #c8d6e0; --accent: #00e5ff; --muted: #6b7d8c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; min-height: 100vh; padding: 24px; }
+  a.back { color: var(--muted); text-decoration: none; display: inline-block; margin-bottom: 16px; }
+  #product-detail { max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; }
+  h1 { font-size: 1.4rem; margin-bottom: 10px; }
+  .product-price { color: var(--accent); font-size: 1.2rem; margin-bottom: 10px; }
+  .product-stock { font-size: .8rem; color: var(--muted); margin: 10px 0; }
+  select, input, button { display: block; width: 100%; margin-top: 10px; padding: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+  button { background: var(--accent); color: #001; font-weight: 600; border: none; cursor: pointer; }
+  #add-status { margin-top: 10px; color: var(--muted); }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+  <a class="back" href="/shop">← Back to shop</a>
+  <div id="product-detail"><p class="empty">Loading…</p></div>
+
+  <script src="js/env.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="js/06.firebase.js"></script>
+  <script src="js/16.api.client.js"></script>
+  <script src="js/17.shop.js"></script>
+</body>
+</html>

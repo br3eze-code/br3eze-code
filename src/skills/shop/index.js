@@ -1,0 +1,170 @@
+'use strict';
+const { BaseSkill } = require('../base.js');
+const shop = require('../../core/shop');
+
+class ShopSkill extends BaseSkill {
+  static id = 'shop';
+  static name = 'Shop';
+  static description = 'Server-authoritative product catalog, cart, and checkout';
+
+  static getTools() {
+    return {
+      'shop.list_products': {
+        risk: 'low',
+        description: 'List active products, optionally filtered by category or search',
+        parameters: {
+          type: 'object',
+          properties: {
+            category: { type: 'string', description: 'Product category to filter by' },
+            search: { type: 'string', description: 'Free-text search' }
+          },
+          required: []
+        }
+      },
+      'shop.get_product': {
+        risk: 'low',
+        description: 'Get a single product by ID, name, or slug',
+        parameters: {
+          type: 'object',
+          properties: { productRef: { type: 'string', description: 'Product ID, name, or slug' } },
+          required: ['productRef']
+        }
+      },
+      'shop.view_cart': {
+        risk: 'low',
+        description: 'View the current cart for this channel',
+        parameters: {
+          type: 'object',
+          properties: {
+            platform: { type: 'string' },
+            channelId: { type: 'string' }
+          },
+          required: ['platform', 'channelId']
+        }
+      },
+      'shop.add_to_cart': {
+        risk: 'low',
+        description: 'Add a product to the cart',
+        parameters: {
+          type: 'object',
+          properties: {
+            platform: { type: 'string' },
+            channelId: { type: 'string' },
+            productRef: { type: 'string', description: 'Product ID, name, or slug' },
+            size: { type: 'string' },
+            qty: { type: 'number', default: 1 }
+          },
+          required: ['platform', 'channelId', 'productRef']
+        }
+      },
+      'shop.remove_from_cart': {
+        risk: 'low',
+        description: 'Remove an item from the cart',
+        parameters: {
+          type: 'object',
+          properties: {
+            platform: { type: 'string' },
+            channelId: { type: 'string' },
+            keyOrProductId: { type: 'string' }
+          },
+          required: ['platform', 'channelId', 'keyOrProductId']
+        }
+      },
+      'shop.clear_cart': {
+        risk: 'low',
+        description: 'Empty the cart entirely',
+        parameters: {
+          type: 'object',
+          properties: {
+            platform: { type: 'string' },
+            channelId: { type: 'string' }
+          },
+          required: ['platform', 'channelId']
+        }
+      },
+      'shop.checkout': {
+        risk: 'medium',
+        description: 'Close the sale — atomic stock decrement, order + invoice creation',
+        parameters: {
+          type: 'object',
+          properties: {
+            platform: { type: 'string' },
+            channelId: { type: 'string' },
+            uid: { type: 'string', description: "Buyer's user ID; omit for guest cash-on-delivery" },
+            address: { type: 'object' },
+            payMethod: { type: 'string', description: 'cod, credits, card, or cash (card/cash are recorded as already settled)' }
+          },
+          required: ['platform', 'channelId']
+        }
+      },
+      'shop.create_shipment': {
+        risk: 'medium',
+        description: 'Book a real shipment for an order with a courier provider (dhl, pargo, courier_guy)',
+        parameters: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string' },
+            provider: { type: 'string', description: 'dhl, pargo, or courier_guy' }
+          },
+          required: ['orderId', 'provider']
+        }
+      },
+      'shop.track_shipment': {
+        risk: 'low',
+        description: "Get live courier tracking status for an order's shipment",
+        parameters: {
+          type: 'object',
+          properties: { orderId: { type: 'string' } },
+          required: ['orderId']
+        }
+      },
+      'shop.list_couriers': {
+        risk: 'low',
+        description: 'List available courier providers and whether each is configured',
+        parameters: { type: 'object', properties: {}, required: [] }
+      }
+    };
+  }
+
+  async execute(toolName, args, ctx) {
+    args = args || {};
+    switch (toolName) {
+      case 'shop.list_products': {
+        const items = await shop.listProducts({ category: args.category, search: args.search });
+        return items.map((p) => ({ ...p, url: shop.productUrl(p.id) }));
+      }
+      case 'shop.get_product': {
+        const p = await shop.getProduct(args.productRef);
+        return p ? { ...p, url: shop.productUrl(p.id) } : p;
+      }
+      case 'shop.view_cart':
+        return shop.getCart(args.platform, args.channelId);
+      case 'shop.add_to_cart':
+        return shop.addToCart(args.platform, args.channelId, args.productRef, { size: args.size, qty: args.qty || 1 });
+      case 'shop.remove_from_cart':
+        return shop.removeFromCart(args.platform, args.channelId, args.keyOrProductId);
+      case 'shop.clear_cart':
+        return shop.clearCart(args.platform, args.channelId);
+      case 'shop.checkout': {
+        // Prefer the authenticated caller's uid over any client-supplied uid —
+        // a chat user must not be able to check out "as" someone else's balance.
+        const uid = ctx?.userId || args.uid;
+        this.logger.warn(`SHOP CHECKOUT ${args.platform}:${args.channelId} uid=${uid}`);
+        const order = await shop.checkout(args.platform, args.channelId, { uid, address: args.address, payMethod: args.payMethod });
+        return { ...order, url: shop.orderUrl(order.orderId) };
+      }
+      case 'shop.create_shipment':
+        return shop.createShipment(args.orderId, args.provider);
+      case 'shop.track_shipment':
+        return shop.trackShipment(args.orderId);
+      case 'shop.list_couriers': {
+        const { getCourierGateway } = require('../../core/courier-gateway');
+        return getCourierGateway().getAvailableProviders();
+      }
+      default:
+        throw new Error(`Unknown tool ${toolName}`);
+    }
+  }
+}
+
+module.exports = ShopSkill;

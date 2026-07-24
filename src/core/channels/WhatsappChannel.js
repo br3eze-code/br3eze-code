@@ -533,6 +533,7 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set("kick", this._handleKick);
     this.handlers.set("reboot", this._handleReboot);
     this.handlers.set("dahua", this._handleDahua);
+    this.handlers.set("shop", this._handleShop);
     this.handlers.set("ping", this._handlePing);
     this.handlers.set("ask", this._handleAsk);
     this.handlers.set("cli", this._handleCli);
@@ -1252,6 +1253,117 @@ class WhatsAppChannel extends BaseChannel {
         `❌ Unknown action: ${action}. Use list, snapshot, snapshotall, channels, stream, info, reboot, search, summarize, describe.`,
       );
     }
+  }
+
+  async _handleShop(jid, msg, args) {
+    const action = args[1] || "list";
+    const uid = msg?._uid || jid;
+    const context = {
+      userId: uid,
+      platformId: jid,
+      channel: "whatsapp",
+      userDoc: msg?.userDoc,
+    };
+
+    if (action === "list") {
+      const search = args.slice(2).join(" ") || undefined;
+      const products = await this.agent.executeTool("shop.list_products", { search }, context);
+      if (!products.length) return this.send(jid, "🛍️ No products found.");
+      const lines = products.slice(0, 20).map((p) =>
+        `*${p.name}* (${p.id}) — $${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : "sold out"}\n${p.url}`,
+      );
+      await this.send(jid, `🛍️ *Catalog*\n\n${lines.join("\n\n")}\n\nBuy with: */shop add <id>*`);
+    } else if (action === "product") {
+      const p = await this.agent.executeTool("shop.get_product", { productRef: args[2] }, context);
+      if (!p) return this.send(jid, `❌ No product matching "${args[2]}".`);
+      await this.send(jid, `*${p.name}*\n$${p.price}\n${p.description || ""}\n${p.stock > 0 ? `${p.stock} in stock` : "Sold out"}\n${p.url}`);
+    } else if (action === "cart") {
+      const items = await this.agent.executeTool("shop.view_cart", { platform: "whatsapp", channelId: jid }, context);
+      if (!items.length) return this.send(jid, "🛒 Your cart is empty.");
+      const lines = items.map((i) => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ""} — $${(i.price * i.qty).toFixed(2)}`);
+      await this.send(jid, `🛒 *Your Cart*\n\n${lines.join("\n")}\n\nCheckout with: */shop checkout*`);
+    } else if (action === "add") {
+      const result = await this.agent.executeTool(
+        "shop.add_to_cart",
+        { platform: "whatsapp", channelId: jid, productRef: args[2], size: args[3] },
+        context,
+      );
+      await this.send(jid, `✅ Added ${result.product.name} to cart.`);
+    } else if (action === "remove") {
+      await this.agent.executeTool(
+        "shop.remove_from_cart",
+        { platform: "whatsapp", channelId: jid, keyOrProductId: args[2] },
+        context,
+      );
+      await this.send(jid, "🗑️ Removed from cart.");
+    } else if (action === "checkout") {
+      const result = await this.agent.executeTool(
+        "shop.checkout",
+        { platform: "whatsapp", channelId: jid, payMethod: args[2] || "cod" },
+        context,
+      );
+      await this.send(jid, `✅ Order placed! Invoice ${result.invoiceNumber}\nTotal: $${result.total.toFixed(2)}\n${result.url}`);
+      await this._sendOrderPdf(jid, result.orderId).catch((e) => logger.warn(`WhatsApp: failed to send order PDF: ${e.message}`));
+    } else if (action === "invoice") {
+      const orderId = args[2];
+      if (!orderId) return this.send(jid, "❌ Usage: */shop invoice <orderId> [email]*");
+      if (args[3] === "email") {
+        await this._emailOrderPdf(jid, orderId, context);
+      } else {
+        await this._sendOrderPdf(jid, orderId);
+      }
+    } else {
+      await this.send(
+        jid,
+        `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice.`,
+      );
+    }
+  }
+
+  /** Generates and sends an order's invoice (cod) or receipt (paid) PDF as a document. */
+  async _sendOrderPdf(jid, orderId, caption) {
+    const shop = require("../shop");
+    const { generateOrderPdf } = require("../invoice-pdf");
+    const order = await shop.getOrder(orderId);
+    if (!order) { await this.send(jid, "❌ Order not found."); return; }
+    const label = order.status === "paid" ? "Receipt" : "Invoice";
+    const pdf = await generateOrderPdf({ ...order, orderId: order.id });
+    await this.sock.sendMessage(this.normalizeJid(jid), {
+      document: pdf,
+      mimetype: "application/pdf",
+      fileName: `${order.invoiceNumber || order.id}.pdf`,
+      caption: caption || `${label} ${order.invoiceNumber}`,
+    });
+  }
+
+  /** Emails an order's invoice/receipt PDF to the caller's linked email address. */
+  async _emailOrderPdf(jid, orderId, context) {
+    const shop = require("../shop");
+    const { generateOrderPdf } = require("../invoice-pdf");
+    const { getDatabase } = require("../database");
+    const db = await getDatabase();
+
+    const order = await shop.getOrder(orderId);
+    if (!order) return this.send(jid, "❌ Order not found.");
+
+    const userDoc = context.userId ? await db.getUser(context.userId).catch(() => null) : null;
+    const email = userDoc?.email;
+    if (!email) {
+      return this.send(jid, "❌ No linked email on file. Use */link your@email.com* first.");
+    }
+
+    const channelManager = global.gateway?.channelManager;
+    const emailChannel = channelManager?.channels?.get("email");
+    if (!emailChannel) return this.send(jid, "❌ Email delivery is not configured on this gateway.");
+
+    const label = order.status === "paid" ? "Receipt" : "Invoice";
+    const pdf = await generateOrderPdf({ ...order, orderId: order.id });
+    await emailChannel.send(email, {
+      subject: `${label} ${order.invoiceNumber}`,
+      text: `Your ${label.toLowerCase()} for order ${order.invoiceNumber} is attached.`,
+      attachments: [{ filename: `${order.invoiceNumber || order.id}.pdf`, content: pdf }],
+    });
+    await this.send(jid, `✅ Sent to ${email}.`);
   }
 
   async _handleAsk(jid, msg, args) {

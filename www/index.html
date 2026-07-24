@@ -112,7 +112,30 @@
                     </button>
                 </form>
                 <div class="auth-toggle">
+                    <a onclick="toggleForgotPassword()">Forgot password?</a>
+                </div>
+                <div class="auth-toggle">
                     Don't have an account? <a onclick="toggleAuthForm()">Create Account</a>
+                </div>
+            </div>
+
+            <!-- Forgot Password Card -->
+            <div class="card auth-card hidden" id="forgotPasswordForm">
+                <div class="auth-header">
+                    <h2>Reset Password</h2>
+                    <p>Enter your account email — we'll send you a reset link.</p>
+                </div>
+                <form id="forgotPasswordFormElement" autocomplete="on">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="forgotPasswordEmail" autocomplete="email" required>
+                    </div>
+                    <button type="submit" id="forgotPasswordBtn" class="btn btn-primary btn-block">
+                        <i class="fas fa-paper-plane"></i> Send Reset Link
+                    </button>
+                </form>
+                <div class="auth-toggle">
+                    <a onclick="toggleForgotPassword()">Back to Login</a>
                 </div>
             </div>
 
@@ -653,6 +676,7 @@
 
     <!-- Tier 4: Firebase + DataStore -->
     <script src="js/06.firebase.js"></script>
+    <script src="js/16.api.client.js"></script>
 
     <!-- Tier 5: App modules -->
     <script src="js/07.auth.js"></script>

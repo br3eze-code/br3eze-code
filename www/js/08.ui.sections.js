@@ -114,6 +114,12 @@ window.toggleAuthForm = function () {
     document.getElementById('signupForm').classList.toggle('hidden');
 };
 
+// ── Forgot password toggle (login <-> reset-request) ────────
+window.toggleForgotPassword = function () {
+    document.getElementById('loginForm').classList.toggle('hidden');
+    document.getElementById('forgotPasswordForm').classList.toggle('hidden');
+};
+
 // ── Main app init (called after auth) ──────────────────────
 async function initApp() {
     document.getElementById('authScreen').style.display = 'none';
