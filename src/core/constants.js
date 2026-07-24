@@ -1,4 +1,4 @@
-'use strict';
+
 
 /**
  * AgentOS Constants — Premium ANSI Palette
@@ -30,4 +30,4 @@ const A = {
     BG_CYBER: '\x1b[48;5;234m',
 };
 
-module.exports = { A };
+export { A };

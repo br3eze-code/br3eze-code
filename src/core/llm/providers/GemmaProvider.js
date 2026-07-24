@@ -1,11 +1,13 @@
-'use strict';
+import { BaseProvider } from './BaseProvider.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../../logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Gemma LLM Provider (Google Open Models)
  */
-
-const { BaseProvider } = require('./BaseProvider');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { logger } = require('../../logger');
 
 class GemmaProvider extends BaseProvider {
     static getMetadata() {
@@ -93,4 +95,4 @@ class GemmaProvider extends BaseProvider {
 
 BaseProvider.register('gemma', GemmaProvider);
 BaseProvider.register('google-gemma', GemmaProvider);
-module.exports = { GemmaProvider };
+export { GemmaProvider };

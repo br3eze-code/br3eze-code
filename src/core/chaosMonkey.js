@@ -1,3 +1,17 @@
+import { RouterOSClient } from 'routeros-client';
+import { EventEmitter } from 'events';
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * ╔══════════════════════════════════════════════════════════════╗
  * ║          AgentOS — ChaosMonkey.js  (src/core/)              ║
@@ -33,13 +47,7 @@
  *  • Firestore latency shim is reversible via panicButton.
  */
 
-'use strict';
 
-const { RouterOSClient } = require('routeros-client');
-const { EventEmitter }   = require('events');
-const { v4: uuidv4 }     = require('uuid');
-const fs                  = require('fs');
-const path                = require('path');
 
 // ─── paths ────────────────────────────────────────────────────
 const BACKUP_PATH  = path.resolve(__dirname, '../../config/backup.json');
@@ -633,4 +641,4 @@ const ChaosMonkey = Object.assign(new EventEmitter(), {
   _exec,
 });
 
-module.exports = ChaosMonkey;
+export default ChaosMonkey;

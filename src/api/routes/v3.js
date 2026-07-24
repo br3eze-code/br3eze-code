@@ -1,3 +1,9 @@
+import express from 'express';
+import { logger } from '../../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 ﻿/**
  * API Routes v3 — AgentOS Advanced
  * Bulk · Skills · Audit · Diagnostics · Chaos · Workflows
@@ -5,11 +11,7 @@
  * @version 2026.6.17
  */
 
-'use strict';
-
-const express = require('express');
 const router  = express.Router();
-const { logger } = require('../../core/logger');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ok       = (res, data, meta = {}) => res.json({ ok: true, version: 'v3', ...meta, data });
@@ -348,4 +350,4 @@ function _mb(b) { return `${Math.round(b / 1024 / 1024)}MB`; }
 function _ms(us) { return `${(us / 1e6).toFixed(3)}s`; }
 function _svc(v) { return { status: v ? 'up' : 'down' }; }
 
-module.exports = router;
+export default router;

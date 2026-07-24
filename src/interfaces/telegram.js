@@ -1,6 +1,7 @@
+import TelegramBot from 'node-telegram-bot-api';
+import eventBus from '../core/eventBus.js';
+
 // src/interfaces/telegram.js
-const TelegramBot = require('node-telegram-bot-api');
-const eventBus = require('../core/eventBus');
 
 class Bot {
     constructor(token, agent) {
@@ -34,4 +35,4 @@ class Bot {
     }
 }
 
-module.exports = Bot;
+export default Bot;

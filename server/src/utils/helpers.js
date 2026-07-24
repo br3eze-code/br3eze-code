@@ -162,15 +162,4 @@ const retryWithBackoff = async (fn, maxRetries = 3, delay = 1000) => {
 };
 
 export { formatBytes, formatUptime, parseMikrotikTime, sanitizeMacAddress, generateSessionId, deepMerge, rateLimitKeyGenerator, isValidEmail, sleep, retryWithBackoff };
-export default {
-    formatBytes,
-    formatUptime,
-    parseMikrotikTime,
-    sanitizeMacAddress,
-    generateSessionId,
-    deepMerge,
-    rateLimitKeyGenerator,
-    isValidEmail,
-    sleep,
-    retryWithBackoff
-};
+export { formatBytes, formatUptime, parseMikrotikTime, sanitizeMacAddress, generateSessionId, deepMerge, rateLimitKeyGenerator, isValidEmail, sleep, retryWithBackoff };

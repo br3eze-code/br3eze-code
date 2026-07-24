@@ -1,3 +1,4 @@
+
 // src/core/resource-model.js
 /**
  * Universal Resource Model 
@@ -94,4 +95,4 @@ const ResourceTypes = {
   }
 };
 
-module.exports = { Resource, ResourceTypes };
+export { Resource, ResourceTypes };

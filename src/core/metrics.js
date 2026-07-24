@@ -1,6 +1,9 @@
-'use strict';
+import promClient from 'prom-client';
 
-const promClient = require('prom-client');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 
 const registry = new promClient.Registry();
 
@@ -72,6 +75,6 @@ class Metrics {
 
 const metrics = new Metrics();
 
-module.exports = { Metrics, metrics, registry, mikrotikCommands, activeConnections, metricsMiddleware };
+export { Metrics, metrics, registry, mikrotikCommands, activeConnections, metricsMiddleware };
 
 

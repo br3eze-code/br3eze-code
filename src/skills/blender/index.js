@@ -1,7 +1,16 @@
-const { PythonShell } = require('python-shell')
-const path = require('path')
-const fs = require('fs/promises')
-const { BaseSkill } = require('../base.js')
+import { PythonShell } from 'python-shell';
+import path from 'path';
+import fs from 'fs/promises';
+import { BaseSkill } from '../base.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 class BlenderSkill extends BaseSkill {
   static id = 'blender'
@@ -603,4 +612,4 @@ print(json.dumps({'glb': out_glb}))
   }
 }
 
-module.exports = BlenderSkill
+export default BlenderSkill;

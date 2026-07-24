@@ -1,6 +1,9 @@
-const { BaseSkill } = require('../base.js')
-const osc = require('osc')
-const MidiWriter = require('midi-writer-js')
+import { BaseSkill } from '../base.js';
+import osc from 'osc';
+import MidiWriter from 'midi-writer-js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 class FLStudioSkill extends BaseSkill {
   static id = 'flstudio'
@@ -1033,4 +1036,4 @@ case 'flstudio.piano_roll': {
   }
 }
 
-module.exports = FLStudioSkill
+export default FLStudioSkill;

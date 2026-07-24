@@ -774,4 +774,4 @@ var WiFiBillingAgent = {
     }
 };
 
-module.exports = WiFiBillingAgent;
+export default WiFiBillingAgent;

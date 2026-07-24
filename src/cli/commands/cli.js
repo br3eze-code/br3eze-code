@@ -1,8 +1,9 @@
-'use strict';
+import WebSocket from 'ws';
 
-const WebSocket = require('ws');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('cli')
         .description('Connect to AgentOS Interactive CLI via WebSocket')

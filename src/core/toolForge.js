@@ -1,10 +1,13 @@
-'use strict';
-const crypto = require('crypto');
-const vm = require('vm');
-const fs = require('fs');
-const path = require('path');
-const { EventEmitter } = require('events');
-const { logger } = require('./logger');
+import crypto from 'crypto';
+import vm from 'vm';
+import fs from 'fs';
+import path from 'path';
+import { EventEmitter } from 'events';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 const FORGE_DIR = process.env.TOOLFORGE_DIR
   || path.join(process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'), 'toolforge');
@@ -436,4 +439,4 @@ function getToolForge(opts) {
   return _instance;
 }
 
-module.exports = { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };
+export { ToolForge, getToolForge, ToolSpec, VMSandbox, STATUS, CAPABILITY, sha256 };

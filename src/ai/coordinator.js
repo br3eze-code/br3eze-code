@@ -1,10 +1,17 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import EventEmitter from 'events';
+import { logger } from '../core/logger.js';
+import { QNAPProcessor } from './qnap-integration.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // src/ai/coordinator.js
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const EventEmitter = require('events');
-const { logger } = require('../core/logger');
-
-
-const { QNAPProcessor } = require('./qnap-integration');
 
 class AICoordinator extends EventEmitter {
   constructor(config = {}) {
@@ -193,7 +200,6 @@ When managing CCTV, you can target specific devices by their deviceId.`;
     });           // close {description, execute} object + toolRegistry.set call
   }               // close _registerStaticTools
 
-
   async processQuery(text, context = {}) {
     try {
       // Neural intent classification
@@ -364,4 +370,4 @@ When managing CCTV, you can target specific devices by their deviceId.`;
   }
 }
 
-module.exports = AICoordinator;
+export default AICoordinator;

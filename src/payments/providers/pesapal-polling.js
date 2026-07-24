@@ -1,3 +1,4 @@
+
 // src/payments/providers/pesapal-polling.js
 
 class PesaPalPolling {
@@ -55,4 +56,4 @@ class PesaPalPolling {
   }
 }
 
-module.exports = PesaPalPolling;
+export default PesaPalPolling;

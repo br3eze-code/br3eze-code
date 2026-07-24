@@ -1,4 +1,10 @@
-'use strict';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * agentos telegram — CLI commands for Telegram channel management
  *
@@ -9,11 +15,7 @@
  *   agentos telegram test
  */
 
-const https = require('https');
-const fs    = require('fs');
-const path  = require('path');
-
-module.exports = (program) => {
+export default (program) => {
     // ── tg:send ───────────────────────────────────────────────────────────────
     program
         .command('tg:send <message>')

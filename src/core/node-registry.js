@@ -1,10 +1,13 @@
-'use strict';
+import EventEmitter from 'events';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * NodeRegistry — migrated from ss35.js §5
  * Manages multi-router mesh: connect, fan-out, per-node execution.
  */
-const EventEmitter = require('events');
-const { logger }   = require('./logger');
 
 class NodeRegistry extends EventEmitter {
     constructor() {
@@ -113,4 +116,4 @@ class NodeRegistry extends EventEmitter {
 }
 
 // Singleton
-module.exports = new NodeRegistry();
+export default new NodeRegistry();

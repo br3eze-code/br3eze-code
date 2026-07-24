@@ -1,4 +1,10 @@
-'use strict';
+import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * TaskScheduler — SQLite-backed cron/interval/once scheduled task runner
  * ─────────────────────────────────────────────────────────────────
@@ -17,9 +23,6 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
 
 let CronExpressionParser = null;
 try {
@@ -328,6 +331,5 @@ class TaskScheduler extends EventEmitter {
   }
 }
 
-module.exports = TaskScheduler;
-module.exports.computeInitialNextRun = computeInitialNextRun;
-module.exports.computeNextRun = computeNextRun;
+export default TaskScheduler;
+export { computeInitialNextRun, computeNextRun };

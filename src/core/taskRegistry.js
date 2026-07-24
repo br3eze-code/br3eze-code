@@ -1,10 +1,10 @@
-'use strict';
+import { v4 as uuidv4 } from 'uuid';
+import EventEmitter from 'events';
+
 /**
  * TaskRegistry — in-memory sub-agent task lifecycle management
  */
 
-const { v4: uuidv4 } = require('uuid');
-const EventEmitter   = require('events');
 
 // ── Task Status enum ──────────────────────────────────────────────────────────
 
@@ -102,4 +102,4 @@ function getTaskRegistry() {
     return _instance;
 }
 
-module.exports = { TaskRegistry, TaskStatus, getTaskRegistry };
+export { TaskRegistry, TaskStatus, getTaskRegistry };

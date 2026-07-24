@@ -1,10 +1,19 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 // skills/nanopdf/index.js
 // skills/nanopdf/index.js
 // const puppeteer = require('puppeteer-core'); // Lazy loaded
 // const { PDFDocument, PDFPage, StandardFonts, rgb } = require('pdf-lib'); // Lazy loaded
-const fs = require('fs').promises;
-const path = require('path');
 
 class NanoPDFSkill {
   constructor() {
@@ -438,4 +447,4 @@ class NanoPDFSkill {
   }
 }
 
-module.exports = new NanoPDFSkill();
+export default new NanoPDFSkill();

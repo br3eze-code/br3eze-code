@@ -1,7 +1,8 @@
+import fs from 'fs';
+import path from 'path';
+import { marked } from 'marked';
+
 // src/core/docs.js
-const fs = require('fs')
-const path = require('path')
-const { marked } = require('marked')
 
 class DocsGenerator {
   constructor(registry) {
@@ -62,4 +63,4 @@ class DocsGenerator {
   }
 }
 
-module.exports = { DocsGenerator }
+export default  { DocsGenerator }

@@ -1,4 +1,9 @@
-'use strict';
+import https from 'https';
+import { EventEmitter } from 'events';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AIOrchestrator — Multi-purpose Gemini Enterprise AI Router
  *
@@ -10,8 +15,6 @@
  *   - Fallback to Gemini Developer API (GEMINI_API_KEY) when Vertex is not configured
  */
 
-const https = require('https');
-const { EventEmitter } = require('events');
 
 // ─── Vertex AI Generative Language SDK (optional) ─────────────────────────────
 let VertexAI;
@@ -312,4 +315,4 @@ const DEFAULT_SAFETY_SETTINGS = [
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
 ];
 
-module.exports = { AIOrchestrator };
+export default  { AIOrchestrator };

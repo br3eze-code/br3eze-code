@@ -81,4 +81,4 @@ var WindowsPlatform = {
     }
 };
 
-module.exports = WindowsPlatform;
+export default WindowsPlatform;

@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
@@ -76,4 +78,4 @@ class AgentIdentity {
     }
 }
 
-module.exports = { AgentIdentity };
+export { AgentIdentity };

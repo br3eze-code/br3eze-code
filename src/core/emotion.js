@@ -1,10 +1,10 @@
-'use strict';
+import { logger } from './logger.js';
+
 /**
  * Emotion Engine — Tone-aware response processing
  * Ported from 36.js §7.9
  */
 
-const { logger } = require('./logger');
 
 class EmotionEngine {
     constructor() {
@@ -85,4 +85,4 @@ class EmotionEngine {
     getState() { return { ...this.state }; }
 }
 
-module.exports = new EmotionEngine();
+export default new EmotionEngine();

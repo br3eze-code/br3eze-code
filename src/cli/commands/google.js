@@ -1,14 +1,12 @@
+import GoogleWorkspaceSkill from '../../skills/google-workspace/index.js';
+import { getGateway } from '../../core/gateway-engine.js';
+
 // ==========================================
 // AGENTOS GOOGLE COMMAND
 // Google Workspace integration — @clack/prompts edition
 // ==========================================
 
-'use strict';
-
-const GoogleWorkspaceSkill = require('../../skills/google-workspace');
-const { getGateway } = require('../../core/gateway-engine');
-
-module.exports = (program) => {
+export default (program) => {
   const googleCmd = program
     .command('google')
     .description('Google Workspace integration tools');

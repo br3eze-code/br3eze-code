@@ -1,3 +1,7 @@
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/middleware/AuthMiddleware.js
 class AuthMiddleware {
   constructor(agent) {
@@ -25,4 +29,4 @@ class AuthMiddleware {
     return permissions.includes(requiredPermission) || permissions.includes('admin');
   }
 }
-module.exports = { AuthMiddleware };
+export { AuthMiddleware };

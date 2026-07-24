@@ -1,8 +1,17 @@
-const EventEmitter = require('events');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { BaseChannel } = require('./BaseChannel');
+import EventEmitter from 'events';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 
 class ChannelManager extends EventEmitter {
   constructor(agent) {
@@ -203,4 +212,4 @@ class ChannelManager extends EventEmitter {
 // Static field assigned after class definition (Babel class-properties plugin not required)
 ChannelManager.adapters = new Map();
 
-module.exports = ChannelManager;
+export default ChannelManager;

@@ -1,10 +1,11 @@
+import { BaseChannel } from './base.js';
+import { Logger } from '../utils/logger.js';
+
 
 /**
  * Discord Channel
  */
 
-const { BaseChannel } = require('./base');
-const { Logger } = require('../utils/logger');
 
 class DiscordChannel extends BaseChannel {
   constructor(options = {}) {
@@ -156,4 +157,4 @@ class DiscordChannel extends BaseChannel {
   }
 }
 
-module.exports = { DiscordChannel };
+export { DiscordChannel };

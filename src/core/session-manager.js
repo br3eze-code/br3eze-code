@@ -1,10 +1,11 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import { Logger } from '../utils/logger.js';
+
 /**
  * Session Manager
  */
 
-const fs = require('fs').promises;
-const path = require('path');
-const { Logger } = require('../utils/logger');
 
 class SessionManager {
   constructor(options = {}) {
@@ -205,5 +206,5 @@ class SessionManager {
   }
 }
 
-module.exports = { SessionManager };
+export { SessionManager };
 

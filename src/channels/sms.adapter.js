@@ -1,6 +1,4 @@
-'use strict';
-
-const axios = require('axios');
+import axios from 'axios';
 
 class SMSAdapter {
     constructor(config) {
@@ -50,4 +48,4 @@ class SMSAdapter {
     }
 }
 
-module.exports = SMSAdapter;
+export default SMSAdapter;

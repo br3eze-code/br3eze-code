@@ -1,12 +1,12 @@
-'use strict';
+import crypto from 'crypto';
+import { logger } from './logger.js';
+
 /**
  * Vault Service — AES-256-GCM Encryption + OAuth Token Storage
  * Ported from 36.js §3.6 & §3.7
  */
 
-const crypto = require('crypto');
 const { createCipheriv, createDecipheriv, randomBytes, scryptSync } = crypto;
-const { logger } = require('./logger');
 
 class EncryptionVault {
     constructor(masterKey) {
@@ -147,8 +147,4 @@ class OAuthVault {
 
 // Export singleton instances
 const encVault = new EncryptionVault();
-module.exports = {
-    EncryptionVault,
-    OAuthVault,
-    vault: encVault
-};
+export { EncryptionVault, OAuthVault };

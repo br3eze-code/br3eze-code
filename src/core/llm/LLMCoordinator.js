@@ -1,12 +1,20 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseProvider } from './providers/BaseProvider.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * LLM Coordinator — Orchestrates multiple LLM providers
  */
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
-const { BaseProvider } = require('./providers/BaseProvider');
 
 class LLMCoordinator {
     constructor(providerType = process.env.LLM_PROVIDER || 'gemini', config = {}) {
@@ -158,4 +166,4 @@ class LLMCoordinator {
     }
 }
 
-module.exports = LLMCoordinator;
+export default LLMCoordinator;

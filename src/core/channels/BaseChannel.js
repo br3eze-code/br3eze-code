@@ -1,7 +1,7 @@
-'use strict';
+import EventEmitter from 'events';
+import crypto from 'crypto';
 
-const EventEmitter = require('events');
-const crypto = require('crypto');
+
 
 class BaseChannel extends EventEmitter {
     static register(type, cls) {
@@ -101,4 +101,4 @@ class BaseChannel extends EventEmitter {
 // Static field assigned after class definition (Babel class-properties plugin not required)
 BaseChannel.registry = {};
 
-module.exports = { BaseChannel };
+export { BaseChannel };

@@ -1,8 +1,12 @@
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import hpp from 'hpp';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/security.js
-const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
-const hpp = require('hpp');
 
 class SecurityManager {
   constructor() {
@@ -149,4 +153,4 @@ class SecurityManager {
   }
 }
 
-module.exports = new SecurityManager();
+export default new SecurityManager();

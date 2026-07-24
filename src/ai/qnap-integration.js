@@ -1,5 +1,9 @@
+import { logger } from '../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/ai/qnap-integration.js
-const { logger } = require('../core/logger');
 
 /**
  * Q-NAP (Quantum Neural Acceleration Processor)
@@ -266,4 +270,4 @@ class QNAPProcessor {
   }
 }
 
-module.exports = { QNAPProcessor };
+export { QNAPProcessor };

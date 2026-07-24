@@ -1,4 +1,11 @@
-'use strict';
+import EventEmitter from 'events';
+import crypto from 'crypto';
+import path from 'path';
+import sdk from '../plugin-sdk/index.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AgentKernel — domain-agnostic orchestrator
  *
@@ -15,10 +22,6 @@
  * No direct imports from domains/, adapters/, mikrotik, etc.
  */
 
-const EventEmitter = require('events');
-const crypto       = require('crypto');
-const path         = require('path');
-const sdk          = require('../plugin-sdk');
 
 let _logger;
 function log(level, ...a) {
@@ -219,4 +222,4 @@ class AgentKernel extends EventEmitter {
   }
 }
 
-module.exports = AgentKernel;
+export default AgentKernel;

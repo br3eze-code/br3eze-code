@@ -1,5 +1,6 @@
-const { Client } = require('ssh2')
-const { BaseSkill } = require('./base.js')
+import { Client } from 'ssh2';
+import { BaseSkill } from './base.js';
+
 
 class LinuxSkill extends BaseSkill {
   static id = 'linux'
@@ -211,4 +212,4 @@ class LinuxSkill extends BaseSkill {
   }
 }
 
-module.exports = LinuxSkill
+export default LinuxSkill;

@@ -1,3 +1,4 @@
+
 // src/core/memory/adapters/MemoryAdapter.js
 class MemoryAdapter {
   constructor() {
@@ -63,4 +64,4 @@ class MemoryAdapter {
   }
 }
 
-module.exports = MemoryAdapter;
+export default MemoryAdapter;

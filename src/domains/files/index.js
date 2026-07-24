@@ -1,9 +1,10 @@
+import BaseDomain from '../BaseDomain.js';
+import { logger } from '../../core/logger.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { STATE_PATH } from '../../core/config.js';
+
 // src/domains/files/index.js
-const BaseDomain = require('../BaseDomain');
-const { logger } = require('../../core/logger');
-const fs = require('fs/promises');
-const path = require('path');
-const { STATE_PATH } = require('../../core/config');
 
 class FilesDomain extends BaseDomain {
   constructor() {
@@ -118,5 +119,5 @@ class FilesDomain extends BaseDomain {
   }
 }
 
-module.exports = FilesDomain;
+export default FilesDomain;
 

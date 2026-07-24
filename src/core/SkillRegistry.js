@@ -1,10 +1,14 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import EventEmitter from 'events';
+import { logger } from './logger.js';
+import yaml from 'js-yaml';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/SkillRegistry.js
-const fs   = require('fs').promises;
 const fss  = require('fs');            // sync checks
-const path = require('path');
-const EventEmitter = require('events');
-const { logger } = require('./logger');
-const yaml = require('js-yaml');
 
 class SkillRegistry extends EventEmitter {
   constructor(config) {
@@ -294,4 +298,4 @@ class SkillRegistry extends EventEmitter {
   }
 }
 
-module.exports = SkillRegistry;
+export default SkillRegistry;

@@ -1,5 +1,6 @@
+import BaseDomain from '../BaseDomain.js';
+
 // src/domains/compute/index.js
-const BaseDomain = require('../BaseDomain');
 
 class ComputeDomain extends BaseDomain {
   constructor() {
@@ -41,4 +42,4 @@ class ComputeDomain extends BaseDomain {
   }
 }
 
-module.exports = ComputeDomain;
+export default ComputeDomain;

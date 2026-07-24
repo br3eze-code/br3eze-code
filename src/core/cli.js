@@ -1,10 +1,13 @@
-﻿'use strict';
+import QRCode from 'qrcode';
+import crypto from 'crypto';
+import pc from 'picocolors';
+import clack from '@clack/prompts';
+import { fmtBytes } from './utils.js';
 
-const QRCode = require('qrcode');
-const crypto = require('crypto');
-const pc = require('picocolors');
-const clack = require('@clack/prompts');
-const { fmtBytes } = require('./utils');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 
 /**
  * AgentOSCLI — Interactive REPL powered by @clack/prompts + picocolors
@@ -548,4 +551,4 @@ async function runOneOff(params, deps) {
     setTimeout(() => process.exit(0), 100);
 }
 
-module.exports = { AgentOSCLI, runOneOff };
+export { AgentOSCLI, runOneOff };

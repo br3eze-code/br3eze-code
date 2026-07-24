@@ -1,10 +1,18 @@
-// src/core/loadDomain.js
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { logger } from './logger.js';
+import registry from './ToolRegistry.js';
 
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const registry = require('./ToolRegistry');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// src/core/loadDomain.js
+
 
 /**
  * Automatically loads all domains from src/domains
@@ -49,4 +57,4 @@ function loadAllDomains(config = {}) {
   }
 }
 
-module.exports = loadAllDomains;
+export default loadAllDomains;

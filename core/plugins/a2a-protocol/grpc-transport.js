@@ -1,3 +1,5 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const https = require('https');
 const http = require('http');
 
@@ -55,4 +57,4 @@ class GrpcTransport {
     }
 }
 
-module.exports = { GrpcTransport };
+export { GrpcTransport };

@@ -1,6 +1,10 @@
+import admin from 'firebase-admin';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/database-enhanced.js
-const admin = require('firebase-admin');
-const { logger } = require('./logger');
 
 class EnhancedDatabase {
   constructor() {
@@ -161,4 +165,4 @@ _persistLocal() {
 }
 }
 
-module.exports = new EnhancedDatabase();
+export default new EnhancedDatabase();

@@ -1,14 +1,13 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { PROFILE_DIR } from '../core/config.js';
+
 /**
  * Single-instance file lock for the Telegram bot poller.
  * Prevents two gateway processes (e.g. a stale process + a restarted one)
  * from long-polling the same bot token at once, which Telegram rejects with
  * a 409 Conflict.
  */
-
-const fs = require('fs');
-const path = require('path');
-const { PROFILE_DIR } = require('../core/config');
 
 const LOCK_FILE = path.join(PROFILE_DIR, 'telegram-bot.lock');
 
@@ -51,4 +50,4 @@ function releaseBotLock() {
   }
 }
 
-module.exports = { acquireBotLock, releaseBotLock, LOCK_FILE };
+export { acquireBotLock, releaseBotLock, LOCK_FILE };

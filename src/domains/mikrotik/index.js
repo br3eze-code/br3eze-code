@@ -1,5 +1,5 @@
-const BaseDomain = require('../BaseDomain');
-const { MikroTikManager } = require('../../core/mikrotik');
+import BaseDomain from '../BaseDomain.js';
+import { MikroTikManager } from '../../core/mikrotik.js';
 
 class MikroTikDomain extends BaseDomain {
   constructor(config) {
@@ -27,4 +27,4 @@ class MikroTikDomain extends BaseDomain {
   }
 }
 
-module.exports = MikroTikDomain;
+export default MikroTikDomain;

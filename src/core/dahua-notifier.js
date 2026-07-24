@@ -1,4 +1,11 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Pushes Dahua motion/IVS alarm events out through the ChannelManager (Telegram +
  * WhatsApp broadcast) in real time, via Dahua's eventManager.cgi multipart push stream.
@@ -9,11 +16,6 @@
  * motion actively firing) — only eventManager.cgi's live push stream carries them.
  * See DahuaSkill.streamEvents().
  */
-
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
 
 const DEFAULT_CODES = ['VideoMotion', 'CrossLineDetection', 'CrossRegionDetection', 'AlarmLocal', 'SmartMotionHuman', 'SmartMotionVehicle'];
 const RECONNECT_BASE_MS = 5000;
@@ -220,4 +222,4 @@ class DahuaNotifier {
   }
 }
 
-module.exports = { DahuaNotifier };
+export { DahuaNotifier };

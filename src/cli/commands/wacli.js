@@ -1,18 +1,21 @@
+import fs from 'fs';
+import path from 'path';
+import { intro, outro, spinner, note, log, isCancel } from '@clack/prompts';
+import qrcode from 'qrcode-terminal';
+import { getConfig } from '../../core/config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS WACLI COMMAND
 // WhatsApp CLI — @clack/prompts edition
 // ==========================================
 
-'use strict';
 
-const fs   = require('fs');
-const path = require('path');
 
-const { intro, outro, spinner, note, log, isCancel } = require('@clack/prompts');
-const qrcode       = require('qrcode-terminal');
-const { getConfig } = require('../../core/config');
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('wacli')
     .description('WhatsApp CLI — QR pairing, auth status, and diagnostics')

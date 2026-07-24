@@ -1,13 +1,12 @@
-'use strict';
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+
 /**
  * LLM Conversation Session — Tracks history, usage, and transcripts
  * Ported from 36.js §4.1
  */
-
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
 
 const MessageRole = Object.freeze({ 
     USER: 'user', 
@@ -167,8 +166,4 @@ class ConversationSession {
     }
 }
 
-module.exports = {
-    MessageRole,
-    ContentBlock,
-    ConversationSession
-};
+export { MessageRole, ContentBlock, ConversationSession };

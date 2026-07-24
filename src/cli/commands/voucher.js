@@ -1,14 +1,17 @@
+import fs from 'fs';
+import QRCode from 'qrcode';
+import { intro, outro, spinner, note, log, select, multiselect, isCancel } from '@clack/prompts';
+import { getDatabase } from '../../core/database.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS VOUCHER COMMAND
 // Voucher management — @clack/prompts edition
 // ==========================================
 
-'use strict';
 
-const fs = require('fs');
-const QRCode = require('qrcode');
-const { intro, outro, spinner, note, log, select, multiselect, isCancel } = require('@clack/prompts');
-const { getDatabase } = require('../../core/database');
 
 // ── Plan definitions (mirrors 36.js CONFIG.VOUCHER_PLANS) ────────────────────
 const PLAN_DEFS = {
@@ -18,7 +21,7 @@ const PLAN_DEFS = {
   '30Day': { label: '30 Days', price: 6.00, duration: '30d' },
 };
 
-module.exports = (program) => {
+export default (program) => {
   const voucher = program
     .command('voucher')
     .description('Manage access vouchers')

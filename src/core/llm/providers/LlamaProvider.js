@@ -1,10 +1,12 @@
-'use strict';
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Llama LLM Provider (Meta Open Models)
  */
-
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
 
 class LlamaProvider extends BaseProvider {
     static getMetadata() {
@@ -66,4 +68,4 @@ class LlamaProvider extends BaseProvider {
 BaseProvider.register('llama', LlamaProvider);
 BaseProvider.register('meta', LlamaProvider);
 BaseProvider.register('meta-llama', LlamaProvider);
-module.exports = { LlamaProvider };
+export { LlamaProvider };

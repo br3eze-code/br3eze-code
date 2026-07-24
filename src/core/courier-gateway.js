@@ -1,4 +1,8 @@
-'use strict';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Pluggable courier/delivery gateway — mirrors src/payments/payment-gateway.js's
  * multi-provider pattern (Map of provider id -> instance, config-driven activation).
@@ -19,7 +23,6 @@
  *                 (The Courier Guy has no direct public booking/creation API).
  *                 createShipment is NOT supported through this path.
  */
-const { logger } = require('./logger');
 
 class CourierGateway {
     constructor(config = {}) {
@@ -78,4 +81,4 @@ function getCourierGateway(config) {
     return instance;
 }
 
-module.exports = { CourierGateway, getCourierGateway };
+export { CourierGateway, getCourierGateway };

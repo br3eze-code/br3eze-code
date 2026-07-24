@@ -1,6 +1,7 @@
+import db from '../storage/db';
+
 // src/services/vouchers.js
 
-const db = require('../storage/db');
 
 class VoucherService {
 
@@ -37,4 +38,4 @@ class VoucherService {
     }
 }
 
-module.exports = new VoucherService();
+export default new VoucherService();

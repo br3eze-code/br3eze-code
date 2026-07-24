@@ -1,4 +1,4 @@
-'use strict';
+
 /**
  * Permission System — PermissionContext + PermissionEnforcer
  */
@@ -103,4 +103,4 @@ class PermissionDenial {
     toJSON() { return { toolName: this.toolName, reason: this.reason, timestamp: this.timestamp }; }
 }
 
-module.exports = { PermissionMode, PermissionEnforcer, ToolPermissionContext, PermissionDenial, requiredModeFor, TOOL_TIERS };
+export { PermissionMode, PermissionEnforcer, ToolPermissionContext, PermissionDenial, requiredModeFor, TOOL_TIERS };

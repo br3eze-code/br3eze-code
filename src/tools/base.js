@@ -1,3 +1,4 @@
+
 // src/tools/base.js
 class BaseTool {
   constructor(config) {
@@ -63,4 +64,4 @@ class DatabaseMigrationTool extends BaseTool {
   }
 }
 
-module.exports = { BaseTool };
+export { BaseTool };

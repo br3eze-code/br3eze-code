@@ -1,11 +1,18 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * Automate Provider Standardization
  * Ensures all providers extend BaseProvider, include metadata, and self-register.
  */
-
-const fs = require('fs');
-const path = require('path');
 
 const providersDir = path.join(__dirname, '../core/llm/providers');
 const files = fs.readdirSync(providersDir).filter(f => f.endsWith('Provider.js') && f !== 'BaseProvider.js');

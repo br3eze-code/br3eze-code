@@ -1,3 +1,4 @@
+
 // src/channels/BaseChannel.js
 class BaseChannel {
   constructor(config) {
@@ -18,4 +19,4 @@ class BaseChannel {
   }
 }
 
-module.exports = { BaseChannel };
+export { BaseChannel };

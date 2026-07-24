@@ -83,8 +83,4 @@ class OutlookCalendarAdapter extends BaseCalendarAdapter {
 }
 
 export { LocalCalendarAdapter, GoogleCalendarAdapter, OutlookCalendarAdapter };
-export default {
-  LocalCalendarAdapter,
-  GoogleCalendarAdapter,
-  OutlookCalendarAdapter
-};
+export { LocalCalendarAdapter, GoogleCalendarAdapter, OutlookCalendarAdapter };

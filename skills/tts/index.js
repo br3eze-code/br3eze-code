@@ -1,7 +1,11 @@
+import { Readable } from 'stream';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // skills/tts/index.js
-const { Readable } = require('stream');
-const fs = require('fs').promises;
-const path = require('path');
 
 class TTSSkill {
   constructor() {
@@ -329,4 +333,4 @@ $synth.Dispose();
   }
 }
 
-module.exports = new TTSSkill();
+export default new TTSSkill();

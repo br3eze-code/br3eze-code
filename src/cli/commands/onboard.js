@@ -1,9 +1,14 @@
-'use strict';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import { onboardFleet, onboardRouter } from '../../core/onboard.js';
 
-const path = require('path');
-const fs = require('fs');
-const crypto = require('crypto');
-const inquirer = require('inquirer');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 
 let _clack;
 const intro = (...args) => _clack.intro(...args);
@@ -18,8 +23,6 @@ const log = {
   warn: (...args) => _clack.log.warn(...args),
   info: (...args) => _clack.log.info(...args)
 };
-const chalk = require('chalk');
-const { onboardFleet, onboardRouter } = require('../../core/onboard');
 
 /** clack doesn't have a good way to handle inquirer-style loops easily, so we use inquirer for data entry */
 async function prompt(questions) {
@@ -378,7 +381,7 @@ async function collectPaymentConfig(existing = {}) {
   return { provider, currency: currency.trim().toUpperCase(), credentials, configured: true };
 }
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('onboard')
     .description('Interactive domain-agnostic setup wizard')

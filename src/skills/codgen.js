@@ -1,5 +1,6 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 // skills/codegen.js
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const codegen = {
   name: "codegen",
@@ -49,4 +50,4 @@ Current router board: ${context['board-name']}`;
   }
 };
 
-module.exports = { codegen, GoogleGenerativeAI };
+export { codegen, GoogleGenerativeAI };

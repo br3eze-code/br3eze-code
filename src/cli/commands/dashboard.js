@@ -1,13 +1,14 @@
+import { getManager as getMikroTikManager } from '../../core/mikrotik.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS DASHBOARD COMMAND
 // Comprehensive system overview — @clack/prompts edition
 // ==========================================
 
-'use strict';
-
-const { getManager: getMikroTikManager } = require('../../core/mikrotik');
-
-module.exports = (program) => {
+export default (program) => {
   program
     .command('dashboard')
     .description('Show comprehensive system dashboard')

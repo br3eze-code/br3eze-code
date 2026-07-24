@@ -1,4 +1,5 @@
-'use strict';
+import { logger } from './logger.js';
+
 /**
  * src/core/ToolRegistry.js
  *
@@ -12,8 +13,6 @@
  * at the bottom. Both the class AND a default singleton instance are exported
  * to satisfy all existing consumers.
  */
-
-const { logger } = require('./logger');
 
 // Stub permission/hook system — replace with real implementations when ready
 const permissionPolicy = {
@@ -137,6 +136,5 @@ class ToolRegistry {
 // ── Singleton default export (backward compat with tool-registry.js consumers)
 const _singleton = new ToolRegistry();
 
-module.exports                = _singleton;       // default: singleton instance
-module.exports.ToolRegistry   = ToolRegistry;     // named: class for tests / DI
-module.exports.default        = _singleton;       // ESM interop
+export default _singleton;       // default: singleton instance
+export { ToolRegistry };     // named: class for tests / DI

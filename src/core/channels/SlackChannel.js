@@ -1,6 +1,10 @@
+import { BaseChannel } from './BaseChannel.js';
+import { WebClient } from '@slack/web-api';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/channels/SlackChannel.js
-const { BaseChannel } = require('./BaseChannel');
-const { WebClient } = require('@slack/web-api');
 
 class SlackChannel extends BaseChannel {
   static getMetadata() {
@@ -261,4 +265,4 @@ class SlackChannel extends BaseChannel {
 
 BaseChannel.register('slack', SlackChannel);
 
-module.exports = SlackChannel;
+export default SlackChannel;

@@ -1,14 +1,18 @@
+import _chalk from 'chalk';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/cli/commands/skill.js
 // ==========================================
 // AGENTOS SKILL COMMAND
 // List, run, and manage agent skills
 // ==========================================
 
-const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
-const path   = require('path');
 
-module.exports = (program) => {
+export default (program) => {
   const skill = program
     .command('skill')
     .description('Manage and execute agent skills');

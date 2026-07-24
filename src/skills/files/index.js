@@ -1,8 +1,11 @@
-const { BaseSkill } = require('../base.js')
-const axios = require('axios')
-const { google } = require('googleapis')
-const fs = require('fs/promises')
-const path = require('path')
+import { BaseSkill } from '../base.js';
+import axios from 'axios';
+import { google } from 'googleapis';
+import fs from 'fs/promises';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 class FileStorageSkill extends BaseSkill {
   static id = 'files'
@@ -292,4 +295,4 @@ class FileStorageSkill extends BaseSkill {
   }
 }
 
-module.exports = FileStorageSkill
+export default FileStorageSkill;

@@ -1,11 +1,15 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-require('dotenv').config();
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import 'dotenv/config';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 const BRAND = {
     name: 'AgentOS',
-    version: '2026.5.4',
+    version: '2026.7.47',
     emoji: '🤖',
     tagline: 'Network Intelligence, Simplified'
 };
@@ -301,22 +305,13 @@ function getConfig() {
     return loaded;
 }
 
-module.exports = {
-    BRAND,
-    PROFILE_DIR,
-    CONFIG_PATH,
-    STATE_PATH,
-    DEFAULT_CONFIG,
-    loadConfig,
-    saveConfig,
-    getConfig,
-    mikrotik: {
-        host: process.env.MIKROTIK_IP,
-        user: process.env.MIKROTIK_USER,
-        pass: process.env.MIKROTIK_PASS
-    },
-    security: {
-        apiKey: process.env.API_KEY,
-        ALERT_COOLDOWN_MS: 60000
-    }
+export const mikrotik = {
+    host: process.env.MIKROTIK_IP,
+    user: process.env.MIKROTIK_USER,
+    pass: process.env.MIKROTIK_PASS
 };
+export const security = {
+    apiKey: process.env.API_KEY,
+    ALERT_COOLDOWN_MS: 60000
+};
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };

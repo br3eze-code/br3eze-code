@@ -1,12 +1,15 @@
-'use strict';
+import WebSocket from 'ws';
+import QRCode from 'qrcode';
+import { logger } from '../logger.js';
+import { getConfig } from '../config.js';
+import { getMikroTikClient } from '../mikrotik.js';
+import { getDatabase } from '../database.js';
+import voucherAgent from '../voucher.js';
 
-const WebSocket = require('ws');
-const QRCode = require('qrcode');
-const { logger } = require('../logger');
-const { getConfig } = require('../config');
-const { getMikroTikClient } = require('../mikrotik');
-const { getDatabase } = require('../database');
-const voucherAgent = require('../voucher');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -543,4 +546,4 @@ class WebSocketCLI {
     destroy() { this.buffer = ''; this.isProcessing = false; this.pendingConfirm = null; }
 }
 
-module.exports = WebSocketCLI;
+export default WebSocketCLI;

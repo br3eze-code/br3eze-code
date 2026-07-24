@@ -1,3 +1,6 @@
+import express from 'express';
+import { logger } from '../../core/logger.js';
+
 /**
  * API Routes v2 — AgentOS Enhanced
  * AI · Financial · Billing · Analytics · Channels · Mesh
@@ -5,11 +8,7 @@
  * @version 2026.6.17
  */
 
-'use strict';
-
-const express = require('express');
 const router  = express.Router();
-const { logger } = require('../../core/logger');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const ok       = (res, data, meta = {}) => res.json({ ok: true, ...meta, data });
@@ -442,4 +441,4 @@ async function _vouchersByDay(days = 7) {
   } catch { return []; }
 }
 
-module.exports = router;
+export default router;

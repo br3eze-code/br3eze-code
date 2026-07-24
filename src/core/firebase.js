@@ -1,11 +1,15 @@
+import admin from 'firebase-admin';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Firebase Admin Initialization
  * @module core/firebase
  */
 
-const admin = require('firebase-admin');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
 
 let firebaseApp = null;
 let db = null;
@@ -169,12 +173,4 @@ async function createAuthUser(identifier, opts = {}) {
   }
 }
 
-module.exports = {
-  initializeFirebase,
-  getFirestore,
-  getFirebaseApp,
-  getAuth,
-  getDatabase,
-  createAuthUser,
-  admin
-};
+export { initializeFirebase, getFirestore, getFirebaseApp, getAuth, getDatabase, createAuthUser, admin };

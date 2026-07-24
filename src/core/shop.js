@@ -1,3 +1,9 @@
+import { getDatabase } from './database.js';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Backend shop — lets a channel agent (WhatsApp/Telegram/etc.) browse products,
  * hold a per-chat cart, and CLOSE a sale (order + invoice + stock decrement).
@@ -9,10 +15,7 @@
  * Shares the `products` / `orders` / `invoices` collections with the web shop,
  * so a sale closed over WhatsApp shows up in the same admin inventory/orders.
  */
-'use strict';
 
-const { getDatabase } = require('./database');
-const { logger } = require('./logger');
 
 const SHIPPING_FLAT = 5;
 const PUBLIC_URL = process.env.PUBLIC_URL || 'https://br3eze.africa';
@@ -201,8 +204,4 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     return order;
 }
 
-module.exports = {
-    SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart,
-    removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser,
-    productUrl, orderUrl, createShipment, trackShipment,
-};
+export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, productUrl, orderUrl, createShipment, trackShipment };

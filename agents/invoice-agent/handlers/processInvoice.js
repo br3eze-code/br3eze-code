@@ -39,7 +39,7 @@ Extract and validate invoice data. Return structured JSON only.`
  * @param {string} senderSPIFFE - Calling agent SPIFFE ID
  * @param {object} a2aAdapter   - A2AProtocolAdapter instance (injected by plugin)
  */
-module.exports = async function processInvoice(parameters, session, senderSPIFFE, a2aAdapter) {
+export default async function processInvoice(parameters, session, senderSPIFFE, a2aAdapter) {
     const { pdf_url, jurisdiction } = parameters;
 
     if (!pdf_url) throw new Error('Parameter "pdf_url" is required');

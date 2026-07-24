@@ -1,8 +1,9 @@
+import { ValidationError } from '../core/errors.js';
+
 /**
  * Input Validation Utilities
  */
 
-const { ValidationError } = require('../core/errors');
 
 const validators = {
   // IP Address validation
@@ -95,8 +96,4 @@ function validateAll(schema, data) {
   return true;
 }
 
-module.exports = {
-  validators,
-  validate,
-  validateAll
-};
+export { validators, validate, validateAll };

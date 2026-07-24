@@ -1,3 +1,12 @@
+import { promises as fsp } from 'fs';
+import fsSync from 'fs';
+import path from 'path';
+import yaml from 'js-yaml';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * ToolRegistry — AgentOS Skill & Tool Loader
  *
@@ -15,13 +24,7 @@
  *   • Disabled-skill guard on execute()
  */
 
-'use strict';
 
-const fsp = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const { logger } = require('./logger');
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -447,4 +450,4 @@ class SkillDisabledError extends Error {
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
-module.exports = { ToolRegistry, ToolNotFoundError, SkillDisabledError };
+export { ToolRegistry, ToolNotFoundError, SkillDisabledError };

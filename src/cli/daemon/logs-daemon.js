@@ -1,7 +1,6 @@
-'use strict';
+import dgram from 'dgram';
+import chalk from 'chalk';
 
-const dgram = require('dgram');
-const chalk = require('chalk');
 const server = dgram.createSocket('udp4');
 
 const PORT = 5001;

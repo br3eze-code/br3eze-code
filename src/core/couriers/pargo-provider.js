@@ -1,4 +1,5 @@
-'use strict';
+import { jsonRequest } from './_http.js';
+
 /**
  * Pargo (pickup-point network, Southern Africa).
  *
@@ -10,7 +11,6 @@
  * current API. Verify against Pargo's real docs (ask their support for the
  * developer reference once you have an account) before relying on this.
  */
-const { jsonRequest } = require('./_http');
 
 class PargoProvider {
     name = 'Pargo';
@@ -54,4 +54,4 @@ class PargoProvider {
     }
 }
 
-module.exports = PargoProvider;
+export default PargoProvider;

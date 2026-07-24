@@ -1,6 +1,7 @@
-const DigestFetch = require('digest-fetch')
-const { parseStringPromise } = require('xml2js')
-const { BaseSkill } = require('../base.js')
+import DigestFetch from 'digest-fetch';
+import { parseStringPromise } from 'xml2js';
+import { BaseSkill } from '../base.js';
+
 
 class HikvisionSkill extends BaseSkill {
   static id = 'hikvision'
@@ -209,4 +210,4 @@ class HikvisionSkill extends BaseSkill {
   }
 }
 
-module.exports = HikvisionSkill
+export default HikvisionSkill;

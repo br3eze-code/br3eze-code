@@ -1,19 +1,23 @@
-// src/core/gateway-engine.js 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const cors = require('cors');
-const compression = require('compression');
-const EventEmitter = require('events');
-const path = require('path');
+import express from 'express';
+import http from 'http';
+import WebSocket from 'ws';
+import cors from 'cors';
+import compression from 'compression';
+import EventEmitter from 'events';
+import path from 'path';
+import security from './security.js';
+import { logger } from './logger.js';
+import ChannelManager from './channels/ChannelManager.js';
+import MobileBridge from '../api/mobile-bridge.js';
+import AICoordinator from '../ai/coordinator.js';
+import { metrics } from './metrics.js';
+import { DahuaNotifier } from './dahua-notifier.js';
 
-const security = require('./security');
-const { logger } = require('./logger');
-const ChannelManager = require('./channels/ChannelManager');
-const MobileBridge = require('../api/mobile-bridge');
-const AICoordinator = require('../ai/coordinator');
-const { metrics } = require('./metrics');
-const { DahuaNotifier } = require('./dahua-notifier');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// src/core/gateway-engine.js 
+
 
 // A2A Protocol Plugin
 let a2aPlugin;
@@ -793,4 +797,5 @@ async function startGateway(config) {
   return await gateway.start();
 }
 
-module.exports = { Gateway, startGateway };
+export { Gateway, startGateway };
+export const getGateway = startGateway;

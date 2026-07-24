@@ -1,3 +1,11 @@
+import { BaseChannel } from './base.js';
+import { Logger } from '../utils/logger.js';
+import QRCode from 'qrcode-terminal';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 /**
  * WhatsApp Channel
@@ -9,10 +17,6 @@ const {
   useMultiFileAuthState,
   Browsers
 } = require('@whiskeysockets/baileys');
-const { BaseChannel } = require('./base');
-const { Logger } = require('../utils/logger');
-const QRCode = require('qrcode-terminal');
-const path = require('path');
 
 class WhatsAppChannel extends BaseChannel {
   constructor(options = {}) {
@@ -135,4 +139,4 @@ class WhatsAppChannel extends BaseChannel {
   }
 }
 
-module.exports = { WhatsAppChannel };
+export { WhatsAppChannel };

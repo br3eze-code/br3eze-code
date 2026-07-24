@@ -1,12 +1,15 @@
+import os from 'os';
+import chalk from 'chalk';
+import { logger } from '../logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * HandlerLibrary.js
  * Common logic for all AgentOS messaging channel commands.
  * Shared between Telegram, WhatsApp, Slack, and Discord.
  */
-
-const os = require('os');
-const chalk = require('chalk');
-const { logger } = require('../logger');
 
 const HandlerLibrary = {
   /**
@@ -197,4 +200,4 @@ const HandlerLibrary = {
   }
 };
 
-module.exports = HandlerLibrary;
+export default HandlerLibrary;

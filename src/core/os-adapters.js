@@ -1,14 +1,17 @@
-'use strict';
+import { logger } from './logger.js';
+import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * OS Adapters — Linux SSH and Windows PowerShell.
  * Ported from 36.js §7.5
  */
 
-const { logger } = require('./logger');
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 
 class OSAdapter {
     async connect() { throw new Error('Not implemented'); }
@@ -151,4 +154,4 @@ class WindowsPowerShellAdapter extends OSAdapter {
     }
 }
 
-module.exports = { LinuxSSHAdapter, WindowsPowerShellAdapter };
+export { LinuxSSHAdapter, WindowsPowerShellAdapter };

@@ -1,12 +1,15 @@
-'use strict';
+import { BaseProvider } from './BaseProvider.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../../logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Gemini LLM Provider
  * Ported from 36.js §2.5
  */
 
-const { BaseProvider } = require('./BaseProvider');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { logger } = require('../../logger');
 
 class GeminiProvider extends BaseProvider {
     static getMetadata() {
@@ -120,4 +123,4 @@ class GeminiProvider extends BaseProvider {
 }
 
 BaseProvider.register('gemini', GeminiProvider);
-module.exports = { GeminiProvider };
+export { GeminiProvider };

@@ -1,16 +1,19 @@
-'use strict';
+import { v4 as uuidv4 } from 'uuid';
+import winston from 'winston';
+import path from 'path';
+import fs from 'fs';
+import { AsyncLocalStorage } from 'async_hooks';
+import { A } from './constants.js';
+import util from 'util';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 /**
  * Structured Logger with Winston
  * @module core/logger
  */
-const { v4: uuidv4 } = require('uuid');
-const winston = require('winston');
-const path = require('path');
-const fs = require('fs');
-const { AsyncLocalStorage } = require('async_hooks');
-const { A } = require('./constants');
-const util = require('util');
 
 // Create async local storage for correlation IDs
 const asyncLocalStorage = new AsyncLocalStorage();
@@ -173,9 +176,5 @@ logger.cyber = logger.cyber.bind(logger);
 logger.fatal = logger.fatal.bind(logger);
 logger.trace = logger.trace.bind(logger);
 
-module.exports = {
-  logger,
-  correlationIdMiddleware,
-  asyncLocalStorage
-};
+export { logger, correlationIdMiddleware, asyncLocalStorage };
 

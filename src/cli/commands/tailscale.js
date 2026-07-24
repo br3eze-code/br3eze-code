@@ -1,10 +1,8 @@
-'use strict';
+import chalk from 'chalk';
+import { intro, outro, note, spinner } from '@clack/prompts';
+import tailscale from '../../core/tailscale.js';
 
-const chalk = require('chalk');
-const { intro, outro, note, spinner } = require('@clack/prompts');
-const tailscale = require('../../core/tailscale');
-
-module.exports = (program) => {
+export default (program) => {
   program
     .command('tailscale')
     .description('Manage or view Tailscale VPN status')

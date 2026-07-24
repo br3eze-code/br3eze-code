@@ -1,11 +1,11 @@
-'use strict';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+
 /**
  * Renders an order as a one-page PDF via pdf-lib (no browser/HTML dependency).
  * "INVOICE" for orders still awaiting payment (cod); "RECEIPT" for orders
  * already settled (credits/card/cash) — the label is the only structural
  * difference, since both are the same underlying order document.
  */
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
 const PAGE_WIDTH = 595.28; // A4
 const PAGE_HEIGHT = 841.89;
@@ -85,4 +85,4 @@ async function generateOrderPdf(order) {
     return Buffer.from(bytes);
 }
 
-module.exports = { generateOrderPdf };
+export { generateOrderPdf };

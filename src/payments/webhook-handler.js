@@ -1,7 +1,7 @@
+import crypto from 'crypto';
+
 // src/payments/webhook-handler.js
 // Express middleware for handling payment webhooks
-
-const crypto = require('crypto');
 
 /**
  * Create webhook handler middleware
@@ -86,7 +86,4 @@ function setupWebhookRoutes(app, gateway, callbacks) {
   });
 }
 
-module.exports = {
-  createWebhookHandler,
-  setupWebhookRoutes
-};
+export { createWebhookHandler, setupWebhookRoutes };

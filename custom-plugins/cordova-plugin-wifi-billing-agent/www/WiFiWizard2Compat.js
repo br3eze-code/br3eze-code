@@ -462,7 +462,7 @@ WifiWizard2.connectLegacy = function(ssid, bindAll, password, algorithm, isHidde
 };
 
 // Export for module systems
-module.exports = WifiWizard2;
+export default WifiWizard2;
 
 // Also expose on window for legacy compatibility
 if (typeof window !== 'undefined') {

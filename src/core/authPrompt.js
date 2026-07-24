@@ -1,4 +1,5 @@
-'use strict';
+import { DEFAULT_LOGIN_DOMAIN } from './config.js';
+
 /**
  * src/core/authPrompt.js
  * ─────────────────────────────────────────────────────────────────
@@ -11,8 +12,6 @@
  * hand-rolling its own string around the DEFAULT_LOGIN_DOMAIN literal.
  * ─────────────────────────────────────────────────────────────────
  */
-
-const { DEFAULT_LOGIN_DOMAIN } = require('./config');
 
 function getLoginUrl() {
   return `https://${DEFAULT_LOGIN_DOMAIN}/login`;
@@ -51,4 +50,4 @@ function getAuthPrompt(channel = 'generic') {
   }
 }
 
-module.exports = { getAuthPrompt, getLoginUrl };
+export { getAuthPrompt, getLoginUrl };

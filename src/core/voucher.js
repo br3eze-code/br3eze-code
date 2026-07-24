@@ -1,12 +1,15 @@
-'use strict';
+import eventBus from '../core/eventBus.js';
+import { getConfig } from './config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * VoucherAgent — Voucher generation & event emission
  * @module core/voucher
  * @version 2026.04.23
  */
 
-const eventBus  = require('../core/eventBus');
-const { getConfig } = require('./config');
 
 class VoucherAgent {
     constructor() {
@@ -179,4 +182,4 @@ class VoucherAgent {
     }
 }
 
-module.exports = new VoucherAgent();
+export default new VoucherAgent();

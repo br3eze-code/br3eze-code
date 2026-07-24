@@ -1,12 +1,15 @@
-'use strict';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * UniversalBilling — Voucher & Payment System
  * Supports: PesaPay, Stripe, M-Pesa (Daraja), Mastercard/Peach, Webhook, None
  */
 
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
-const { logger } = require('./logger');
 
 class UniversalBilling extends EventEmitter {
     constructor(config = {}) {
@@ -918,4 +921,4 @@ _readConfigFile() {
 
 } // end class UniversalBilling
 
-module.exports = UniversalBilling;
+export default UniversalBilling;

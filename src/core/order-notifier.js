@@ -1,4 +1,5 @@
-'use strict';
+import { logger } from './logger.js';
+
 /**
  * Broadcasts a "new order" alert to admin Telegram/WhatsApp chats whenever a
  * sale closes on ANY channel (web, Telegram, WhatsApp, CLI) — mirrors
@@ -9,7 +10,6 @@
  * channels — that's the existing "who controls/monitors this bot" allowlist,
  * not a customer-facing broadcast list.
  */
-const { logger } = require('./logger');
 
 function money(n) { return `$${Number(n || 0).toFixed(2)}`; }
 
@@ -55,4 +55,4 @@ async function notifyNewOrder(order) {
     }
 }
 
-module.exports = { notifyNewOrder };
+export { notifyNewOrder };

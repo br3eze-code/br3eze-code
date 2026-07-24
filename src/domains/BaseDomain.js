@@ -1,4 +1,5 @@
-'use strict';
+import { logger } from '../core/logger.js';
+
 /**
  * src/domains/BaseDomain.js
  *
@@ -14,8 +15,6 @@
  *   - execute(ctx)    {any}     single entry-point called by AgentKernel.dispatch()
  *   - capabilities    {Array}   hint strings for AgentKernel.resolveDomain()
  */
-
-const { logger } = require('../core/logger');
 
 class BaseDomain {
   constructor() {
@@ -93,4 +92,4 @@ class BaseDomain {
   }
 }
 
-module.exports = BaseDomain;
+export default BaseDomain;

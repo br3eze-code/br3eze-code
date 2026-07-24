@@ -1,17 +1,17 @@
-'use strict';
+import { getManager as getMikroTikManager } from './mikrotik.js';
+import { getAgentRuntime } from './agentRuntime.js';
+import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { listSessions } from './sessionStore.js';
+import { getConfig } from './config.js';
+import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
 /**
  * Diagnostics — GatewayDiagnostics + MissionControlSnapshot + readiness checks
  */
 
-const { getManager: getMikroTikManager } = require('./mikrotik');
-const { getAgentRuntime }               = require('./agentRuntime');
-const { getTaskRegistry, TaskStatus }   = require('./taskRegistry');
-const { listSessions }                  = require('./sessionStore');
-const { getConfig }                     = require('./config');
-const { logger }                        = require('./logger');
-const fs   = require('fs');
-const path = require('path');
-const os   = require('os');
 
 // ── Health enum  ─────────────────────────
 
@@ -230,13 +230,4 @@ async function handleSnapshot(req, res) {
     }
 }
 
-module.exports = {
-    DiagnosticHealth,
-    buildGatewayDiagnostics,
-    buildMissionControlSnapshot,
-    isSystemReady,
-    isMissionReady,
-    isRouterReady,
-    handleHealthFull,
-    handleSnapshot
-};
+export { DiagnosticHealth, buildGatewayDiagnostics, buildMissionControlSnapshot, isSystemReady, isMissionReady, isRouterReady, handleHealthFull, handleSnapshot };

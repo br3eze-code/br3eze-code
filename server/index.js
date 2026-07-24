@@ -2,7 +2,7 @@
  * Cloud Functions entry point (firebase.json -> functions.source = "server").
  * Wraps the plain Express app exported by server.js -- requiring server.js
  * here does NOT start its raw HTTP listener or WebSocket gateway (guarded
- * behind `require.main === module` in server.js); Cloud Functions handles
+ * behind `import.meta.url.endsWith(process.argv[1])` in server.js); Cloud Functions handles
  * the actual HTTP listener itself.
  *
  * firebase.json's hosting rewrite ("/api/**" -> function "api") expects the

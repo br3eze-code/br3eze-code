@@ -1,15 +1,19 @@
+import { RouterOSClient } from 'routeros-client';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import NodeCache from 'node-cache';
+import Joi from 'joi';
+import EventEmitter from 'events';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AgentOS
  * @module core/mikrotik
  * @version 2026.04.14
  */
 // ── Imports ───────────────────────────────────────────────────────────────────
-const { RouterOSClient } = require('routeros-client');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const NodeCache = require('node-cache');
-const Joi = require('joi');
-const EventEmitter = require('events');
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 const toolSchemas = {
@@ -2032,24 +2036,5 @@ async function testConnection(config = null) {
 }
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-module.exports = {
-    // Classes
-    MikroTikManager,
-    MikroTikPool,
-    CircuitBreaker,
-    MikroTikError,
-    ConnectionError,
-    ToolExecutionError,
-
-    // Factories
-    getManager,
-    resetManager,
-    createManager,
-
-    // Utilities
-    testConnection,
-
-    // Legacy alias
-    getMikroTikClient: getManager,
-    testMikroTikConnection: testConnection
-};
+export { MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager };
+export { getManager as getMikroTikClient };

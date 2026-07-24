@@ -1,12 +1,20 @@
-'use strict';
+import chalk from 'chalk';
+import { intro, outro, spinner, note, log } from '@clack/prompts';
+import { execSync } from 'child_process';
+import fs from 'fs';
+import dgram from 'dgram';
 
-const chalk = require('chalk');
-const { intro, outro, spinner, note, log } = require('@clack/prompts');
-const { execSync } = require('child_process');
-const fs = require('fs');
-const dgram = require('dgram');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-module.exports = (program) => {
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+
+
+export default (program) => {
   program
     .command('doctor')
     .description('Health checks and quick fixes')

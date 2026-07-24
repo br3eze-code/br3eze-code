@@ -1,13 +1,17 @@
-const fs = require('fs');
-const path = require('path');
-const net = require('net');
-const { spawn, exec } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import net from 'net';
+import { spawn, exec } from 'child_process';
+import _chalk from 'chalk';
+import { STATE_PATH, getConfig } from '../../core/config.js';
+import { logger } from '../../core/logger.js';
 
-const _chalk = require('chalk');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 const chalk = _chalk.default || _chalk;
 
-const { STATE_PATH, getConfig } = require('../../core/config');
-const { logger } = require('../../core/logger');
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
 const clackProxy = {
@@ -23,7 +27,7 @@ const clackProxy = {
     select: async () => ''
 };
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('gateway')
         .description('Run, inspect, and query the WebSocket Gateway')
@@ -215,12 +219,12 @@ module.exports = (program) => {
                 const { getDatabase } = require('../../core/database');
                 const { getConfig } = require('../../core/config');
                 const config = getConfig();
-                const FinancialService = require('../../core/financial');
-                const UniversalBilling = require('../../core/universal-billing');
-                const DiscoveryService = require('../../core/discovery');
-                const MemoryManager = require('../../core/memory/MemoryManager');
-                const nodeRegistry = require('../../core/node-registry');
-                const AskEngine = require('../../core/ask-engine');
+                const FinancialService = require('../../core/financial').default;
+                const UniversalBilling = require('../../core/universal-billing').default;
+                const DiscoveryService = require('../../core/discovery').default;
+                const MemoryManager = require('../../core/memory/MemoryManager').default;
+                const nodeRegistry = require('../../core/node-registry').default;
+                const AskEngine = require('../../core/ask-engine').default;
                 const { Gateway: AgentOSGateway } = require('../../core/gateway-engine');
 
                 const mikrotik = getMikroTik();

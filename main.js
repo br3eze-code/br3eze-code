@@ -1,23 +1,43 @@
-#!/usr/bin/env node
-'use strict';
+import _cmd_onboard from './src/cli/commands/onboard.js';
+import _cmd_ask from './src/cli/commands/ask.js';
+import _cmd_gateway from './src/cli/commands/gateway.js';
+import _cmd_networks from './src/cli/commands/networks.js';
+import _cmd_users from './src/cli/commands/users.js';
+import _cmd_voucher from './src/cli/commands/voucher.js';
+import _cmd_config from './src/cli/commands/config.js';
+import _cmd_doctor from './src/cli/commands/doctor.js';
+import _cmd_domain from './src/cli/commands/domain.js';
+import _cmd_status from './src/cli/commands/status.js';
+import _cmd_dashboard from './src/cli/commands/dashboard.js';
+import _cmd_skill from './src/cli/commands/skill.js';
+import _cmd_dahua from './src/cli/commands/dahua.js';
+import _cmd_shop from './src/cli/commands/shop.js';
+import _cmd_wacli from './src/cli/commands/wacli.js';
+import _cmd_telegram from './src/cli/commands/telegram.js';
+import _cmd_google from './src/cli/commands/google.js';
+import _cmd_update from './src/cli/commands/update.js';
+import _cmd_tailscale from './src/cli/commands/tailscale.js';
+import _cmd_cli from './src/cli/commands/cli.js';
+import { program } from 'commander';
+import _chalk from 'chalk';
+import _boxen from 'boxen';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import 'dotenv/config';
+import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 /**
  * AgentOS — Master Entry Point
  * Consolidates CLI and Daemon logic.
  */
 
-const { program } = require('commander');
-const _chalk = require('chalk');
 const chalk = _chalk.default || _chalk;
-const _boxen = require('boxen');
 const boxen = _boxen.default || _boxen;
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-require('dotenv').config();
 
 // ── Config & Brand ────────────────────────────────────────────────────────────
-const { BRAND, CONFIG_PATH, STATE_PATH, getConfig } = require('./src/core/config');
 
 function getProfileDir() {
     const profile = process.env.AGENTOS_PROFILE ||
@@ -75,26 +95,26 @@ program
     });
 
 // ── Command Registration ──────────────────────────────────────────────────────
-require('./src/cli/commands/onboard')(program);
-require('./src/cli/commands/ask')(program);
-require('./src/cli/commands/gateway')(program);
-require('./src/cli/commands/networks')(program);
-require('./src/cli/commands/users')(program);
-require('./src/cli/commands/voucher')(program);
-require('./src/cli/commands/config')(program);
-require('./src/cli/commands/doctor')(program);
-require('./src/cli/commands/domain')(program);
-require('./src/cli/commands/status')(program);
-require('./src/cli/commands/dashboard')(program);
-require('./src/cli/commands/skill')(program);
-require('./src/cli/commands/dahua')(program);
-require('./src/cli/commands/shop')(program);
-require('./src/cli/commands/wacli')(program);
-require('./src/cli/commands/telegram')(program);
-require('./src/cli/commands/google')(program);
-require('./src/cli/commands/update')(program);
-require('./src/cli/commands/tailscale')(program);
-require('./src/cli/commands/cli')(program);
+_cmd_onboard(program);
+_cmd_ask(program);
+_cmd_gateway(program);
+_cmd_networks(program);
+_cmd_users(program);
+_cmd_voucher(program);
+_cmd_config(program);
+_cmd_doctor(program);
+_cmd_domain(program);
+_cmd_status(program);
+_cmd_dashboard(program);
+_cmd_skill(program);
+_cmd_dahua(program);
+_cmd_shop(program);
+_cmd_wacli(program);
+_cmd_telegram(program);
+_cmd_google(program);
+_cmd_update(program);
+_cmd_tailscale(program);
+_cmd_cli(program);
 
 // ── Logging Daemon ────────────────────────────────────────────────────────────
 program

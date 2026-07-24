@@ -1,13 +1,17 @@
+import _chalk from 'chalk';
+import fs from 'fs';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS CONFIG COMMAND
 // Configuration management
 // ==========================================
 
-const _chalk = require('chalk');
 const chalk  = _chalk.default || _chalk;
-const fs = require('fs');
 
-module.exports = (program) => {
+export default (program) => {
     const config = program
         .command('config')
         .description('Manage configuration');

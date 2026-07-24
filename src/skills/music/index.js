@@ -1,6 +1,9 @@
-const { BaseSkill } = require('../base.js')
-const { Chord, Scale, Key, Note, Interval, Progression } = require('tonal')
-const MidiWriter = require('midi-writer-js')
+import { BaseSkill } from '../base.js';
+import { Chord, Scale, Key, Note, Interval, Progression } from 'tonal';
+import MidiWriter from 'midi-writer-js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 class MusicSkill extends BaseSkill {
   static id = 'music'
@@ -1358,4 +1361,4 @@ Output only lyrics, no explanation.`
   }
 }
 
-module.exports = MusicSkill
+export default MusicSkill;

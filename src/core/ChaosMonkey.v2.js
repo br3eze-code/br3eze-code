@@ -1,3 +1,10 @@
+import { RouterOSClient } from 'routeros-client';
+import { v4 as uuidv4 } from 'uuid';
+import { promises as fs } from 'fs';
+import path from 'path';
+import EventEmitter from 'events';
+import crypto from 'crypto';
+
 /**
  * ChaosMonkey.v2.js - Production-Grade Fault Injection
  * A-Star Implementation with all critical bugs fixed
@@ -5,14 +12,7 @@
  * @version 2.0.0 - Production Ready
  */
 
-'use strict';
 
-const { RouterOSClient } = require('routeros-client');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs').promises;
-const path = require('path');
-const EventEmitter = require('events');
-const crypto = require('crypto');
 
 // Domain registry
 const CHAOS_DOMAINS = {
@@ -1151,9 +1151,4 @@ class ChaosMonkey extends EventEmitter {
   }
 }
 
-module.exports = {
-  ChaosMonkey,
-  CHAOS_DOMAINS,
-  SEVERITY,
-  createChaosMonkey: (config) => new ChaosMonkey(config)
-};
+export { ChaosMonkey, CHAOS_DOMAINS, SEVERITY };

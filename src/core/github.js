@@ -1,13 +1,16 @@
-'use strict';
+import { logger } from './logger.js';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * GitHub Integration — handles Octokit interactions, OAuth callbacks, and file syncing.
  * Ported from 36.js §3.8
  */
 
-const { logger } = require('./logger');
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
 
 let Octokit;
 try {
@@ -124,4 +127,4 @@ class GitHubIntegration {
     }
 }
 
-module.exports = GitHubIntegration;
+export default GitHubIntegration;

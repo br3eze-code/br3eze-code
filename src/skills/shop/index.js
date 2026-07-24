@@ -1,6 +1,8 @@
-'use strict';
-const { BaseSkill } = require('../base.js');
-const shop = require('../../core/shop');
+import { BaseSkill } from '../base.js';
+import shop from '../../core/shop.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 class ShopSkill extends BaseSkill {
   static id = 'shop';
@@ -167,4 +169,4 @@ class ShopSkill extends BaseSkill {
   }
 }
 
-module.exports = ShopSkill;
+export default ShopSkill;

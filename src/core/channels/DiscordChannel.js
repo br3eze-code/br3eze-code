@@ -1,6 +1,10 @@
+import { BaseChannel } from './BaseChannel.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/channels/DiscordChannel.js
-const { BaseChannel } = require('./BaseChannel');
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
 
 class DiscordChannel extends BaseChannel {
   static getMetadata() {
@@ -245,4 +249,4 @@ class DiscordChannel extends BaseChannel {
 
 BaseChannel.register('discord', DiscordChannel);
 
-module.exports = DiscordChannel;
+export default DiscordChannel;

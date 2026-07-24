@@ -1,11 +1,18 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * Automate Channel Standardization
  * Ensures all channels include metadata and self-register.
  */
-
-const fs = require('fs');
-const path = require('path');
 
 const channelsDir = path.join(__dirname, '../core/channels');
 const files = fs.readdirSync(channelsDir).filter(f => f.endsWith('Channel.js') && f !== 'BaseChannel.js');

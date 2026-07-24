@@ -1,9 +1,13 @@
-const ThermalPrinter = require('node-thermal-printer').printer;
-const PrinterTypes = require('node-thermal-printer').types;
-const QRCode = require('qrcode');
-const { execSync } = require('child_process');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
+import { printer as ThermalPrinter } from 'node-thermal-printer';
+import { types as PrinterTypes } from 'node-thermal-printer';
+import QRCode from 'qrcode';
+import { execSync } from 'child_process';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 /**
  * On Windows, Bluetooth serial printers appear as COM ports.
@@ -997,15 +1001,4 @@ async function printVoucher(voucherData, printerId = 'PRINTER_MAIN') {
     return _printVoucherDirect(voucherData, printerId);
 }
 
-module.exports = {
-    printVoucher,
-    _printVoucherDirect,          // used internally by PrintBroker as server fallback
-    discoverBluetoothPrinterPort,
-    discoverPrinterPort,
-    testPrinterConnection,
-    printRaw,
-    getPrinterStatus,
-    setPrinterModel,
-    printTestPage,
-    listAvailableInterfaces
-};
+export { printVoucher, _printVoucherDirect, discoverPrinterPort, testPrinterConnection, printRaw, getPrinterStatus, setPrinterModel, printTestPage, listAvailableInterfaces };

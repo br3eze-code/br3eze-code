@@ -1,3 +1,4 @@
+
 // src/utils/CircuitBreaker.js
 class CircuitBreaker {
   constructor(threshold = 5, timeout = 60000) {
@@ -39,4 +40,4 @@ class CircuitBreaker {
     }
   }
 }
-module.exports = CircuitBreaker;
+export default CircuitBreaker;

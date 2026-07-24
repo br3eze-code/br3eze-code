@@ -1,8 +1,12 @@
-const { EventEmitter } = require('events');
+import { EventEmitter } from 'events';
+import BaseAdapter from '../base-adapter.js';
+import Docker from 'dockerode';
+import { Resource } from '../../core/resource-model.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/plugins/adapters/docker-adapter.js
-const BaseAdapter = require('../base-adapter');
-const Docker = require('dockerode');
-const { Resource } = require('../../core/resource-model');
 
 class DockerAdapter extends BaseAdapter {
   constructor(config) {
@@ -78,4 +82,4 @@ class DockerAdapter extends BaseAdapter {
   // ... other Docker methods
 }
 
-module.exports = DockerAdapter;
+export default DockerAdapter;

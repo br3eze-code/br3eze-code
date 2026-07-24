@@ -1,17 +1,20 @@
+import fs from 'fs';
+import path from 'path';
+import { intro, outro, spinner, note, log } from '@clack/prompts';
+import { getDatabase } from '../../core/database.js';
+import { costTracker } from '../../core/cost-tracker.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS STATUS COMMAND
 // Quick system overview with clack prompts
 // ==========================================
 
-'use strict';
 
-const fs   = require('fs');
-const path = require('path');
-const { intro, outro, spinner, note, log } = require('@clack/prompts');
-const { getDatabase } = require('../../core/database');
-const { costTracker } = require('../../core/cost-tracker');
 
-module.exports = (program) => {
+export default (program) => {
   program
     .command('status')
     .description('Show system status')

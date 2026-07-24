@@ -1,4 +1,9 @@
-'use strict';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * src/kernel/SkillDiscovery.js
  * ─────────────────────────────────────────────────────────────────
@@ -32,9 +37,6 @@
  *   const result = await discovery.invoke('research.search', params, ctx);
  * ─────────────────────────────────────────────────────────────────
  */
-
-const fs = require('fs').promises;
-const path = require('path');
 
 const REQUIRED_MANIFEST_FIELDS = ['name', 'description', 'version', 'permissions'];
 const MANIFEST_FILENAMES = ['manifest.json', 'skill.json'];
@@ -291,4 +293,4 @@ class SkillDiscovery {
   }
 }
 
-module.exports = { SkillDiscovery, SkillDiscoveryError };
+export { SkillDiscovery, SkillDiscoveryError };

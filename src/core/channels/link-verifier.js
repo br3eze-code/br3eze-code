@@ -1,3 +1,4 @@
+
 /**
  * Verified channel linking: consumes a short-lived 6-digit code that the
  * Power Connect app wrote to Firestore `linkCodes/{code}` while the user was
@@ -8,7 +9,6 @@
  * addresses typed into a chat are hints, never proof — see the email-capture
  * blocks in TelegramChannel/WhatsappChannel.
  */
-'use strict';
 
 import { logger } from '../logger.js';
 import { getDatabase } from '../database.js';

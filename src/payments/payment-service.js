@@ -1,3 +1,4 @@
+
 // src/payments/payment-service.js
 // High-level payment service for AgentOS business logic
 
@@ -212,4 +213,4 @@ class PaymentService {
   }
 }
 
-module.exports = PaymentService;
+export default PaymentService;

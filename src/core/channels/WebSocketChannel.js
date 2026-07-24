@@ -1,8 +1,12 @@
-const WebSocket = require('ws');
-const crypto = require('crypto');
-const { logger } = require('../logger');
-const { BaseChannel } = require('./BaseChannel');
-const WebSocketCLI = require('./WebSocketCLI');
+import WebSocket from 'ws';
+import crypto from 'crypto';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
+import WebSocketCLI from './WebSocketCLI.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 class WebSocketChannel extends BaseChannel {
     static getMetadata() {
@@ -629,4 +633,4 @@ class WebSocketChannel extends BaseChannel {
 
 BaseChannel.register('websocket', WebSocketChannel);
 
-module.exports = WebSocketChannel;
+export default WebSocketChannel;

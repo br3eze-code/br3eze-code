@@ -1,7 +1,11 @@
+import { BaseChannel } from './BaseChannel.js';
+import https from 'https';
+import http from 'http';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/channels/SMSChannel.js
-const { BaseChannel } = require('./BaseChannel');
-const https = require('https');
-const http = require('http');
 
 class SMSChannel extends BaseChannel {
     static getMetadata() {
@@ -278,4 +282,4 @@ class SMSChannel extends BaseChannel {
 
 BaseChannel.register('sms', SMSChannel);
 
-module.exports = SMSChannel;
+export default SMSChannel;

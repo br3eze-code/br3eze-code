@@ -1,13 +1,14 @@
+import { default as makeWASocket, DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import path from 'path';
+import fs from 'fs';
+
 /**
  * WhatsApp Service - Baileys Integration
  * @module core/whatsapp
  */
 
-const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const path = require('path');
-const fs = require('fs');
 
 class WhatsAppService {
   constructor() {
@@ -130,4 +131,4 @@ class WhatsAppService {
   }
 }
 
-module.exports = { WhatsAppService };
+export { WhatsAppService };

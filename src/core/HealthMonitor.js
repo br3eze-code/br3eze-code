@@ -1,6 +1,7 @@
+import EventEmitter from 'events';
+import os from 'os';
+
 // src/core/HealthMonitor.js
-const EventEmitter = require('events');
-const os = require('os');
 
 class HealthMonitor extends EventEmitter {
   constructor(agent) {
@@ -126,4 +127,4 @@ class HealthMonitor extends EventEmitter {
   }
 }
 
-module.exports = HealthMonitor;
+export default HealthMonitor;

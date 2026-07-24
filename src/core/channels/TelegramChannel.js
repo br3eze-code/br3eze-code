@@ -1,4 +1,15 @@
-'use strict';
+import TelegramBot from 'node-telegram-bot-api';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
+import { BRAND } from '../config.js';
+import { acquireBotLock, releaseBotLock, LOCK_FILE } from '../../utils/bot-lock.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * TelegramChannel — AgentOS core channel
  * Fixes applied:
@@ -7,17 +18,9 @@
  *   - initialize() / send() / broadcast() implement BaseChannel contract
  */
 
-const TelegramBot = require('node-telegram-bot-api');
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
-const { logger } = require('../logger');
 const { printVoucher } = require('../printer');   // server-side fallback
 const { PrintBroker } = require('../print-broker'); // unified broker
-const { BaseChannel } = require('./BaseChannel');
-const { BRAND } = require('../config');
 
-const { acquireBotLock, releaseBotLock, LOCK_FILE } = require('../../utils/bot-lock');
 
 /** Minimal escaping for Telegram's HTML parse_mode — only &, <, > are special there. */
 function escapeHtml(s) {
@@ -3130,4 +3133,4 @@ class TelegramChannel extends BaseChannel {
 
 BaseChannel.register('telegram', TelegramChannel);
 
-module.exports = TelegramChannel;
+export default TelegramChannel;

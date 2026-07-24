@@ -1,4 +1,7 @@
-'use strict';
+import { execSync } from 'child_process';
+import fs from 'fs';
+import { logger } from '../../core/logger.js';
+
 /**
  * src/drivers/printer/discovery.js
  * ─────────────────────────────────────────────────────────────────
@@ -14,10 +17,6 @@
  * detection itself.
  * ─────────────────────────────────────────────────────────────────
  */
-
-const { execSync } = require('child_process');
-const fs = require('fs');
-const { logger } = require('../../core/logger');
 
 /**
  * List active COM ports from the Windows registry (SERIALCOMM key).
@@ -109,9 +108,4 @@ function listDevPrinters() {
   return results;
 }
 
-module.exports = {
-  listSerialPortsFromRegistry,
-  comPortToInterface,
-  listCUPSPrinters,
-  listDevPrinters,
-};
+export { listSerialPortsFromRegistry, comPortToInterface, listCUPSPrinters, listDevPrinters };

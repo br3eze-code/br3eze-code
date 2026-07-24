@@ -1,8 +1,9 @@
-const os = require('os')
-const { exec } = require('child_process')
-const { promisify } = require('util')
+import os from 'os';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { BaseSkill } from '../base.js';
+
 const execAsync = promisify(exec)
-const { BaseSkill } = require('../base.js')
 
 class SystemSkill extends BaseSkill {
   static id = 'system'
@@ -77,4 +78,4 @@ class SystemSkill extends BaseSkill {
   }
 }
 
-module.exports = SystemSkill
+export default SystemSkill;

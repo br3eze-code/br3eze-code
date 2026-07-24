@@ -1,4 +1,5 @@
-const { EventEmitter } = require('events');
+import { EventEmitter } from 'events';
+
 // src/plugins/base-adapter.js
 /**
  * Base Adapter Interface - All infrastructure providers must implement this
@@ -77,4 +78,4 @@ class BaseAdapter extends EventEmitter {
   }
 }
 
-module.exports = BaseAdapter;
+export default BaseAdapter;

@@ -1,9 +1,13 @@
+import TelegramBot from 'node-telegram-bot-api';
+import https from 'https';
+import EventEmitter from 'events';
+import security from '../core/security.js';
+import { logger } from '../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/channels/telegram.js
-const TelegramBot = require('node-telegram-bot-api');
-const https = require('https');
-const EventEmitter = require('events');
-const security = require('../core/security');
-const { logger } = require('../core/logger');
 
 class TelegramChannel extends EventEmitter {
   constructor(token, askEngine, options = {}) {
@@ -323,4 +327,4 @@ class TelegramChannel extends EventEmitter {
   }
 }
 
-module.exports = TelegramChannel;
+export default TelegramChannel;

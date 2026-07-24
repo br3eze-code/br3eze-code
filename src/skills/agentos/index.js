@@ -1,5 +1,9 @@
-const { BaseDriver } = require('../base.js');
-const { logger } = require('../../core/logger');
+import { BaseDriver } from '../base.js';
+import { logger } from '../../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 class AgentOSCoreDriver extends BaseDriver {
   static id = 'agentos';
@@ -162,4 +166,4 @@ class AgentOSCoreDriver extends BaseDriver {
   }
 }
 
-module.exports = AgentOSCoreDriver;
+export default AgentOSCoreDriver;

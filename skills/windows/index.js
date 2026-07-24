@@ -1,13 +1,17 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { BaseSkill } from '../base.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 let NodePowerShell;
 try {
   ({ NodePowerShell } = require('node-powershell'));
 } catch (e) {
   // node-powershell not available
 }
-const { exec } = require('child_process');
-const { promisify } = require('util');
 const execAsync = promisify(exec);
-const { BaseSkill } = require('../base.js')
 
 class WindowsSkill extends BaseSkill {
   static id = 'windows'
@@ -193,4 +197,4 @@ class WindowsSkill extends BaseSkill {
   }
 }
 
-module.exports = WindowsSkill
+export default WindowsSkill;

@@ -49,4 +49,4 @@ if (typeof window !== 'undefined') {
   };
 }
 
-module.exports = AICore;
+export default AICore;

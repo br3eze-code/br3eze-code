@@ -1,11 +1,12 @@
+import { Logger } from '../utils/logger.js';
+import { ToolNotFoundError, SkillDisabledError } from './tool-registry.js';
+
 /**
  * Agent Runtime
  * Orchestrates tool execution, memory management, and provider calls
  * Implements the OpenClaw execution loop
  */
 
-const { Logger } = require('../utils/logger');
-const { ToolNotFoundError, SkillDisabledError } = require('./tool-registry');
 
 class AgentRuntime {
   constructor(options) {
@@ -251,5 +252,5 @@ Be concise and helpful. If a tool execution fails, explain the error to the user
   }
 }
 
-module.exports = { AgentRuntime };
+export default  { AgentRuntime };
 

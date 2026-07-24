@@ -1,9 +1,13 @@
+import { Logger } from '../utils/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * Provider Manager
 
  */
 
-const { Logger } = require('../utils/logger');
 
 class ProviderManager {
   constructor(options = {}) {
@@ -157,4 +161,4 @@ class ProviderManager {
   }
 }
 
-module.exports = { ProviderManager };
+export { ProviderManager };

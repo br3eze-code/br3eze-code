@@ -1,4 +1,4 @@
-'use strict';
+
 /**
  * TranscriptStore — session message history with compaction
  */
@@ -37,4 +37,4 @@ class TranscriptStore {
     }
 }
 
-module.exports = { TranscriptStore };
+export { TranscriptStore };

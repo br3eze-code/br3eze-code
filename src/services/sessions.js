@@ -1,3 +1,4 @@
+
 // src/services/sessions.js
 
 class SessionService {
@@ -31,4 +32,4 @@ class SessionService {
     }
 }
 
-module.exports = SessionService;
+export default SessionService;

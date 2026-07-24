@@ -1,5 +1,6 @@
-const k8s = require('@kubernetes/client-node')
-const { BaseSkill } = require('../base.js')
+import k8s from '@kubernetes/client-node';
+import { BaseSkill } from '../base.js';
+
 
 class KubernetesSkill extends BaseSkill {
   static id = 'kubernetes'
@@ -189,4 +190,4 @@ class KubernetesSkill extends BaseSkill {
   }
 }
 
-module.exports = KubernetesSkill
+export default KubernetesSkill;

@@ -1,14 +1,15 @@
+import fs from 'fs';
+import { CONFIG_PATH } from '../../core/config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS DAHUA COMMAND
 // Camera management — @clack/prompts edition
 // ==========================================
 
-'use strict';
-
-const fs   = require('fs');
-const { CONFIG_PATH } = require('../../core/config');
-
-module.exports = (program) => {
+export default (program) => {
   const dahua = program
     .command('dahua')
     .description('Manage Dahua cameras');

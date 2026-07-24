@@ -1,5 +1,5 @@
+
 // src/core/agentPolicy.js 
-'use strict';
 /**
  * AgentPolicy — 5-dimension policy system
  */
@@ -201,7 +201,7 @@ function heartbeatIntervalMs(every = DEFAULT_HEARTBEAT_INTERVAL) {
     return HEARTBEAT_INTERVALS[every] || HEARTBEAT_INTERVALS[DEFAULT_HEARTBEAT_INTERVAL];
 }
 
-module.exports = {
+export default  {
     AgentPreset, MissingToolBehavior, InstallScope, FileAccess, NetworkAccess,
     resolveAgentPolicy, checkPolicyForTool, inferPresetFromDescription,
     resolveHeartbeat, heartbeatIntervalMs,

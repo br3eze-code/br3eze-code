@@ -1,7 +1,8 @@
+import express from 'express';
+
 // src/routes/pesapal-webhooks.js
 // Express routes for PesaPal IPN handling
 
-const express = require('express');
 const router = express.Router();
 
 /**
@@ -70,4 +71,4 @@ function setupPesaPalRoutes(pesapalIntegration) {
   return router;
 }
 
-module.exports = setupPesaPalRoutes;
+export default setupPesaPalRoutes;

@@ -1,4 +1,10 @@
-'use strict';
+import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * SessionManager — SQLite-backed session lifecycle
  * ─────────────────────────────────────────────────────────────────
@@ -10,9 +16,6 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const path   = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
 
 const STATE_MACHINE = {
   initializing: ['running', 'failed'],
@@ -162,4 +165,4 @@ class SessionManager extends EventEmitter {
   }
 }
 
-module.exports = SessionManager;
+export default SessionManager;

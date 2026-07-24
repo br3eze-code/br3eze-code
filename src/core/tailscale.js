@@ -1,7 +1,8 @@
-'use strict';
+import { execSync } from 'child_process';
+import { logger } from './logger.js';
 
-const { execSync } = require('child_process');
-const { logger } = require('./logger');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 /**
  * AgentOS Tailscale Integration
@@ -101,4 +102,4 @@ class Tailscale {
     }
 }
 
-module.exports = new Tailscale();
+export default new Tailscale();

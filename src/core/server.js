@@ -1,14 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const QRCode = require('qrcode');
-const Joi = require('joi');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import QRCode from 'qrcode';
+import Joi from 'joi';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import { getDatabase } from './database.js';
+import { getMikroTikClient } from './mikrotik.js';
 
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const { getDatabase } = require('./database');
-const { getMikroTikClient } = require('./mikrotik');
+
 
 function createApp() {
     const config = getConfig();
@@ -168,4 +169,4 @@ function createApp() {
     return app;
 }
 
-module.exports = { createApp };
+export { createApp };

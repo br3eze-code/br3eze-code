@@ -1,6 +1,8 @@
-'use strict';
-const { getAuth } = require('./firebase');
-const { logger } = require('./logger');
+import { getAuth } from './firebase.js';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 /**
  * Verifies a Firebase ID token and resolves it to {uid, email, role}.
@@ -26,4 +28,4 @@ async function verifyFirebaseIdToken(idToken) {
   }
 }
 
-module.exports = { verifyFirebaseIdToken };
+export { verifyFirebaseIdToken };

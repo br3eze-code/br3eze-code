@@ -1,4 +1,5 @@
-'use strict';
+import { jsonRequest } from './_http.js';
+
 /**
  * The Courier Guy — has no direct public booking/tracking API (their own
  * integration docs are platform plugins for Prestashop/Shopify/WooCommerce,
@@ -11,7 +12,6 @@
  * happen directly with Courier Guy (their portal, plugin, or account team) —
  * createShipment is intentionally not implemented here rather than guessed.
  */
-const { jsonRequest } = require('./_http');
 
 class CourierGuyProvider {
     name = 'The Courier Guy (via AfterShip)';
@@ -51,4 +51,4 @@ class CourierGuyProvider {
     }
 }
 
-module.exports = CourierGuyProvider;
+export default CourierGuyProvider;

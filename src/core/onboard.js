@@ -1,13 +1,17 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { getManager } from './mikrotik.js';
+import { logger } from './logger.js';
+import createDebug from 'debug';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AgentOS Onboarding Service
  * Consolidates routing script generation, agent provisioning, and system setup.
  */
 
-const fs = require('fs/promises');
-const path = require('path');
-const { getManager } = require('./mikrotik');
-const { logger } = require('./logger');
-const createDebug = require('debug');
 
 
 // Namespaced debuggers — enable with: DEBUG=agentos:* or DEBUG=agentos:onboard
@@ -1052,17 +1056,10 @@ async function runWizard() {
 }
 
 // Allow direct invocation: node src/core/onboard.js wizard
-if (require.main === module && process.argv[2] === 'wizard') {
+import { fileURLToPath } from 'url';
+if (fileURLToPath(import.meta.url) === process.argv[1] && process.argv[2] === 'wizard') {
     runWizard().catch(console.error);
 }
 
-module.exports = {
-    templateRsc,
-    onboardRouter,
-    onboardFleet,
-    provisionAgents,
-    generateSetupScript,
-    generateMissionControl,
-    runWizard
-};
+export { templateRsc, onboardRouter, onboardFleet, provisionAgents, generateSetupScript, generateMissionControl, runWizard };
 

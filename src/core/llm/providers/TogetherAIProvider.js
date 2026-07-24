@@ -1,10 +1,9 @@
-'use strict';
+import { BaseProvider } from './BaseProvider.js';
+import { logger } from '../../logger.js';
+
 /**
  * Together AI LLM Provider
  */
-
-const { BaseProvider } = require('./BaseProvider');
-const { logger } = require('../../logger');
 
 class TogetherAIProvider extends BaseProvider {
     static getMetadata() {
@@ -115,4 +114,4 @@ class TogetherAIProvider extends BaseProvider {
 
 BaseProvider.register('together', TogetherAIProvider);
 BaseProvider.register('togetherai', TogetherAIProvider);
-module.exports = { TogetherAIProvider };
+export { TogetherAIProvider };

@@ -1,5 +1,9 @@
+import { BaseChannel } from './BaseChannel.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/channels/EmailChannel.js
-const { BaseChannel } = require('./BaseChannel');
 
 class EmailChannel extends BaseChannel {
     static getMetadata() {
@@ -205,4 +209,4 @@ class EmailChannel extends BaseChannel {
 
 BaseChannel.register('email', EmailChannel);
 
-module.exports = EmailChannel;
+export default EmailChannel;

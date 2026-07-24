@@ -1,3 +1,11 @@
+import express from 'express';
+import shop from '../../core/shop.js';
+import { generateOrderPdf } from '../../core/invoice-pdf.js';
+import { logger } from '../../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * API Routes — Shop
  * Product catalog, per-channel cart, checkout, and order lookups.
@@ -5,13 +13,7 @@
  * @module api/routes/shop
  */
 
-'use strict';
-
-const express = require('express');
 const router = express.Router();
-const shop = require('../../core/shop');
-const { generateOrderPdf } = require('../../core/invoice-pdf');
-const { logger } = require('../../core/logger');
 
 const ok = (res, data) => res.json({ ok: true, data });
 const fail = (res, e, status = 400) => res.status(status).json({ ok: false, error: e.message });
@@ -126,4 +128,4 @@ router.get('/orders/:id/track', async (req, res) => {
   } catch (e) { fail(res, e, 500); }
 });
 
-module.exports = router;
+export default router;

@@ -1,6 +1,9 @@
-const { BaseSkill } = require('../base.js')
-const franc = require('franc')
-const nlp = require('compromise')
+import { BaseSkill } from '../base.js';
+import franc from 'franc';
+import nlp from 'compromise';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 class LanguageSkill extends BaseSkill {
   static id = 'language'
@@ -905,4 +908,4 @@ case 'language.rhymes': {
   }
 }
 
-module.exports = LanguageSkill
+export default LanguageSkill;

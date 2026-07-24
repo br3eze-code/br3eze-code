@@ -1,3 +1,11 @@
+import express from 'express';
+import { getManager } from '../../core/mikrotik.js';
+import { getDatabase } from '../../core/database.js';
+import { logger } from '../../core/logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 ﻿/**
  * API Routes v1 — AgentOS Enhanced
  * MikroTik · Vouchers · Users · Tools · Hotspot
@@ -5,13 +13,7 @@
  * @version 2026.6.17
  */
 
-'use strict';
-
-const express = require('express');
 const router  = express.Router();
-const { getManager }  = require('../../core/mikrotik');
-const { getDatabase } = require('../../core/database');
-const { logger }      = require('../../core/logger');
 
 // ── Request logging ───────────────────────────────────────────────────────────
 router.use((req, res, next) => {
@@ -420,4 +422,4 @@ function _mikrotikDuration(p) {
 
 function _mb(bytes) { return `${Math.round(bytes / 1024 / 1024)}MB`; }
 
-module.exports = router;
+export default router;

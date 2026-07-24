@@ -1,11 +1,14 @@
-'use strict';
+import express from 'express';
+import Joi from 'joi';
+import QRCode from 'qrcode';
+import { metrics } from './metrics.js';
+import { logger } from './logger.js';
+import { ConversationSession } from './conversation-session.js';
 
-const express = require('express');
-const Joi = require('joi');
-const QRCode = require('qrcode');
-const { metrics } = require('./metrics');
-const { logger } = require('./logger');
-const { ConversationSession } = require('./conversation-session');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+
 
 /**
  * AgentOS Routes — migrated from ss35.js §16
@@ -304,4 +307,4 @@ function createRouter(deps) {
     return router;
 }
 
-module.exports = { createRouter };
+export { createRouter };

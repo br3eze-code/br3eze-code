@@ -1,3 +1,7 @@
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/workspace.js
 /**
  * Multi-Tenant Workspace System
@@ -117,4 +121,4 @@ class WorkspaceManager {
   }
 }
 
-module.exports = { Workspace, WorkspaceManager };
+export { Workspace, WorkspaceManager };

@@ -1,11 +1,15 @@
+import path from 'path';
+import fs from 'fs';
+import _chalk from 'chalk';
+import { logger } from '../logger.js';
+import { BaseChannel } from './BaseChannel.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // NOTE: @whiskeysockets/baileys is ESM-only — must be loaded via dynamic import()
 // inside initialize(), never at the top level via require().
-const path = require("path");
-const fs = require("fs");
-const _chalk = require("chalk");
 const chalk = _chalk.default || _chalk;
-const { logger } = require("../logger");
-const { BaseChannel } = require("./BaseChannel");
 
 class WhatsAppChannel extends BaseChannel {
   static getMetadata() {
@@ -251,6 +255,44 @@ class WhatsAppChannel extends BaseChannel {
 
       // Store disconnect reason reference for the event handler
       this._DisconnectReason = DisconnectReason;
+
+      // Fallback to WhatsApp's "Link with phone number" flow when QR scanning
+      // isn't working — requires a configured number (config.whatsapp.pairingPhoneNumber,
+      // falling back to the first plain-digit entry in allowed_ids/allowedJids, since
+      // that's already how this device's own number ends up in config today).
+      if (!state.creds?.registered) {
+        const configuredNumber =
+          this.config.pairingPhoneNumber ||
+          [...this.allowedJids, ...(this.config.allowed_ids || [])]
+            .map((id) => String(id).split("@")[0])
+            .find((n) => /^\d{7,15}$/.test(n));
+
+        if (configuredNumber) {
+          try {
+            // Baileys needs a brief moment after socket creation before the
+            // pairing-code request will succeed.
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            const pairingCode = await this.sock.requestPairingCode(configuredNumber);
+            logger.info(`WhatsApp pairing code for ${configuredNumber}: ${pairingCode}`);
+            try {
+              const { STATE_PATH } = require("../config");
+              fs.writeFileSync(
+                path.join(STATE_PATH, "whatsapp-pairing-code.txt"),
+                pairingCode,
+              );
+            } catch (e) {
+              logger.warn(`WhatsAppChannel: failed to persist pairing code: ${e.message}`);
+            }
+            this.emit("pairing-code", { phoneNumber: configuredNumber, code: pairingCode });
+          } catch (e) {
+            logger.warn(`WhatsApp pairing-code request failed: ${e.message}`);
+          }
+        } else {
+          logger.debug(
+            "WhatsApp pairing-code fallback skipped — no configured phone number found.",
+          );
+        }
+      }
 
       this.sock.ev.on("connection.update", (update) => {
         const { connection, lastDisconnect, qr } = update;
@@ -1800,4 +1842,4 @@ class WhatsAppChannel extends BaseChannel {
 }
 
 BaseChannel.register("whatsapp", WhatsAppChannel);
-module.exports = WhatsAppChannel;
+export default WhatsAppChannel;

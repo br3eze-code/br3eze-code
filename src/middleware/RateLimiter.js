@@ -1,3 +1,4 @@
+
 // src/middleware/RateLimiter.js
 class RateLimiter {
   constructor(config = {}) {
@@ -58,4 +59,4 @@ class RateLimiter {
 
 
 
-module.exports = { RateLimiter};
+export { RateLimiter };

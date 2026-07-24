@@ -244,4 +244,4 @@ var WebPlatform = {
     }
 };
 
-module.exports = WebPlatform;
+export default WebPlatform;

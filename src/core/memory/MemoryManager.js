@@ -1,3 +1,7 @@
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/memory/MemoryManager.js
 class MemoryManager {
   constructor(adapter = 'memory') {
@@ -77,4 +81,4 @@ class MemoryManager {
   }
 }
 
-module.exports = MemoryManager;
+export default MemoryManager;

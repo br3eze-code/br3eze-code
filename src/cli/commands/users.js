@@ -1,4 +1,8 @@
-'use strict';
+import chalk from 'chalk';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * agentos users — manage both MikroTik hotspot users AND AgentOS platform users
  *
@@ -20,9 +24,7 @@
  *   platform whoami            show currently authenticated operator's role
  */
 
-const chalk = require('chalk');
-
-module.exports = (program) => {
+export default (program) => {
   // ── MikroTik / Hotspot users ───────────────────────────────────────────
   const users = program
     .command('users')

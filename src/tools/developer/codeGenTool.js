@@ -1,10 +1,18 @@
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // src/tools/developer/codeGenTool.js
 // ==========================================
 
 
-'use strict';
 
-const path = require('path');
 
 const SKILL_PATH = path.join(__dirname, '../../skills/codegen/index.js');
 
@@ -28,4 +36,4 @@ const codeGenTool = {
   }
 };
 
-module.exports = codeGenTool;
+export default codeGenTool;

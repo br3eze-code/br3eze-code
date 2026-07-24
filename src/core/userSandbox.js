@@ -1,4 +1,16 @@
-'use strict';
+import path from 'path';
+import crypto from 'crypto';
+import { EventEmitter } from 'events';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * UserSandbox — AgentOS Authorization, RBAC, and Sandboxed Execution
  * ─────────────────────────────────────────────────────────────────────
@@ -20,10 +32,6 @@
  * ─────────────────────────────────────────────────────────────────────
  */
 
-const path = require('path');
-const crypto = require('crypto');
-const { EventEmitter } = require('events');
-const { logger } = require('./logger');
 
 // ── load roles ────────────────────────────────────────────────────────────
 let _roles = null;
@@ -326,4 +334,4 @@ function getUserSandbox(opts) {
   return _instance;
 }
 
-module.exports = { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };
+export { UserSandbox, getUserSandbox, AuthError, SandboxInterceptor, getRole, getRoleForUser, anyMatch, toolMatches };

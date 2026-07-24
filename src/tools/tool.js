@@ -1,10 +1,10 @@
+
 // ==========================================
 // AgentOS Tool Registry
 // Low-level MikroTik command wrappers
 // consumed by the WebSocket gateway
 // ==========================================
 
-'use strict';
 
 /**
  * Each tool receives the live RouterOS connection object
@@ -122,4 +122,4 @@ const tools = {
     }
 };
 
-module.exports = tools;
+export default tools;

@@ -1,12 +1,12 @@
-'use strict';
+import fs from 'fs';
+import crypto from 'crypto';
+import { logger } from './logger.js';
+import { costTracker } from './cost-tracker.js';
+
 /**
  * ConversationSession — Manages user session state for LLM interactions.
  * Ported from ss35.js
  */
-const fs = require('fs');
-const crypto = require('crypto');
-const { logger } = require('./logger');
-const { costTracker } = require('./cost-tracker');
 
 const MessageRole = Object.freeze({ USER: 'user', ASSISTANT: 'assistant', TOOL: 'tool' });
 
@@ -124,4 +124,4 @@ class ConversationSession {
     }
 }
 
-module.exports = { ConversationSession, MessageRole, ContentBlock, TranscriptStore, UsageTracker };
+export { ConversationSession, MessageRole, ContentBlock, TranscriptStore, UsageTracker };

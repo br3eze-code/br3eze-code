@@ -1,16 +1,18 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import http from 'http';
+import { logger } from '../../core/logger.js';
+import readline from 'readline';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // ==========================================
 // AGENTOS ASK COMMAND
 // Query AskEngine from the CLI — proxies to a running gateway over
 // HTTP when one is up (fast, reuses live router/db connections),
 // falls back to a standalone one-shot AskEngine otherwise.
 // ==========================================
-
-const fs = require('fs');
-const path = require('path');
-const http = require('http');
-
-const { logger } = require('../../core/logger');
 
 function postJSON({ host, port, token }, body) {
     return new Promise((resolve, reject) => {
@@ -115,8 +117,6 @@ async function runStandalone(prompt, { stream }) {
     return askEngine.run(prompt);
 }
 
-const readline = require('readline');
-
 function startRepl(dispatch, { json }) {
     console.log('AgentOS interactive ask — type a message and press Enter. Ctrl+C or "exit" to quit.\n');
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: '› ' });
@@ -147,7 +147,7 @@ function startRepl(dispatch, { json }) {
     });
 }
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('ask [prompt...]')
         .description('Ask AgentOS a question or give it a command. Omit the prompt to start an interactive session.')

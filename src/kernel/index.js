@@ -1,4 +1,6 @@
-'use strict';
+import AgentKernel from '../core/agentKernel.js';
+import { SkillDiscovery, SkillDiscoveryError } from './SkillDiscovery.js';
+
 /**
  * src/kernel/index.js — Kernel namespace root
  * ─────────────────────────────────────────────────────────────────
@@ -9,7 +11,4 @@
  * ─────────────────────────────────────────────────────────────────
  */
 
-const AgentKernel = require('../core/agentKernel');
-const { SkillDiscovery, SkillDiscoveryError } = require('./SkillDiscovery');
-
-module.exports = { AgentKernel, SkillDiscovery, SkillDiscoveryError };
+export { AgentKernel, SkillDiscovery, SkillDiscoveryError };

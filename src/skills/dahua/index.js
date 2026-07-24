@@ -1,10 +1,14 @@
-const fs = require('fs')
-const nodePath = require('path')
-const _digestFetch = require('digest-fetch')
+import fs from 'fs';
+import nodePath from 'path';
+import _digestFetch from 'digest-fetch';
+import { Agent } from 'undici';
+import { BaseSkill } from '../base.js';
+import { STATE_PATH } from '../../core/config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 const DigestFetch = _digestFetch.default || _digestFetch
-const { Agent } = require('undici')
-const { BaseSkill } = require('../base.js')
-const { STATE_PATH } = require('../../core/config')
 
 const EVENTS_LOG_PATH = nodePath.join(STATE_PATH, 'dahua-events.jsonl') // written by src/core/dahua-notifier.js
 
@@ -898,4 +902,4 @@ class DahuaSkill extends BaseSkill {
   }
 }
 
-module.exports = DahuaSkill
+export default DahuaSkill;

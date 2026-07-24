@@ -1,18 +1,22 @@
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const EventEmitter = require('events');
-const SkillRegistry = require('./SkillRegistry');
-const ChannelManager = require('./channels/ChannelManager');
-const MemoryManager = require('./memory/MemoryManager');
-const LLMCoordinator = require('./llm/LLMCoordinator');
-const WorkflowEngine = require('./WorkflowEngine');
-const TelemetryCollector = require('./TelemetryCollector');
-const HealthMonitor = require('./HealthMonitor');
-const AgentOSOrchestrator = require('./orchestrator');
-const CircuitBreaker = require('../utils/CircuitBreaker');
-const { logger } = require('./logger');
-const MastercardA2AService = require('../../services/mastercardA2A');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import EventEmitter from 'events';
+import SkillRegistry from './SkillRegistry.js';
+import ChannelManager from './channels/ChannelManager.js';
+import MemoryManager from './memory/MemoryManager.js';
+import LLMCoordinator from './llm/LLMCoordinator.js';
+import WorkflowEngine from './WorkflowEngine.js';
+import TelemetryCollector from './TelemetryCollector.js';
+import HealthMonitor from './HealthMonitor.js';
+import AgentOSOrchestrator from './orchestrator.js';
+import CircuitBreaker from '../utils/CircuitBreaker.js';
+import { logger } from './logger.js';
+import MastercardA2AService from '../../services/mastercardA2A.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 
 class AgentOS extends EventEmitter {
   constructor(config = {}) {
@@ -495,6 +499,6 @@ getStatus() {
   }
 }
 
-module.exports = AgentOS;
+export default AgentOS;
 // Alias for legacy ss35b compatibility
-module.exports.AgentOSBot = AgentOS;
+export const AgentOSBot = AgentOS;;

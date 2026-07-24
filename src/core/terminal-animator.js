@@ -1,12 +1,12 @@
-'use strict';
+import { A } from './constants.js';
+import { logger } from './logger.js';
+
 
 /**
  * TerminalAnimator — migrated from ss35.js §3
  * Provides high-fidelity ANSI animations and CLI visual styling.
  */
 
-const { A } = require('./constants');
-const { logger } = require('./logger');
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -212,4 +212,4 @@ const TerminalAnimator = {
     cyber(msg) { logger.cyber(msg); }
 };
 
-module.exports = { A, TerminalAnimator };
+export { A, TerminalAnimator };

@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+import fs from 'fs';
+import path from 'path';
+import { startGateway } from './gateway-engine.js';
 
 /**
  * Gateway Daemon - Background Process Entry Point
  * @module core/gateway-daemon
  */
 
-const fs = require('fs');
-const path = require('path');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -42,7 +42,6 @@ if (!fs.existsSync(logDir)) {
 }
 
 // Start gateway
-const { startGateway } = require('./gateway-engine');
 
 startGateway({ port, gateway: { port } })
   .then(() => {

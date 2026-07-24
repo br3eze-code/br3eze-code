@@ -1,3 +1,4 @@
+
 // src/core/WorkflowEngine.js
 class WorkflowEngine {
   constructor(agent) {
@@ -102,4 +103,4 @@ class WorkflowEngine {
   }
 }
 
-module.exports = WorkflowEngine;
+export default WorkflowEngine;

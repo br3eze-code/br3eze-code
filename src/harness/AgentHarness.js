@@ -1,4 +1,9 @@
-'use strict';
+import EventEmitter from 'events';
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * src/harness/AgentHarness.js
  *
@@ -37,9 +42,6 @@
  *   // Execute a tool
  *   const result = await harness.run('network.ping', { host: '1.1.1.1' });
  */
-
-const EventEmitter = require('events');
-const path         = require('path');
 
 let _logger;
 function log(level, ...args) {
@@ -293,4 +295,4 @@ class AgentHarness extends EventEmitter {
   }
 }
 
-module.exports = { AgentHarness };
+export { AgentHarness };

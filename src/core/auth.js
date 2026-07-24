@@ -1,11 +1,11 @@
-'use strict';
+import { UserSandbox, getUserSandbox, AuthError, anyMatch } from './userSandbox.js';
+import { audit } from './audit.js';
+
 /**
  * auth.js — thin shim that delegates to UserSandbox.
  * Kept for backward compatibility with src/core/agent.js and other callers
  * that require('./auth'). New code should require('./userSandbox') directly.
  */
-const { UserSandbox, getUserSandbox, AuthError, anyMatch } = require('./userSandbox');
-const { audit } = require('./audit');
 
 async function authorize({ userId, tool, args, routerId }) {
   const sandbox = getUserSandbox();
@@ -29,4 +29,4 @@ async function authorize({ userId, tool, args, routerId }) {
   return { status: 'ok' };
 }
 
-module.exports = { AuthError, authorize, getUserSandbox, UserSandbox };
+export { AuthError, authorize, getUserSandbox, UserSandbox };

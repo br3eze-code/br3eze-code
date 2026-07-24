@@ -1,5 +1,9 @@
+import { logger } from '../logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/skills/SkillRegistry.js
-const { logger } = require('../logger');
 
 class SkillRegistry {
   constructor() {
@@ -144,4 +148,4 @@ class SkillRegistry {
   }
 }
 
-module.exports = SkillRegistry;
+export default SkillRegistry;

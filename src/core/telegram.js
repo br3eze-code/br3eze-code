@@ -1,21 +1,24 @@
-'use strict';
+import TelegramBot from 'node-telegram-bot-api';
+import QRCode from 'qrcode';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import { getMikroTikClient } from './mikrotik.js';
+import { getDatabase } from './database.js';
+import { getAgentRuntime } from './agentRuntime.js';
+import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { PermissionMode } from './permissions.js';
+import AskEngine from './ask-engine.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AgentOS Telegram Bot
  * @module core/telegram
  * @version 2026.04
  */
 
-const TelegramBot = require('node-telegram-bot-api');
-const QRCode = require('qrcode');
-const { logger } = require('./logger');
-const { getConfig } = require('./config');
-const { getMikroTikClient } = require('./mikrotik');
-const { getDatabase } = require('./database');
-const { getAgentRuntime } = require('./agentRuntime');
-const { getTaskRegistry, TaskStatus } = require('./taskRegistry');
-const { PermissionMode } = require('./permissions');
 
-const AskEngine = require('./ask-engine');
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW = 60_000;
 const ALERT_COOLDOWN = 300_000;
@@ -994,4 +997,4 @@ class AgentOSBot {
     stop() { this.bot.stopPolling(); }
 }
 
-module.exports = { AgentOSBot };
+export { AgentOSBot };

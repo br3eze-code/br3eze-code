@@ -1,4 +1,9 @@
-'use strict';
+import crypto from 'crypto';
+import { logger } from './logger.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * PrintBroker — routes a voucher print job to a connected mobile (Cordova/Android)
  * BLE/USB thermal-printer client over the WebSocket channel, falling back to the
@@ -10,9 +15,6 @@
  *   server -> client  'print.job'        { jobId, payload: voucherData }
  *   client -> server  'print.result'     { jobId, success, error? }
  */
-
-const crypto = require('crypto');
-const { logger } = require('./logger');
 
 const DEFAULT_JOB_TIMEOUT_MS = 20000;
 
@@ -93,4 +95,4 @@ class PrintBroker {
   }
 }
 
-module.exports = { PrintBroker };
+export { PrintBroker };

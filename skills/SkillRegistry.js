@@ -1,8 +1,17 @@
+import path from 'path';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // skills/SkillRegistry.js
 // Central skill registry — discovers and wires all built-in skills
 // SPEC.md §12 Skill Loader
 
-const path = require('path');
 
 class SkillRegistry {
   constructor() {
@@ -100,4 +109,4 @@ class SkillRegistry {
   }
 }
 
-module.exports = new SkillRegistry();
+export default new SkillRegistry();

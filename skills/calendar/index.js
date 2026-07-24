@@ -44,4 +44,4 @@ class CalendarSkill {
   }
 }
 
-module.exports = new CalendarSkill();
+export default new CalendarSkill();

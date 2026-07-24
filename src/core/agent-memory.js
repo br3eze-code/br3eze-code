@@ -1,13 +1,13 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
+
 /**
  * AgentMemory — migrated from ss35.js §4
  * Persistent key-value store for cross-session AI context injection.
  * Backed by a local JSON file at STATE_PATH/memory.json.
  */
-const fs   = require('fs');
-const path = require('path');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
 
 class AgentMemory {
     constructor() {
@@ -107,4 +107,4 @@ class AgentMemory {
 }
 
 // Singleton
-module.exports = new AgentMemory();
+export default new AgentMemory();

@@ -1,4 +1,7 @@
-'use strict';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/taskRegistry.js — task registry for the agentRuntime
 const TaskStatus = Object.freeze({ PENDING: 'pending', RUNNING: 'running', DONE: 'done', FAILED: 'failed' });
 const _tasks = new Map();
@@ -11,4 +14,4 @@ function getTaskRegistry() {
     clear() { _tasks.clear(); },
   };
 }
-module.exports = { getTaskRegistry, TaskStatus };
+export { getTaskRegistry, TaskStatus };

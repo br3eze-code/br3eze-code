@@ -1,11 +1,11 @@
-'use strict';
+import WebSocket from 'ws';
+import crypto from 'crypto';
+import { logger } from './logger.js';
+import { getConfig } from './config.js';
+import { getMikroTikClient } from './mikrotik.js';
 
-const WebSocket              = require('ws');
 
-const crypto                 = require('crypto');
-const { logger }             = require('./logger');
-const { getConfig }          = require('./config');
-const { getMikroTikClient }  = require('./mikrotik');
+
 
 const CHUNK_SIZE = 50;
 
@@ -182,4 +182,4 @@ class WebSocketGateway {
     }
 }
  
-module.exports = { WebSocketGateway };
+export { WebSocketGateway };

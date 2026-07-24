@@ -1,4 +1,14 @@
-'use strict';
+import { logger } from './logger.js';
+import { costTracker } from './cost-tracker.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * AskEngine — Tiered ReAct intelligence engine
  * Ported from main.js §8
@@ -9,8 +19,6 @@
  * Tier 4: Fallback message
  */
 
-const { logger } = require('./logger');
-const { costTracker } = require('./cost-tracker');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -842,4 +850,4 @@ class AskEngine {
     }
 }
 
-module.exports = AskEngine;
+export default AskEngine;

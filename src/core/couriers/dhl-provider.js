@@ -1,4 +1,5 @@
-'use strict';
+import { jsonRequest } from './_http.js';
+
 /**
  * DHL Express (MyDHL API).
  *
@@ -12,7 +13,6 @@
  *   below covers only the common fields. Confirm against DHL's full MyDHL API
  *   reference before using this for a real shipment.
  */
-const { jsonRequest } = require('./_http');
 
 class DhlProvider {
     name = 'DHL Express';
@@ -71,4 +71,4 @@ class DhlProvider {
     }
 }
 
-module.exports = DhlProvider;
+export default DhlProvider;

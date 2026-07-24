@@ -68,12 +68,4 @@ class PermissionError extends AgentOSError {
   }
 }
 
-module.exports = {
-  AgentOSError,
-  ConfigurationError,
-  ValidationError,
-  DatabaseError,
-  NetworkError,
-  AuthenticationError,
-  PermissionError
-};
+export { AgentOSError, ConfigurationError, ValidationError, DatabaseError, NetworkError, AuthenticationError, PermissionError };

@@ -1,5 +1,9 @@
+import { BaseChannel } from './BaseChannel.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/channels/USSDChannel.js
-const { BaseChannel } = require('./BaseChannel');
 
 class USSDChannel extends BaseChannel {
     static getMetadata() {
@@ -191,4 +195,4 @@ class USSDChannel extends BaseChannel {
 
 BaseChannel.register('ussd', USSDChannel);
 
-module.exports = USSDChannel;
+export default USSDChannel;

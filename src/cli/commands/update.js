@@ -1,8 +1,9 @@
-'use strict';
+import { execSync } from 'child_process';
 
-const { execSync } = require('child_process');
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-module.exports = (program) => {
+export default (program) => {
     program
         .command('update')
         .description('Update AgentOS to the latest version')

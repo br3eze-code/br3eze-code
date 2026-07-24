@@ -1,4 +1,4 @@
-'use strict';
+
 /**
  * src/tools/index.js
  *
@@ -55,4 +55,4 @@ const tools = {
 
 };
 
-module.exports = tools;
+export default tools;

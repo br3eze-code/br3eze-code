@@ -1,6 +1,7 @@
+import WebSocket from 'ws';
+import EventEmitter from 'events';
+
 // src/core/acp/ACPClient.js
-const WebSocket = require('ws');
-const EventEmitter = require('events');
 
 class ACPClient extends EventEmitter {
   constructor(agentId, endpoint) {
@@ -77,4 +78,4 @@ class ACPClient extends EventEmitter {
   }
 }
 
-module.exports = ACPClient;
+export default ACPClient;

@@ -1,3 +1,7 @@
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/PluginManager.js
 class PluginManager {
   constructor(agent) {
@@ -73,4 +77,4 @@ class AnalyticsPlugin {
   }
 }
 
-module.exports = { PluginManager, AnalyticsPlugin };
+export { PluginManager, AnalyticsPlugin };

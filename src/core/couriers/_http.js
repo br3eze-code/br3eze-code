@@ -1,6 +1,5 @@
-'use strict';
-const https = require('https');
-const { URL } = require('url');
+import https from 'https';
+import { URL } from 'url';
 
 /** Minimal JSON-over-HTTPS helper shared by courier providers — no extra dependency. */
 function jsonRequest(url, { method = 'GET', headers = {}, body } = {}) {
@@ -32,4 +31,4 @@ function jsonRequest(url, { method = 'GET', headers = {}, body } = {}) {
     });
 }
 
-module.exports = { jsonRequest };
+export { jsonRequest };

@@ -1,14 +1,17 @@
-'use strict';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import admin from 'firebase-admin';
+import { logger } from './logger.js';
+import { STATE_PATH } from './config.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 /**
  * AgentOS Database
  * Collections: vouchers, users, transactions, plans, wallets, audit_log, mikrotik
  */
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const admin = require('firebase-admin');
-const { logger } = require('./logger');
-const { STATE_PATH } = require('./config');
 
 
 // ── Default Plans (mirrors agentos-sentinel.rsc profiles) ────────────────────
@@ -1729,4 +1732,4 @@ async function getDatabase() {
     return initPromise;
 }
 
-module.exports = { getDatabase, DEFAULT_PLANS };
+export { getDatabase, DEFAULT_PLANS };

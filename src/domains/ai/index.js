@@ -1,6 +1,10 @@
+import BaseDomain from '../BaseDomain.js';
+import { ClaudeProvider } from '../../providers/claude.js';
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/domains/ai/index.js
-const BaseDomain = require('../BaseDomain');
-const { ClaudeProvider } = require('../../providers/claude');
 
 class AIDomain extends BaseDomain {
   constructor() {
@@ -66,4 +70,4 @@ class AIDomain extends BaseDomain {
   }
 }
 
-module.exports = AIDomain;
+export default AIDomain;

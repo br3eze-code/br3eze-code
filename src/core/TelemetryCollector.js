@@ -1,3 +1,7 @@
+
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 // src/core/TelemetryCollector.js
 class TelemetryCollector {
   constructor(config = {}) {
@@ -90,4 +94,4 @@ class TelemetryCollector {
   }
 }
 
-module.exports = TelemetryCollector;
+export default TelemetryCollector;
