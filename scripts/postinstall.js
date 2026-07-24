@@ -7,10 +7,10 @@
  *   from the project .env file so the gateway can read them without dotenv
  */
 
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { execFileSync } from 'child_process';
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { execFileSync } = require('child_process');
 
 const isCI     = !!(process.env.CI || process.env.GITHUB_ACTIONS);
 const isDocker = fs.existsSync('/.dockerenv') || !!process.env.container;
