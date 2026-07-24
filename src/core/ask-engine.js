@@ -183,6 +183,37 @@ class AskEngine {
 
         this._toolMap = { ...TOOL_MAP };
         this._declarations = FUNCTION_DECLARATIONS;
+        this._dahua = undefined; // lazy — see _dahuaSkill()
+    }
+
+    /**
+     * Lazily builds a DahuaSkill from the same config file the CLI reads, independent
+     * of whatever deps this AskEngine was constructed with — Dahua isn't part of the
+     * mikrotik/database/financial dependency set. Cached after first call; returns
+     * null (not an error) when no Dahua devices are configured, so callers can just
+     * check truthiness.
+     */
+    _dahuaSkill() {
+        if (this._dahua !== undefined) return this._dahua;
+        try {
+            const fs = require('fs');
+            const { CONFIG_PATH } = require('./config');
+            if (!fs.existsSync(CONFIG_PATH)) { this._dahua = null; return null; }
+            const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+            const workspace = config.adapters?.cctv || {};
+            if (!Object.keys(workspace.dahua_devices || {}).length) { this._dahua = null; return null; }
+            const DahuaSkill = require('../skills/dahua/index.js');
+            this._dahua = new DahuaSkill(config, logger, workspace);
+        } catch (e) {
+            logger.warn(`AskEngine: failed to init Dahua skill: ${e.message}`);
+            this._dahua = null;
+        }
+        return this._dahua;
+    }
+
+    _dahuaDeviceIds() {
+        const skill = this._dahuaSkill();
+        return skill ? Object.keys(skill.workspace.dahua_devices || {}) : [];
     }
 
     // ── Public: run() — returns { tier, type, result, [data], [turns], [sessionId] }
@@ -331,6 +362,75 @@ class AskEngine {
 
         if (lower.includes('voucher stats') || lower.includes('db stats')) {
             return () => this.database?.getStats();
+        }
+
+        // ── Dahua camera shortcuts (Tier-2 fast path, no LLM needed) ──────────
+        // These exist entirely so "snapshot shop2" / "is anyone at shop1" etc. still
+        // work when no AI provider is configured — dahua.* tools aren't in Tier 3's
+        // FUNCTION_DECLARATIONS at all (this engine predates the Dahua integration
+        // and is a separate implementation from src/ai/coordinator.js — see CLAUDE.md).
+        const dahuaIds = this._dahuaDeviceIds();
+        if (dahuaIds.length) {
+            const dev = dahuaIds.map(id => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+
+            const snapMatch = lower.match(new RegExp(`(?:snapshot|photo|picture)\\s+(?:of\\s+|from\\s+)?(${dev})|(${dev})\\s+(?:snapshot|photo|picture)`));
+            if (snapMatch) {
+                const device = snapMatch[1] || snapMatch[2];
+                return async () => {
+                    const shots = await this._dahuaSkill().execute('dahua.snapshot.getAll', { device });
+                    const ok = shots.filter(s => s.base64);
+                    return `📷 *${device}* — captured ${ok.length}/${shots.length} channel(s). Use the Telegram bot's \`/dahua snapshotall ${device}\` to actually see the images (this is a text-only interface).`;
+                };
+            }
+
+            const channelsMatch = lower.match(new RegExp(`(${dev})\\s+channels|channels\\s+(?:for\\s+|on\\s+|at\\s+)?(${dev})`));
+            if (channelsMatch) {
+                const device = channelsMatch[1] || channelsMatch[2];
+                return async () => {
+                    const channels = await this._dahuaSkill().execute('dahua.device.channels', { device });
+                    return channels.map(c => `${c.channel}. ${c.name}`).join('\n');
+                };
+            }
+
+            const infoMatch = lower.match(new RegExp(`(${dev})\\s+info|info\\s+(?:for\\s+|on\\s+)?(${dev})`));
+            if (infoMatch) {
+                const device = infoMatch[1] || infoMatch[2];
+                return async () => {
+                    const info = await this._dahuaSkill().execute('dahua.device.info', { device });
+                    return `📷 *${device}*\n${Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+                };
+            }
+
+            const streamMatch = lower.match(new RegExp(`stream\\s+(${dev})(?:\\s+(?:channel|ch)?\\s*(\\d+))?`));
+            if (streamMatch) {
+                const device = streamMatch[1];
+                const channel = streamMatch[2] ? Number(streamMatch[2]) : 1;
+                return async () => {
+                    const res = await this._dahuaSkill().execute('dahua.stream.url', { device, channel });
+                    return `🎥 *${device}* channel ${channel}\nMain: ${res.main}\nSub: ${res.sub}`;
+                };
+            }
+
+            const rebootCamMatch = lower.match(new RegExp(`reboot\\s+(${dev})`));
+            if (rebootCamMatch) {
+                const device = rebootCamMatch[1];
+                return async () => {
+                    await this._dahuaSkill().execute('dahua.system.reboot', { device, reason: 'Rule-based ask command' });
+                    return `🔁 Reboot sent to *${device}*.`;
+                };
+            }
+
+            // "is anyone at shop2", "what's happening at shop1", "events for shop2"
+            const activityMatch = lower.match(new RegExp(`(?:anyone|anybody|someone|activity|happening|events?)[^,.?]*?(${dev})|(${dev})[^,.?]*?(?:anyone|anybody|activity|happening|events?)`));
+            if (activityMatch) {
+                const device = activityMatch[1] || activityMatch[2];
+                return async () => {
+                    const result = await this._dahuaSkill().execute('dahua.events.search', { query: input, device });
+                    if (!result.events.length) return `No recent activity found at *${device}* in the last 24h.`;
+                    const lines = result.events.slice(-10).map(e => `${e.time} — ${e.code}${e.channel ? ` (ch${e.channel})` : ''}`);
+                    return `📋 Recent activity at *${device}*:\n${lines.join('\n')}`;
+                };
+            }
         }
 
         // ── Hotspot user write operations (Tier-2 fast path) ──────────────────

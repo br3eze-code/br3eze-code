@@ -258,6 +258,15 @@ class WhatsAppChannel extends BaseChannel {
         if (qr) {
           this.qrCode = qr;
           this.emit("qr", qr);
+          // Persist the raw pairing string so it can be rendered as a real scannable
+          // image (e.g. via the `qrcode` package) without needing terminal access —
+          // the ASCII art below only prints to a console someone happens to be watching.
+          try {
+            const { STATE_PATH } = require("../config");
+            fs.writeFileSync(path.join(STATE_PATH, "whatsapp-qr.txt"), qr);
+          } catch (e) {
+            logger.warn(`WhatsAppChannel: failed to persist QR string: ${e.message}`);
+          }
 
           const qrcode = require("qrcode-terminal");
 

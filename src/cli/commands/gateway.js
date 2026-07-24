@@ -141,8 +141,22 @@ module.exports = (program) => {
                     logger.info(`Cleaning stale gateway.pid (PID ${storedPid} no longer active)`);
                     try { fs.unlinkSync(pidFile); } catch (_) { }
                 }
+            } else if (fs.existsSync(pidFile) && options.force) {
+                // --force: actually kill whatever the pidfile points at — previously this
+                // branch only deleted the file, which left the old process alive holding
+                // the port; the new process would then hang trying to bind it. The
+                // "legacy fallback" kill further below never ran because by the time it
+                // checked, this branch had already deleted the file it depended on.
+                const storedPid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+                if (!isNaN(storedPid)) {
+                    try {
+                        process.kill(storedPid, 'SIGKILL');
+                        log.warn(`Forced kill of existing gateway (PID: ${storedPid})`);
+                    } catch (_) { /* already dead */ }
+                }
+                try { fs.unlinkSync(pidFile); } catch (_) { }
             } else if (fs.existsSync(pidFile)) {
-                // Under PM2 or --force: always remove stale pid to start fresh
+                // Under PM2: always remove stale pid to start fresh
                 try { fs.unlinkSync(pidFile); } catch (_) { }
             }
 
@@ -177,18 +191,6 @@ module.exports = (program) => {
                 }
             } else if (fs.existsSync(tgLockFile)) {
                 try { fs.unlinkSync(tgLockFile); } catch (_) { }
-            }
-
-            // Kill existing if --force (legacy fallback)
-            if (options.force && fs.existsSync(pidFile)) {
-                try {
-                    const pid = fs.readFileSync(pidFile, 'utf8').trim();
-                    process.kill(parseInt(pid), 'SIGKILL');
-                    log.warn('Forced kill of existing gateway (PID: ' + pid + ')');
-                    fs.unlinkSync(pidFile);
-                } catch (e) {
-                    try { fs.unlinkSync(pidFile); } catch (_) { }
-                }
             }
 
             console.clear();

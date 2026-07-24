@@ -1579,7 +1579,7 @@ class TelegramChannel extends BaseChannel {
                 await this._sendDahuaMenu(chatId);
             }
         } catch (err) {
-            logger.error(`TelegramChannel dahua callback (${action}):`, err.message);
+            logger.error(`TelegramChannel dahua callback (${action}): ${err.message}`);
             await this.bot.sendMessage(chatId, `Error: ${err.message}`);
         }
     }
