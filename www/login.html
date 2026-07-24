@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Power Connect - Sign In</title>
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
@@ -149,23 +149,12 @@
     <span id="toastMessage"></span>
   </div>
 
-  <div id="modal-overlay" class="modal-overlay hidden">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="modal-title"></h3>
-        <button class="close-modal" onclick="UI.closeModal()">&times;</button>
-      </div>
-      <div class="modal-body" id="modal-body"></div>
-    </div>
-  </div>
-
   <!-- Firebase SDKs (Google sign-in / Br3eze Africa account only -- the actual
        hotspot login below posts straight to the router and does not depend on Firebase) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="js/html5-qrcode.min.js"></script>
-  <script src="js/ui.js"></script>
   <script src="js/login-inline.js"></script>
 
 </body>
