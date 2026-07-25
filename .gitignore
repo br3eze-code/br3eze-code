@@ -144,6 +144,10 @@ router-backup/
 # Generated from .env (scripts/generate-env-www.js) — contains API keys
 www/js/env.js
 
+# Stale legacy backup of www/ — not served by firebase.json, and had a
+# real API key hardcoded in js/ai-ochestrator.js and js/aibridge.js.
+www_backup/
+
 # Runtime SQLite databases
 server/agentos.db
 *.db
