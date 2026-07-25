@@ -228,6 +228,9 @@
 		"testPathIgnorePatterns": [
 			"/node_modules/"
 		],
+		"transformIgnorePatterns": [
+			"/node_modules/(?!(uuid)/)"
+		],
 		"modulePaths": [
 			"/tmp/jest-deps/node_modules"
 		],

@@ -12,6 +12,9 @@ secrets/
 node_modules/
 package-lock.json
 yarn.lock
+# CI uses `npm ci`, which requires a committed lockfile — keep these two.
+!/package-lock.json
+!/server/package-lock.json
 /plugins/
 /platforms/
 
