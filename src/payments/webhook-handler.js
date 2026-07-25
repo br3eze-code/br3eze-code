@@ -2,6 +2,7 @@
 // Express middleware for handling payment webhooks
 
 const crypto = require('crypto');
+const express = require('express');
 
 /**
  * Create webhook handler middleware
