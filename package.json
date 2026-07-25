@@ -25,8 +25,8 @@
 		"build:ios": "cordova build ios",
 		"db:migrate": "node scripts/migrate-vouchers.js",
 		"build:check": "tsc --noEmit",
-		"postinstall": "node scripts/postinstall.js",
-		"preuninstall": "node scripts/preuninstall.js",
+		"postinstall": "node scripts/postinstall.cjs",
+		"preuninstall": "node scripts/preuninstall.cjs",
 		"clean": "rm -rf dist"
 	},
 	"publishConfig": {
