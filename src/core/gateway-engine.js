@@ -3,6 +3,7 @@ import http from 'http';
 import WebSocket from 'ws';
 import cors from 'cors';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import EventEmitter from 'events';
 import path from 'path';
 import security from './security.js';
@@ -102,6 +103,14 @@ class Gateway extends EventEmitter {
     this.app.use(compression());
     this.app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
     this.app.use(express.json({ limit: '10kb' }));
+
+    const limiter = rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 1000,
+      standardHeaders: true,
+      legacyHeaders: false
+    });
+    this.app.use(limiter);
 
     // Dynamic config injection for frontend
     this.app.get('/js/env.js', (req, res) => {
