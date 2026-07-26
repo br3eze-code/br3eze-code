@@ -39,9 +39,14 @@ async function listProducts({ category, search } = {}) {
     if (category && category !== 'all') items = items.filter((p) => p.category === category);
     if (search) {
         const s = String(search).toLowerCase();
-        items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category}`.toLowerCase().includes(s));
+        items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category} ${p.brand || ''}`.toLowerCase().includes(s));
     }
     return items;
+}
+
+async function relatedProducts(product, limit = 3) {
+    const items = await listProducts({ category: product.category });
+    return items.filter((p) => p.id !== product.id).slice(0, limit);
 }
 
 async function getProduct(idOrName) {
@@ -104,6 +109,51 @@ async function getOrder(orderId) {
 async function getOrdersByUser(uid) {
     const { fs } = await _fs();
     const snap = await fs.collection('orders').where('userId', '==', uid).get();
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Submit a 1-5 star review for a product. Restricted to a user who has an
+ * order containing that product (any status — cod orders are real sales too),
+ * one review per order+product to prevent spam re-review of the same purchase.
+ */
+async function submitReview(productId, uid, { rating, comment = '' } = {}) {
+    if (!uid) throw new Error('Link your account (/link) to leave a review.');
+    rating = Number(rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error('Rating must be a whole number from 1 to 5.');
+
+    const orders = await getOrdersByUser(uid);
+    const order = orders.find((o) => (o.items || []).some((i) => i.productId === productId));
+    if (!order) throw new Error("You can only review products you've ordered.");
+
+    const { fs } = await _fs();
+    const reviewId = `${order.id}_${productId}`;
+    const reviewRef = fs.collection('reviews').doc(reviewId);
+    const productRef = fs.collection('products').doc(productId);
+
+    await fs.runTransaction(async (tx) => {
+        const existing = await tx.get(reviewRef);
+        if (existing.exists) throw new Error("You've already reviewed this product for that order.");
+        const pDoc = await tx.get(productRef);
+        if (!pDoc.exists) throw new Error('Product no longer exists.');
+        const p = pDoc.data();
+        const oldCount = p.reviewCount || 0;
+        const oldAvg = p.rating || 0;
+        const newCount = oldCount + 1;
+        const newAvg = (oldAvg * oldCount + rating) / newCount;
+        tx.set(reviewRef, {
+            productId, orderId: order.id, userId: uid, rating,
+            comment: String(comment).slice(0, 500), createdAt: new Date().toISOString(),
+        });
+        tx.update(productRef, { rating: newAvg, reviewCount: newCount });
+    });
+
+    return { productId, rating, comment };
+}
+
+async function getReviews(productId, limit = 5) {
+    const { fs } = await _fs();
+    const snap = await fs.collection('reviews').where('productId', '==', productId).orderBy('createdAt', 'desc').limit(limit).get();
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -172,7 +222,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
             if (!uid) throw new Error('Link your account (/link) to pay with balance.');
             if (bal < total) throw new Error(`Insufficient balance ($${bal.toFixed(2)}). Total is $${total.toFixed(2)}.`);
         }
-        for (const pid in need) tx.update(prod[pid].ref, { stock: prod[pid].stock - need[pid] });
+        for (const pid in need) tx.update(prod[pid].ref, { stock: prod[pid].stock - need[pid], salesCount: (prod[pid].salesCount || 0) + need[pid] });
         if (payMethod === 'credits' && total > 0) tx.update(userRef, { credits: bal - total });
 
         const status = SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment';
@@ -204,4 +254,4 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     return order;
 }
 
-export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, productUrl, orderUrl, createShipment, trackShipment };
+export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews };

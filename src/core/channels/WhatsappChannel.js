@@ -583,6 +583,8 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set("wallet", this._handleWallet);
     this.handlers.set("pay", this._handlePay);
     this.handlers.set("claim", this._handleClaim);
+    this.handlers.set("whoami", this._handleWhoAmI);
+    this.handlers.set("link", this._handleLink);
     this.handlers.set("token", this._handleToken);
     this.handlers.set("tools", this._handleTools);
     this.handlers.set("tool", this._handleTool);
@@ -1297,6 +1299,39 @@ class WhatsAppChannel extends BaseChannel {
     }
   }
 
+  _productBadges(p) {
+    const bits = [];
+    if (p.reviewCount) bits.push(`⭐ ${p.rating.toFixed(1)} (${p.reviewCount})`);
+    else bits.push("☆ No reviews yet");
+    if (p.stock > 0 && p.stock <= 5) bits.push(`⚠️ Only ${p.stock} left!`);
+    if ((p.salesCount || 0) >= 5) bits.push("🔥 Bestseller");
+    return bits.join(" · ");
+  }
+
+  async _sendProductCard(jid, p) {
+    const text = `*${p.name}* (${p.id})\n$${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : "sold out"}\n${this._productBadges(p)}${p.description ? `\n${p.description}` : ""}\n${p.url}`;
+    if (p.imageUrl) {
+      try {
+        await this.send(jid, { image: { url: p.imageUrl }, caption: text });
+        return;
+      } catch (e) {
+        logger.warn(`WhatsApp: failed to send product image for ${p.id}: ${e.message}`);
+      }
+    }
+    await this.send(jid, text);
+  }
+
+  async _sendUpsell(jid, productRef, context) {
+    try {
+      const related = await this.agent.executeTool("shop.related_products", { productRef, limit: 3 }, context);
+      if (!related.length) return;
+      const lines = related.map((p) => `• *${p.name}* — $${p.price}`);
+      await this.send(jid, `✨ *You might also like*\n${lines.join("\n")}`);
+    } catch (e) {
+      logger.warn(`WhatsApp: upsell lookup failed: ${e.message}`);
+    }
+  }
+
   async _handleShop(jid, msg, args) {
     const action = args[1] || "list";
     const uid = msg?._uid || jid;
@@ -1311,26 +1346,41 @@ class WhatsAppChannel extends BaseChannel {
       const search = args.slice(2).join(" ") || undefined;
       const products = await this.agent.executeTool("shop.list_products", { search }, context);
       if (!products.length) return this.send(jid, "🛍️ No products found.");
-      const lines = products.slice(0, 20).map((p) =>
-        `*${p.name}* (${p.id}) — $${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : "sold out"}\n${p.url}`,
-      );
-      await this.send(jid, `🛍️ *Catalog*\n\n${lines.join("\n\n")}\n\nBuy with: */shop add <id>*`);
+      for (const p of products.slice(0, 20)) {
+        await this._sendProductCard(jid, p);
+      }
+      await this.send(jid, 'Buy with: */shop add <id>* — details: */shop product <id>*');
     } else if (action === "product") {
       const p = await this.agent.executeTool("shop.get_product", { productRef: args[2] }, context);
       if (!p) return this.send(jid, `❌ No product matching "${args[2]}".`);
-      await this.send(jid, `*${p.name}*\n$${p.price}\n${p.description || ""}\n${p.stock > 0 ? `${p.stock} in stock` : "Sold out"}\n${p.url}`);
+      await this._sendProductCard(jid, p);
+      const reviews = await this.agent.executeTool("shop.list_reviews", { productId: p.id, limit: 3 }, context).catch(() => []);
+      if (reviews.length) {
+        const lines = reviews.map((r) => `${"⭐".repeat(r.rating)} ${r.comment || "(no comment)"}`);
+        await this.send(jid, `💬 *Recent reviews*\n${lines.join("\n")}`);
+      }
+      await this.send(jid, "⬅️ Back to catalog: */shop list*");
     } else if (action === "cart") {
       const items = await this.agent.executeTool("shop.view_cart", { platform: "whatsapp", channelId: jid }, context);
-      if (!items.length) return this.send(jid, "🛒 Your cart is empty.");
+      if (!items.length) return this.send(jid, "🛒 Your cart is empty.\n\n⬅️ Back to catalog: */shop list*");
       const lines = items.map((i) => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ""} — $${(i.price * i.qty).toFixed(2)}`);
-      await this.send(jid, `🛒 *Your Cart*\n\n${lines.join("\n")}\n\nCheckout with: */shop checkout*`);
+      await this.send(jid, `🛒 *Your Cart*\n\n${lines.join("\n")}\n\nCheckout with: */shop checkout*\n⬅️ Back to catalog: */shop list*`);
     } else if (action === "add") {
+      const p = await this.agent.executeTool("shop.get_product", { productRef: args[2] }, context);
+      if (!p) return this.send(jid, `❌ No product matching "${args[2]}".`);
+      if (Array.isArray(p.sizes) && p.sizes.length > 1 && !args[3]) {
+        const list = p.sizes.map((s, i) => `${i + 1}. ${s}`).join("\n");
+        this.promptUser(jid, `📏 *${p.name}* — reply with a number:\n${list}\n\n⬅️ Back to product: */shop product ${p.id}*`, "shop_size", { productId: p.id, sizes: p.sizes });
+        return;
+      }
+      const size = args[3] || (p.sizes?.length === 1 ? p.sizes[0] : undefined);
       const result = await this.agent.executeTool(
         "shop.add_to_cart",
-        { platform: "whatsapp", channelId: jid, productRef: args[2], size: args[3] },
+        { platform: "whatsapp", channelId: jid, productRef: args[2], size },
         context,
       );
-      await this.send(jid, `✅ Added ${result.product.name} to cart.`);
+      await this.send(jid, `✅ Added ${result.product.name} to cart.\n\nCheckout with: */shop checkout* — or keep browsing: */shop list*`);
+      await this._sendUpsell(jid, args[2], context);
     } else if (action === "remove") {
       await this.agent.executeTool(
         "shop.remove_from_cart",
@@ -1354,10 +1404,20 @@ class WhatsAppChannel extends BaseChannel {
       } else {
         await this._sendOrderPdf(jid, orderId);
       }
+    } else if (action === "track") {
+      const orderId = args[2];
+      if (!orderId) return this.send(jid, "❌ Usage: */shop track <orderId>*");
+      const status = await this.agent.executeTool("shop.track_shipment", { orderId }, context);
+      await this.send(jid, `📦 *Tracking*\nStatus: ${status.status}\n${status.location ? `Location: ${status.location}\n` : ""}${status.eta ? `ETA: ${status.eta}\n` : ""}${status.trackingUrl ? status.trackingUrl : ""}`);
+    } else if (action === "review") {
+      const [productId, ratingStr, ...commentParts] = args.slice(2);
+      if (!productId || !ratingStr) return this.send(jid, "❌ Usage: */shop review <productId> <1-5> [comment]*");
+      const result = await this.agent.executeTool("shop.submit_review", { productId, rating: Number(ratingStr), comment: commentParts.join(" ") }, context);
+      await this.send(jid, `✅ Thanks for your ${"⭐".repeat(result.rating)} review!`);
     } else {
       await this.send(
         jid,
-        `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice.`,
+        `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice, track, review.`,
       );
     }
   }
@@ -1514,6 +1574,82 @@ class WhatsAppChannel extends BaseChannel {
     );
   }
 
+  async _handleWhoAmI(jid, msg) {
+    const { getDatabase } = require("../database");
+    const db = await getDatabase();
+    const uid = msg?._uid || jid;
+    const user = await db.getUser(uid);
+
+    if (!user) {
+      return this.send(
+        jid,
+        "❓ *Identity Unknown*\nI haven't synced your record yet. Try sending a normal message first.",
+      );
+    }
+
+    const isLinked = !!user.email || (user.uid && user.uid !== String(jid));
+    const role = user.role || "user";
+    const credits = (user.credits || 0).toFixed(2);
+
+    let text = `👤 *Your Profile*\n`;
+    text += `───────────────────\n`;
+    text += `🆔 ID: \`${jid}\`\n`;
+    if (user.uid && user.uid !== String(jid)) text += `🔗 Linked UID: \`${user.uid}\`\n`;
+    text += `🏷 Name: *${user.fullname || user.firstName || "Anonymous"}*\n`;
+    text += `📧 Email: \`${user.email || "Not linked"}\`\n`;
+    text += `🎭 Role: \`${role.toUpperCase()}\`\n`;
+    text += `💰 Credits: *$${credits}*\n`;
+    text += `───────────────────\n`;
+
+    if (!isLinked) {
+      text += `\n💡 *Tip:* Use \`/link your@email.com\` to connect your web account.`;
+    }
+
+    await this.send(jid, text);
+  }
+
+  async _handleLink(jid, msg, args) {
+    const email = args?.[1]?.trim();
+
+    if (!email) {
+      return this.send(
+        jid,
+        "🔗 *Link Account*\nUsage: */link your@email.com*\n\nThis connects your WhatsApp chat to your web-based wallet and vouchers.",
+      );
+    }
+
+    if (!email.includes("@")) {
+      return this.send(jid, "❌ Invalid email format.");
+    }
+
+    const { getDatabase } = require("../database");
+    const db = await getDatabase();
+
+    try {
+      const result = await db.resolveFirebaseUser(email, {
+        channel: "whatsapp",
+        channelId: jid,
+      });
+
+      if (result) {
+        // Link was successful (resolveFirebaseUser calls linkChannel internally if channel/channelId provided)
+        await this.send(
+          jid,
+          `✅ *Account Linked!*\nWelcome back, *${result.fullname || "User"}*.\nYour WhatsApp is now connected to \`${email}\`.`,
+        );
+        return this._handleWhoAmI(jid, msg);
+      } else {
+        await this.send(
+          jid,
+          `❌ *User not found*\nWe couldn't find a web account with email \`${email}\`. Please register on our website first.`,
+        );
+      }
+    } catch (err) {
+      logger.error(`WhatsApp link error: ${err.message}`);
+      await this.send(jid, `❌ *Linking failed*\n${err.message}`);
+    }
+  }
+
   async _handleToken(jid) {
     const token = process.env.GATEWAY_TOKEN || "Not configured";
     await this.send(
@@ -1656,6 +1792,21 @@ class WhatsAppChannel extends BaseChannel {
     } else if (action.startsWith("tool:")) {
       const toolName = action.split(":")[1];
       await this._handleTool(jid, msg, [null, toolName, text]);
+    } else if (action === "shop_size") {
+      const choice = text.trim();
+      const idx = parseInt(choice, 10) - 1;
+      const size = data.sizes[idx] || (data.sizes.includes(choice) ? choice : null);
+      if (!size) {
+        return this.send(jid, `❌ Reply with a number 1-${data.sizes.length}, or the size name.`);
+      }
+      const context = { userId: uid, platformId: jid, channel: "whatsapp", userDoc: msg.userDoc };
+      const result = await this.agent.executeTool(
+        "shop.add_to_cart",
+        { platform: "whatsapp", channelId: jid, productRef: data.productId, size },
+        context,
+      );
+      await this.send(jid, `✅ Added ${result.product.name} (${size}) to cart.\n\nCheckout with: */shop checkout* — or keep browsing: */shop list*`);
+      await this._sendUpsell(jid, data.productId, context);
     }
   }
 

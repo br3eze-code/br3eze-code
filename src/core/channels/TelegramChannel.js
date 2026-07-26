@@ -312,7 +312,7 @@ class TelegramChannel extends BaseChannel {
         return { allowed: true, remaining: limit - slot.count, resetTime: slot.resetTime };
     }
 
-    _rl(fn) {
+    _rl(fn, requiredRole = null) {
         return async (msg, match) => {
             const chatId = (msg?.chat?.id) ?? (msg?.message?.chat?.id);
             if (!chatId) return;
@@ -374,6 +374,26 @@ class TelegramChannel extends BaseChannel {
                 return; // Ignore unauthorized messages
             }
 
+            // 2b. Per-command role gate — mutating/operational commands require
+            // role:'admin' on the user's Firestore doc. Read-only/self-service
+            // commands (whoami, shop browsing, menu, wallet, etc.) pass no
+            // requiredRole and stay open to anyone, independent of allowed_ids
+            // (which today is empty, so isAuthorized alone lets everyone through).
+            if (requiredRole) {
+                try {
+                    const { getDatabase } = require('../database');
+                    const db = await getDatabase();
+                    const user = await db.getUser(resolvedUid || sChatId);
+                    const role = user?.role || 'user';
+                    if (role !== requiredRole && !(requiredRole === 'admin' && role === 'reseller')) {
+                        return this.bot.sendMessage(chatId, `❌ *Access Denied:* This command requires ${requiredRole} access.`, { parse_mode: 'Markdown' });
+                    }
+                } catch (e) {
+                    logger.error(`Telegram role check failed: ${e.message}`);
+                    return this.bot.sendMessage(chatId, '❌ Could not verify permissions — try again shortly.');
+                }
+            }
+
             // 3. Rate Limiting
             const rlStatus = this._checkRateLimit(chatId);
             if (!rlStatus.allowed) {
@@ -433,34 +453,34 @@ class TelegramChannel extends BaseChannel {
     _registerHandlers() {
         this.bot.onText(/\/start/, this._rl(this._handleStart.bind(this)));
         this.bot.onText(/\/dashboard/, this._rl(this._handleDashboard.bind(this)));
-        this.bot.onText(/\/users/, this._rl(this._handleUsers.bind(this)));
-        this.bot.onText(/\/stats/, this._rl(this._handleStats.bind(this)));
-        this.bot.onText(/\/voucher(?:\s+(\w+))?/, this._rl(this._handleVoucher.bind(this)));
-        this.bot.onText(/\/kick\s+(\S+)/, this._rl(this._handleKick.bind(this)));
-        this.bot.onText(/\/reboot/, this._rl(this._handleReboot.bind(this)));
+        this.bot.onText(/\/users/, this._rl(this._handleUsers.bind(this), 'admin'));
+        this.bot.onText(/\/stats/, this._rl(this._handleStats.bind(this), 'admin'));
+        this.bot.onText(/\/voucher(?:\s+(\w+))?/, this._rl(this._handleVoucher.bind(this), 'admin'));
+        this.bot.onText(/\/kick\s+(\S+)/, this._rl(this._handleKick.bind(this), 'admin'));
+        this.bot.onText(/\/reboot/, this._rl(this._handleReboot.bind(this), 'admin'));
         this.bot.onText(/\/menu/, this._rl(this._handleMenu.bind(this)));
         this.bot.onText(/\/ping(?:\s+(.+))?/, this._rl(this._handlePing.bind(this)));
         this.bot.onText(/\/help/, this._rl(this._handleHelp.bind(this)));
-        this.bot.onText(/\/pay(?:\s+(.+))?/, this._rl(this._handlePay.bind(this)));
-        this.bot.onText(/\/dahua(?:\s+(.+))?/, this._rl(this._handleDahua.bind(this)));
+        this.bot.onText(/\/pay(?:\s+(.+))?/, this._rl(this._handlePay.bind(this), 'admin'));
+        this.bot.onText(/\/dahua(?:\s+(.+))?/, this._rl(this._handleDahua.bind(this), 'admin'));
         this.bot.onText(/\/shop(?:\s+(.+))?/, this._rl(this._handleShop.bind(this)));
         this.bot.onText(/\/claim/, this._rl(this._handleClaim.bind(this)));
-        this.bot.onText(/\/token/, this._rl(this._handleToken.bind(this)));
+        this.bot.onText(/\/token/, this._rl(this._handleToken.bind(this), 'admin'));
         this.bot.onText(/\/ask\s+(.+)/, this._rl(this._handleAsk.bind(this)));
-        this.bot.onText(/\/cli\s+(.+)/, this._rl(this._handleCli.bind(this)));
-        this.bot.onText(/\/api\s+(.+)/, this._rl(this._handleApi.bind(this)));
-        this.bot.onText(/\/tools/, this._rl(this._handleTools.bind(this)));
-        this.bot.onText(/\/tool\s+(\S+)(?:\s+(.*))?/, this._rl(this._handleTool.bind(this)));
-        this.bot.onText(/\/setup_router/, this._rl(this._handleSetupRouter.bind(this)));
-        this.bot.onText(/\/network/, this._rl(this._handleNetwork.bind(this)));
+        this.bot.onText(/\/cli\s+(.+)/, this._rl(this._handleCli.bind(this), 'admin'));
+        this.bot.onText(/\/api\s+(.+)/, this._rl(this._handleApi.bind(this), 'admin'));
+        this.bot.onText(/\/tools/, this._rl(this._handleTools.bind(this), 'admin'));
+        this.bot.onText(/\/tool\s+(\S+)(?:\s+(.*))?/, this._rl(this._handleTool.bind(this), 'admin'));
+        this.bot.onText(/\/setup_router/, this._rl(this._handleSetupRouter.bind(this), 'admin'));
+        this.bot.onText(/\/network/, this._rl(this._handleNetwork.bind(this), 'admin'));
         this.bot.onText(/\/wallet/, this._rl(this._handleWallet.bind(this)));
-        this.bot.onText(/\/mistakes/, this._rl(this._handleMistakes.bind(this)));
-        this.bot.onText(/\/vouchers/, this._rl(this._handleVoucherList.bind(this)));
-        this.bot.onText(/\/reprint/, this._rl(this._handleReprint.bind(this)));
+        this.bot.onText(/\/mistakes/, this._rl(this._handleMistakes.bind(this), 'admin'));
+        this.bot.onText(/\/vouchers/, this._rl(this._handleVoucherList.bind(this), 'admin'));
+        this.bot.onText(/\/reprint/, this._rl(this._handleReprint.bind(this), 'admin'));
         this.bot.onText(/\/transfer\s+(\S+)(?:\s+(.+))?/, this._rl(this._handleTransfer.bind(this)));
         this.bot.onText(/\/whoami/, this._rl(this._handleWhoAmI.bind(this)));
         this.bot.onText(/\/link(?:\s+(.+))?/, this._rl(this._handleLink.bind(this)));
-        this.bot.onText(/\/printer(?:\s+(\S+)(?:\s+(.*))?)?/, this._rl(this._handlePrinter.bind(this)));
+        this.bot.onText(/\/printer(?:\s+(\S+)(?:\s+(.*))?)?/, this._rl(this._handlePrinter.bind(this), 'admin'));
 
         this.bot.on('callback_query', this._rl(this._handleCallback.bind(this)));
 
@@ -1602,6 +1622,96 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
+    /** Rating/stock/bestseller line shared by listing, detail, and callback views. */
+    _productBadges(p) {
+        const bits = [];
+        if (p.reviewCount) bits.push(`⭐ ${p.rating.toFixed(1)} (${p.reviewCount})`);
+        else bits.push('☆ No reviews yet');
+        if (p.stock > 0 && p.stock <= 5) bits.push(`⚠️ Only ${p.stock} left!`);
+        if ((p.salesCount || 0) >= 5) bits.push('🔥 Bestseller');
+        return bits.join(' · ');
+    }
+
+    async _sendProductCard(chatId, p, { extraKeyboard = [] } = {}) {
+        const text = `*${p.name}*\n$${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : 'sold out'}\n${this._productBadges(p)}${p.description ? `\n${p.description}` : ''}`;
+        const reply_markup = extraKeyboard.length ? { inline_keyboard: extraKeyboard } : undefined;
+        if (p.imageUrl) {
+            try {
+                await this.bot.sendPhoto(chatId, p.imageUrl, { caption: text, parse_mode: 'Markdown', reply_markup });
+                return;
+            } catch (e) {
+                logger.warn(`TelegramChannel: failed to send product image for ${p.id}: ${e.message}`);
+            }
+        }
+        await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
+    }
+
+    _cartActionsKeyboard() {
+        return { inline_keyboard: [
+            [
+                { text: '✅ Checkout', callback_data: 'shop:checkout:' },
+                { text: '🛒 View Cart', callback_data: 'shop:cart:' }
+            ],
+            [{ text: '⬅️ Keep shopping', callback_data: 'shop:list:' }]
+        ] };
+    }
+
+    _backButtonRow(callback_data = 'shop:list:', label = '⬅️ Back to catalog') {
+        return [{ text: label, callback_data }];
+    }
+
+    async _sendUpsell(chatId, productRef) {
+        try {
+            const related = await this.agent.executeTool('shop.related_products', { productRef, limit: 3 }, { channel: 'telegram' });
+            if (!related.length) return;
+            const lines = related.map((p) => `• *${p.name}* — $${p.price}`);
+            await this.bot.sendMessage(chatId, `✨ *You might also like*\n${lines.join('\n')}`, { parse_mode: 'Markdown' });
+        } catch (e) {
+            logger.warn(`TelegramChannel: upsell lookup failed: ${e.message}`);
+        }
+    }
+
+    async _sendShopList(chatId, toolCtx, search) {
+        const products = await this.agent.executeTool('shop.list_products', { search }, toolCtx);
+        if (!products.length) return this.bot.sendMessage(chatId, '🛍️ No products found.');
+        for (const p of products.slice(0, 20)) {
+            await this._sendProductCard(chatId, p, { extraKeyboard: [
+                [
+                    { text: '🛒 Add to cart', callback_data: `shop:add:${p.id}` },
+                    { text: 'ℹ️ Details', callback_data: `shop:view:${p.id}` }
+                ],
+                [{ text: '🔗 View in browser', url: p.url }]
+            ] });
+        }
+    }
+
+    async _sendShopProductDetail(chatId, toolCtx, p) {
+        await this._sendProductCard(chatId, p, { extraKeyboard: [
+            [
+                { text: '🛒 Add to cart', callback_data: `shop:add:${p.id}` },
+            ],
+            this._backButtonRow()
+        ] });
+        const reviews = await this.agent.executeTool('shop.list_reviews', { productId: p.id, limit: 3 }, toolCtx).catch(() => []);
+        if (reviews.length) {
+            const lines = reviews.map((r) => `${'⭐'.repeat(r.rating)} ${r.comment || '(no comment)'}`);
+            await this.bot.sendMessage(chatId, `💬 *Recent reviews*\n${lines.join('\n')}`, { parse_mode: 'Markdown' });
+        }
+    }
+
+    async _sendShopCart(chatId, toolCtx) {
+        const items = await this.agent.executeTool('shop.view_cart', { platform: 'telegram', channelId: chatId }, toolCtx);
+        if (!items.length) {
+            return this.bot.sendMessage(chatId, '🛒 Your cart is empty.', { reply_markup: { inline_keyboard: [this._backButtonRow()] } });
+        }
+        const lines = items.map(i => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ''} — $${(i.price * i.qty).toFixed(2)}`);
+        const reply_markup = { inline_keyboard: [
+            [{ text: '✅ Checkout', callback_data: 'shop:checkout:' }],
+            this._backButtonRow()
+        ] };
+        await this.bot.sendMessage(chatId, `🛒 *Your Cart*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup });
+    }
+
     async _handleShop(msg, match) {
         const chatId = msg.chat.id;
         const args = match?.[1]?.trim().split(/\s+/) || [];
@@ -1612,31 +1722,27 @@ class TelegramChannel extends BaseChannel {
             if (!this.agent) throw new Error('Agent not initialized');
 
             if (action === 'list') {
-                const products = await this.agent.executeTool('shop.list_products', { search: args.slice(1).join(' ') || undefined }, toolCtx);
-                if (!products.length) return this.bot.sendMessage(chatId, '🛍️ No products found.');
-                for (const p of products.slice(0, 20)) {
-                    const reply_markup = { inline_keyboard: [
-                        [
-                            { text: '🛒 Add to cart', callback_data: `shop:add:${p.id}` },
-                            { text: 'ℹ️ Details', callback_data: `shop:view:${p.id}` }
-                        ],
-                        [{ text: '🔗 View in browser', url: p.url }]
-                    ] };
-                    await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price} — ${p.stock > 0 ? `${p.stock} in stock` : 'sold out'}`, { parse_mode: 'Markdown', reply_markup });
-                }
+                await this._sendShopList(chatId, toolCtx, args.slice(1).join(' ') || undefined);
             } else if (action === 'product') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: args[1] }, toolCtx);
                 if (!p) return this.bot.sendMessage(chatId, `❌ No product matching "${args[1]}".`);
-                await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price}\n${p.description || ''}\n${p.stock > 0 ? `${p.stock} in stock` : 'Sold out'}\n🔗 ${p.url}`, { parse_mode: 'Markdown' });
+                await this._sendShopProductDetail(chatId, toolCtx, p);
             } else if (action === 'cart') {
-                const items = await this.agent.executeTool('shop.view_cart', { platform: 'telegram', channelId: chatId }, toolCtx);
-                if (!items.length) return this.bot.sendMessage(chatId, '🛒 Your cart is empty.');
-                const lines = items.map(i => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ''} — $${(i.price * i.qty).toFixed(2)}`);
-                const reply_markup = { inline_keyboard: [[{ text: '✅ Checkout', callback_data: 'shop:checkout:' }]] };
-                await this.bot.sendMessage(chatId, `🛒 *Your Cart*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup });
+                await this._sendShopCart(chatId, toolCtx);
             } else if (action === 'add') {
-                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: args[1], size: args[2] }, toolCtx);
-                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart.`);
+                const p = await this.agent.executeTool('shop.get_product', { productRef: args[1] }, toolCtx);
+                if (!p) return this.bot.sendMessage(chatId, `❌ No product matching "${args[1]}".`);
+                if (Array.isArray(p.sizes) && p.sizes.length > 1 && !args[2]) {
+                    const reply_markup = { inline_keyboard: [
+                        p.sizes.map(s => ({ text: s, callback_data: `shop:addsize:${p.id}:${s}` })),
+                        this._backButtonRow(`shop:view:${p.id}`, '⬅️ Back to product')
+                    ] };
+                    return this.bot.sendMessage(chatId, `📏 *${p.name}* — pick a size:`, { parse_mode: 'Markdown', reply_markup });
+                }
+                const size = args[2] || (p.sizes?.length === 1 ? p.sizes[0] : undefined);
+                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: args[1], size }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart.`, { reply_markup: this._cartActionsKeyboard() });
+                await this._sendUpsell(chatId, args[1]);
             } else if (action === 'remove') {
                 await this.agent.executeTool('shop.remove_from_cart', { platform: 'telegram', channelId: chatId, keyOrProductId: args[1] }, toolCtx);
                 await this.bot.sendMessage(chatId, '🗑️ Removed from cart.');
@@ -1652,8 +1758,18 @@ class TelegramChannel extends BaseChannel {
                 } else {
                     await this._sendOrderPdf(chatId, orderId);
                 }
+            } else if (action === 'track') {
+                const orderId = args[1];
+                if (!orderId) return this.bot.sendMessage(chatId, '❌ Usage: /shop track <orderId>');
+                const status = await this.agent.executeTool('shop.track_shipment', { orderId }, toolCtx);
+                await this.bot.sendMessage(chatId, `📦 *Tracking*\nStatus: ${status.status}\n${status.location ? `Location: ${status.location}\n` : ''}${status.eta ? `ETA: ${status.eta}\n` : ''}${status.trackingUrl ? `🔗 ${status.trackingUrl}` : ''}`, { parse_mode: 'Markdown' });
+            } else if (action === 'review') {
+                const [productId, ratingStr, ...commentParts] = args.slice(1);
+                if (!productId || !ratingStr) return this.bot.sendMessage(chatId, '❌ Usage: /shop review <productId> <1-5> [comment]');
+                const result = await this.agent.executeTool('shop.submit_review', { productId, rating: Number(ratingStr), comment: commentParts.join(' ') }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Thanks for your ${'⭐'.repeat(result.rating)} review!`);
             } else {
-                await this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice.`);
+                await this.bot.sendMessage(chatId, `❌ Unknown action: ${action}. Use list, product, cart, add, remove, checkout, invoice, track, review.`);
             }
         } catch (err) {
             logger.error('TelegramChannel Shop error:', err);
@@ -1667,14 +1783,34 @@ class TelegramChannel extends BaseChannel {
             if (action === 'view') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);
                 if (!p) return this.bot.sendMessage(chatId, '❌ Product not found.');
-                await this.bot.sendMessage(chatId, `*${p.name}*\n$${p.price}\n${p.description || ''}\n${p.stock > 0 ? `${p.stock} in stock` : 'Sold out'}\n🔗 ${p.url}`, { parse_mode: 'Markdown' });
+                await this._sendShopProductDetail(chatId, toolCtx, p);
             } else if (action === 'add') {
-                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: extra }, toolCtx);
-                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart. Send /shop cart to review.`);
+                const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);
+                if (!p) return this.bot.sendMessage(chatId, '❌ Product not found.');
+                if (Array.isArray(p.sizes) && p.sizes.length > 1) {
+                    const reply_markup = { inline_keyboard: [
+                        p.sizes.map(s => ({ text: s, callback_data: `shop:addsize:${p.id}:${s}` })),
+                        this._backButtonRow(`shop:view:${p.id}`, '⬅️ Back to product')
+                    ] };
+                    return this.bot.sendMessage(chatId, `📏 *${p.name}* — pick a size:`, { parse_mode: 'Markdown', reply_markup });
+                }
+                const size = p.sizes?.length === 1 ? p.sizes[0] : undefined;
+                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: extra, size }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} to cart.`, { reply_markup: this._cartActionsKeyboard() });
+                await this._sendUpsell(chatId, extra);
+            } else if (action === 'addsize') {
+                const [productId, size] = extra.split(':');
+                const result = await this.agent.executeTool('shop.add_to_cart', { platform: 'telegram', channelId: chatId, productRef: productId, size }, toolCtx);
+                await this.bot.sendMessage(chatId, `✅ Added ${result.product.name} (${size}) to cart.`, { reply_markup: this._cartActionsKeyboard() });
+                await this._sendUpsell(chatId, productId);
             } else if (action === 'checkout') {
                 const result = await this.agent.executeTool('shop.checkout', { platform: 'telegram', channelId: chatId, payMethod: 'cod' }, toolCtx);
                 await this.bot.sendMessage(chatId, `✅ Order placed! Invoice ${result.invoiceNumber}\nTotal: $${result.total.toFixed(2)}\n🔗 ${result.url}`);
                 await this._sendOrderPdf(chatId, result.orderId).catch(e => logger.warn(`TelegramChannel: failed to send order PDF: ${e.message}`));
+            } else if (action === 'cart') {
+                await this._sendShopCart(chatId, toolCtx);
+            } else if (action === 'list') {
+                await this._sendShopList(chatId, toolCtx);
             }
         } catch (err) {
             logger.error(`TelegramChannel shop callback (${action}): ${err.message}`);

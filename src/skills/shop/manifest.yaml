@@ -133,3 +133,43 @@ tools:
     description: List available courier providers and whether each is configured.
     parameters: {}
     returns: array
+
+  - name: shop.submit_review
+    description: Submit a 1-5 star review for a product. Caller must have an order containing the product; one review per order+product.
+    parameters:
+      - name: productId
+        type: string
+        required: true
+      - name: rating
+        type: number
+        required: true
+        description: Whole number 1-5.
+      - name: comment
+        type: string
+        required: false
+    returns: object
+
+  - name: shop.list_reviews
+    description: Get recent reviews for a product.
+    parameters:
+      - name: productId
+        type: string
+        required: true
+      - name: limit
+        type: number
+        required: false
+        default: 5
+    returns: array
+
+  - name: shop.related_products
+    description: Get 2-3 other active products in the same category, for "you might also like" suggestions.
+    parameters:
+      - name: productRef
+        type: string
+        required: true
+        description: Product ID, name, or slug to find related items for.
+      - name: limit
+        type: number
+        required: false
+        default: 3
+    returns: array

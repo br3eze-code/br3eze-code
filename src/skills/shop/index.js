@@ -124,6 +124,37 @@ class ShopSkill extends BaseSkill {
         risk: 'low',
         description: 'List available courier providers and whether each is configured',
         parameters: { type: 'object', properties: {}, required: [] }
+      },
+      'shop.submit_review': {
+        risk: 'low',
+        description: 'Submit a 1-5 star review for a product the caller has ordered',
+        parameters: {
+          type: 'object',
+          properties: {
+            productId: { type: 'string' },
+            rating: { type: 'number', description: 'Whole number 1-5' },
+            comment: { type: 'string' }
+          },
+          required: ['productId', 'rating']
+        }
+      },
+      'shop.list_reviews': {
+        risk: 'low',
+        description: 'Get recent reviews for a product',
+        parameters: {
+          type: 'object',
+          properties: { productId: { type: 'string' }, limit: { type: 'number', default: 5 } },
+          required: ['productId']
+        }
+      },
+      'shop.related_products': {
+        risk: 'low',
+        description: 'Get other active products in the same category, for "you might also like" suggestions',
+        parameters: {
+          type: 'object',
+          properties: { productRef: { type: 'string' }, limit: { type: 'number', default: 3 } },
+          required: ['productRef']
+        }
       }
     };
   }
@@ -162,6 +193,18 @@ class ShopSkill extends BaseSkill {
       case 'shop.list_couriers': {
         const { getCourierGateway } = require('../../core/courier-gateway');
         return getCourierGateway().getAvailableProviders();
+      }
+      case 'shop.submit_review': {
+        const uid = ctx?.userId;
+        return shop.submitReview(args.productId, uid, { rating: args.rating, comment: args.comment });
+      }
+      case 'shop.list_reviews':
+        return shop.getReviews(args.productId, args.limit || 5);
+      case 'shop.related_products': {
+        const p = await shop.getProduct(args.productRef);
+        if (!p) throw new Error(`Product "${args.productRef}" not found.`);
+        const items = await shop.relatedProducts(p, args.limit || 3);
+        return items.map((r) => ({ ...r, url: shop.productUrl(r.id) }));
       }
       default:
         throw new Error(`Unknown tool ${toolName}`);
