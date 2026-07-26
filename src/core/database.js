@@ -1626,14 +1626,29 @@ class Database {
         return hash;
     }
 
-    async getAuditLog(limit = 50) {
+    /**
+     * `opts` accepts a plain number (legacy `getAuditLog(100)` — just a limit) or an
+     * options object. `userId`/`event`/`hours` are the public filter names; the stored
+     * entry shape (see logAudit) actually uses `actor`/`eventType`/`timestamp`.
+     */
+    async getAuditLog(opts = 50) {
+        const { limit = 50, offset = 0, userId, event, hours } = typeof opts === 'number' ? { limit: opts } : (opts || {});
+        const since = hours ? new Date(Date.now() - hours * 3600 * 1000) : null;
         if (this.db) {
-            const snap = await this.db.collection('audit_log').orderBy('timestamp', 'desc').limit(limit).get();
-            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            let q = this.db.collection('audit_log').orderBy('timestamp', 'desc');
+            if (userId) q = q.where('actor', '==', userId);
+            if (event) q = q.where('eventType', '==', event);
+            if (since) q = q.where('timestamp', '>=', since.toISOString());
+            const snap = await q.limit(limit + offset).get();
+            return snap.docs.slice(offset).map(d => ({ id: d.id, ...d.data() }));
         }
-        return [...this._auditLog]
+        let entries = [...this._auditLog];
+        if (userId) entries = entries.filter((e) => e.actor === userId);
+        if (event) entries = entries.filter((e) => e.eventType === event);
+        if (since) entries = entries.filter((e) => this._toDate(e.timestamp) >= since);
+        return entries
             .sort((a, b) => this._toDate(b.timestamp) - this._toDate(a.timestamp))
-            .slice(0, limit);
+            .slice(offset, offset + limit);
     }
 
     // ── MikroTik ──────────────────────────────────────────────────────────────

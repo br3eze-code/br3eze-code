@@ -71,9 +71,8 @@ class SystemDriver extends BaseDriver {
         return this._doctor(ctx.registry)
 
       case 'system.audit':
-        return ctx.db.getAuditLogs({
+        return ctx.db.getAuditLog({
           hours: args.hours || 24,
-          status: args.status,
           userId: ctx.userId
         })
 

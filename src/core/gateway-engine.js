@@ -589,6 +589,19 @@ class Gateway extends EventEmitter {
     // ── Shop ─────────────────────────────────────────────────────────────────
     this.app.use('/api/v1/shop', require('../api/routes/shop').default);
 
+    // ── Extended route sets (v1/v2/v3) ──────────────────────────────────────
+    // Mounted AFTER every inline route above so already-working endpoints
+    // (vouchers/stats, tools, nodes, etc., hand-duplicated here) keep serving
+    // from this file — Express matches in registration order, so these
+    // routers only ever handle the paths not already registered above.
+    try {
+      this.app.use('/api/v1', require('../api/routes/v1').default);
+      this.app.use('/api/v2', require('../api/routes/v2').default);
+      this.app.use('/api/v3', require('../api/routes/v3').default);
+    } catch (e) {
+      logger.warn('Extended API routes (v1/v2/v3) not available:', e.message);
+    }
+
     this.app.use((err, req, res, next) => {
       logger.error('Express error:', err);
       res.status(500).json({ error: 'Internal server error' });

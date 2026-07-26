@@ -1767,6 +1767,15 @@ class MikroTikManager extends EventEmitter {
             throw new ToolExecutionError('api.raw', e.message, e);
         }
     }
+
+    /** `(path, {key: value, ...})` convenience wrapper over executeRawAPI, e.g. executeCommand('/ip/hotspot/user/remove', {'.id': id}). */
+    async executeCommand(cmd, params) {
+        const parts = Array.isArray(cmd) ? [...cmd] : [String(cmd)];
+        if (params && typeof params === 'object') {
+            for (const [k, v] of Object.entries(params)) parts.push(`=${k}=${v}`);
+        }
+        return this.executeRawAPI(parts);
+    }
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     async bandwidth(params = {}) {

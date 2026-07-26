@@ -93,7 +93,10 @@
       "Bash(grep -aE \"15:0[4-9]:|15:1[0-2]:\" /tmp/gateway_shop_verify2.log | grep -v \"▄\\\\|█\\\\|▀\\\\|QR code\\\\|Relaying\\\\|MikroTik\\\\|WhatsApp\" *)",
       "Bash(taskkill //F //PID 22744)",
       "Bash(taskkill //F //PID 26368)",
-      "Bash(git reset *)"
+      "Bash(git reset *)",
+      "Bash(curl -s http://localhost:19876/api/token)",
+      "mcp__claude-in-chrome__navigate",
+      "Bash(taskkill //F //PID 39492)"
     ]
   }
 }
