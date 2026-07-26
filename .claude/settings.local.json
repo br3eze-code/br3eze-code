@@ -92,7 +92,8 @@
       "mcp__claude-in-chrome__browser_batch",
       "Bash(grep -aE \"15:0[4-9]:|15:1[0-2]:\" /tmp/gateway_shop_verify2.log | grep -v \"▄\\\\|█\\\\|▀\\\\|QR code\\\\|Relaying\\\\|MikroTik\\\\|WhatsApp\" *)",
       "Bash(taskkill //F //PID 22744)",
-      "Bash(taskkill //F //PID 26368)"
+      "Bash(taskkill //F //PID 26368)",
+      "Bash(git reset *)"
     ]
   }
 }

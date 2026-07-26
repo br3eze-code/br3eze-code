@@ -47,6 +47,28 @@ export default (program) => {
                 process.exit(1);
             }
 
+            // --daemon: hand off to PM2 instead of running in this (foreground)
+            // process — matches the codebase's existing PM2-aware design
+            // (this command already checks process.env.PM2_HOME below) and the
+            // working `pm2 start scripts/automate.js` pattern in package.json's
+            // `automate` script. Was previously declared but never implemented.
+            if (options.daemon) {
+                const pm2Args = ['start', path.join(process.cwd(), 'bin', 'agentos.js'), '--name', 'agentos-gateway', '--', 'gateway'];
+                if (options.port) pm2Args.push('--port', options.port);
+                if (options.force) pm2Args.push('--force');
+                if (options.verbose) pm2Args.push('--verbose');
+
+                console.log(chalk.cyan(`Starting gateway under PM2: pm2 ${pm2Args.join(' ')}`));
+                const pm2 = spawn('pm2', pm2Args, { stdio: 'inherit', shell: true });
+                pm2.on('exit', (code) => process.exit(code || 0));
+                pm2.on('error', (err) => {
+                    console.error(chalk.red(`Failed to launch pm2: ${err.message}`));
+                    console.error(chalk.gray('Is pm2 installed? Try: npm install -g pm2'));
+                    process.exit(1);
+                });
+                return;
+            }
+
             const config = getConfig();
             const Port = options.port || config.gateway?.port || 19876;
 

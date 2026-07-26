@@ -19,7 +19,7 @@ export default (program) => {
     if (!fs.existsSync(CONFIG_PATH)) {
       throw new Error('No configuration found — run: agentos onboard');
     }
-    const ShopSkill = require('../../skills/shop/index.js');
+    const ShopSkill = require('../../skills/shop/index.js').default;
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     return new ShopSkill(config, console, {});
   };
