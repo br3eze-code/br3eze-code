@@ -113,7 +113,7 @@ export default (program) => {
       intro('📱 WhatsApp QR Pairing');
       log.info(`Auth folder: ${authDir}`);
 
-      const WhatsAppChannel = require('../../core/channels/WhatsappChannel');
+      const WhatsAppChannel = require('../../core/channels/WhatsappChannel').default;
       const stubAgent = {};
 
       waConfig.authStateFolder = authDir;

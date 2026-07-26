@@ -19,7 +19,7 @@ export default (program) => {
     if (!fs.existsSync(CONFIG_PATH)) {
       throw new Error('No configuration found — run: agentos onboard');
     }
-    const DahuaSkill = require('../../skills/dahua/index.js');
+    const DahuaSkill = require('../../skills/dahua/index.js').default;
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     const workspace = config.adapters?.cctv || {};
     return new DahuaSkill(config, console, workspace);

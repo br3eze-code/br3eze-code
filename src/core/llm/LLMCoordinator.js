@@ -21,7 +21,7 @@ class LLMCoordinator {
         this._loadProviders();
         this.providerType = providerType;
         this.provider = this.createProvider(providerType, config);
-        this.hooks = config.hooks || new (require('./hooks'))();
+        this.hooks = config.hooks || new (require('./hooks').default)();
     }
 
     /**

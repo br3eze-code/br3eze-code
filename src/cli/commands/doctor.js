@@ -191,7 +191,7 @@ export default (program) => {
       // Check 6: AI Engine
       s.start('Checking AI Engine...');
       try {
-        const LLMCoordinator = require('../../core/llm/LLMCoordinator');
+        const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
         const aiProvider = config.ai?.provider || 'none';
         const coordinator = new LLMCoordinator(aiProvider, config);
 

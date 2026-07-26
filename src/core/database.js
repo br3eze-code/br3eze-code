@@ -3,7 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import admin from 'firebase-admin';
 import { logger } from './logger.js';
-import { STATE_PATH } from './config.js';
+import { STATE_PATH, getConfig } from './config.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -114,13 +114,27 @@ class Database {
             this.sqlite = await getSQLite();
             logger.info('Database: SQLite initialized');
 
-            if (process.env.FIREBASE_PROJECT_ID) {
+            // Fall back to config.json's firebase.{enabled,serviceAccount,projectId} when the
+            // env vars aren't set — onboard.js writes these when a service account file is
+            // selected during setup, but this init path only ever checked env vars, so a real
+            // on-disk serviceAccountKey.json sat unused and every Firebase-backed feature
+            // (including the shop) silently ran on the local SQLite/JSON fallback instead.
+            let fbConfig = {};
+            try { fbConfig = getConfig()?.firebase || {}; } catch (_) { /* config unavailable this early in boot */ }
+            const projectId = process.env.FIREBASE_PROJECT_ID || (fbConfig.enabled ? fbConfig.projectId : null);
+
+            if (projectId) {
                 if (!admin.apps.length) {
                     let credential;
+                    let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT ||
+                        (fbConfig.enabled && fbConfig.type === 'serviceAccount' ? fbConfig.serviceAccount : null);
+                    if (serviceAccountPath && !path.isAbsolute(serviceAccountPath)) {
+                        serviceAccountPath = path.resolve(process.cwd(), serviceAccountPath);
+                    }
 
-                    if (process.env.FIREBASE_SERVICE_ACCOUNT && fs.existsSync(process.env.FIREBASE_SERVICE_ACCOUNT)) {
-                        credential = admin.credential.cert(require(path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT)));
-                        logger.info(`Firebase: loaded service account from ${process.env.FIREBASE_SERVICE_ACCOUNT}`);
+                    if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
+                        credential = admin.credential.cert(require(serviceAccountPath));
+                        logger.info(`Firebase: loaded service account from ${serviceAccountPath}`);
 
                     } else if (process.env.FIREBASE_PRIVATE_KEY) {
                         let pk = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
@@ -819,49 +833,6 @@ class Database {
                     .map(([id, data]) => ({ id, ...data }));
             }
 
-    async getStats() {
-                if (this.db) {
-                    // Use count() aggregator if available, otherwise limited fetch
-                    try {
-                        const coll = this.db.collection('vouchers');
-                        const total = (await coll.count().get()).data().count;
-                        const used = (await coll.where('used', '==', true).count().get()).data().count;
-                        const expired = (await coll.where('status', '==', 'expired').count().get()).data().count;
-                        const revoked = (await coll.where('status', '==', 'revoked').count().get()).data().count;
-
-                        return {
-                            total,
-                            used,
-                            active: total - used - expired - revoked,
-                            unused: total - used - expired - revoked,
-                            expired,
-                            revoked
-                        };
-                    } catch (e) {
-                        logger.warn('Firestore count() failed, falling back to limited fetch:', e.message);
-                        const snap = await this.db.collection('vouchers').limit(1000).get();
-                        const all = snap.docs.map(d => d.data());
-                        return this._calculateStats(all);
-                    }
-                }
-                return this._calculateStats(Array.from(this._vouchers.values()));
-            }
-
-            _calculateStats(all) {
-                return {
-                    total: all.length,
-                    used: all.filter(v => v.used || v.status === 'used' || v.redemption?.used).length,
-                    active: all.filter(v => v.status === 'active').length,
-                    unused: all.filter(v => !v.used && v.status !== 'expired' && v.status !== 'revoked').length,
-                    expired: all.filter(v => v.status === 'expired').length,
-                    revoked: all.filter(v => v.status === 'revoked').length,
-                };
-            }
-
-    async countVouchers(filters = {}) {
-                const all = await this.getVouchers({ ...filters, limit: 1000 });
-                return all.length;
-            }
 
     // ── Users ─────────────────────────────────────────────────────────────────
     //         deviceModel, role, credits, lastIP, lastSeen, createdAt,
@@ -927,10 +898,15 @@ class Database {
             // Use count() aggregator if available, otherwise limited fetch
             try {
                 const coll = this.db.collection('vouchers');
-                const total = (await coll.count().get()).data().count;
-                const used = (await coll.where('used', '==', true).count().get()).data().count;
-                const expired = (await coll.where('status', '==', 'expired').count().get()).data().count;
-                const revoked = (await coll.where('status', '==', 'revoked').count().get()).data().count;
+                // These 4 counts are independent — running them sequentially quadrupled
+                // the round-trip latency for no reason (real cause of doctor.js's
+                // Firebase check occasionally exceeding its 5s timeout).
+                const [total, used, expired, revoked] = (await Promise.all([
+                    coll.count().get(),
+                    coll.where('used', '==', true).count().get(),
+                    coll.where('status', '==', 'expired').count().get(),
+                    coll.where('status', '==', 'revoked').count().get(),
+                ])).map((snap) => snap.data().count);
 
                 return {
                     total,

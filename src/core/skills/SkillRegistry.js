@@ -60,6 +60,15 @@ class SkillRegistry {
     const skillConfig = config?.skills?.[manifest.name] || config?.[manifest.name] || {};
     const workspace = config?.workspace || {};
 
+    // require()-of-ESM interop wraps a `export default X` module as
+    // {__esModule: true, default: X} instead of returning X directly —
+    // unwrap it so class-based skills (the common case) are still detected
+    // below. Plain CJS `module.exports = X` has no __esModule flag and
+    // passes through unchanged.
+    if (implementation && implementation.__esModule && implementation.default !== undefined) {
+      implementation = implementation.default;
+    }
+
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
       // Class-based skill (e.g. DahuaSkill extends BaseSkill) — execute(toolName, args, ctx)
       const instance = new implementation(skillConfig, logger, workspace);

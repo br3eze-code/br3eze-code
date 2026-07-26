@@ -597,7 +597,7 @@ export default (program) => {
       // ── Step 4: AI Provider ───────────────────────────────────────────────
       note(chalk.gray('Pick the AI brain powering your agents.'), chalk.magentaBright.bold('🧠 Step 4 — AI Provider'));
       // Load all providers via LLMCoordinator to ensure they are registered
-      const LLMCoordinator = require('../../core/llm/LLMCoordinator');
+      const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
       new LLMCoordinator('none'); // Force-load all providers
 
       const registry = BaseProvider.getRegistry();

@@ -40,9 +40,9 @@ class CourierGateway {
     }
 
     _initProviders() {
-        const DhlProvider = require('./couriers/dhl-provider');
-        const PargoProvider = require('./couriers/pargo-provider');
-        const CourierGuyProvider = require('./couriers/courier-guy-provider');
+        const DhlProvider = require('./couriers/dhl-provider').default;
+        const PargoProvider = require('./couriers/pargo-provider').default;
+        const CourierGuyProvider = require('./couriers/courier-guy-provider').default;
         this.providers.set('dhl', new DhlProvider(this.config));
         this.providers.set('pargo', new PargoProvider(this.config));
         this.providers.set('courier_guy', new CourierGuyProvider(this.config));

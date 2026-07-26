@@ -31,7 +31,19 @@ function initializeFirebase() {
     const path = require('path');
     const fs = require('fs');
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-    
+
+    // Fall back to config.json's firebase.serviceAccount (e.g. onboard.js writes
+    // this when a service account file is selected during setup) — the env var
+    // alone left a real, on-disk serviceAccountKey.json silently unused.
+    if (!serviceAccountPath) {
+      try {
+        const cfg = getConfig();
+        if (cfg?.firebase?.enabled && cfg.firebase.type === 'serviceAccount' && cfg.firebase.serviceAccount) {
+          serviceAccountPath = cfg.firebase.serviceAccount;
+        }
+      } catch (_) { /* getConfig unavailable this early in boot — env var path still works */ }
+    }
+
     if (serviceAccountPath) {
       if (!path.isAbsolute(serviceAccountPath)) {
         serviceAccountPath = path.resolve(process.cwd(), serviceAccountPath);

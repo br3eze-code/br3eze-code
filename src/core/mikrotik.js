@@ -336,7 +336,23 @@ class MikroTikManager extends EventEmitter {
                 }
             });
 
-            this.state.conn = await client.connect();
+            // client.connect()'s own `timeout` option only governs command
+            // round-trips after the TCP handshake, not the handshake itself — an
+            // unreachable host (dropped SYN, no RST) can hang this well past the
+            // configured timeout, bound only by the OS's own TCP timeout. Race it
+            // explicitly, same pattern testConnection() already uses below.
+            let connectTimer;
+            const connectTimeout = new Promise((_, reject) => {
+                connectTimer = setTimeout(
+                    () => reject(new Error(`Connection timed out after ${this.config.timeout}ms`)),
+                    this.config.timeout
+                );
+            });
+            try {
+                this.state.conn = await Promise.race([client.connect(), connectTimeout]);
+            } finally {
+                clearTimeout(connectTimer);
+            }
             this.state.isConnected = true;
             this.state.isInitialized = true;
             this.state.reconnectAttempts = 0;
@@ -2036,5 +2052,5 @@ async function testConnection(config = null) {
 }
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-export { MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager };
-export { getManager as getMikroTikClient };
+export { MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager, testConnection };
+export { getManager as getMikroTikClient, testConnection as testMikroTikConnection };

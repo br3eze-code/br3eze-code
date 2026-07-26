@@ -71,7 +71,7 @@ async function runStandalone(prompt, { stream }) {
     const DiscoveryService = require('../../core/discovery');
     const MemoryManager = require('../../core/memory/MemoryManager');
     const AskEngine = require('../../core/ask-engine');
-    const LLMCoordinator = require('../../core/llm/LLMCoordinator');
+    const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
 
     const config = getConfig();
 

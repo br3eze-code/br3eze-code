@@ -24,7 +24,7 @@ export default (program) => {
     .action(async () => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
+        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         const skillsDir = path.join(process.cwd(), 'src', 'skills');
         await registry.loadFromDirectory(skillsDir);
@@ -60,7 +60,7 @@ export default (program) => {
     .action(async (skillName, options) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
+        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 
@@ -88,7 +88,7 @@ export default (program) => {
     .action(async (skillName) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry');
+        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 
