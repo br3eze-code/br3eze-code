@@ -252,5 +252,4 @@ Be concise and helpful. If a tool execution fails, explain the error to the user
   }
 }
 
-export default  { AgentRuntime };
-
+export { AgentRuntime };

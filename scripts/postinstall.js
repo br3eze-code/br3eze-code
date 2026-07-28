@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict';
 /**
  * AgentOS Post-install
  * - Global installs (npm install -g): configures PATH + system env vars
@@ -7,10 +6,10 @@
  *   from the project .env file so the gateway can read them without dotenv
  */
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const { execFileSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { execFileSync } from 'child_process';
 
 const isCI     = !!(process.env.CI || process.env.GITHUB_ACTIONS);
 const isDocker = fs.existsSync('/.dockerenv') || !!process.env.container;
@@ -136,7 +135,7 @@ function ensureInPath(binPath) {
   }
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────[...]
 try {
   // Locate .env relative to project root (INIT_CWD during npm install)
   const projectRoot = process.env.INIT_CWD || process.cwd();
