@@ -1460,6 +1460,47 @@ function _stripeForm(flat) {
     for (const k in flat) p.append(k, flat[k]);
     return p.toString();
 }
+// Verifies the caller actually IS the uid they claim to be, via a Firebase
+// ID token (the client gets one from `auth.currentUser.getIdToken()`).
+// Required before touching saved-card/billing endpoints — those act on a
+// uid from the request body alone, and unlike the Checkout-redirect flow
+// (where the attacker would still have to pay with their own card) a bare
+// uid is enough to charge a stranger's card-on-file if this isn't checked.
+async function _verifyCallerUid(admin, idToken, claimedUid) {
+    if (!idToken || !claimedUid) return false;
+    try {
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        return decoded.uid === claimedUid;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Stripe object ids are interpolated straight into request URLs below (e.g.
+// `.../v1/payment_methods/${paymentMethodId}`). Without validating the shape
+// first, a caller could pass something like "pm_x/../../account" and redirect
+// our own secret-key-authenticated request to an arbitrary Stripe API path —
+// full account access, not just this endpoint's intended scope. Every id that
+// reaches a URL (even ones we believe we generated ourselves, e.g. a
+// customerId round-tripped through Firestore) must pass this first.
+function _isStripeId(id, prefix) {
+    return typeof id === 'string' && new RegExp(`^${prefix}_[a-zA-Z0-9]+$`).test(id);
+}
+
+// Idempotent fulfilment — a given Stripe reference (Checkout session id or
+// PaymentIntent id) credits the user's balance at most once, however many
+// times the client re-checks it.
+async function _creditOnce(db, admin, reference, uid, credits) {
+    const ref = db.collection('stripeSessions').doc(reference);
+    return db.runTransaction(async (tx) => {
+        const doc = await tx.get(ref);
+        if (doc.exists && doc.data().processed) return false;
+        tx.set(ref, { processed: true, uid, credits, at: new Date().toISOString() });
+        tx.update(db.collection('users').doc(uid), { credits: admin.firestore.FieldValue.increment(credits) });
+        return true;
+    });
+}
+
 app.post('/api/checkout/create', async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
@@ -1491,6 +1532,7 @@ app.post('/api/checkout/verify', async (req, res) => {
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
     const sessionId = (req.body && req.body.session_id) || req.query.session_id;
     if (!sessionId) return res.status(400).json({ error: 'session_id required' });
+    if (!_isStripeId(sessionId, 'cs')) return res.status(400).json({ error: 'Malformed session_id' });
     try {
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
         const r = await _stripeAxios.get(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, { auth: { username: SK, password: '' } });
@@ -1499,16 +1541,157 @@ app.post('/api/checkout/verify', async (req, res) => {
         const uid = s.metadata && s.metadata.uid;
         const credits = Number(s.metadata && s.metadata.credits);
         if (!uid || !(credits > 0)) return res.json({ paid: true, credited: false, reason: 'no metadata' });
-        // Idempotent fulfilment — a session is credited at most once.
-        const ref = db.collection('stripeSessions').doc(sessionId);
-        const credited = await db.runTransaction(async (tx) => {
-            const doc = await tx.get(ref);
-            if (doc.exists && doc.data().processed) return false;
-            tx.set(ref, { processed: true, uid, credits, at: new Date().toISOString() });
-            tx.update(db.collection('users').doc(uid), { credits: admin.firestore.FieldValue.increment(credits) });
-            return true;
-        });
+        const credited = await _creditOnce(db, admin, sessionId, uid, credits);
         res.json({ paid: true, credited, amount: credits });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+
+// ── Stripe saved payment method (card-on-file) ──────────────────────────────
+// SetupIntent flow: Stripe Elements collects the card in the browser (raw PAN
+// never reaches our server); we only ever handle the resulting PaymentMethod
+// id. Mirrors the customer/billing shape universal-billing.js's bot-side
+// Stripe path expects (billing.stripeCustomerId), so a future pass can point
+// both surfaces at the same customer record instead of two disconnected ones.
+app.post('/api/setup-intent/create', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, idToken } = req.body || {};
+    if (!uid) return res.status(400).json({ error: 'uid required' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const userRef = db.collection('users').doc(uid);
+        const userSnap = await userRef.get();
+        const user = userSnap.exists ? userSnap.data() : {};
+        const auth = { username: SK, password: '' };
+        let customerId = user.billing && user.billing.stripeCustomerId;
+        if (customerId && !_isStripeId(customerId, 'cus')) {
+            // Stored value doesn't look like a real Stripe customer id — don't
+            // let a corrupted/tampered Firestore field reach a Stripe URL.
+            return res.status(500).json({ error: 'Stored billing record is invalid' });
+        }
+        if (!customerId) {
+            const cr = await _stripeAxios.post('https://api.stripe.com/v1/customers', _stripeForm({
+                ...(user.email ? { email: user.email } : {}),
+                ...(user.fullname ? { name: user.fullname } : {}),
+                'metadata[uid]': uid,
+            }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+            customerId = cr.data.id;
+            await userRef.set({ billing: { stripeCustomerId: customerId } }, { merge: true });
+        }
+        const si = await _stripeAxios.post('https://api.stripe.com/v1/setup_intents', _stripeForm({
+            customer: customerId,
+            'payment_method_types[0]': 'card',
+        }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        res.json({ clientSecret: si.data.client_secret, customerId });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+
+app.post('/api/payment-method/save', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, idToken, paymentMethodId, billingAddress } = req.body || {};
+    if (!uid || !paymentMethodId) return res.status(400).json({ error: 'uid and paymentMethodId required' });
+    if (!_isStripeId(paymentMethodId, 'pm')) return res.status(400).json({ error: 'Malformed paymentMethodId' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const userRef = db.collection('users').doc(uid);
+        const userSnap = await userRef.get();
+        const existing = (userSnap.exists && userSnap.data().billing) || {};
+        const customerId = existing.stripeCustomerId;
+        if (!customerId) return res.status(400).json({ error: 'No Stripe customer on file — call /api/setup-intent/create first' });
+        if (!_isStripeId(customerId, 'cus')) return res.status(500).json({ error: 'Stored billing record is invalid' });
+        const auth = { username: SK, password: '' };
+        // Make this the customer's default so future off-session top-up charges use it.
+        await _stripeAxios.post(`https://api.stripe.com/v1/customers/${customerId}`, _stripeForm({
+            'invoice_settings[default_payment_method]': paymentMethodId,
+        }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        const pm = await _stripeAxios.get(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}`, { auth });
+        const card = pm.data.card ? {
+            brand: pm.data.card.brand, last4: pm.data.card.last4,
+            expMonth: pm.data.card.exp_month, expYear: pm.data.card.exp_year,
+        } : null;
+        const billing = {
+            stripeCustomerId: customerId,
+            defaultPaymentMethodId: paymentMethodId,
+            card,
+            address: billingAddress || existing.address || null,
+            updatedAt: new Date().toISOString(),
+        };
+        await userRef.set({ billing }, { merge: true });
+        res.json({ card, address: billing.address });
+    } catch (e) {
+        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+    }
+});
+
+// ── Charge the saved card in-app (no redirect to hosted Checkout) ──────────
+app.post('/api/charge-card', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, idToken, amount, label } = req.body || {};
+    const dollars = Number(amount);
+    if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
+    if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const userSnap = await db.collection('users').doc(uid).get();
+        const billing = (userSnap.exists && userSnap.data().billing) || {};
+        if (!billing.stripeCustomerId || !billing.defaultPaymentMethodId) {
+            return res.status(400).json({ error: 'No saved card on file' });
+        }
+        const auth = { username: SK, password: '' };
+        const pi = await _stripeAxios.post('https://api.stripe.com/v1/payment_intents', _stripeForm({
+            amount: Math.round(dollars * 100),
+            currency: 'usd',
+            customer: billing.stripeCustomerId,
+            payment_method: billing.defaultPaymentMethodId,
+            off_session: 'false',
+            confirm: 'true',
+            description: label || 'Power Connect credit top-up',
+            'metadata[uid]': uid,
+            'metadata[credits]': String(dollars),
+        }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+        if (pi.data.status === 'requires_action') {
+            return res.json({ requiresAction: true, clientSecret: pi.data.client_secret, paymentIntentId: pi.data.id });
+        }
+        if (pi.data.status !== 'succeeded') {
+            return res.status(402).json({ error: `Payment ${pi.data.status}` });
+        }
+        const credited = await _creditOnce(db, admin, pi.data.id, uid, dollars);
+        res.json({ paid: true, credited, amount: dollars });
+    } catch (e) {
+        const stripeErr = e.response && e.response.data && e.response.data.error;
+        if (stripeErr && stripeErr.payment_intent && stripeErr.payment_intent.status === 'requires_action') {
+            return res.json({ requiresAction: true, clientSecret: stripeErr.payment_intent.client_secret, paymentIntentId: stripeErr.payment_intent.id });
+        }
+        res.status(500).json({ error: (stripeErr && stripeErr.message) || e.message });
+    }
+});
+
+// After the client resolves 3-D Secure via stripe.handleCardAction(), re-check
+// the PaymentIntent status and credit the balance (idempotent, safe to retry).
+app.post('/api/charge-card/confirm', async (req, res) => {
+    const SK = process.env.STRIPE_SECRET_KEY;
+    if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
+    const { uid, idToken, paymentIntentId } = req.body || {};
+    if (!uid || !paymentIntentId) return res.status(400).json({ error: 'uid and paymentIntentId required' });
+    if (!_isStripeId(paymentIntentId, 'pi')) return res.status(400).json({ error: 'Malformed paymentIntentId' });
+    try {
+        if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
+        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const auth = { username: SK, password: '' };
+        const pi = await _stripeAxios.get(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, { auth });
+        if (pi.data.status !== 'succeeded') return res.json({ paid: false, status: pi.data.status });
+        const dollars = Number(pi.data.metadata && pi.data.metadata.credits);
+        const credited = await _creditOnce(db, admin, pi.data.id, uid, dollars);
+        res.json({ paid: true, credited, amount: dollars });
     } catch (e) {
         res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
     }

@@ -144,10 +144,39 @@ class NanoPDFSkill {
     return this.saveAndReturn(pdfBuffer, 'generated');
   }
 
+  // Values interpolated by renderTemplate below end up in HTML that will
+  // get rendered by a real headless Chromium page (page.setContent). Without
+  // escaping, a crafted "name" containing markup would execute as HTML/JS in
+  // that page, same class of bug as any other unescaped-template XSS.
+  _escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   renderTemplate(template, data) {
-    // Simple template engine
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return data?.[key] !== undefined ? String(data[key]) : match;
+    // Simple Mustache-like engine: {{#key}}...{{/key}} repeats its inner
+    // block once per element of data[key] (an array), resolving each
+    // {{field}} inside against that element first, then the outer data
+    // (built-in templates, e.g. invoice.html, rely on this for line items).
+    // All substituted values are HTML-escaped (standard {{var}} Mustache
+    // behavior) — templates that truly need raw HTML aren't supported here.
+    const withSections = template.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, inner) => {
+      const items = data?.[key];
+      if (!Array.isArray(items)) return '';
+      return items
+        .map((item) => inner.replace(/\{\{(\w+)\}\}/g, (m, field) => {
+          if (item?.[field] !== undefined) return this._escapeHtml(item[field]);
+          if (data?.[field] !== undefined) return this._escapeHtml(data[field]);
+          return m;
+        }))
+        .join('');
+    });
+    return withSections.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return data?.[key] !== undefined ? this._escapeHtml(data[key]) : match;
     });
   }
 
