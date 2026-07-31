@@ -1,693 +1,768 @@
+
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="msapplication-tap-highlight" content="no">
-    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover, user-scalable=no">
-    <meta name="color-scheme" content="light dark">
-    <meta name="description" content="Power Connect — br3eze.africa Wi-Fi hotspot subscription management">
-    <meta name="theme-color" content="#08080c">
+    <head>
+        <meta charset="utf-8">
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+        <meta name="color-scheme" content="light dark">
+        <meta name="theme-color" content="#050505">
+        <link rel="manifest" href="manifest.json">
+        <link rel="icon" href="img/logo.png">
+        <link rel="apple-touch-icon" href="img/logo.png">
 
-    <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval' 'unsafe-inline';
-                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com;
-                 font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com;
-                 img-src 'self' data: blob: https://www.gstatic.com https://firebase.google.com https://lh3.googleusercontent.com;
-                 script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com;
-                 connect-src 'self'
-                     https://*.firebaseio.com https://*.googleapis.com
-                     https://*.firebase.google.com https://*.firebaseapp.com
-                     https://generativelanguage.googleapis.com
-                     https://www.gstatic.com
-                     https://br3eze.africa https://*.br3eze.africa
-                     ws://127.0.0.1:* ws://localhost:* wss://127.0.0.1:* wss://localhost:*
-                     wss://*.firebaseio.com wss://*.googleapis.com
-                     ws: wss: http: https:;
-                 frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;">
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 
-    <!-- Fonts & Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-          crossorigin="anonymous" referrerpolicy="no-referrer">
+        <!-- Font Awesome -->
+        <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <link rel="stylesheet" href="css/index.css">
+        <title>Power Connect</title>
+        <style>
+    #authScreen, #mainApp, #mainHeader {
+        display: none; 
+    }
+</style>
+    </head>
+    <body>
 
-    <!-- App Stylesheet (canonical from br3eze-code) -->
-    <link rel="stylesheet" href="css/index.css">
-
-    <title>Power Connect — br3eze.africa</title>
-    <link rel="icon" href="images/logo/logo.png" onerror="this.remove()">
-</head>
-<body>
-
-    <!-- ═══════════════════════════════════════════════════════
-         LOADING OVERLAY
-    ═══════════════════════════════════════════════════════ -->
-    <div id="loadingOverlay" class="loading-overlay" style="display:none;">
-        <div class="spinner"></div>
-        <div id="loadingText" style="margin-top:15px;font-size:.9rem;opacity:.8">Loading...</div>
+<!-- Power Hotspot Header -->
+<header class="main-header" id="mainHeader" style="display: none;">
+    <div class="header-left">
+        <span class="logo">POWER CONNECT</span>
+    </div>
+    <div class="header-right">
+        <button class="nav-cart hidden" id="navCart" onclick="Shop.openCart()" aria-label="Cart">
+            <i class="fas fa-shopping-bag"></i>
+            <span class="nav-cart-count" id="navCartCount">0</span>
+        </button>
+        <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════
-         HEADER
-    ═══════════════════════════════════════════════════════ -->
-    <header class="main-header hidden" id="mainHeader">
-        <div class="header-left">
-            <img src="images/logo/logo.png" alt="br3eze" class="header-logo" onerror="this.style.display='none'">
-            <span class="logo">POWER CONNECT</span>
+    <div class="user-dropdown" id="userDropdown">
+        <div class="dropdown-header">
+            <strong id="dropdownFullname"></strong>
+            <p id="dropdownEmail"></p>
         </div>
-        <div class="header-right">
-            <span id="backendStatusBadge" class="backend-status-badge status-offline" title="Gateway: Offline"></span>
-            <div class="user-icon" id="navUsernameShort" onclick="toggleDropdown('userDropdown')"></div>
-        </div>
-
-        <div class="user-dropdown" id="userDropdown">
-            <div class="dropdown-header">
-                <strong id="dropdownFullname"></strong>
-                <p id="dropdownEmail"></p>
-                <small style="opacity:.5;font-size:.7rem">br3eze.africa</small>
-            </div>
-            <div class="dropdown-menu">
-                <ul>
-                    <li onclick="showSection('settings'); toggleDropdown('userDropdown');">
-                        <i class="fas fa-user"></i> Profile
-                    </li>
-                    <li onclick="Auth.logout(); toggleDropdown('userDropdown');">
-                        <i class="fas fa-sign-out-alt"></i> Sign Out
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </header>
-
-    <!-- ═══════════════════════════════════════════════════════
-         AUTH SCREEN
-    ═══════════════════════════════════════════════════════ -->
-    <div id="authScreen">
-        <div class="auth-container">
-
-            <!-- Login Card -->
-            <div class="card auth-card" id="loginForm">
-                <div class="auth-header">
-                    <img src="images/logo/logo.png" alt="Power Connect" class="auth-logo"
-                         onerror="this.style.display='none'">
-                    <h2>Welcome Back!</h2>
-                    <p>Login to access your hotspot</p>
-                    <small style="opacity:.5;font-size:.75rem">br3eze.africa</small>
-                </div>
-                <form id="loginFormElement" autocomplete="on">
-                    <div class="form-group">
-                        <label>Username or Email</label>
-                        <input type="text" id="loginIdentifier" autocomplete="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="loginPassword" autocomplete="current-password" required>
-                    </div>
-                    <button type="submit" id="loginBtn" class="btn btn-primary btn-block">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </button>
-                </form>
-                <div class="auth-toggle">
-                    <a onclick="toggleForgotPassword()">Forgot password?</a>
-                </div>
-                <div class="auth-toggle">
-                    Don't have an account? <a onclick="toggleAuthForm()">Create Account</a>
-                </div>
-            </div>
-
-            <!-- Forgot Password Card -->
-            <div class="card auth-card hidden" id="forgotPasswordForm">
-                <div class="auth-header">
-                    <h2>Reset Password</h2>
-                    <p>Enter your account email — we'll send you a reset link.</p>
-                </div>
-                <form id="forgotPasswordFormElement" autocomplete="on">
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="forgotPasswordEmail" autocomplete="email" required>
-                    </div>
-                    <button type="submit" id="forgotPasswordBtn" class="btn btn-primary btn-block">
-                        <i class="fas fa-paper-plane"></i> Send Reset Link
-                    </button>
-                </form>
-                <div class="auth-toggle">
-                    <a onclick="toggleForgotPassword()">Back to Login</a>
-                </div>
-            </div>
-
-            <!-- Signup Card -->
-            <div class="card auth-card hidden" id="signupForm">
-                <div class="auth-header">
-                    <h2>Create Account</h2>
-                    <p>Join Power Connect — br3eze.africa</p>
-                </div>
-                <form id="signupFormElement" autocomplete="on">
-                    <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" id="signupFullname" autocomplete="name" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Username</label>
-                        <input type="text" id="signupUsername" autocomplete="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="signupEmail" autocomplete="email" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="signupPassword" autocomplete="new-password" required minlength="6">
-                    </div>
-                    <div class="form-group">
-                        <label>Confirm Password</label>
-                        <input type="password" id="signupConfirmPassword" autocomplete="new-password" required minlength="6">
-                    </div>
-                    <button type="submit" id="signupBtn" class="btn btn-primary btn-block">
-                        <i class="fas fa-user-plus"></i> Create Account
-                    </button>
-                </form>
-                <div class="auth-toggle">
-                    Already have an account? <a onclick="toggleAuthForm()">Login</a>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         MAIN APP
-    ═══════════════════════════════════════════════════════ -->
-    <div class="dashboard-container" id="mainApp" style="display:none;">
-
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebarNav">
+        <div class="dropdown-menu">
             <ul>
-                <li onclick="showSection('home')" class="active" data-section="home">
-                    <i class="fas fa-home"></i>
-                    <span class="nav-text">Home</span>
+                <li onclick="showSection('settings');">
+                    <i class="fas fa-cog"></i>Profile
                 </li>
-                <li onclick="showSection('subscriptions')" id="sidebarPlansLink" data-section="subscriptions">
-                    <i class="fas fa-wifi"></i>
-                    <span class="nav-text">Plans</span>
-                </li>
-                <li onclick="showSection('messages')" data-section="messages">
-                    <i class="fas fa-comment-alt"></i>
-                    <span class="nav-text">Support</span>
-                </li>
-                <li onclick="showSection('settings')" data-section="settings">
-                    <i class="fas fa-cog"></i>
-                    <span class="nav-text">Settings</span>
-                </li>
-                <!-- Admin Only -->
-                <li onclick="showSection('admin-tools')" id="adminToolsLink" class="hidden" data-section="admin-tools">
-                    <i class="fas fa-tools"></i>
-                    <span class="nav-text">Admin</span>
+                <li onclick="Auth.logout(); toggleDropdown('userDropdown');">
+                    <i class="fas fa-sign-out-alt"></i> Sign Out
                 </li>
             </ul>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="content-panel">
-
-            <!-- HOME -->
-            <section id="home-section" class="dashboard-section">
-                <h1>Dashboard</h1>
-                <p class="account-info text-medium">
-                    Welcome, <span id="navUsername">User</span>
-                </p>
-
-                <!-- Active Plan Card -->
-                <div class="card active-plan-card">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <span class="text-medium"><i class="fas fa-wifi"></i> Connection Status</span>
-                        <span id="dashUptime" style="font-weight:600;">Checking...</span>
-                    </div>
-                    <div class="progress-track">
-                        <div class="progress-fill" id="planProgressBar" style="width:0%"></div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-top:6px;color:var(--color-text-medium);">
-                        <span>Start: <span id="planStartLabel">--</span></span>
-                        <span>End: <span id="planEndLabel">--</span></span>
-                    </div>
-                </div>
-
-                <!-- Stat Tiles -->
-                <div class="grid grid-2">
-                    <div class="card stat-card">
-                        <h3><i class="fas fa-coins"></i> Credits</h3>
-                        <h2 id="dashCredits">0.00</h2>
-                    </div>
-                    <div class="card stat-card">
-                        <h3><i class="fas fa-layer-group"></i> Active Plans</h3>
-                        <h2 id="dashPlans">0</h2>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <h2>Quick Actions</h2>
-                <div class="grid grid-4">
-                    <button class="btn" id="btnBuyPlan" onclick="showSection('subscriptions')">
-                        <i class="fas fa-cart-plus"></i> Buy Plan
-                    </button>
-                    <button class="btn" id="btnRedeem" onclick="openRedeemVoucher()">
-                        <i class="fas fa-gift"></i> Redeem
-                    </button>
-                    <button class="btn" id="btnAIHelp" onclick="openChatBotModal()">
-                        <i class="fas fa-robot"></i> AI Help
-                    </button>
-                    <button class="btn btn-danger" id="btnLogout" onclick="Auth.logout()">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                </div>
-
-                <!-- Mesh Status (shown when GossipService is active) -->
-                <div class="card" id="meshStatusCard" style="display:none;margin-top:16px;">
-                    <h3><i class="fas fa-network-wired"></i> Mesh Network</h3>
-                    <p class="text-medium" id="meshPeerCount">Scanning for peers...</p>
-                </div>
-            </section>
-
-            <!-- PLANS -->
-            <section id="subscriptions-section" class="dashboard-section hidden">
-                <h1>Available Plans</h1>
-                <p class="text-medium" style="margin-bottom:16px;">Powered by br3eze.africa</p>
-                <div class="grid grid-3" id="plansList">
-                    <div class="card" style="opacity:.5;text-align:center;padding:40px;">
-                        <i class="fas fa-spinner fa-spin"></i> Loading plans...
-                    </div>
-                </div>
-            </section>
-
-            <!-- MESSAGES / SUPPORT -->
-            <section id="messages-section" class="dashboard-section hidden">
-                <div class="messages-header-area">
-                    <h1>Conversations</h1>
-                    <button class="btn btn-sm btn-ghost" id="btnNewChat" onclick="handleNewChatClick()">
-                        <i class="fas fa-plus"></i> New Chat
-                    </button>
-                </div>
-                <div class="chat-hub-list" id="chatListContainer"></div>
-
-                <h2 style="margin-top:24px;">Support Tickets</h2>
-                <button class="btn btn-sm" id="btnNewTicket" onclick="openSubmitTicketModal()">
-                    <i class="fas fa-plus"></i> New Ticket
-                </button>
-                <div id="ticketListContainer" class="chat-hub-list" style="margin-top:10px;"></div>
-            </section>
-
-            <!-- SETTINGS -->
-            <section id="settings-section" class="dashboard-section hidden">
-                <h1>Settings</h1>
-                <div class="card">
-                    <h3>Profile</h3>
-                    <form id="updateProfileForm">
-                        <div class="form-group">
-                            <label>Full Name</label>
-                            <input type="text" id="settingsFullname">
-                        </div>
-                        <div class="form-group">
-                            <label>Username</label>
-                            <input type="text" id="settingsUsername" disabled>
-                        </div>
-                        <div class="form-group">
-                            <label>Phone</label>
-                            <input type="tel" id="settingsPhoneNumber">
-                        </div>
-                        <div class="form-group">
-                            <label>Address</label>
-                            <input type="text" id="settingsAddress">
-                        </div>
-                        <button type="submit" class="btn btn-primary" id="btnUpdateProfile">
-                            <i class="fas fa-save"></i> Save Profile
-                        </button>
-                    </form>
-                </div>
-                <div class="card" style="margin-top:16px;">
-                    <h3>About</h3>
-                    <p class="text-medium">Power Connect v1.0</p>
-                    <p class="text-medium">br3eze.africa</p>
-                    <p class="text-medium" style="font-size:.8rem;margin-top:8px;">
-                        <span id="debugDeviceInfo"></span>
-                    </p>
-                </div>
-            </section>
-
-            <!-- ADMIN -->
-            <section id="admin-tools-section" class="dashboard-section hidden">
-                <h1>Admin Tools</h1>
-                <div class="card" id="adminToolsContainer">
-                    <div class="grid grid-4">
-                        <button class="btn" id="btnGenVouchers" onclick="openGenerateVoucherModal()">
-                            <i class="fas fa-ticket-alt"></i> Gen Vouchers
-                        </button>
-                        <button class="btn" id="btnViewVouchers" onclick="renderVoucherList()">
-                            <i class="fas fa-list"></i> Vouchers
-                        </button>
-                        <button class="btn" id="btnNetConfig" onclick="openEditNetworkModal()">
-                            <i class="fas fa-network-wired"></i> Network
-                        </button>
-                        <button class="btn" id="btnAddPlan" onclick="openAdminPlanModal()">
-                            <i class="fas fa-plus"></i> Add Plan
-                        </button>
-                    </div>
-                </div>
-                <div class="grid grid-2" style="margin-top:16px;">
-                    <div class="card stat-card">
-                        <h3>Revenue</h3>
-                        <h2 id="statsTotalRevenue">0.00</h2>
-                    </div>
-                    <div class="card stat-card">
-                        <h3>Users</h3>
-                        <h2 id="statsTotalUsers">0</h2>
-                    </div>
-                </div>
-                <div class="card" id="userListContainer" style="margin-top:16px;"></div>
-                <div class="card" id="voucherListContainer" style="margin-top:16px;"></div>
-            </section>
-
-        </main>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         MODALS
-    ═══════════════════════════════════════════════════════ -->
-
-    <!-- P2P Chat -->
-    <div class="modal full-screen-modal" id="unifiedChatModal">
-        <div class="modal-content chat-interface">
-            <div class="chat-header">
-                <button class="btn-icon" id="btnClosePeerChat" onclick="closeModal('unifiedChatModal')">
-                    <i class="fas fa-arrow-left"></i>
-                </button>
-                <div class="chat-user-info" onclick="openUserProfile()">
-                    <div class="chat-header-avatar" id="chatHeaderAvatar">U</div>
-                    <div class="chat-header-text">
-                        <h4 id="chatHeaderName">User</h4>
-                        <span id="chatHeaderStatus" class="status-text">online</span>
-                    </div>
-                </div>
-                <div class="chat-header-actions">
-                    <button class="btn-icon" onclick="toggleChatMenu()">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                    <div class="dropdown-menu chat-menu" id="chatMenuDropdown">
-                        <ul>
-                            <li onclick="clearChatHistory()"><i class="fas fa-eraser"></i> Clear</li>
-                            <li onclick="blockUser()"><i class="fas fa-ban"></i> Block</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="chat-container">
-                <div class="chat-log" id="chatLog"></div>
-                <form class="chat-input-area" id="unifiedChatForm">
-                    <input type="text" id="unifiedChatInput" class="form-control"
-                           placeholder="Message..." autocomplete="off">
-                    <button type="submit" id="chatSendBtn" class="chat-action-btn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
-            </div>
         </div>
     </div>
+</header>
 
-    <!-- AI Assistant -->
-    <div class="modal" id="chatBoxModal" style="z-index:var(--z-modal);">
-        <div class="modal-content chat-interface" style="height:82vh;">
-            <div class="chat-header">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <div class="chat-header-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">B</div>
-                    <div>
-                        <h3 style="margin:0">Br3eze AI</h3>
-                        <small class="text-medium">br3eze.africa support</small>
-                    </div>
-                </div>
-                <button class="btn-icon" id="btnCloseAI" onclick="closeModal('chatBoxModal')">
-                    <i class="fas fa-times"></i>
-                </button>
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+    <div class="auth-container">
+        <div class="card auth-card" id="loginForm">
+            <div class="auth-header">
+                <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+                <h2>Welcome Back!</h2><p>Login to access your hotspot</p>
             </div>
-            <div class="chat-container">
-                <div class="chat-log" id="aiChatLog"></div>
-                <form class="chat-input-area" id="aiChatForm">
-                    <input type="text" id="aiChatInput" class="form-control"
-                           placeholder="Ask Br3eze AI..." autocomplete="off">
-                    <button type="submit" class="chat-action-btn" id="aiSendBtn">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Contact Picker -->
-    <div class="modal" id="contactPickerModal">
-        <div class="modal-content" style="max-height:80vh;overflow-y:auto;">
-            <div class="modal-header">
-                <h3>Select Contact</h3>
-                <button id="btnCloseContacts" onclick="closeModal('contactPickerModal')">×</button>
-            </div>
-            <div id="contactListContainer" class="chat-hub-list"></div>
-        </div>
-    </div>
-
-    <!-- Voucher Redeem -->
-    <div class="modal" id="redeemVoucherModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-gift"></i> Redeem Voucher</h3>
-                <button id="btnCloseRedeem" onclick="closeModal('redeemVoucherModal')">×</button>
-            </div>
-            <form id="redeemVoucherForm">
+            <form id="loginFormElement">
                 <div class="form-group">
-                    <label>Voucher Code</label>
-                    <input type="text" id="voucherCodeInput" placeholder="e.g. BR3-XXXX" required
-                           style="text-transform:uppercase;">
-                </div>
-                <button type="submit" class="btn btn-primary btn-block" id="btnRedeemSubmit">
-                    <i class="fas fa-check"></i> Redeem
-                </button>
-                <button type="button" class="btn btn-ghost btn-block"
-                        onclick="closeModal('redeemVoucherModal')">Cancel</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Ticket Detail -->
-    <div class="modal" id="ticketDetailModal">
-        <div class="modal-content" style="height:80vh;display:flex;flex-direction:column;">
-            <div class="modal-header">
-                <h3 id="ticketModalTitle">Subject</h3>
-                <button id="btnCloseTicket" onclick="closeModal('ticketDetailModal')">×</button>
-            </div>
-            <div style="padding:10px;background:var(--color-panel);border-bottom:1px solid var(--color-border);">
-                <small id="ticketModalSubtitle" class="text-medium">Details</small>
-                <div id="ticketModalStatus" style="float:right;"></div>
-            </div>
-            <div id="ticketRepliesContainer" style="flex:1;overflow-y:auto;padding:12px;"></div>
-            <div id="ticketModalActions" style="padding:5px;"></div>
-            <form id="ticketReplyForm" class="chat-input-area">
-                <input type="hidden" id="currentTicketId">
-                <input type="text" id="ticketReplyInput" class="form-control"
-                       placeholder="Reply..." required autocomplete="off">
-                <button type="submit" class="btn btn-primary" id="btnTicketReply">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- New Ticket -->
-    <div class="modal" id="submitTicketModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-headset"></i> New Support Ticket</h3>
-                <button id="btnCloseNewTicket" onclick="closeModal('submitTicketModal')">×</button>
-            </div>
-            <form id="newTicketForm">
-                <div class="form-group">
-                    <label>Subject</label>
-                    <input type="text" id="newTicketSubject" required>
-                </div>
-                <div class="form-group">
-                    <label>Message</label>
-                    <textarea id="newTicketBody" rows="4" class="form-control" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block" id="btnSubmitTicket">
-                    Submit Ticket
-                </button>
-                <button type="button" class="btn btn-ghost btn-block"
-                        onclick="closeModal('submitTicketModal')">Cancel</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Admin: Generate Vouchers -->
-    <div class="modal" id="generateVoucherModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-ticket-alt"></i> Generate Vouchers</h3>
-                <button onclick="closeModal('generateVoucherModal')">×</button>
-            </div>
-            <form id="generateVoucherForm">
-                <div class="form-group">
-                    <label>Value ($)</label>
-                    <input type="number" id="voucherValue" step="0.01" min="0.5" required>
-                </div>
-                <div class="form-group">
-                    <label>Quantity</label>
-                    <input type="number" id="voucherQuantity" value="1" min="1" max="100" required>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block" id="btnGenVouchersSubmit">
-                    Generate
-                </button>
-                <button type="button" class="btn btn-ghost btn-block"
-                        onclick="closeModal('generateVoucherModal')">Cancel</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Admin: Network Config -->
-    <div class="modal" id="adminNetworkModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-network-wired"></i> Network Config</h3>
-                <button onclick="closeModal('adminNetworkModal')">×</button>
-            </div>
-            <form id="adminNetworkForm">
-                <div class="form-group">
-                    <label>SSID</label>
-                    <input type="text" id="adminNetworkSsid" required>
+                    <label>Username, Phone or Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user"></i>
+                        <input type="text" placeholder="Username, phone, or email" id="loginIdentifier" required autocomplete="username">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <input type="text" id="adminNetworkPassword" required>
+                    <div class="input-wrapper">
+                        <i class="fas fa-key"></i>
+                        <input type="password" placeholder="Password" id="loginPassword" required autocomplete="current-password">
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block" id="btnSaveNetwork">
-                    Save Config
-                </button>
-                <button type="button" class="btn btn-ghost btn-block"
-                        onclick="closeModal('adminNetworkModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary btn-block">🔐 Login </button>
             </form>
+            <div class="auth-divider"><hr><span>or continue with</span><hr></div>
+            <button type="button" class="google-btn" onclick="Auth.loginWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                Continue with Google
+            </button>
+            <div class="auth-toggle">
+                <a onclick="toggleForgotPassword()">Forgot password?</a>
+            </div>
+            <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
+        </div>
+
+        <!-- Forgot Password Card -->
+        <div class="card auth-card hidden" id="forgotPasswordForm">
+            <div class="auth-header">
+                <h2>Reset Password</h2>
+                <p>Enter your account email — we'll send you a reset link.</p>
+            </div>
+            <form id="forgotPasswordFormElement" autocomplete="on">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="forgotPasswordEmail" autocomplete="email" required>
+                </div>
+                <button type="submit" id="forgotPasswordBtn" class="btn btn-primary btn-block">
+                    <i class="fas fa-paper-plane"></i> Send Reset Link
+                </button>
+            </form>
+            <div class="auth-toggle">
+                <a onclick="toggleForgotPassword()">Back to Login</a>
+            </div>
+        </div>
+
+        <div class="card auth-card hidden" id="signupForm">
+            <div class="auth-header">
+                <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
+                <h2>Create Account</h2><p>Join Power Hotspot today</p>
+            </div>
+            <form id="signupFormElement">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <div class="input-wrapper"><i class="fas fa-user-circle"></i><input type="text" id="signupFullname" autocomplete="name" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrapper"><i class="fas fa-user"></i><input type="text" id="signupUsername" autocomplete="username" required></div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-wrapper"><i class="fas fa-envelope"></i><input type="email" id="signupEmail" required autocomplete="email"></div>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <div class="input-wrapper"><i class="fas fa-phone"></i><input type="tel" id="signupPhoneNumber" autocomplete="tel"></div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-wrapper"><i class="fas fa-lock"></i><input type="password" id="signupPassword" required autocomplete="new-password" minlength="6"></div>
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <div class="input-wrapper"><i class="fas fa-shield-alt"></i><input type="password" id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
+            </form>
+            <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
         </div>
     </div>
+</div>
 
-    <!-- Admin: Plan CRUD -->
-    <div class="modal" id="adminPlanModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-box"></i> Manage Plan</h3>
-                <button onclick="closeModal('adminPlanModal')">×</button>
+
+<!-- MAIN APP --->
+<div class="dashboard-container" id="mainApp" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <ul>
+            <li onclick="showSection('home')" class="active" data-section="home"><i class="fas fa-home"></i> <span class="nav-text">Home</span></li>
+            <li id="sidebarPlansLink" onclick="showSection('subscriptions')" data-section="subscriptions"><i class="fas fa-box"></i> <span class="nav-text">Plans</span></li>
+            <li onclick="showSection('shop')" data-section="shop"><i class="fas fa-store"></i> <span class="nav-text">Shop</span></li>
+            <li onclick="showSection('orders')" data-section="orders"><i class="fas fa-history"></i> <span class="nav-text">Orders</span></li>
+            <li onclick="showSection('messages')" data-section="messages"><i class="fas fa-envelope"></i> <span class="nav-text">Messages</span></li>
+            <li onclick="showSection('settings')" data-section="settings"><i class="fas fa-cog"></i> <span class="nav-text">Settings</span></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="content-panel">
+        <section id="home-section" class="dashboard-section">
+            <h1>Dashboard</h1>
+            <p class="account-info text-medium">Welcome, <span id="navUsername">User</span></p>
+            
+            <!-- Active Plan Status Card -->
+            <div class="card active-plan-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span class="text-medium"><i class="fas fa-wifi"></i> Status</span>
+                    <span id="dashUptime" style="font-weight:bold;">Checking...</span>
+                </div>
+                
+                <!-- Progress Bar Container -->
+                <div class="progress-track">
+                    <div class="progress-fill" id="planProgressBar" style="width: 0%;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-top:5px; color:var(--color-text-medium);">
+                    <span>Activated: <span id="planStartLabel">--</span></span>
+                    <span>Expires: <span id="planEndLabel">--</span></span>
+                </div>
             </div>
-            <form id="adminPlanForm">
-                <input type="hidden" id="adminPlanId">
-                <div class="form-group">
-                    <label>Plan Name</label>
-                    <input type="text" id="adminPlanName" required>
+
+            <!-- Balance hero — the one thing a wallet user checks first -->
+            <div class="card stat-hero">
+                <div class="stat-hero-label"><i class="fas fa-wallet"></i> Balance</div>
+                <div class="stat-hero-value">$<span id="dashCredits">0.00</span></div>
+                <button class="btn btn-primary" style="margin-top:14px;" onclick="Payments.openTopUp()"><i class="fab fa-cc-stripe"></i> Top Up with Card</button>
+            </div>
+            <div class="grid dash-stats-2">
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-box"></i></div><div class="stat-value" id="dashPlans">0</div><div class="stat-label">Active Plans</div></div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-mobile-alt"></i></div><div class="stat-value" id="dashDevices">0</div><div class="stat-label">Devices</div></div>
+            </div>
+            
+            <h2>Quick Actions</h2>
+            <div class="card"><div class="grid grid-4">
+                <button class="btn" onclick="showSection('subscriptions')"><i class="fas fa-cart-plus"></i> Browse Plans</button>
+                <button class="btn" onclick="openShareCredit()"><i class="fas fa-share-alt"></i> Share Credit</button>
+                <button class="btn" onclick="openRedeemVoucher()"><i class="fas fa-ticket-alt"></i> Redeem Code</button>
+                <button class="btn btn-danger" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div></div>
+        </section>
+        
+        <section id="admin-stats-section" class="dashboard-section hidden">
+            <div class="admin-header-controls">
+                <h1>Admin Intelligence</h1>
+                <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                    <select id="statsTimeFilter" class="time-filter-select" onchange="renderAdminStats()">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="month">This Month (Daily)</option>
+                        <option value="year">This Year (Monthly)</option>
+                    </select>
+                    <button class="btn ai-analysis-btn" onclick="openAdminAI()">
+                        <i class="fas fa-brain"></i> Ask AI Insight
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label>Price ($)</label>
-                    <input type="number" id="adminPlanPrice" step="0.01" required>
+            </div>
+
+            <div class="grid grid-4">
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-dollar-sign"></i></div><div class="stat-value">$<span id="statsTotalRevenue">0</span></div><div class="stat-label">Total Revenue</div></div>
+                <div class="card stat-card clickable" onclick="openActiveConnectionsModal()">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-value" id="statsTotalUsers">0</div>
+                    <div class="stat-label">Total Users</div>
                 </div>
-                <div class="form-group">
-                    <label>Duration</label>
-                    <input type="number" id="adminPlanDuration" min="1" required>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-rocket"></i></div><div class="stat-value" id="statsActivePlans">0</div><div class="stat-label">Active Plans</div></div>
+                <div class="card stat-card"><div class="stat-icon"><i class="fas fa-headset"></i></div><div class="stat-value" id="statsOpenTickets">0</div><div class="stat-label">Open Tickets</div></div>
+            </div>
+            
+            <!-- Scrollable Charts -->
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Revenue Trend</h3>
+                    <div class="chart-scroll-wrapper">
+                        <div class="chart-container" id="revenueChart">
+                            <p class="text-medium">Loading revenue data...</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Unit</label>
-                    <select id="adminPlanDurationUnit">
-                        <option value="days">Days</option>
-                        <option value="hours">Hours</option>
+                <div class="card">
+                    <h3>Plan Performance</h3>
+                    <div class="chart-scroll-wrapper">
+                        <div class="chart-container" id="popularityChart" style="display:block; height: auto; overflow-y: auto;">
+                            <p class="text-medium">Loading plan data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="subscriptions-section" class="dashboard-section hidden">
+            <h1>Available Plans</h1><p class="text-medium">Select a plan to activate internet service for your devices.</p>
+            <div class="shop-grid" id="plansList"></div>
+        </section>
+        
+        <section id="shop-section" class="dashboard-section hidden">
+            <div class="shop-hero">
+                <span class="shop-eyebrow">POWER CONNECT MERCH</span>
+                <h1 class="shop-title">Gear that moves with you.</h1>
+                <p class="text-medium">Branded tees, caps & kicks. Pay with your balance — delivered to your door.</p>
+            </div>
+
+            <div class="shop-controls">
+                <div class="shop-search">
+                    <input type="text" id="shopSearch" placeholder="Search for products…" oninput="Shop.onSearch(this.value)" autocomplete="off">
+                    <button class="shop-search-btn" type="button" onclick="Shop.onSearch(document.getElementById('shopSearch').value)" aria-label="Search"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="shop-filters" id="shopFilters">
+                    <button class="chip active" data-cat="all" onclick="Shop.onFilter('all')">All</button>
+                    <button class="chip" data-cat="tshirt" onclick="Shop.onFilter('tshirt')">👕 T-Shirts</button>
+                    <button class="chip" data-cat="cap" onclick="Shop.onFilter('cap')">🧢 Caps</button>
+                    <button class="chip" data-cat="shoes" onclick="Shop.onFilter('shoes')">👟 Shoes</button>
+                    <button class="chip" data-cat="orders" onclick="Shop.showMyOrders()"><i class="fas fa-box-open"></i> My Orders</button>
+                </div>
+            </div>
+
+            <div id="shopAdminBar" class="hidden" style="margin-bottom:16px;">
+                <button class="btn" onclick="Shop.openProductEditor()"><i class="fas fa-plus"></i> Add Product</button>
+                <button class="btn" onclick="Shop.renderInventory()"><i class="fas fa-boxes-stacked"></i> Manage Inventory</button>
+                <button class="btn" onclick="Shop.showAllOrders()"><i class="fas fa-receipt"></i> All Orders</button>
+            </div>
+            <div id="shopGrid" class="shop-grid"><p class="text-medium" style="padding:24px;">Loading products…</p></div>
+            <div id="shopOrders" class="hidden"></div>
+            <div id="shopInventory" class="hidden"></div>
+        </section>
+
+        <!-- Product editor (admin) -->
+        <div class="modal" id="productEditorModal">
+            <div class="modal-content" style="max-width:480px;">
+                <div class="modal-header"><h3 id="productEditorTitle">Add Product</h3><button class="modal-close" onclick="closeModal('productEditorModal')">×</button></div>
+                <form id="productForm" onsubmit="event.preventDefault(); Shop.saveProduct();">
+                    <input type="hidden" id="prodId">
+                    <div class="form-group"><label>Name</label><input type="text" id="prodName" required></div>
+                    <div class="form-group"><label>Description</label><input type="text" id="prodDesc"></div>
+                    <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>Category</label><select id="prodCategory"><option value="tshirt">T-Shirt</option><option value="cap">Cap</option><option value="shoes">Shoes</option></select></div>
+                        <div class="form-group"><label>Price ($)</label><input type="number" id="prodPrice" step="0.01" min="0" required></div>
+                    </div>
+                    <div class="form-group"><label>Compare-at Price ($, optional — shows a SALE badge)</label><input type="number" id="prodCompare" step="0.01" min="0"></div>
+                    <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="form-group"><label>Stock (units)</label><input type="number" id="prodStock" min="0" step="1" required></div>
+                        <div class="form-group"><label>Sizes (comma-sep)</label><input type="text" id="prodSizes" placeholder="S,M,L,XL"></div>
+                    </div>
+                    <div class="form-group"><label>Image URL (optional)</label><input type="url" id="prodImage"></div>
+                    <label class="checkout-toggle"><input type="checkbox" id="prodActive" checked> Active (visible in shop)</label>
+                    <div class="modal-actions" style="margin-top:12px;">
+                        <button type="button" class="btn btn-danger hidden" id="prodDeleteBtn" onclick="Shop.deleteProduct()">Delete</button>
+                        <button type="submit" class="btn btn-primary">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Floating cart button -->
+        <button id="cartFab" class="cart-fab hidden" onclick="Shop.openCart()">
+            <i class="fas fa-shopping-bag"></i>
+            <span class="cart-fab-count" id="cartCount">0</span>
+        </button>
+
+        <section id="orders-section" class="dashboard-section hidden">
+            <h1>Transaction History</h1><p class="text-medium">Review all your credit movements (purchases, sharing, redemptions).</p>
+            <div class="card" style="padding: 0;"><div id="transactionHistoryContainer"><p class="text-medium" style="padding: 25px;">Loading transaction history...</p></div></div>
+        </section>
+        
+        <section id="messages-section" class="dashboard-section hidden">
+            <h1>Messages</h1><p class="text-medium">View your past and active support conversations.</p>
+            <div class="card" style="padding: 0; margin-bottom: 15px;">
+                <div class="modal-header" style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);"><h3 style="font-weight: 500; font-size: 1.1rem;">Conversations</h3></div>
+                <div style="padding: 10px 15px 0;"><input type="text" id="chatSearchInput" placeholder="Search conversations..." oninput="filterChats()" style="width: 100%;"></div>
+                <div id="chatsListContainer"><p class="text-medium" style="padding: 25px;">Loading conversations...</p></div>
+            </div>
+            <div class="card" style="padding: 0; margin-bottom: 5px;">
+                <div class="modal-header" style="padding: 15px 25px; margin-bottom: 0; border-bottom: 1px solid var(--color-border);"><h3 style="font-weight: 500; font-size: 1.1rem;">Support Tickets</h3><button class="btn btn-sm" onclick="openSubmitTicketModal();">+ New Ticket</button></div>
+                <div id="ticketListContainer"><p class="text-medium" style="padding: 25px;">Loading tickets...</p></div>
+            </div>
+            <div style="text-align: right; padding-top: 10px;"><button class="btn btn-info" onclick="openChatBotModal()"><i class="fas fa-headset" style="position: sticky;"></i> Contact Live Support</button></div>
+        </section>
+
+        <section id="settings-section" class="dashboard-section hidden">
+            <h1>Settings</h1>
+
+            <div class="card" style="text-align:center;">
+                <div class="user-icon" id="profileAvatarLarge" style="width:72px;height:72px;font-size:1.8rem;margin:0 auto 10px;"></div>
+                <h3 id="profileDisplayName">--</h3>
+                <p class="text-medium" id="profileDisplayEmail">--</p>
+                <span id="profileRoleBadge" class="tag" style="margin-top:8px;display:inline-block;"></span>
+            </div>
+
+            <div class="card">
+                <h3>Payment Method</h3>
+                <p class="text-medium">Your saved card is used for one-tap top-ups — no redirect to an external checkout page.</p>
+                <div id="savedCardSummary" style="margin:12px 0;"><p class="text-medium">No card on file yet.</p></div>
+                <button type="button" class="btn btn-primary" onclick="Payments.open()"><i class="fab fa-cc-stripe"></i> Add / Edit Card</button>
+            </div>
+
+            <div class="card">
+                <h3>Link Chat Account</h3>
+                <p class="text-medium">Connect Telegram or WhatsApp to your account so the bot knows who you are. Codes expire after 10 minutes.</p>
+                <div id="linkCodeDisplay" class="hidden" style="text-align:center; margin: 12px 0;">
+                    <div id="linkCodeValue" style="font-size: 2rem; font-weight: 700; letter-spacing: 0.3em;"></div>
+                    <p class="text-medium" style="margin-top: 6px;">Send <code>/link <span id="linkCodeInline"></span></code> to the bot. Expires in <span id="linkCodeCountdown">10:00</span>.</p>
+                </div>
+                <button type="button" class="btn btn-primary" id="generateLinkCodeBtn" onclick="generateLinkCode()">🔗 Generate Link Code</button>
+            </div>
+
+            <div class="card">
+                <h3>App Permissions</h3>
+                <p class="text-medium">Manage what Power Connect can access. Tap to enable.</p>
+                <div id="permissionCenter"><p class="text-medium" style="padding:10px 0;">Loading…</p></div>
+            </div>
+
+            <div class="card">
+                <h3>Profile</h3>
+                <form id="updateProfileForm">
+                    <div class="form-group"><label for="settingsFullname">Full Name</label><input type="text" id="settingsFullname" required></div>
+                     <div class="form-group"><label for="settingsUsername">Username</label><input type="text" id="settingsUsername" required></div>
+                     <div class="form-group"><label for="settingsPhoneNumber">Phone Number</label><input type="tel" id="settingsPhoneNumber" required></div>
+                     <div class="form-group"><label for="settingsAddress">Address</label><input type="text" id="settingsAddress" required></div>
+                    <div class="form-group"><label for="settingsEmail">Email</label><input type="email" id="settingsEmail" disabled></div>
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>Change Password</h3>
+                <form id="changePasswordForm">
+                    <div class="form-group"><label>Current Password</label><input type="password" id="currentPassword" required autocomplete="current-password"></div>
+                    <div class="form-group"><label>New Password</label><input type="password" id="newPassword" required minlength="6" autocomplete="new-password"></div>
+                    <div class="form-group"><label>Confirm New Password</label><input type="password" id="confirmNewPassword" required minlength="6" autocomplete="new-password"></div>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h3>App Permissions</h3>
+                <p class="text-medium">Control what this app can access on your device.</p>
+                <div id="permissionsList"></div>
+            </div>
+
+            <div id="backofficeLink" class="card hidden">
+                <h3>Backoffice</h3>
+                <p class="text-medium">User management, plans, vouchers, network and printer settings.</p>
+                <button type="button" class="btn btn-sm btn-primary" onclick="document.getElementById('adminToolsContainer').scrollIntoView({behavior:'smooth'})"><i class="fas fa-toolbox"></i> Jump to Backoffice</button>
+            </div>
+
+            <div id="adminToolsContainer" class="hidden">
+                <h2>Admin Tools</h2><p style="color: var(--color-danger-text);">⚠️ Caution: These actions affect all users and system settings.</p>
+                <div class="admin-section"><h3>User Management</h3><div id="userListContainer"></div></div>
+                <div class="admin-section"><h3>Plan Management</h3><button class="btn btn-sm" onclick="openAdminPlanModal()">+ Add New Plan</button><div id="planListAdminContainer"></div></div>
+                <div class="admin-section"><h3>Voucher Management</h3><button class="btn btn-sm" onclick="openGenerateVoucherModal()">+ Generate Voucher</button><div id="voucherListContainer"></div></div>
+                <div class="admin-section"><h3>System Network Settings</h3><div id="networkSettingsDisplay" style="margin-bottom: 1rem;"></div><button class="btn btn-sm" onclick="openEditNetworkModal()">Edit Network Settings</button></div>
+                <div class="admin-section">
+                    <h3>Hardware &amp; Printing</h3>
+                    <div class="form-group">
+                        <label id="printerInterfaceLabel">Receipt Printer Interface</label>
+                        <select id="globalPrinterInterface"></select>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="testPrinter()"><i class="fas fa-print"></i> Test Print</button>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- Modals -->
+<div class="modal" id="activeConnectionsModal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header"><h3>Active Network Connections</h3>
+            <button class="modal-close" onclick="closeModal('activeConnectionsModal')">×</button></div>
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="connectionSearch" placeholder="Search IP or Username..." class="form-control" onkeyup="filterConnectionsTable()" style="width: 100%;height: 30px"></div>
+        <div id="activeConnectionsContainer" style="max-height: 400px; overflow-y: auto;"></div>
+        <div class="modal-actions"><button type="button" class="btn btn-primary" onclick="closeModal('activeConnectionsModal')">Close</button></div>
+    </div>
+</div>
+
+<div class="modal" id="shareCreditModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Share Credits</h3><button class="modal-close" onclick="closeModal('shareCreditModal')">×</button></div>
+        <form id="shareCreditForm">
+            <div class="form-group">
+                <label>Recipient (Username, Email, or Phone)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="shareRecipientIdentifier" style="flex:1;" required>
+                    <button type="button" class="btn btn-sm" onclick="pickContactForShare()" title="Pick from Contacts"><i class="fas fa-address-book"></i></button>
+                </div>
+            </div>
+            <div class="form-group"><label>Amount ($)</label><input type="number" step="0.01" id="shareAmount" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('shareCreditModal')">Cancel</button><button type="submit" class="btn btn-primary">Send</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="sendVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Send Voucher to User</h3><button class="modal-close" onclick="closeModal('sendVoucherModal')">×</button></div>
+        <form id="sendVoucherForm">
+            <div class="form-group"><label for="voucherRecipient">Select User</label><select id="voucherRecipient" required></select></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('sendVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Send Voucher</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="ticketDetailModal">
+    <div class="modal-content" style="max-width: 700px; display: flex; flex-direction: column; max-height: 85vh;">
+        <div class="modal-header">
+            <div><h3 id="ticketModalTitle" style="margin-bottom: 5px;">Ticket Detail</h3><small class="text-medium" id="ticketModalSubtitle">Loading...</small></div>
+            <button class="modal-close" onclick="closeModal('ticketDetailModal')">×</button>
+        </div>
+        
+        <div class="ticket-meta-bar" style="background: var(--color-sidebar); padding: 10px; border-radius: 4px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div><span id="ticketModalStatus"></span></div><div id="ticketModalActions"></div>
+        </div>
+       
+        <div id="ticketRepliesContainer" class="chat-log" style="flex: 1; min-height: 300px; overflow-y: auto; background: var(--color-sidebar); border: 1px solid var(--color-border); border-radius: 4px; padding: 15px; margin-bottom: 15px;"></div>
+        
+        <form id="ticketReplyForm" style="display: flex; gap: 10px; border-top: 1px solid var(--color-border); padding-top: 15px;">
+            <input type="hidden" id="currentTicketId">
+            <textarea id="ticketReplyInput" rows="2" placeholder="Type a reply..." style="flex: 1; resize: none;" class="form-control"></textarea>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Send</button>
+        </form>
+    </div>
+</div>
+<div class="modal" id="submitTicketModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3>Submit New Support Ticket</h3><button class="modal-close" onclick="closeModal('submitTicketModal')">×</button></div>
+        <form id="newTicketForm">
+            <div class="form-group"><label for="newTicketSubject">Issue Subject</label><input type="text" id="newTicketSubject" required></div>
+            <div class="form-group"><label for="newTicketBody">Detailed Description</label><textarea id="newTicketBody" rows="5" required></textarea></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('submitTicketModal')">Cancel</button><button type="submit" class="btn btn-primary">Submit Ticket</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Wi-Fi Handoff Modal — suggests SSID/password to the OS via a scannable Wi-Fi QR -->
+<div class="modal" id="wifiSuggestModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header"><h3>📶 Connect to <span id="wifiSuggestSsid">Network</span></h3><button class="modal-close" onclick="closeModal('wifiSuggestModal')">×</button></div>
+        <p class="text-medium" style="margin-bottom:12px;">Point your phone's camera at this code — your phone will offer to join the network automatically.</p>
+        <div id="wifiQrContainer" style="display:flex;justify-content:center;background:#fff;padding:16px;border-radius:12px;margin-bottom:14px;"></div>
+        <div class="card" style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span class="text-medium">Network</span><strong id="wifiSuggestSsid2">--</strong></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;"><span class="text-medium">Password</span><strong id="wifiSuggestPass" style="font-family:monospace;">--</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="copyWifiPassword()">📋 Copy Password</button>
+            <button class="btn" style="flex:1;" id="wifiShareBtn" onclick="shareWifiCredentials()">🔗 Share</button>
+        </div>
+        <button class="btn btn-sm" style="width:100%;margin-top:8px;" onclick="openWifiSettingsHint()">Open Wi-Fi Settings</button>
+    </div>
+</div>
+
+<!-- Shopping Cart — slide-in drawer -->
+<div class="cart-drawer" id="cartModal" onclick="if(event.target===this)closeModal('cartModal')">
+    <div class="cart-drawer-panel">
+        <div class="modal-header"><h3>🛍️ Your Cart</h3><button class="modal-close" onclick="closeModal('cartModal')">×</button></div>
+        <div class="cart-drawer-body">
+            <div id="cartItems"></div>
+        </div>
+        <div class="cart-drawer-foot">
+            <div class="cart-summary" id="cartSummary"></div>
+            <button class="btn btn-primary btn-block" id="cartCheckoutBtn" onclick="Shop.openCheckout()" style="margin-top:12px;">Checkout</button>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal" id="checkoutModal">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header"><h3>Checkout</h3><button class="modal-close" onclick="closeModal('checkoutModal')">×</button></div>
+        <form id="checkoutForm" onsubmit="event.preventDefault(); Shop.placeOrder();">
+            <div id="checkoutSummary" class="card" style="margin-bottom:16px;"></div>
+
+            <h4 class="checkout-heading">Shipping Address</h4>
+            <div class="form-group"><label>Full Name</label><input type="text" id="shipName" required></div>
+            <div class="form-group"><label>Phone</label><input type="tel" id="shipPhone" required></div>
+            <div class="form-group"><label>Street Address</label><input type="text" id="shipStreet" required></div>
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group"><label>City</label><input type="text" id="shipCity" required></div>
+                <div class="form-group"><label>Postal Code</label><input type="text" id="shipZip"></div>
+            </div>
+            <div class="form-group"><label>Country</label><input type="text" id="shipCountry" value="South Africa" required></div>
+
+            <label class="checkout-toggle"><input type="checkbox" id="billingSame" checked onchange="Shop.toggleBilling(this.checked)"> Billing address same as shipping</label>
+            <div id="billingFields" class="hidden">
+                <h4 class="checkout-heading">Billing Address</h4>
+                <div class="form-group"><label>Street Address</label><input type="text" id="billStreet"></div>
+                <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px;">
+                    <div class="form-group"><label>City</label><input type="text" id="billCity"></div>
+                    <div class="form-group"><label>Postal Code</label><input type="text" id="billZip"></div>
+                </div>
+            </div>
+
+            <h4 class="checkout-heading">Payment Method</h4>
+            <div class="pay-options" id="payOptions">
+                <label class="pay-option"><input type="radio" name="payMethod" value="credits" checked onchange="Shop.onPayMethod('credits')"> <span>💳 Pay with Balance <small id="payBalanceHint" class="text-medium"></small></span></label>
+                <label class="pay-option"><input type="radio" name="payMethod" value="cod" onchange="Shop.onPayMethod('cod')"> <span>💵 Cash on Delivery</span></label>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block" id="placeOrderBtn" style="margin-top:16px;">Place Order</button>
+        </form>
+    </div>
+</div>
+
+<!-- Chat Modal with Emoji Support -->
+<div class="modal" id="chatBoxModal">
+    <div class="modal-content" style="height: cover;max-width:850px;">
+        <div class="modal-header" style="margin-bottom: 0; height: auto; flex-shrink: 0;"><h3>Live Support Chat</h3><button class="modal-close" onclick="closeModal('chatBoxModal')">×</button></div>
+        <div class="chat-container">
+            <div class="chat-log" id="chatLog"></div>
+            <div class="emoji-picker-container" id="emojiPicker"></div>
+            <div class="chat-input-area">
+               <button class="emoji-trigger-btn" onclick="toggleEmojiPicker()">😃</button>
+<input type="text" id="chatInput" placeholder="Type message..." autocomplete="off" onkeydown="if(event.key === 'Enter') sendChatMessage()">
+                <button class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast hidden" id="toast"><div class="toast-icon" id="toastIcon">ℹ️</div><div class="toast-message" id="toastMessage">Notification</div></div>
+
+<div class="modal" id="adminUserModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="adminUserModalTitle">Manage User</h3><button class="modal-close" onclick="closeModal('adminUserModal')">×</button></div>
+        <form id="adminUserForm">
+            <input type="hidden" id="adminUserId">
+            <div class="form-group"><label>Full Name</label><input type="text" id="adminUserFullname" required></div>
+            <div class="form-group"><label>Email</label><input type="email" id="adminUserEmail" readonly></div>
+            <div class="form-group"><label>Credits</label><input type="number" step="0.01" id="adminUserCredits" required></div>
+            <div class="form-group"><label>Role</label><select id="adminUserRole"><option value="user">User</option><option value="partner">Partner</option><option value="reseller">Reseller</option><option value="family">Family (staff, non-billing)</option><option value="admin">Admin</option></select></div>
+            <div class="modal-actions"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="adminPlanModal">
+    <div class="modal-content">
+        <div class="modal-header"><h3 id="adminPlanModalTitle">Manage Plan</h3><button class="modal-close" onclick="closeModal('adminPlanModal')">×</button></div>
+        <form id="adminPlanForm">
+            <input type="hidden" id="adminPlanId">
+            <div class="form-group"><label>Plan Name</label><input type="text" id="adminPlanName" required></div>
+            <div class="form-group"><label>Description</label><input type="text" id="adminPlanDesc" required></div>
+            <div class="form-group"><label>Price ($)</label><input type="number" step="0.01" id="adminPlanPrice" required></div>
+            <div class="form-group">
+                <label>Duration</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="adminPlanDuration" required style="flex: 1;">
+                    <select id="adminPlanDurationUnit" style="flex: 1;">
+                         <option value="minutes">Minute</option>
+                         <option value="hours">Hour</option>
+                         <option value="days">Day</option>
+                         <option value="weeks">Week</option>
+                         <option value="months">Month</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>Max Devices</label>
-                    <input type="number" id="adminPlanDevices" value="1" min="1">
+            </div>
+            <div class="form-group"><label>Device Limit</label><input type="number" id="adminPlanDevices" required></div>
+            <div class="form-group"><label>Data Limit (GB, 0 = unlimited)</label><input type="number" id="adminPlanDataLimit" min="0" step="0.1" value="0"></div>
+            <div class="form-group">
+                <label>Plan Image</label>
+                <div class="image-preview-container">
+                    <img id="adminPlanImagePreview" src="" alt="Image Preview" class="image-preview"/>
+                    <span id="imageUploadPlaceholder" style="color:var(--color-text-medium); pointer-events:none;">No image selected</span>
                 </div>
-                <div class="form-group">
-                    <label>Image URL (optional)</label>
-                    <input type="text" id="adminPlanImageUrl">
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="btn btn-sm" id="uploadPlanImageBtn"><i class="fas fa-camera"></i> Select Image</button>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block" id="btnSavePlan">Save Plan</button>
-                <button type="button" id="deletePlanBtn" class="btn btn-danger btn-block hidden"
-                        onclick="deletePlan()">Delete Plan</button>
-                <button type="button" class="btn btn-ghost btn-block"
-                        onclick="closeModal('adminPlanModal')">Cancel</button>
+                <input type="file" id="browserFileInput" accept="image/*" style="display: none;">
+                <input type="hidden" id="adminPlanImageUrl">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-danger hidden" id="deletePlanBtn" type="button">Delete</button>
+                <button type="submit" class="btn btn-primary">Save Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="adminNetworkModal"><div class="modal-content"><div class="modal-header"><h3>Edit Network Settings</h3><button class="modal-close" onclick="closeModal('adminNetworkModal')">×</button></div><form id="adminNetworkForm"><div class="form-group"><label>SSID (Network Name)</label><input type="text" id="adminNetworkSsid" required></div><div class="form-group"><label>Password</label><input type="text" id="adminNetworkPassword" required></div><div class="modal-actions"><button type="submit" class="btn btn-primary">Update Network</button></div></form></div></div>
+<div class="modal" id="redeemVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Redeem Voucher Code</h3><button class="modal-close" onclick="closeModal('redeemVoucherModal')">×</button></div>
+        <form id="redeemVoucherForm">
+            <div class="form-group"><label for="voucherCodeInput">Enter Code</label><input type="text" id="voucherCodeInput" placeholder="STAR-XXXX-XXXX" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('redeemVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Redeem</button></div>
+        </form>
+    </div>
+</div>
+<div class="modal" id="generateVoucherModal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header"><h3>Generate Vouchers</h3><button class="modal-close" onclick="closeModal('generateVoucherModal')">×</button></div>
+        <form id="generateVoucherForm">
+            <div class="form-group"><label for="voucherValue">Credit Value ($)</label><input type="number" step="0.01" id="voucherValue" value="5.00" required></div>
+            <div class="form-group"><label for="voucherQuantity">Quantity</label><input type="number" id="voucherQuantity" value="10" required></div>
+            <div class="modal-actions"><button type="button" class="btn" onclick="closeModal('generateVoucherModal')">Cancel</button><button type="submit" class="btn btn-primary">Generate</button></div>
+        </form>
+    </div>
+</div>
+
+<!-- Payment Method — save/replace the card on file (Stripe Elements). -->
+<div class="modal" id="paymentMethodModal">
+    <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header"><h3>Payment Method</h3><button class="modal-close" onclick="closeModal('paymentMethodModal')">×</button></div>
+        <div class="modal-body-scroll">
+            <form id="paymentMethodForm" onsubmit="Payments.save(event)">
+                <div class="pay-field-group">
+                    <input type="text" id="payCardName" class="pay-field" placeholder="Name (as it appears on card)" autocomplete="cc-name" required>
+                    <div id="payCardNumber" class="pay-field"></div>
+                    <div class="pay-field-row">
+                        <div id="payCardExpiry" class="pay-field"></div>
+                        <div id="payCardCvc" class="pay-field"></div>
+                    </div>
+                    <input type="text" id="payAddrLine" class="pay-field" placeholder="Billing Address Line" autocomplete="address-line1" required>
+                    <input type="text" id="payAddrCity" class="pay-field" placeholder="Billing City" autocomplete="address-level2" required>
+                    <input type="text" id="payAddrState" class="pay-field" placeholder="Billing State / Province (Optional)" autocomplete="address-level1">
+                    <div class="pay-country-field">
+                        <span class="pay-country-label">Country</span>
+                        <select id="payAddrCountry" class="pay-field">
+                            <option>South Africa</option>
+                            <option>Zimbabwe</option>
+                            <option>Botswana</option>
+                            <option>Namibia</option>
+                            <option>Mozambique</option>
+                            <option>Zambia</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <hr class="pay-divider">
+                <div class="pay-footer">
+                    <button type="button" class="btn" onclick="closeModal('paymentMethodModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="paySaveBtn">Save</button>
+                </div>
             </form>
         </div>
     </div>
+</div>
 
-    <!-- User Profile (view only) -->
-    <div class="modal" id="userProfileModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>User Profile</h3>
-                <button onclick="closeModal('userProfileModal')">×</button>
+<!-- Top Up — pay with the saved card in-app; falls back to hosted Checkout if no card is saved. -->
+<div class="modal" id="topUpModal">
+    <div class="modal-content" style="max-width:420px;">
+        <div class="modal-header"><h3>Top Up Balance</h3><button class="modal-close" onclick="closeModal('topUpModal')">×</button></div>
+        <div class="modal-body-scroll">
+            <div class="amount-grid">
+                <div class="amount-chip" onclick="Payments.pickAmount(5, this)">$5</div>
+                <div class="amount-chip active" onclick="Payments.pickAmount(10, this)">$10</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(25, this)">$25</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(50, this)">$50</div>
+                <div class="amount-chip" onclick="Payments.pickAmount(100, this)">$100</div>
+                <div class="amount-chip" onclick="document.getElementById('topUpCustomAmount').focus()">Other</div>
             </div>
-            <h4 id="profileModalName"></h4>
-            <p id="profileModalHandle" class="text-medium"></p>
-            <button class="btn btn-ghost btn-block" onclick="closeModal('userProfileModal')">Close</button>
+            <div class="form-group"><label>Amount (USD)</label><input type="number" step="0.01" min="0.5" id="topUpCustomAmount" value="10"></div>
+            <p class="top-up-card-hint" id="topUpCardHint"></p>
+            <button type="button" class="btn btn-primary btn-block" id="topUpConfirmBtn" onclick="Payments.confirmTopUp()">Pay Now</button>
         </div>
     </div>
+</div>
 
-    <!-- Toast Notification -->
-    <div class="toast hidden" id="toast">
-        <div class="toast-icon" id="toastIcon">ℹ️</div>
-        <div class="toast-message" id="toastMessage"></div>
-    </div>
-
-    <!-- ═══════════════════════════════════════════════════════
-         SCRIPTS — Load order matters!
-         ── Tier 0: Firebase SDK (CDN)
-         ── Tier 1: Debug + Guard
-         ── Tier 2: UI + Permissions + Notifications + Network
-         ── Tier 3: Cordova boot
-         ── Tier 4: Firebase / DataStore
-         ── Tier 5: Auth + Features
-         ── Tier 6: App entry point
-    ═══════════════════════════════════════════════════════ -->
-
-    <!-- Tier 0: Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-
-    <!-- Tier 1: Debug + Crypto (must come first so errors are caught) -->
-    <script src="js/env.js"></script>
-    <script src="js/00.debug.js"></script>
-    <script src="js/00a.guard.js"></script>
-    <script src="js/14a.crypto.js"></script>
-    <script src="js/15.hardware.print.js"></script>
-
-    <!-- Tier 2: Core utilities -->
-    <script src="js/01.ui.utils.js"></script>
-    <script src="js/02.permissions.js"></script>
-    <script src="js/03.notifications.js"></script>
-    <script src="js/04.network.tools.js"></script>
-    <script src="js/14.mesh.nearby.js"></script>
-
-    <!-- Tier 3: Cordova (must load BEFORE deviceready listeners) -->
-    <script src="cordova.js"></script>
-    <script src="js/05.cordova.boot.js"></script>
-
-    <!-- Tier 4: Firebase + DataStore -->
-    <script src="js/06.firebase.js"></script>
-    <script src="js/16.api.client.js"></script>
-
-    <!-- Tier 5: App modules -->
-    <script src="js/07.auth.js"></script>
-    <script src="js/08.ui.sections.js"></script>
-    <script src="js/09.plans.js"></script>
-    <script src="js/10.messages.js"></script>
-    <script src="js/11.ai.bot.js"></script>
-    <script src="js/12.modals.js"></script>
-
-    <!-- Tier 6: App boot (DOMContentLoaded, auth state, form wiring) -->
-    <script src="js/13.app.boot.js"></script>
-
-</body>
+<!-- CDN Libraries -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="js/env.js"></script>
+<script src="js/03.notifications.js"></script>
+<script>
+    // Cordova: only load in the real native WebView/file:// context -- avoids a
+    // 404 (and the cordova.* undefined-global bugs it used to mask) when this
+    // page is served as a plain website/installed PWA.
+    if (window.location.protocol === 'file:' || /Cordova/i.test(navigator.userAgent)) {
+        const s = document.createElement('script');
+        s.src = 'cordova.js';
+        document.head.appendChild(s);
+    } else if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        // PWA: installable app shell with offline fallback (network-first, see sw.js)
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(e => console.warn('[sw] registration failed:', e));
+        });
+    }
+</script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="js/vendor-qrcode.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/index.js"></script>
+<script src="js/15.hardware.print.js"></script>
+<script src="js/app.js"></script>
+<script src="js/forgot-password.js"></script>
+<script src="js/payments.js"></script>
+    </body>
 </html>
