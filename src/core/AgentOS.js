@@ -13,9 +13,12 @@ import AgentOSOrchestrator from './orchestrator.js';
 import CircuitBreaker from '../utils/CircuitBreaker.js';
 import { logger } from './logger.js';
 import MastercardA2AService from '../../services/mastercardA2A.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getManager as getMikroTikManager } from './mikrotik.js';
+import { getDatabase } from './database.js';
+import { STATE_PATH } from './config.js';
+import FinancialController from './financial.js';
+import UniversalBilling from './universal-billing.js';
+import DiscoveryService from './discovery.js';
 
 
 class AgentOS extends EventEmitter {
@@ -40,8 +43,8 @@ class AgentOS extends EventEmitter {
     this.health = new HealthMonitor(this);
 
     // Legacy manager aliases for compatibility with ss35b patterns
-    this.mikrotik = config?.mikrotik || require('./mikrotik').getManager();
-    this.databasePromise = require('./database').getDatabase();
+    this.mikrotik = config?.mikrotik || getMikroTikManager();
+    this.databasePromise = getDatabase();
     this.database = null; // Will be set in initialize()
     // Services (initialized in initialize() after database is ready)
     this.mastercard = new MastercardA2AService();
@@ -72,7 +75,6 @@ class AgentOS extends EventEmitter {
     if (this.initialized) return;
 
     // ── Global Instance Lock ──────────────────────────────────────────────────
-    const { STATE_PATH } = require('./config');
     const lockFile = path.join(STATE_PATH, '.agentos.lock');
 
     try {
@@ -112,9 +114,9 @@ class AgentOS extends EventEmitter {
       }
 
       // Initialize secondary services with resolved database
-      this.financial = new (require('./financial'))({ database: this.database, mastercard: this.mastercard });
-      this.billing = new (require('./universal-billing'))({ database: this.database });
-      this.discovery = new (require('./discovery'))({ mikrotik: this.mikrotik });
+      this.financial = new FinancialController({ database: this.database, mastercard: this.mastercard });
+      this.billing = new UniversalBilling({ database: this.database });
+      this.discovery = new DiscoveryService({ mikrotik: this.mikrotik });
       this.orchestrator = new AgentOSOrchestrator(this.mikrotik, this.database, this.channels, this);
 
       // Initialize memory (needed by other components)

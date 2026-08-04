@@ -2,34 +2,37 @@ import { jest } from '@jest/globals';
 import { EventEmitter } from 'events';
 
 // Mock Firebase
-jest.unstable_mockModule('firebase-admin', () => ({
-  apps: [],
-  initializeApp: jest.fn(),
-  credential: { cert: jest.fn() },
-  firestore: Object.assign(jest.fn(() => ({
-    collection: jest.fn(() => ({
-      doc: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ exists: false })),
-        set: jest.fn(() => Promise.resolve()),
-        update: jest.fn(() => Promise.resolve()),
-        delete: jest.fn(() => Promise.resolve())
+jest.unstable_mockModule('firebase-admin', () => {
+  const admin = {
+    apps: [],
+    initializeApp: jest.fn(),
+    credential: { cert: jest.fn() },
+    firestore: Object.assign(jest.fn(() => ({
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ exists: false })),
+          set: jest.fn(() => Promise.resolve()),
+          update: jest.fn(() => Promise.resolve()),
+          delete: jest.fn(() => Promise.resolve())
+        })),
+        where: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ docs: [], empty: true }))
+        })),
+        limit: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ docs: [] }))
+        })),
+        count: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({ data: () => ({ count: 0 }) }))
+        }))
       })),
-      where: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ docs: [], empty: true }))
-      })),
-      limit: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ docs: [] }))
-      })),
-      count: jest.fn(() => ({
-        get: jest.fn(() => Promise.resolve({ data: () => ({ count: 0 }) }))
-      }))
-    })),
-    settings: jest.fn(),
-    runTransaction: jest.fn(cb => cb({ get: jest.fn(), set: jest.fn(), update: jest.fn() }))
-  })), {
-    FieldValue: { serverTimestamp: jest.fn(), arrayUnion: jest.fn() }
-  })
-}));
+      settings: jest.fn(),
+      runTransaction: jest.fn(cb => cb({ get: jest.fn(), set: jest.fn(), update: jest.fn() }))
+    })), {
+      FieldValue: { serverTimestamp: jest.fn(), arrayUnion: jest.fn() }
+    })
+  };
+  return { ...admin, default: admin };
+});
 
 // Mock MikroTik
 jest.unstable_mockModule('routeros-client', () => ({
