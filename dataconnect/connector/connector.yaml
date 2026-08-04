@@ -1,0 +1,5 @@
+connectorId: "default"
+generate:
+  javascriptSdk:
+    outputDir: "../../src/generated/dataconnect"
+    package: "@br3eze/dataconnect"

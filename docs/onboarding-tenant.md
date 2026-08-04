@@ -51,10 +51,16 @@ implementations of the same derivation, not one shared function.
    tenant specifically needs data isolation from day one.
 
 4. **Start the tenant's process**, one pm2 process per tenant, mirroring the
-   existing `automate` script's pattern (`package.json`):
+   existing `automate` script's pattern (`package.json`). All tenant
+   processes share this one repo checkout, so pull the latest commit before
+   every start/restart — otherwise a tenant's process can keep running
+   stale code after a fix has already landed on `main`:
    ```bash
+   git pull origin main
    AGENTOS_PROFILE=tenant2 pm2 start bin/agentos.js --name agentos-tenant2 -- gateway
    ```
+   Restarting an already-running tenant after a deploy is the same pattern:
+   `git pull origin main && pm2 restart agentos-<name>`.
 
 5. **Point a subdomain/domain at the new process's port.** This is
    reverse-proxy/DNS configuration (nginx, Caddy, etc.) — outside this repo.

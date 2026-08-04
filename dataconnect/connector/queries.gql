@@ -1,0 +1,9 @@
+# Example query, proves the connector round-trips once deployed. Replace
+# once real entities exist in ../schema/schema.gql.
+query ListHealthChecks @auth(level: NO_ACCESS) {
+  healthChecks {
+    id
+    checkedAt
+    note
+  }
+}

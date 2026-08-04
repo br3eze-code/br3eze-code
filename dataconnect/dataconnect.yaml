@@ -1,0 +1,16 @@
+specVersion: "v1"
+serviceId: "br3eze-africa"
+location: "us-central1"
+schema:
+  source: "schema"
+  datasource:
+    postgresql:
+      database: "br3eze-africa"
+      # Cloud SQL instance is NOT provisioned yet. Provision one via the
+      # Firebase console (Build -> Data Connect -> "Add a Cloud SQL
+      # database") or `firebase init dataconnect`, then set the instance
+      # connection name below (format: PROJECT:REGION:INSTANCE).
+      cloudSql:
+        instanceId: "REPLACE_WITH_CLOUD_SQL_INSTANCE_ID"
+connectorDirs:
+  - "connector"

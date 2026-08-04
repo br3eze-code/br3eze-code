@@ -1,0 +1,23 @@
+# AgentOS Data Connect schema (Postgres, via Cloud SQL).
+#
+# This is a placeholder shell, not a real data model yet — nothing in the
+# live codebase currently reads/writes through Data Connect. The existing
+# app data (users, vouchers, orders, products, linkCodes, etc.) all live in
+# Firestore via src/core/database.js and are NOT migrated here.
+#
+# Data Connect is the natural fit for the "shared-process multi-tenant data
+# model" explicitly deferred to Phase 2 in the tenancy plan (see
+# docs/onboarding-tenant.md) — today each tenant is isolated by OS process
+# via AGENTOS_PROFILE, with no tenantId column anywhere. If/when that
+# deferred model is picked up, replace the example type below with real
+# entities (e.g. Tenant, TenantMember) and generate a matching connector.
+#
+# `firebase deploy --only dataconnect` requires dataconnect.yaml's
+# cloudSql.instanceId to point at a real, provisioned Cloud SQL instance
+# first (see dataconnect.yaml for the provisioning note).
+
+type HealthCheck @table {
+  id: String! @default(expr: "uuidV4()")
+  checkedAt: Timestamp! @default(expr: "request.time")
+  note: String
+}

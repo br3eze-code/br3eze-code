@@ -1,0 +1,7 @@
+# Example mutation, proves the connector round-trips once deployed. Replace
+# once real entities exist in ../schema/schema.gql. NO_ACCESS means only
+# the Admin SDK / Firebase console can call this — nothing client-facing
+# should hit a placeholder mutation.
+mutation InsertHealthCheck($note: String) @auth(level: NO_ACCESS) {
+  healthCheck_insert(data: { note: $note })
+}
