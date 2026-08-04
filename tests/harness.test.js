@@ -142,8 +142,10 @@ describe('ToolRegistry integration', () => {
     expect(r).toBeInstanceOf(ToolRegistry);
   });
 
-  test('tool-registry.js redirect works', () => {
-    expect(typeof r.registerDomain).toBe('function');
+  test('tool-registry.js class is accessible', () => {
+    expect(typeof r).toBe('function');
+    const inst = new r();
+    expect(typeof inst.execute).toBe('function');
   });
 });
 

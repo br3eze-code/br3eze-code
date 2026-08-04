@@ -488,7 +488,7 @@ class WhatsAppChannel extends BaseChannel {
   /**
    * Rate Limit & Auth Wrapper (similar to Telegram's _rl)
    */
-  _rl(fn) {
+  _rl(fn, requiredRole = null) {
     return async (jid, msg, match) => {
       // 1. Identity Resolution & Bridging
       let authUser = null;
@@ -534,12 +534,31 @@ class WhatsAppChannel extends BaseChannel {
         logger.error(`WhatsApp database resolution failed: ${dbErr.message}`);
       }
 
-      // 2. Authorization Check (includes platform JID and resolved UID)
-      if (!this.isAuthorized(jid, resolvedUid)) {
-        logger.warn(
-          `Unauthorized WhatsApp access attempt from ${jid} (UID: ${resolvedUid || "none"})`,
-        );
-        return;
+      // 2. Per-command role gate — mutating/operational commands require
+      // role:'admin' on the user's Firestore doc, OR legacy allowed_ids
+      // membership. Read-only/self-service commands (whoami, shop browsing,
+      // menu, wallet, link, etc.) pass no requiredRole and stay open to
+      // anyone — guests must be able to reach /shop, /link, /ask etc. even
+      // after an admin has claimed allowed_ids.
+      if (requiredRole) {
+        const legacyAllowed = this.isAuthorized(jid, resolvedUid);
+        if (!legacyAllowed) {
+          try {
+            const { getDatabase } = require("../database");
+            const db = await getDatabase();
+            const user = await db.getUser(resolvedUid || jid);
+            const role = user?.role || "user";
+            if (role !== requiredRole && !(requiredRole === "admin" && role === "reseller")) {
+              logger.warn(
+                `Unauthorized WhatsApp access attempt from ${jid} (UID: ${resolvedUid || "none"})`,
+              );
+              return this.send(jid, `❌ *Access Denied:* This command requires ${requiredRole} access.`);
+            }
+          } catch (e) {
+            logger.error(`WhatsApp role check failed: ${e.message}`);
+            return this.send(jid, "❌ Could not verify permissions — try again shortly.");
+          }
+        }
       }
 
       // 3. Rate Limiting
@@ -596,6 +615,15 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set("bulk", this._handleBulkVoucher);
     this.handlers.set("mistakes", this._handleMistakes);
     this.handlers.set("transfer", this._handleTransfer);
+
+    // Mutating/operational commands require role:'admin' (or legacy allowed_ids
+    // membership). Everything else (start, menu, shop, ask, wallet, link, etc.)
+    // stays open to guests — see _rl().
+    this.adminCommands = new Set([
+      "voucher", "users", "stats", "kick", "reboot", "dahua", "pay",
+      "cli", "api", "tools", "tool", "setup_router", "network",
+      "neighbors", "dns", "bulk", "mistakes", "token",
+    ]);
   }
 
   // ── Missing handlers (registered above) ──────────────────────────────────────
@@ -718,7 +746,7 @@ class WhatsAppChannel extends BaseChannel {
       const handler = this.handlers.get(cmdName);
 
       if (handler) {
-        const wrapped = this._rl(handler);
+        const wrapped = this._rl(handler, this.adminCommands?.has(cmdName) ? "admin" : null);
         await wrapped(from, message, args);
         return;
       }
@@ -1609,39 +1637,45 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   async _handleLink(jid, msg, args) {
-    const email = args?.[1]?.trim();
+    const input = args?.[1]?.trim();
 
-    if (!email) {
+    if (!input) {
       return this.send(
         jid,
-        "🔗 *Link Account*\nUsage: */link your@email.com*\n\nThis connects your WhatsApp chat to your web-based wallet and vouchers.",
+        "🔗 *Link Account*\nUsage: */link <code>* (from the website) or */link your@email.com*\n\nThis connects your WhatsApp chat to your web-based wallet and vouchers.",
       );
     }
 
-    if (!email.includes("@")) {
-      return this.send(jid, "❌ Invalid email format.");
+    const isCode = /^\d{6}$/.test(input);
+
+    if (!isCode && !input.includes("@")) {
+      return this.send(jid, "❌ Enter the 6-digit code from the website, or your account email.");
     }
 
-    const { getDatabase } = require("../database");
-    const db = await getDatabase();
-
     try {
-      const result = await db.resolveFirebaseUser(email, {
-        channel: "whatsapp",
-        channelId: jid,
-      });
+      if (isCode) {
+        const { verifyLinkCode } = await import("./link-verifier.js");
+        const result = await verifyLinkCode(input, "whatsapp", jid);
+        await this.send(jid, result.message);
+        if (result.ok) return this._handleWhoAmI(jid, msg);
+        return;
+      }
+
+      const { getDatabase } = await import("../database.js");
+      const db = await getDatabase();
+      const result = await db.resolveFirebaseUser(input, { channel: "whatsapp", channelId: jid });
 
       if (result) {
         // Link was successful (resolveFirebaseUser calls linkChannel internally if channel/channelId provided)
         await this.send(
           jid,
-          `✅ *Account Linked!*\nWelcome back, *${result.fullname || "User"}*.\nYour WhatsApp is now connected to \`${email}\`.`,
+          `✅ *Account Linked!*\nWelcome back, *${result.fullname || "User"}*.\nYour WhatsApp is now connected.`,
         );
         return this._handleWhoAmI(jid, msg);
       } else {
         await this.send(
           jid,
-          `❌ *User not found*\nWe couldn't find a web account with email \`${email}\`. Please register on our website first.`,
+          `❌ *User not found*\nWe couldn't find a web account with email \`${input}\`. Please register on our website first.`,
         );
       }
     } catch (err) {

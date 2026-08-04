@@ -368,29 +368,29 @@ class TelegramChannel extends BaseChannel {
                 logger.error(`Telegram database resolution failed: ${dbErr.message}`);
             }
 
-            // 2. Authorization Check (includes platform ID and resolved UID)
-            if (!this.isAuthorized(chatId, resolvedUid)) {
-                logger.warn(`Unauthorized Telegram access attempt from ${chatId} (UID: ${resolvedUid || 'none'})`);
-                return; // Ignore unauthorized messages
-            }
-
-            // 2b. Per-command role gate — mutating/operational commands require
-            // role:'admin' on the user's Firestore doc. Read-only/self-service
-            // commands (whoami, shop browsing, menu, wallet, etc.) pass no
-            // requiredRole and stay open to anyone, independent of allowed_ids
-            // (which today is empty, so isAuthorized alone lets everyone through).
+            // 2. Per-command role gate — mutating/operational commands require
+            // role:'admin' on the user's Firestore doc, OR legacy allowed_ids
+            // membership. Read-only/self-service commands (whoami, shop
+            // browsing, menu, wallet, link, etc.) pass no requiredRole and
+            // stay open to anyone — guests must be able to reach /shop, /link,
+            // /ask etc. even after an admin has claimed allowed_ids, since
+            // allowed_ids is an admin allowlist, not a bot-wide gate.
             if (requiredRole) {
-                try {
-                    const { getDatabase } = require('../database');
-                    const db = await getDatabase();
-                    const user = await db.getUser(resolvedUid || sChatId);
-                    const role = user?.role || 'user';
-                    if (role !== requiredRole && !(requiredRole === 'admin' && role === 'reseller')) {
-                        return this.bot.sendMessage(chatId, `❌ *Access Denied:* This command requires ${requiredRole} access.`, { parse_mode: 'Markdown' });
+                const legacyAllowed = this.isAuthorized(chatId, resolvedUid);
+                if (!legacyAllowed) {
+                    try {
+                        const { getDatabase } = require('../database');
+                        const db = await getDatabase();
+                        const user = await db.getUser(resolvedUid || sChatId);
+                        const role = user?.role || 'user';
+                        if (role !== requiredRole && !(requiredRole === 'admin' && role === 'reseller')) {
+                            logger.warn(`Unauthorized Telegram access attempt from ${chatId} (UID: ${resolvedUid || 'none'})`);
+                            return this.bot.sendMessage(chatId, `❌ *Access Denied:* This command requires ${requiredRole} access.`, { parse_mode: 'Markdown' });
+                        }
+                    } catch (e) {
+                        logger.error(`Telegram role check failed: ${e.message}`);
+                        return this.bot.sendMessage(chatId, '❌ Could not verify permissions — try again shortly.');
                     }
-                } catch (e) {
-                    logger.error(`Telegram role check failed: ${e.message}`);
-                    return this.bot.sendMessage(chatId, '❌ Could not verify permissions — try again shortly.');
                 }
             }
 
@@ -451,7 +451,7 @@ class TelegramChannel extends BaseChannel {
     // ── Handler registration ──────────────────────────────────────────────────
 
     _registerHandlers() {
-        this.bot.onText(/\/start/, this._rl(this._handleStart.bind(this)));
+        this.bot.onText(/\/start(?:\s+(\S+))?/, this._rl(this._handleStart.bind(this)));
         this.bot.onText(/\/dashboard/, this._rl(this._handleDashboard.bind(this)));
         this.bot.onText(/\/users/, this._rl(this._handleUsers.bind(this), 'admin'));
         this.bot.onText(/\/stats/, this._rl(this._handleStats.bind(this), 'admin'));
@@ -465,6 +465,7 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/dahua(?:\s+(.+))?/, this._rl(this._handleDahua.bind(this), 'admin'));
         this.bot.onText(/\/shop(?:\s+(.+))?/, this._rl(this._handleShop.bind(this)));
         this.bot.onText(/\/claim/, this._rl(this._handleClaim.bind(this)));
+        this.bot.onText(/\/link(?:\s+(.+))?/, this._rl(this._handleLink.bind(this)));
         this.bot.onText(/\/token/, this._rl(this._handleToken.bind(this), 'admin'));
         this.bot.onText(/\/ask\s+(.+)/, this._rl(this._handleAsk.bind(this)));
         this.bot.onText(/\/cli\s+(.+)/, this._rl(this._handleCli.bind(this), 'admin'));
@@ -507,6 +508,11 @@ class TelegramChannel extends BaseChannel {
     // ── Command handlers ──────────────────────────────────────────────────────
 
     async _handleStart(msg, opts = {}) {
+        const startPayload = Array.isArray(opts) ? opts[1] : undefined;
+        if (startPayload && startPayload.startsWith('link_')) {
+            return this._handleLink(msg, [null, startPayload.slice(5)]);
+        }
+
         const chatId = msg.chat.id;
         const from = msg.from || {};
         const username = from.username || from.first_name || 'User';
@@ -1168,6 +1174,45 @@ class TelegramChannel extends BaseChannel {
             , { parse_mode: 'Markdown' });
     }
 
+    async _handleLink(msg, match) {
+        const chatId = msg.chat.id;
+        const input = match?.[1]?.trim();
+
+        if (!input) {
+            return this.bot.sendMessage(chatId,
+                '🔗 *Link Account*\nGenerate a code on the website (Settings → Link Chat Account), then send:\n`/link <code>`\n\nOr link by email: `/link your@email.com`',
+                { parse_mode: 'Markdown' });
+        }
+
+        try {
+            if (/^\d{6}$/.test(input)) {
+                const { verifyLinkCode } = await import('./link-verifier.js');
+                const result = await verifyLinkCode(input, 'telegram', chatId);
+                await this.bot.sendMessage(chatId, result.message, { parse_mode: 'Markdown' });
+                if (result.ok) return this._handleWhoAmI(msg);
+                return;
+            }
+
+            if (input.includes('@')) {
+                const { getDatabase } = require('../database');
+                const db = await getDatabase();
+                const result = await db.resolveFirebaseUser(input, { channel: 'telegram', channelId: chatId });
+                if (result) {
+                    await this.bot.sendMessage(chatId,
+                        `✅ *Account Linked!*\nWelcome, *${result.fullname || 'User'}*. Your Telegram is now connected to your web account.`,
+                        { parse_mode: 'Markdown' });
+                    return this._handleWhoAmI(msg);
+                }
+                return this.bot.sendMessage(chatId, "❌ *User not found*\nWe couldn't find a web account with that email. Please register on our website first.");
+            }
+
+            return this.bot.sendMessage(chatId, '❌ Enter the 6-digit code from the website, or your account email.');
+        } catch (err) {
+            logger.error(`Telegram link error: ${err.message}`);
+            await this.bot.sendMessage(chatId, `❌ Linking failed: ${err.message}`);
+        }
+    }
+
     async _handleToken(msg) {
         const chatId = msg.chat.id;
         const gatewayToken = process.env.GATEWAY_TOKEN || 'Not set';
@@ -1699,17 +1744,21 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
-    async _sendShopCart(chatId, toolCtx) {
+    async _sendShopCart(chatId, toolCtx, messageId) {
         const items = await this.agent.executeTool('shop.view_cart', { platform: 'telegram', channelId: chatId }, toolCtx);
         if (!items.length) {
-            return this.bot.sendMessage(chatId, '🛒 Your cart is empty.', { reply_markup: { inline_keyboard: [this._backButtonRow()] } });
+            const reply_markup = { inline_keyboard: [this._backButtonRow()] };
+            if (messageId) return this._safeEdit(chatId, messageId, '🛒 Your cart is empty.', { reply_markup });
+            return this.bot.sendMessage(chatId, '🛒 Your cart is empty.', { reply_markup });
         }
         const lines = items.map(i => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ''} — $${(i.price * i.qty).toFixed(2)}`);
         const reply_markup = { inline_keyboard: [
             [{ text: '✅ Checkout', callback_data: 'shop:checkout:' }],
             this._backButtonRow()
         ] };
-        await this.bot.sendMessage(chatId, `🛒 *Your Cart*\n\n${lines.join('\n')}`, { parse_mode: 'Markdown', reply_markup });
+        const text = `🛒 *Your Cart*\n\n${lines.join('\n')}`;
+        if (messageId) return this._safeEdit(chatId, messageId, text, { parse_mode: 'Markdown', reply_markup });
+        await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
     }
 
     async _handleShop(msg, match) {
@@ -1777,12 +1826,16 @@ class TelegramChannel extends BaseChannel {
         }
     }
 
-    async _handleShopCallback(chatId, action, extra, _messageId, query) {
+    async _handleShopCallback(chatId, action, extra, messageId, query) {
         const toolCtx = { userId: query?._uid || chatId, channel: 'telegram' };
         try {
             if (action === 'view') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);
                 if (!p) return this.bot.sendMessage(chatId, '❌ Product not found.');
+                // Photo-based card — can't editMessageText a media message, so drop the
+                // old screen before drawing the new one (keeps the "back replaces the
+                // screen" UX the rest of the bot's menus already use).
+                if (messageId) await this.bot.deleteMessage(chatId, messageId).catch(() => {});
                 await this._sendShopProductDetail(chatId, toolCtx, p);
             } else if (action === 'add') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);
@@ -1808,8 +1861,9 @@ class TelegramChannel extends BaseChannel {
                 await this.bot.sendMessage(chatId, `✅ Order placed! Invoice ${result.invoiceNumber}\nTotal: $${result.total.toFixed(2)}\n🔗 ${result.url}`);
                 await this._sendOrderPdf(chatId, result.orderId).catch(e => logger.warn(`TelegramChannel: failed to send order PDF: ${e.message}`));
             } else if (action === 'cart') {
-                await this._sendShopCart(chatId, toolCtx);
+                await this._sendShopCart(chatId, toolCtx, messageId);
             } else if (action === 'list') {
+                if (messageId) await this.bot.deleteMessage(chatId, messageId).catch(() => {});
                 await this._sendShopList(chatId, toolCtx);
             }
         } catch (err) {

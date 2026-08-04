@@ -1,6 +1,6 @@
-
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+import MemoryAdapter from './adapters/MemoryAdapter.js';
 
 // src/core/memory/MemoryManager.js
 class MemoryManager {

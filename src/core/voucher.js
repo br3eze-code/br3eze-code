@@ -1,8 +1,7 @@
 import eventBus from '../core/eventBus.js';
 import { getConfig } from './config.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import crypto from 'crypto';
+import { getDatabase } from './database.js';
 
 /**
  * VoucherAgent — Voucher generation & event emission
@@ -72,8 +71,7 @@ class VoucherAgent {
 
         const config = this._config;
         const chars = config.alphabet || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        const crypto = require('crypto');
-        
+
         const genPart = (len = 4) => {
             let s = '';
             for (let i = 0; i < len; i++) {
@@ -88,7 +86,6 @@ class VoucherAgent {
         
         let code;
         let attempts = 0;
-        const { getDatabase } = require('./database');
         const db = await getDatabase();
 
         // Ensure uniqueness
@@ -136,7 +133,6 @@ class VoucherAgent {
     }
 
     async updateVoucher(code, plan = 'default') {
-        const { getDatabase } = require('./database');
         const db = await getDatabase();
         const existing = await db.getVoucher(code);
         

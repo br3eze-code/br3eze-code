@@ -31,6 +31,9 @@ class FilesDomain extends BaseDomain {
           }));
           return { success: true, directory: directoryPath, files };
         } catch (error) {
+          if (error.code === 'ENOENT') {
+            return { success: true, directory: directoryPath, files: [] };
+          }
           logger.error(`[FilesDomain] listFiles error: ${error.message}`);
           return { success: false, error: error.message };
         }
@@ -62,7 +65,7 @@ class FilesDomain extends BaseDomain {
         
         try {
           await fs.rm(targetPath, { recursive: true, force: true });
-          return { success: true, deleted: filePath };
+          return { success: true, deleted: true };
         } catch (error) {
           return { success: false, error: error.message };
         }

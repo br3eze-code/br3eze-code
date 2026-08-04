@@ -96,7 +96,18 @@
       "Bash(git reset *)",
       "Bash(curl -s http://localhost:19876/api/token)",
       "mcp__claude-in-chrome__navigate",
-      "Bash(taskkill //F //PID 39492)"
+      "Bash(taskkill //F //PID 39492)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -rl *)",
+      "Bash(git show *)",
+      "Bash(cp \"C:/Users/user/AppData/Local/Temp/claude/C--Users-user-br3eze-code/920ce8cc-8821-48d2-a31c-64317f231af0/scratchpad/ours_pkg.json\" package.json)",
+      "Bash(grep -c *)",
+      "Bash(echo \"---exit code: $?\")",
+      "Bash(gh run *)",
+      "Bash(sort -k2 -rn)",
+      "Bash(awk '{print $1, $2, $3}')",
+      "Bash(npx jest *)",
+      "Bash(perl -0pi -e \"s/'use strict';\\\\n/'use strict';\\\\n\\\\nimport { createRequire } from 'module';\\\\nconst require = createRequire\\(import.meta.url\\);\\\\n/\" tests/unit/errors.test.js)"
     ]
   }
 }

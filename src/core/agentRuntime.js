@@ -218,4 +218,5 @@ function getAgentRuntime(config = {}) {
     return _runtime;
 }
  
-export default  { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
+export { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
+export default { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };

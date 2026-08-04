@@ -7,6 +7,9 @@
  * (dev / offline environments), so the rest of the A2A stack keeps working.
  */
 
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
 const https = require('https');
 const { GoogleAuth } = (() => {
     try { return require('google-auth-library'); }

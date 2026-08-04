@@ -4,6 +4,9 @@
  * Tests the full flow: voucher.generate → database.createVoucher → addHotspotUser
  */
 
+import { jest } from '@jest/globals';
+import crypto from 'crypto';
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const mkVouchers = () => new Map();
@@ -30,7 +33,7 @@ function makeDb(vouchersMap = mkVouchers()) {
 }
 
 // Mock database
-jest.mock('../../src/core/database', () => ({
+jest.unstable_mockModule('../../src/core/database.js', () => ({
     getDatabase: jest.fn().mockResolvedValue({
         getVoucher: jest.fn().mockResolvedValue(null),
         createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
@@ -41,7 +44,10 @@ jest.mock('../../src/core/database', () => ({
 
 describe('VoucherAgent.generate', () => {
     let voucher;
-    beforeEach(() => { jest.resetModules(); voucher = require('../../src/core/voucher'); });
+    beforeEach(async () => {
+        jest.resetModules();
+        ({ default: voucher } = await import('../../src/core/voucher.js'));
+    });
 
     test('returns a STAR-prefixed string', async () => {
         const code = await voucher.generate('1day');
@@ -78,7 +84,7 @@ describe('VoucherAgent.generate', () => {
     });
 
     test('emits voucher.created with code and plan', async () => {
-        const eventBus = require('../../src/core/eventBus');
+        const { default: eventBus } = await import('../../src/core/eventBus.js');
         const handler = jest.fn();
         eventBus.on('voucher.created', handler);
         const code = await voucher.generate('1day');
@@ -87,7 +93,6 @@ describe('VoucherAgent.generate', () => {
     });
 });
 
-const crypto = require('crypto');
 function hashPlanId(name) {
     return crypto.createHash('sha256').update(name.trim()).digest('hex').substring(0, 16);
 }

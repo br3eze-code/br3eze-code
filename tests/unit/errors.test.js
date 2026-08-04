@@ -1,6 +1,6 @@
 'use strict';
 
-const { ErrorCodes, AgentOSError } = require('../../src/core/errors');
+import { ErrorCodes, AgentOSError } from '../../src/core/errors.js';
 
 // ── ErrorCodes ────────────────────────────────────────────────────────────────
 

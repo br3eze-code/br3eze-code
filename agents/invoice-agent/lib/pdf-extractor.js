@@ -208,4 +208,3 @@ function _extractLineItems(text) {
 }
 
 export { extractPDF, parseInvoiceFields };
-export { extractPDF, parseInvoiceFields };

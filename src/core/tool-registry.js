@@ -450,4 +450,5 @@ class SkillDisabledError extends Error {
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
 
+export default ToolRegistry;
 export { ToolRegistry, ToolNotFoundError, SkillDisabledError };

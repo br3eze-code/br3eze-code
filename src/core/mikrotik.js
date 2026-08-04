@@ -2061,5 +2061,5 @@ async function testConnection(config = null) {
 }
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-export { MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager, testConnection };
+export { MikroTikManager, MikroTikPool, CircuitBreaker, MikroTikError, ConnectionError, ToolExecutionError, getManager, resetManager, createManager, testConnection };
 export { getManager as getMikroTikClient, testConnection as testMikroTikConnection };

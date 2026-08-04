@@ -1,32 +1,36 @@
 'use strict';
 
+import { jest } from '@jest/globals';
+
 // Mock all native deps that aren't installed in the test runner
-jest.mock('routeros-client', () => ({
+jest.unstable_mockModule('routeros-client', () => ({
     RouterOSClient: class {
         constructor(config) { this.config = config; this.connected = false; }
-        connect()    { 
+        connect()    {
             if (this.config && this.config.host === '192.0.2.1') {
                 return new Promise(() => {}); // hang to trigger safety timeout
             }
-            return Promise.resolve(this); 
+            return Promise.resolve(this);
         }
         close()      { return Promise.resolve(); }
         menu()       { return { get: jest.fn().mockResolvedValue([]) }; }
     }
 }), { virtual: true });
 
-jest.mock('node-cache', () => class {
-    constructor() { this._store = new Map(); }
-    get(k)           { return this._store.get(k); }
-    set(k, v, ttl)   { this._store.set(k, v); }
-    del(k)           { this._store.delete(k); }
-    flushAll()       { this._store.clear(); }
-}, { virtual: true });
+jest.unstable_mockModule('node-cache', () => ({
+    default: class {
+        constructor() { this._store = new Map(); }
+        get(k)           { return this._store.get(k); }
+        set(k, v, ttl)   { this._store.set(k, v); }
+        del(k)           { this._store.delete(k); }
+        flushAll()       { this._store.clear(); }
+    }
+}), { virtual: true });
 
-jest.mock('../../src/core/logger',  () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));
-jest.mock('../../src/core/config',  () => ({ getConfig: () => ({ mikrotik: { host: '192.168.88.1', user: 'admin', password: '', port: 8728 } }) }));
+jest.unstable_mockModule('../../src/core/logger.js',  () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));
+jest.unstable_mockModule('../../src/core/config.js',  () => ({ getConfig: () => ({ mikrotik: { host: '192.168.88.1', user: 'admin', password: '', port: 8728 } }) }));
 
-const { MikroTikManager, MikroTikError, ConnectionError, ToolExecutionError, testConnection } = require('../../src/core/mikrotik');
+const { MikroTikManager, MikroTikError, ConnectionError, ToolExecutionError, testConnection } = await import('../../src/core/mikrotik.js');
 
 // ── MikroTikError ─────────────────────────────────────────────────────────────
 

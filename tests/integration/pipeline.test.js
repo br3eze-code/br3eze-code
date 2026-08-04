@@ -7,26 +7,27 @@
  *  - Permissions + AgentRuntime routing
  */
 
-const os   = require('os');
-const path = require('path');
-const fs   = require('fs');
+import { jest } from '@jest/globals';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
 
 // ── shared mocks ──────────────────────────────────────────────────────────────
 
-jest.mock('uuid', () => {
+jest.unstable_mockModule('uuid', () => {
     let n = 0;
     return { v4: () => `intg-uuid-${++n}` };
 });
 
-jest.mock('../../src/utils/logger', () => ({
+jest.unstable_mockModule('../../src/utils/logger.js', () => ({
     Logger: class { info(){} warn(){} error(){} debug(){} }
 }));
 
-jest.mock('../../src/core/logger', () => ({
+jest.unstable_mockModule('../../src/core/logger.js', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
 }));
 
-jest.mock('../../src/core/agentEngine', () => ({
+jest.unstable_mockModule('../../src/core/agentEngine.js', () => ({
     AgentEngine: class {
         static create() {
             return {
@@ -41,10 +42,10 @@ jest.mock('../../src/core/agentEngine', () => ({
     }
 }));
 
-jest.mock('../../src/core/mikrotik', () => ({ getMikroTikClient: jest.fn() }));
+jest.unstable_mockModule('../../src/core/mikrotik.js', () => ({ getMikroTikClient: jest.fn() }));
 
 // Mock database
-jest.mock('../../src/core/database', () => ({
+jest.unstable_mockModule('../../src/core/database.js', () => ({
     getDatabase: jest.fn().mockResolvedValue({
         getVoucher: jest.fn().mockResolvedValue(null),
         createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
@@ -56,11 +57,11 @@ jest.mock('../../src/core/database', () => ({
 describe('Integration — TaskRegistry + EventBus', () => {
     let TaskRegistry, TaskStatus, eventBus;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         jest.resetModules();
-        jest.mock('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
-        ({ TaskRegistry, TaskStatus } = require('../../src/core/taskRegistry'));
-        eventBus = require('../../src/core/eventBus');
+        jest.unstable_mockModule('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
+        ({ TaskRegistry, TaskStatus } = await import('../../src/core/taskRegistry.js'));
+        ({ default: eventBus } = await import('../../src/core/eventBus.js'));
     });
 
     afterEach(() => {
@@ -133,19 +134,19 @@ describe('Integration — TaskRegistry + EventBus', () => {
 describe('Integration — Permissions + AgentRuntime routing', () => {
     let AgentRuntime, PermissionMode, PermissionEnforcer;
 
-    beforeAll(() => {
+    beforeAll(async () => {
         jest.resetModules();
-        jest.mock('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
-        jest.mock('../../src/core/agentEngine', () => ({
+        jest.unstable_mockModule('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
+        jest.unstable_mockModule('../../src/core/agentEngine.js', () => ({
             AgentEngine: class {
                 static create() { return { sessionId: 's', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: '' }), persistSession: jest.fn().mockReturnValue('/tmp'), renderSummary: jest.fn().mockReturnValue(''), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; }
                 static fromSession() { return this.create(); }
             }
         }));
-        jest.mock('../../src/core/mikrotik', () => ({ getMikroTikClient: jest.fn() }));
-        jest.mock('../../src/core/logger', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-        ({ AgentRuntime } = require('../../src/core/agentRuntime'));
-        ({ PermissionMode, PermissionEnforcer } = require('../../src/core/permissions'));
+        jest.unstable_mockModule('../../src/core/mikrotik.js', () => ({ getMikroTikClient: jest.fn() }));
+        jest.unstable_mockModule('../../src/core/logger.js', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
+        ({ AgentRuntime } = await import('../../src/core/agentRuntime.js'));
+        ({ PermissionMode, PermissionEnforcer } = await import('../../src/core/permissions.js'));
     });
 
     test('routePrompt finds multiple tools for complex prompt', () => {
@@ -175,8 +176,8 @@ describe('Integration — Permissions + AgentRuntime routing', () => {
         }
     });
 
-    test('deny list overrides AUTO mode for specific tool', () => {
-        const { ToolPermissionContext } = require('../../src/core/permissions');
+    test('deny list overrides AUTO mode for specific tool', async () => {
+        const { ToolPermissionContext } = await import('../../src/core/permissions.js');
         const ctx      = new ToolPermissionContext({ denyNames: ['system.reboot'] });
         const enforcer = new PermissionEnforcer(PermissionMode.AUTO, ctx);
         expect(enforcer.isAllowed('system.reboot')).toBe(false);
@@ -187,8 +188,12 @@ describe('Integration — Permissions + AgentRuntime routing', () => {
 // ── SessionManager + MemoryStore integration ──────────────────────────────────
 
 describe('Integration — SessionManager filesystem round-trip', () => {
-    const { SessionManager } = require('../../src/core/session-manager');
+    let SessionManager;
     let base, sm;
+
+    beforeAll(async () => {
+        ({ SessionManager } = await import('../../src/core/session-manager.js'));
+    });
 
     beforeEach(async () => {
         base = path.join(os.tmpdir(), `agentos-intg-${Date.now()}`);
@@ -262,8 +267,8 @@ describe('Integration — VoucherAgent + EventBus', () => {
     beforeEach(() => { jest.resetModules(); });
 
     test('generate → redeem emits events in correct order', async () => {
-        const eventBus = require('../../src/core/eventBus');
-        const voucher  = require('../../src/core/voucher');
+        const { default: eventBus } = await import('../../src/core/eventBus.js');
+        const { default: voucher }  = await import('../../src/core/voucher.js');
         const events   = [];
 
         eventBus.on('voucher.created',  e => events.push({ type: 'created',  code: e.code }));
@@ -280,8 +285,8 @@ describe('Integration — VoucherAgent + EventBus', () => {
     });
 
     test('multiple vouchers emit independent events', async () => {
-        const eventBus = require('../../src/core/eventBus');
-        const voucher  = require('../../src/core/voucher');
+        const { default: eventBus } = await import('../../src/core/eventBus.js');
+        const { default: voucher }  = await import('../../src/core/voucher.js');
         const codes    = [];
 
         eventBus.on('voucher.created', e => codes.push(e.code));

@@ -116,8 +116,9 @@ class GeminiProvider extends BaseProvider {
   }
   
   formatTools(tools) {
+    const maxTools = parseInt(process.env.MAX_TOOLS_PER_REQUEST, 10) || 128;
     return [{
-      functionDeclarations: tools.map(tool => ({
+      functionDeclarations: tools.slice(0, maxTools).map(tool => ({
         name: tool.name,
         description: tool.description,
         parameters: {

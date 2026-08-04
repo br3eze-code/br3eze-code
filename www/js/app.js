@@ -4586,6 +4586,18 @@ window.generateLinkCode = async function () {
         document.getElementById('linkCodeInline').innerText = code;
         document.getElementById('linkCodeDisplay').classList.remove('hidden');
 
+        const openBtn = document.getElementById('openTelegramBtn');
+        if (openBtn) {
+            openBtn.classList.add('hidden');
+            try {
+                const status = await ApiClient.fetch('/api/v1/channels/telegram/status');
+                if (status?.data?.enabled && status.data.botUsername) {
+                    openBtn.href = `https://t.me/${status.data.botUsername}?start=link_${code}`;
+                    openBtn.classList.remove('hidden');
+                }
+            } catch (_) { /* bot status unavailable — manual /link <code> still works */ }
+        }
+
         let remaining = 10 * 60;
         clearInterval(_linkCodeTimer);
         _linkCodeTimer = setInterval(() => {

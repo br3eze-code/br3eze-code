@@ -407,6 +407,15 @@ router.get('/diagnostics', async (req, res) => {
   } catch (e) { err(res, e); }
 });
 
+router.get('/channels/telegram/status', async (req, res) => {
+  try {
+    const telegram = global.gateway?.channelManager?.channels.get('telegram');
+    if (!telegram?.bot) return ok(res, { enabled: false });
+    const me = await telegram.bot.getMe();
+    ok(res, { enabled: true, botUsername: me.username });
+  } catch (e) { err(res, e); }
+});
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 function _mikrotikDuration(p) {
   if (!p?.durationValue || !p?.durationUnit) return null;

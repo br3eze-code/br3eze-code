@@ -228,7 +228,8 @@
       "**/tests/**/*.test.js"
     ],
     "testPathIgnorePatterns": [
-      "/node_modules/"
+      "/node_modules/",
+      "/.claude/worktrees/"
     ],
     "modulePaths": [
       "/tmp/jest-deps/node_modules"

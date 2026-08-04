@@ -1,5 +1,8 @@
+import { jest } from '@jest/globals';
+import { EventEmitter } from 'events';
+
 // Mock Firebase
-jest.mock('firebase-admin', () => ({
+jest.unstable_mockModule('firebase-admin', () => ({
   apps: [],
   initializeApp: jest.fn(),
   credential: { cert: jest.fn() },
@@ -29,7 +32,7 @@ jest.mock('firebase-admin', () => ({
 }));
 
 // Mock MikroTik
-jest.mock('routeros-client', () => ({
+jest.unstable_mockModule('routeros-client', () => ({
   RouterOSClient: jest.fn().mockImplementation(() => ({
     connect: jest.fn().mockResolvedValue({}),
     menu: jest.fn().mockReturnValue({
@@ -44,17 +47,17 @@ jest.mock('routeros-client', () => ({
 }));
 
 // Mock Telegram bot — prevents real HTTP polling
-jest.mock('node-telegram-bot-api', () => {
-  return jest.fn().mockImplementation(() => ({
+jest.unstable_mockModule('node-telegram-bot-api', () => {
+  return { default: jest.fn().mockImplementation(() => ({
     on: jest.fn(),
     sendMessage: jest.fn().mockResolvedValue({}),
     stopPolling: jest.fn().mockResolvedValue({}),
     isPolling: jest.fn().mockReturnValue(false)
-  }));
+  })) };
 });
 
 // Mock Puppeteer
-jest.mock('puppeteer-core', () => ({
+jest.unstable_mockModule('puppeteer-core', () => ({
   launch: jest.fn().mockResolvedValue({
     newPage: jest.fn().mockResolvedValue({
       setContent: jest.fn().mockResolvedValue({}),
@@ -68,7 +71,7 @@ jest.mock('puppeteer-core', () => ({
 }), { virtual: true });
 
 // Mock WhatsApp / Baileys — prevents real WebSocket connections
-jest.mock('@whiskeysockets/baileys', () => ({
+jest.unstable_mockModule('@whiskeysockets/baileys', () => ({
   makeWASocket: jest.fn().mockReturnValue({
     ev: { on: jest.fn(), off: jest.fn() },
     sendMessage: jest.fn().mockResolvedValue({}),
@@ -85,8 +88,7 @@ jest.mock('@whiskeysockets/baileys', () => ({
 }), { virtual: true });
 
 // Mock ChannelManager.initialize to skip real channel setup
-jest.mock('../src/core/channels/ChannelManager', () => {
-  const EventEmitter = require('events');
+jest.unstable_mockModule('../src/core/channels/ChannelManager.js', () => {
   class MockChannelManager extends EventEmitter {
     constructor(agent) {
       super();
@@ -102,10 +104,10 @@ jest.mock('../src/core/channels/ChannelManager', () => {
   }
   MockChannelManager.adapters = new Map();
   MockChannelManager.registerAdapter = jest.fn();
-  return MockChannelManager;
+  return { default: MockChannelManager };
 });
 
-const AgentOS = require('../src/core/AgentOS');
+const { default: AgentOS } = await import('../src/core/AgentOS.js');
 
 jest.setTimeout(30000);
 
