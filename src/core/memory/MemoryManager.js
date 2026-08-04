@@ -1,6 +1,6 @@
+import MemoryAdapter from './adapters/MemoryAdapter.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-import MemoryAdapter from './adapters/MemoryAdapter.js';
 
 // src/core/memory/MemoryManager.js
 class MemoryManager {
@@ -11,7 +11,7 @@ class MemoryManager {
   createAdapter(type) {
     switch (type) {
       case 'memory':
-        return new (require('./adapters/MemoryAdapter').default)();
+        return new MemoryAdapter();
       case 'firebase':
         return new (require('./adapters/FirebaseAdapter'))();
       case 'redis':
