@@ -1180,7 +1180,7 @@ class TelegramChannel extends BaseChannel {
 
         if (!input) {
             return this.bot.sendMessage(chatId,
-                '🔗 *Link Account*\nGenerate a code on the website (Settings → Link Chat Account), then send:\n`/link <code>`\n\nOr link by email: `/link your@email.com`',
+                '🔗 *Link Account*\nGenerate a code on the website (Settings → Link Chat Account), then send:\n`/link <code>`\n\nOr link by email: `/link your@email.com`\nOr by phone (if verified via Phone sign-in on the website): `/link +27821234567`',
                 { parse_mode: 'Markdown' });
         }
 
@@ -1193,20 +1193,18 @@ class TelegramChannel extends BaseChannel {
                 return;
             }
 
-            if (input.includes('@')) {
-                const { getDatabase } = require('../database');
-                const db = await getDatabase();
-                const result = await db.resolveFirebaseUser(input, { channel: 'telegram', channelId: chatId });
-                if (result) {
-                    await this.bot.sendMessage(chatId,
-                        `✅ *Account Linked!*\nWelcome, *${result.fullname || 'User'}*. Your Telegram is now connected to your web account.`,
-                        { parse_mode: 'Markdown' });
-                    return this._handleWhoAmI(msg);
-                }
-                return this.bot.sendMessage(chatId, "❌ *User not found*\nWe couldn't find a web account with that email. Please register on our website first.");
+            // resolveFirebaseUser auto-detects email vs phone (+countrycode
+            // or 7-15 digits) vs raw uid shape — no need to branch on it here.
+            const { getDatabase } = require('../database');
+            const db = await getDatabase();
+            const result = await db.resolveFirebaseUser(input, { channel: 'telegram', channelId: chatId });
+            if (result) {
+                await this.bot.sendMessage(chatId,
+                    `✅ *Account Linked!*\nWelcome, *${result.fullname || 'User'}*. Your Telegram is now connected to your web account.`,
+                    { parse_mode: 'Markdown' });
+                return this._handleWhoAmI(msg);
             }
-
-            return this.bot.sendMessage(chatId, '❌ Enter the 6-digit code from the website, or your account email.');
+            return this.bot.sendMessage(chatId, "❌ *User not found*\nWe couldn't find a web account matching that. Try your email, verified phone number (with country code), or the 6-digit code from the website.");
         } catch (err) {
             logger.error(`Telegram link error: ${err.message}`);
             await this.bot.sendMessage(chatId, `❌ Linking failed: ${err.message}`);

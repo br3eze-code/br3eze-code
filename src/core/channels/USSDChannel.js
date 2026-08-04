@@ -116,7 +116,7 @@ class USSDChannel extends BaseChannel {
     const session = this.sessions.get(sessionId);
     if (session) session.pendingAction = 'link';
     await this.send(phoneNumber,
-      'CON Enter the 6-digit code from the Power Connect app (Settings -> Link Chat Account):',
+      'CON Enter the 6-digit code from the Power Connect app (Settings -> Link Chat Account), or the phone number you verified there (with country code):',
       { sessionId });
   }
 
@@ -131,12 +131,29 @@ class USSDChannel extends BaseChannel {
       { sessionId });
   }
 
-  // Consumes the code a prior /link or /claim prompt is waiting on. Reuses
-  // the same transactional verifier Telegram/WhatsApp use, so a linkCodes
-  // doc generated in the app works identically across every channel.
-  async _consumeLinkCode(phoneNumber, code, action, sessionId) {
+  // Consumes the code (or, for /link only, a phone/email) a prior /link or
+  // /claim prompt is waiting on. Reuses the same transactional verifier
+  // Telegram/WhatsApp use, so a linkCodes doc generated in the app works
+  // identically across every channel. /claim stays code-only — it grants
+  // admin, so it must not accept a bare phone/email match.
+  async _consumeLinkCode(phoneNumber, input, action, sessionId) {
+    input = String(input).trim();
+
+    if (action === 'link' && !/^\d{6}$/.test(input)) {
+      // Phone/email path — same Firebase Auth lookup Telegram/WhatsApp use.
+      // Firebase Phone Auth records verified on the website resolve here by
+      // number, so a caller can link an account they verified elsewhere.
+      const { getDatabase } = require('../database');
+      const db = await getDatabase();
+      const result = await db.resolveFirebaseUser(input, { channel: 'ussd', channelId: phoneNumber });
+      if (result) {
+        return this.send(phoneNumber, `END Account linked. Welcome, ${result.fullname || 'User'}.`, { sessionId });
+      }
+      return this.send(phoneNumber, "END User not found. Try your email, verified phone number (with country code), or the 6-digit code from the website.", { sessionId });
+    }
+
     const { verifyLinkCode } = await import('./link-verifier.js');
-    const result = await verifyLinkCode(String(code).trim(), 'ussd', phoneNumber);
+    const result = await verifyLinkCode(input, 'ussd', phoneNumber);
     const plain = result.message.replace(/[*_`]/g, '');
 
     if (!result.ok) {

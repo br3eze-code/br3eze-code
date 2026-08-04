@@ -159,6 +159,57 @@ window.Auth = {
         } catch (e) {
             if (e.code !== 'auth/popup-closed-by-user') showToast(e.message, 'error');
         }
+    },
+
+    // ── Phone sign-in (fallback path — email/Google remain primary) ───────
+    _confirmationResult: null,
+
+    togglePhoneLogin() {
+        document.getElementById('phoneLoginPanel').classList.toggle('hidden');
+    },
+
+    async sendPhoneCode() {
+        const phone = document.getElementById('phoneNumberInput').value.trim();
+        if (!phone.startsWith('+')) {
+            return showToast('Include the country code, e.g. +27821234567', 'error');
+        }
+        try {
+            if (!window._recaptchaVerifier) {
+                window._recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+            }
+            Auth._confirmationResult = await auth.signInWithPhoneNumber(phone, window._recaptchaVerifier);
+            document.getElementById('phoneCodePanel').classList.remove('hidden');
+            showToast('Code sent via SMS.', 'success');
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    },
+
+    async confirmPhoneCode() {
+        const code = document.getElementById('phoneCodeInput').value.trim();
+        if (!Auth._confirmationResult) {
+            return showToast('Request a code first.', 'error');
+        }
+        try {
+            const { user } = await Auth._confirmationResult.confirm(code);
+            const existing = await db.collection('users').doc(user.uid).get();
+            if (!existing.exists) {
+                await db.collection('users').doc(user.uid).set({
+                    uid: user.uid,
+                    phoneNumber: user.phoneNumber,
+                    fullname: user.phoneNumber,
+                    role: 'user',
+                    credits: 10.00,
+                    subscriptions: [],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+            // No email identifier available on a phone-only account — the
+            // hotspot login form falls back to the phone number itself.
+            submitHotspotLogin(user.phoneNumber, '');
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
     }
 };
 

@@ -1642,18 +1642,12 @@ class WhatsAppChannel extends BaseChannel {
     if (!input) {
       return this.send(
         jid,
-        "🔗 *Link Account*\nUsage: */link <code>* (from the website) or */link your@email.com*\n\nThis connects your WhatsApp chat to your web-based wallet and vouchers.",
+        "🔗 *Link Account*\nUsage: */link <code>* (from the website), */link your@email.com*, or */link +27821234567* (if verified via Phone sign-in on the website)\n\nThis connects your WhatsApp chat to your web-based wallet and vouchers.",
       );
     }
 
-    const isCode = /^\d{6}$/.test(input);
-
-    if (!isCode && !input.includes("@")) {
-      return this.send(jid, "❌ Enter the 6-digit code from the website, or your account email.");
-    }
-
     try {
-      if (isCode) {
+      if (/^\d{6}$/.test(input)) {
         const { verifyLinkCode } = await import("./link-verifier.js");
         const result = await verifyLinkCode(input, "whatsapp", jid);
         await this.send(jid, result.message);
@@ -1661,6 +1655,8 @@ class WhatsAppChannel extends BaseChannel {
         return;
       }
 
+      // resolveFirebaseUser auto-detects email vs phone (+countrycode or
+      // 7-15 digits) vs raw uid shape — no need to branch on it here.
       const { getDatabase } = await import("../database.js");
       const db = await getDatabase();
       const result = await db.resolveFirebaseUser(input, { channel: "whatsapp", channelId: jid });
@@ -1675,7 +1671,7 @@ class WhatsAppChannel extends BaseChannel {
       } else {
         await this.send(
           jid,
-          `❌ *User not found*\nWe couldn't find a web account with email \`${input}\`. Please register on our website first.`,
+          "❌ *User not found*\nWe couldn't find a web account matching that. Try your email, verified phone number (with country code), or the 6-digit code from the website.",
         );
       }
     } catch (err) {

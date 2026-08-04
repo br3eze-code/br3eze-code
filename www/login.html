@@ -81,6 +81,20 @@
           Sign in with Google
         </button>
 
+        <button type="button" class="google-btn" id="phoneSignInBtn" onclick="Auth.togglePhoneLogin()">
+          📱 Sign in with Phone
+        </button>
+
+        <div id="phoneLoginPanel" class="hidden" style="margin-top:10px;">
+          <input type="tel" id="phoneNumberInput" placeholder="+27821234567" class="form-input">
+          <button type="button" class="btn btn-primary btn-block" style="margin-top:8px;" onclick="Auth.sendPhoneCode()">Send Code</button>
+          <div id="phoneCodePanel" class="hidden" style="margin-top:8px;">
+            <input type="text" id="phoneCodeInput" placeholder="6-digit code">
+            <button type="button" class="btn btn-primary btn-block" style="margin-top:8px;" onclick="Auth.confirmPhoneCode()">Verify &amp; Sign In</button>
+          </div>
+        </div>
+        <div id="recaptcha-container"></div>
+
         <div id="error-message"></div>
 
         <div class="auth-toggle">Need an account? <a onclick="toggleAuthForm()">Sign up</a></div>
