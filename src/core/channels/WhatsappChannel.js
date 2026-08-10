@@ -1837,7 +1837,62 @@ class WhatsAppChannel extends BaseChannel {
       );
       await this.send(jid, `✅ Added ${result.product.name} (${size}) to cart.\n\nCheckout with: */shop checkout* — or keep browsing: */shop list*`);
       await this._sendUpsell(jid, data.productId, context);
+    } else if (action === "button_reply") {
+      const match = this._resolveButtonReply(text, data.buttons);
+      if (!match) {
+        return this.send(jid, `❌ Reply with a number 1-${data.buttons.length}, or the option text.`);
+      }
+      const context = { userId: uid, platformId: jid, channel: "whatsapp", userDoc: msg.userDoc };
+      await this.emit("message", {
+        text: match.id,
+        userId: uid,
+        platformId: jid,
+        channel: "whatsapp",
+        raw: msg,
+        userDoc: msg.userDoc,
+        buttonReply: { ...match, resultAction: data.resultAction, context },
+      });
     }
+  }
+
+  /**
+   * Match a reply to one of the buttons sent by sendButtons(): by 1-based
+   * index, by id (case-insensitive), or by label (case-insensitive).
+   * @returns {{id:string,label:string}|null}
+   */
+  _resolveButtonReply(input, buttons) {
+    if (!input || !Array.isArray(buttons) || buttons.length === 0) return null;
+    const trimmed = String(input).trim();
+    if (!trimmed) return null;
+
+    if (/^\d+$/.test(trimmed)) {
+      const idx = parseInt(trimmed, 10) - 1;
+      return buttons[idx] || null;
+    }
+
+    const lower = trimmed.toLowerCase();
+    return (
+      buttons.find((b) => b.id?.toLowerCase() === lower) ||
+      buttons.find((b) => b.label?.toLowerCase() === lower) ||
+      null
+    );
+  }
+
+  /**
+   * WhatsApp deprecated real interactive-button messages for unofficial
+   * clients, so this sends a numbered list and arms a pendingInputs entry
+   * that _resolveButtonReply()/_executePending() resolve on the next reply.
+   * @param {string} jid
+   * @param {{title:string, buttons:Array<{id:string,label:string}>, resultAction:string}} opts
+   */
+  async sendButtons(jid, { title, buttons, resultAction }) {
+    if (!Array.isArray(buttons) || buttons.length === 0) {
+      throw new Error("sendButtons requires a non-empty buttons array");
+    }
+    const list = buttons.map((b, i) => `${i + 1}. ${b.label}`).join("\n");
+    const text = `*${title}*\n\n${list}\n\nReply with a number.`;
+    this.pendingInputs.set(jid, { action: "button_reply", data: { buttons, resultAction } });
+    return this.send(jid, text);
   }
 
   /**

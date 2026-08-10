@@ -397,6 +397,7 @@ class MikroTikManager extends EventEmitter {
     disconnect() {
         if (this.state.isClosing) return;
         this.state.isClosing = true;
+        this._clearIntervals();
 
         if (!this.state.isConnected && !this.state.client) {
             this.state.isClosing = false;
@@ -404,7 +405,6 @@ class MikroTikManager extends EventEmitter {
         }
 
         logger.info('Disconnecting from MikroTik...');
-        this._clearIntervals();
 
         if (this.state.client) {
             try {
@@ -963,8 +963,10 @@ class MikroTikManager extends EventEmitter {
     }
 
     async editHotspotUser(usernameOrObj, paramsArg) {
-        let username = typeof usernameOrObj === 'object' ? (usernameOrObj.username || usernameOrObj.target) : usernameOrObj;
-        let params = typeof usernameOrObj === 'object' ? usernameOrObj : paramsArg;
+        let username = typeof usernameOrObj === 'object'
+            ? (usernameOrObj.username || usernameOrObj.target || usernameOrObj.name || usernameOrObj.user || usernameOrObj.id)
+            : usernameOrObj;
+        let params = (typeof usernameOrObj === 'object' && usernameOrObj !== null) ? usernameOrObj : (paramsArg || {});
 
         await this._ensureConnected();
         if (!username) throw new ToolExecutionError('user.edit', 'Username required');
@@ -974,16 +976,24 @@ class MikroTikManager extends EventEmitter {
             .where('name', username)
             .get();
 
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             throw new ToolExecutionError('user.edit', `User '${username}' not found`);
         }
 
         const id = this._getId(users[0]);
+        if (!id) {
+            logger.error(`MikroTikManager: Found user '${username}' but missing ID. User object: ${JSON.stringify(users[0])}`);
+            return { updated: false, reason: 'missing_id', username, user: users[0] };
+        }
+
         const update = {};
 
         if (params.password) update.password = params.password;
         if (params.profile) update.profile = this._normalizeProfile(params.profile);
-        if (params.comment) update.comment = params.comment;
+        if (params.comment != null) update.comment = params.comment;
+        if (params.limitUptime != null) update['limit-uptime'] = String(params.limitUptime);
+        if (params.disabled != null) update.disabled = params.disabled ? 'yes' : 'no';
+        if (params.email != null) update.email = params.email;
 
         if (Object.keys(update).length === 0) {
             return { updated: false, reason: 'No fields to update', username };

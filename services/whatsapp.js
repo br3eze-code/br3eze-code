@@ -7,9 +7,7 @@ import makeWASocket, {
 import QRCode from 'qrcode';
 import fs from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const logger = require('../utils/logger'); // Your existing logger — NOTE: this path does not exist (pre-existing, unrelated to ESM migration); file has no importers anywhere in the repo
+import { logger } from '../src/core/logger.js';
 
 class WhatsAppService {
     constructor(config = {}) {

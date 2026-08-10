@@ -131,8 +131,8 @@ class AgentHarness extends EventEmitter {
     if (this._started) return this;
 
     // Lazy-load AgentKernel & ToolRegistry to avoid circular deps at require time
-    const AgentKernel   = require('../core/agentKernel');
-    const { ToolRegistry } = require('../core/ToolRegistry');
+    const AgentKernel = (await import('../core/agentKernel.js')).default;
+    const { ToolRegistry } = await import('../core/ToolRegistry.js');
 
     this._kernel   = new AgentKernel({ dbPath: this._opts.dbPath });
     this._registry = new ToolRegistry();

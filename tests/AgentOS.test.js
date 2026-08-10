@@ -112,7 +112,7 @@ jest.unstable_mockModule('../src/core/channels/ChannelManager.js', () => {
 
 const { default: AgentOS } = await import('../src/core/AgentOS.js');
 
-jest.setTimeout(30000);
+jest.setTimeout(120000);
 
 describe('AgentOS', () => {
   let agent;

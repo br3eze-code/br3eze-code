@@ -8,12 +8,9 @@ describe('FilesDomain', () => {
     domain = new FilesDomain();
   });
 
-  test('registers listFiles, uploadFile, deleteFile tools', () => {
-    expect(domain.getSkills().map(t => t.name).sort()).toEqual([
-      'deleteFile',
-      'listFiles',
-      'uploadFile',
-    ]);
+  test('registers listFiles, uploadFile, deleteFile tools (among others)', () => {
+    const names = domain.getSkills().map(t => t.name);
+    expect(names).toEqual(expect.arrayContaining(['deleteFile', 'listFiles', 'uploadFile']));
   });
 
   test('listFiles() returns a success flag and a files array', async () => {

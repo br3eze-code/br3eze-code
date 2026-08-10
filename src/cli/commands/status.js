@@ -103,8 +103,8 @@ export default (program) => {
           if (mikrotik) {
             try {
               // Ensure we don't await a disconnect on an already closing/closed connection
-              if (mikrotik.isConnected && !mikrotik.isClosing) {
-                await mikrotik.disconnect().catch(() => {});
+              if (!mikrotik.isClosing) {
+                await mikrotik.disconnect();
               }
             } catch (e) {
               // Silently ignore disconnect errors
@@ -126,6 +126,7 @@ export default (program) => {
         } else {
           renderStatus(statusData, BRAND);
         }
+        process.exit(0);
 
       } catch (error) {
         log.error(`Status failed: ${error.message}`);

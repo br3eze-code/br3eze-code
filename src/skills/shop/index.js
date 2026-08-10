@@ -1,8 +1,6 @@
 import { BaseSkill } from '../base.js';
 import * as shop from '../../core/shop.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getCourierGateway } from '../../core/courier-gateway.js';
 
 class ShopSkill extends BaseSkill {
   static id = 'shop';
@@ -191,7 +189,6 @@ class ShopSkill extends BaseSkill {
       case 'shop.track_shipment':
         return shop.trackShipment(args.orderId);
       case 'shop.list_couriers': {
-        const { getCourierGateway } = require('../../core/courier-gateway');
         return getCourierGateway().getAvailableProviders();
       }
       case 'shop.submit_review': {

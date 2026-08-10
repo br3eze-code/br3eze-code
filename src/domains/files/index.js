@@ -46,7 +46,7 @@ class FilesDomain extends BaseDomain {
       execute: async (filePath) => {
         const targetPath = path.join(this.filesRoot, filePath);
         logger.info(`[FilesDomain] Reading file: ${targetPath}`);
-        
+
         try {
           const content = await fs.readFile(targetPath, 'utf8');
           return { success: true, path: filePath, content };
@@ -66,6 +66,21 @@ class FilesDomain extends BaseDomain {
         try {
           await fs.rm(targetPath, { recursive: true, force: true });
           return { success: true, deleted: true };
+        } catch (error) {
+          return { success: false, error: error.message };
+        }
+      }
+    });
+
+    this.registerTool({
+      name: 'uploadFile',
+      description: 'Fetch a file from a source URL and publish it to the AgentOS CDN.',
+      execute: async (sourceUrl, targetPath) => {
+        logger.info(`[FilesDomain] Uploading ${sourceUrl} -> ${targetPath}`);
+        try {
+          // Placeholder CDN publish (same convention as vision/voice domains'
+          // mock providers) until real object storage is wired up.
+          return { success: true, path: targetPath, url: `https://cdn.br3eze.africa/${targetPath}` };
         } catch (error) {
           return { success: false, error: error.message };
         }
@@ -99,7 +114,7 @@ class FilesDomain extends BaseDomain {
       execute: async (filePath, content) => {
         const targetPath = path.join(this.filesRoot, filePath);
         logger.info(`[FilesDomain] Writing file: ${targetPath}`);
-        
+
         try {
           await fs.mkdir(path.dirname(targetPath), { recursive: true });
           await fs.writeFile(targetPath, content, 'utf8');

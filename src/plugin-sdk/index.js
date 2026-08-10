@@ -76,3 +76,5 @@ const snapshot = () => ({
 });
 
 export { registerDomain, getDomain, hasDomain, listDomains, registerChannel, getChannel, listChannels, registerProvider, getProvider, listProviders, hasProvider, registerSkill, getSkill, listSkills, hasSkill, snapshot };
+
+export default { registerDomain, getDomain, hasDomain, listDomains, registerChannel, getChannel, listChannels, registerProvider, getProvider, listProviders, hasProvider, registerSkill, getSkill, listSkills, hasSkill, snapshot };

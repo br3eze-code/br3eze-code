@@ -1,8 +1,7 @@
 import { BaseDriver } from '../base.js';
 import { logger } from '../../core/logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import * as printerService from '../../core/printer.js';
+import * as voucherManager from '../../core/voucher.js';
 
 
 class AgentOSCoreDriver extends BaseDriver {
@@ -30,99 +29,105 @@ class AgentOSCoreDriver extends BaseDriver {
       },
       'agentos.printer.test': {
         risk: 'low',
-        description: 'Print a diagnostic test page to the connected thermal printer',
+        description: 'Send a test print page to the configured thermal printer',
         parameters: {
           type: 'object',
           properties: {
-            text: { type: 'string', description: 'Optional text to include in the test print' }
+            text: { type: 'string', description: 'Optional custom text to print' }
           }
         }
       },
       'agentos.printer.list': {
         risk: 'low',
-        description: 'List all available printer interfaces (COM ports, Windows Spoolers)',
-        parameters: { type: 'object', properties: {} }
-      },
-      'agentos.channels.status': {
-        risk: 'low',
-        description: 'Get connection status and metadata for all messaging channels',
+        description: 'List available hardware interfaces (COM ports, serial devices) for printing',
         parameters: { type: 'object', properties: {} }
       },
       'agentos.voucher.create': {
         risk: 'medium',
-        description: 'Create a new MikroTik hotspot voucher and optionally print it',
+        description: 'Generate hotspot voucher(s) and automatically print them',
         parameters: {
           type: 'object',
           properties: {
-            profile: { type: 'string', description: 'The profile to use (e.g. 1Hour, 1Day)' },
-            print: { type: 'boolean', description: 'If true, sends to thermal printer', default: true },
-            interface: { type: 'string', description: 'The printer interface to use (e.g. serial:COM7, printer:POS-58C)' },
-            quantity: { type: 'integer', description: 'Number of vouchers to create in bulk', default: 1 }
-          },
-          required: ['profile']
+            profile: { type: 'string', description: 'Hotspot profile (e.g. 1Hour, 1Day, 7Day, 30Day)', default: '1Hour' },
+            quantity: { type: 'number', description: 'Number of vouchers to generate (default: 1)', default: 1 },
+            print: { type: 'boolean', description: 'Whether to print to thermal printer', default: true },
+            interface: { type: 'string', description: 'Specific COM port interface or null for auto' }
+          }
         }
       },
       'agentos.voucher.print': {
         risk: 'low',
-        description: 'Print an existing voucher',
+        description: 'Print an existing voucher object to the thermal printer',
         parameters: {
           type: 'object',
           properties: {
-            voucher: { type: 'object', description: 'Voucher data' },
-            interface: { type: 'string', description: 'Printer interface' }
+            voucher: {
+              type: 'object',
+              description: 'Voucher object with username, password, profile, loginUrl',
+              required: ['username', 'password']
+            },
+            interface: { type: 'string', description: 'Specific COM port interface or null for auto' }
           },
           required: ['voucher']
         }
+      },
+      'agentos.channels.status': {
+        risk: 'low',
+        description: 'Check connectivity status of all configured messaging channels',
+        parameters: { type: 'object', properties: {} }
       }
     };
   }
 
-  async execute(toolName, args, ctx) {
-    const agent = ctx.agent || ctx.registry?.agent;
-    if (!agent) throw new Error('AgentOS instance not found in context');
+  async execute(action, args = {}, context = {}) {
+    this.logger?.info?.(`[AgentOSCoreDriver] Executing ${action}`, { args });
+    const agent = context.agent || context.registry?.agent;
 
-    switch (toolName) {
+    switch (action) {
       case 'agentos.broadcast': {
-        const prefix = args.urgent ? '🚨 *URGENT BROADCAST* 🚨\n\n' : '📢 *AgentOS Broadcast*\n\n';
-        await agent.sendToAll(prefix + args.message);
-        return { success: true, message: 'Broadcast sent to all active channels' };
+        const message = args.urgent ? `⚠️ URGENT: ${args.message}` : args.message;
+        if (context.channels) {
+          try {
+            await context.channels.broadcast(message);
+            return { success: true, message: 'Broadcast dispatched to all active channels' };
+          } catch (err) {
+            return { success: false, error: err.message };
+          }
+        }
+        return { success: false, error: 'ChannelManager not available in execution context' };
       }
 
-      case 'agentos.printer.test':
-        const printer = require('../../core/printer');
+      case 'agentos.printer.test': {
         const testData = args.text || 'AgentOS Thermal Printer Test Page\n' + new Date().toLocaleString();
         try {
-          await printer.printVoucher({
+          await printerService.printVoucher({
             username: 'TEST-USER',
             password: 'TEST-PASSWORD',
             profile: 'DIAGNOSTIC',
-            loginUrl: 'http://hotspot.local/login'
+            loginUrl: 'http://br3eze.africa/login'
           });
           return { success: true, message: 'Test page sent to printer' };
         } catch (err) {
           return { success: false, error: err.message };
         }
+      }
 
-      case 'agentos.printer.list':
-        const printerServiceList = require('../../core/printer');
+      case 'agentos.printer.list': {
         try {
-          const interfaces = await printerServiceList.listAvailableInterfaces();
+          const interfaces = await printerService.listAvailableInterfaces();
           return { success: true, interfaces };
         } catch (err) {
           return { success: false, error: err.message };
         }
+      }
 
-      case 'agentos.voucher.create':
-        const voucherManager = require('../../core/voucher');
-        const printerService = require('../../core/printer');
-
+      case 'agentos.voucher.create': {
         try {
           const quantity = args.quantity || 1;
           const vouchers = [];
-          const results = [];
+          const resList = [];
 
           for (let i = 0; i < quantity; i++) {
-            // 1. Generate the voucher (handles DB and MikroTik sync)
             const voucher = await voucherManager.createVoucher(args.profile);
             vouchers.push(voucher);
 
@@ -136,32 +141,34 @@ class AgentOSCoreDriver extends BaseDriver {
               }, args.interface || 'PRINTER_MAIN');
               printStatus = printResult.success ? 'printed' : `failed: ${printResult.error}`;
             }
-            results.push({ username: voucher.username, printStatus });
+            resList.push({ username: voucher.username, printStatus });
           }
 
           return {
             success: true,
             message: `Bulk creation finished: ${quantity} vouchers created.`,
-            results
+            results: resList
           };
         } catch (err) {
           return { success: false, error: err.message };
         }
+      }
 
-      case 'agentos.voucher.print':
-        const printService = require('../../core/printer');
+      case 'agentos.voucher.print': {
         try {
-          const result = await printService.printVoucher(args.voucher, args.interface || 'PRINTER_MAIN');
+          const result = await printerService.printVoucher(args.voucher, args.interface || 'PRINTER_MAIN');
           return result;
         } catch (err) {
           return { success: false, error: err.message };
         }
+      }
 
       case 'agentos.channels.status':
+        if (!agent) throw new Error('AgentOS instance not found in context');
         return agent.channels.getStatus();
 
       default:
-        throw new Error(`Tool ${toolName} not implemented in AgentOS core driver`);
+        throw new Error(`Tool ${action} not implemented in AgentOS core driver`);
     }
   }
 }

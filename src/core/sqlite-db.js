@@ -160,6 +160,22 @@ class SQLiteDB {
             return data;
         }
     }
+
+    /**
+     * Deserialize a raw `users` table row into the same shape the
+     * Firestore/in-memory tiers return (JSON columns parsed, `id` aliased
+     * from `uid`).
+     */
+    static rowToUser(row) {
+        if (!row) return null;
+        return {
+            ...row,
+            id: row.uid,
+            channels: SQLiteDB.fromDB(row.channels) || {},
+            subscriptions: SQLiteDB.fromDB(row.subscriptions) || [],
+            pendingNotification: SQLiteDB.fromDB(row.pendingNotification),
+        };
+    }
 }
 
 // Singleton

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import admin from 'firebase-admin';
 import { logger } from './logger.js';
 import { STATE_PATH, getConfig } from './config.js';
+import { SQLiteDB, getSQLite } from './sqlite-db.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -110,7 +111,7 @@ class Database {
     async _init() {
         try {
             // Always initialize SQLite as the persistent local state
-            const { getSQLite } = require('./sqlite-db');
+            const { getSQLite } = await import('./sqlite-db.js');
             this.sqlite = await getSQLite();
             logger.info('Database: SQLite initialized');
 
@@ -1032,6 +1033,7 @@ class Database {
         };
         if (this.db) await this.db.collection('users').doc(id).set(doc, { merge: true });
         else { this._users.set(id, doc); this._saveLocal('users'); }
+        this._sqliteUpsertUser(id, doc);
         return doc;
     }
 
@@ -1043,6 +1045,43 @@ class Database {
             const existing = this._users.get(id) || {};
             this._users.set(id, { ...existing, ...safeUpdates });
             this._saveLocal('users');
+        }
+        this._sqliteUpsertUser(id, safeUpdates);
+    }
+
+    /**
+     * Best-effort mirror of a user doc into the SQLite `users` table, so
+     * getUserBy.../linkChannel have a durable local tier to fall back to when
+     * Firestore is unavailable. Merges onto any existing row so a partial
+     * updateUser() doesn't blow away previously-set columns.
+     */
+    _sqliteUpsertUser(id, patch) {
+        if (!this.sqlite) return;
+        try {
+            const existing = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id) || {};
+            const merged = { ...SQLiteDB.rowToUser(existing), ...patch, uid: id };
+            this.sqlite.prepare(`INSERT OR REPLACE INTO users
+                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, createdAt, lastSeen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+                id,
+                merged.username || null,
+                merged.fullname || null,
+                merged.email || null,
+                merged.phoneNumber || null,
+                merged.address || null,
+                merged.platform || null,
+                merged.deviceModel || null,
+                merged.lastIP || null,
+                merged.role || 'user',
+                merged.credits || 0,
+                SQLiteDB.toDB(merged.subscriptions || []),
+                SQLiteDB.toDB(merged.pendingNotification || null),
+                SQLiteDB.toDB(merged.channels || {}),
+                merged.createdAt || this._ts(),
+                merged.lastSeen || this._ts(),
+            );
+        } catch (e) {
+            logger.warn(`SQLite user upsert failed for ${id}: ${e.message}`);
         }
     }
 

@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import EventEmitter from 'events';
 import { logger } from './logger.js';
 import yaml from 'js-yaml';
@@ -78,7 +79,9 @@ class SkillRegistry extends EventEmitter {
 
       let impl;
       if (fss.existsSync(implPath)) {
-        impl = require(path.resolve(implPath));
+        const fileUrl = pathToFileURL(path.resolve(implPath)).href;
+        const mod = await import(fileUrl);
+        impl = mod.default || mod;
       } else {
         impl = {};
       }

@@ -9,11 +9,22 @@
  * ~/.agentos state, and cleaned up afterward.
  */
 
+import { jest } from '@jest/globals';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
 process.env.AGENTOS_PROFILE = 'test-sqlite-fallback';
+
+// This suite exercises the SQLite-only fallback path specifically, so
+// firebase-admin is mocked to never actually initialize an app — this repo's
+// .env carries real production Firebase credentials that aren't scoped by
+// AGENTOS_PROFILE, and without this mock the suite would create/query real
+// documents in the production project instead of testing the fallback tier.
+jest.unstable_mockModule('firebase-admin', () => {
+  const admin = { apps: [], credential: { cert: jest.fn() }, initializeApp: jest.fn() };
+  return { ...admin, default: admin };
+});
 
 const profileDir = path.join(os.homedir(), '.agentos-test-sqlite-fallback');
 
