@@ -1614,7 +1614,8 @@ app.post('/api/payment-method/save', async (req, res) => {
         await _stripeAxios.post(`https://api.stripe.com/v1/customers/${customerId}`, _stripeForm({
             'invoice_settings[default_payment_method]': paymentMethodId,
         }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-        const pm = await _stripeAxios.get(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}`, { auth });
+        const pmUrl = new URL(`/v1/payment_methods/${encodeURIComponent(paymentMethodId)}`, 'https://api.stripe.com');
+        const pm = await _stripeAxios.get(pmUrl.toString(), { auth });
         const card = pm.data.card ? {
             brand: pm.data.card.brand, last4: pm.data.card.last4,
             expMonth: pm.data.card.exp_month, expYear: pm.data.card.exp_year,
