@@ -2,130 +2,42 @@
 
 Thank you for considering contributing to AgentOS!
 
-## How to Contribute
+Important note — live vs legacy code
+- This repository contains multiple generations of the same subsystems. Some files are legacy, duplicated, or kept for historical reasons. See CLAUDE.md for a comprehensive list of known legacy files.
+- Before editing, confirm the file is on the live boot path (see docs/DEVELOPER_ONBOARDING.md). Editing legacy files can introduce confusion and accidental regressions.
 
-1. **Fork** the repository
+How to contribute (short)
+1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests where applicable
-5. Commit with clear messages
-6. Push to your branch and open a **Pull Request**
+4. Add tests where applicable (`tests/`)
+5. Run lint and tests: `npm run lint && npm test`
+6. Commit with clear messages
+7. Push and open a Pull Request
 
-## Development Setup
-
+Development setup
 ```bash
 git clone https://github.com/br3eze-code/br3eze-code.git
 cd br3eze-code
 npm install
 cp .env.example .env
 npm run dev
+```
 
 Good First Issues
+- Add a messaging adapter or improve an existing one (Telegram, WhatsApp) — follow the adapters in src/core/channels/
+- Improve voucher QR code design
+- Add Prometheus metrics exporter
+- Write more integration tests
+- Polish VS Code extension (vscode-extension/)
 
-Add new messaging adapter (Whatsapp,Telegram,Signal, Discord, Slack)
-Improve voucher QR code design
-Add Prometheus metrics exporter
-Write more integration tests
-Polish VS Code extension
+Code style
+- Use ESLint (run `npm run lint`) and prefer `async/await`
+- Keep skills modular in `skills/`
+- Document new skills in SKILL.md
 
-Code Style
-
-Use ESLint (run npm run lint)
-Prefer async/await
-Keep skills modular in the skills/ folder
-Document new skills in SKILL.md
-
-Adding a New Skill
-
-Create a new file in skills/
-Export a function that accepts context and params
-Register it in skills/manifest.yaml
-Update SKILL.md with description and examples
+Adding a new payment provider
+- Add a provider under `src/payments/providers/` and register it with the payment gateway (src/payments/payment-gateway.js). See docs/payments/mastercard.md for a template and guidance.
 
 Questions?
-Open an issue or join discussions in the repo.
-
-### 2. Create Folder `docs/` and These Files Inside It
-
-**`docs/install.md`**
-
-```markdown
-# Installation Guide
-
-## Prerequisites
-- Node.js 22+
-- MikroTik RouterOS (v7 recommended)
-- Google Gemini API key
-- Firebase project (for persistence)
-
-## Quick Install
-
-```bash
-git clone https://github.com/br3eze-code/br3eze-code.git
-cd br3eze-code
-npm install
-cp .env.example .env
-# Edit .env with your keys
-```
-Docker / Podman
-```
-docker-compose up -d
-# or
-./setup-podman.sh
-```
-PowerShell (Windows)
-```
-.\Setup-AgentOS.ps1
-```
-Nix
-```
-nix develop
-```
-See also: Dockerfile, docker-compose.yml, flake.nix
-```
-
-**`docs/telegram.md`**
-
-```markdown
-# Telegram Bot Setup
-
-1. Talk to [@BotFather](https://t.me/botfather) on Telegram
-2. Create a new bot and copy the token
-3. Add the token to your `.env` as `TELEGRAM_BOT_TOKEN`
-4. Start the gateway:
-```
-agentos gateway --telegram
-```
-See also: Dockerfile, docker-compose.yml, flake.nix
-
-**`docs/telegram.md`**
-
-```markdown
-# Telegram Bot Setup
-
-1. Talk to [@BotFather](https://t.me/botfather) on Telegram
-2. Create a new bot and copy the token
-3. Add the token to your `.env` as `TELEGRAM_BOT_TOKEN`
-4. Start the gateway:
-
-```bash
-agentos gateway --telegram
-
-Features:
-
-Natural language commands
-Inline keyboards for confirmations
-Voucher delivery with QR code
-
-**`docs/whatsapp.md`**
-
-```markdown
-# WhatsApp Integration (Baileys)
-
-Uses multi-device Baileys library.
-
-1. Set `WHATSAPP_ENABLED=true` in `.env`
-2. Run the gateway
-3. Scan the QR code from the terminal (first time only)
-
-Supports the same natural language commands as Telegram.
+Open an issue or start a discussion in the repo.
