@@ -1,5 +1,6 @@
 import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
+import { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw } from './printer.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -101,11 +102,27 @@ const FUNCTION_DECLARATIONS = [
         parameters: {
             type: 'object',
             properties: {
-                action: { type: 'string', enum: ['revenue_report', 'verify_payment', 'audit_log', 'trends', 'payment_link', 'transfer'] },
+                action: { type: 'string', enum: ['revenue_report', 'verify_payment', 'payment_status', 'payment_methods', 'audit_log', 'trends', 'payment_link', 'transfer'] },
                 target: { type: 'string', description: 'Payment ID, reference, or recipient username for transfer' },
+                provider: { type: 'string', description: 'Payment provider identifier for status checks' },
+                country: { type: 'string', description: 'ISO country code used for available payment methods' },
+                device: { type: 'string', description: 'Client device class used for available payment methods' },
                 plan: { type: 'string', description: 'Plan name for payment link' },
                 amount: { type: 'number', description: 'Amount for transfer or link' },
                 from: { type: 'string', description: 'Sender username (optional, defaults to current)' }
+            },
+            required: ['action']
+        }
+    },
+    {
+        name: 'manage_printer',
+        description: 'Discover printers, inspect printer status, test a printer connection, or send a raw print job.',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: { type: 'string', enum: ['list', 'status', 'test', 'print'] },
+                interface: { type: 'string', description: 'Printer interface or queue identifier' },
+                content: { type: 'string', description: 'Text content for a raw print job' }
             },
             required: ['action']
         }
@@ -175,11 +192,13 @@ class AskEngine {
      *   - financial: FinancialService instance (optional)
      *   - llm:       LLMCoordinator instance (optional — rule-only if absent)
      */
-    constructor({ mikrotik, database, financial, billing, discovery, memory, llm } = {}) {
+    constructor({ mikrotik, database, financial, billing, paymentService, printer, discovery, memory, llm } = {}) {
         this.mikrotik = mikrotik;
         this.database = database;
         this.financial = financial;
         this.billing = billing;
+        this.paymentService = paymentService || billing;
+        this.printer = printer || { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw };
         this.discovery = discovery;
         this.memory = memory;
         this.llm = llm;
@@ -829,13 +848,37 @@ class AskEngine {
         }
 
         if (name === 'manage_finance') {
+            const paymentService = this.paymentService;
             if (action === 'revenue_report' && this.database) return this.database.getRevenue(args.period || 'daily');
             if (action === 'revenue_report' && this.financial) return this.financial.getRevenueReport();
             if (action === 'verify_payment' && this.billing) return this.billing.verifyPayment(target);
+            if (action === 'payment_status' && paymentService?.gateway) {
+                if (!args.provider || !target) return { error: 'provider and target are required' };
+                return paymentService.gateway.verifyPayment(args.provider, target);
+            }
+            if (action === 'payment_methods' && paymentService?.getAvailablePaymentMethods) {
+                return paymentService.getAvailablePaymentMethods({
+                    country: args.country || context.country || 'ZW',
+                    device: args.device || context.device || 'unknown'
+                });
+            }
             if (action === 'audit_log' && this.financial) return this.financial.auditTrail(5);
             if (action === 'trends' && this.financial) return this.financial.getTrends();
             if (action === 'payment_link' && this.billing) return this.billing.createPaymentLink({ plan, amount });
             if (action === 'transfer' && this.database) return this.database.p2pTransfer(args.from || currentUid || 'system', target, args.amount);
+        }
+
+        if (name === 'manage_printer') {
+            const printer = this.printer;
+            if (action === 'list' && printer?.listAvailableInterfaces) return printer.listAvailableInterfaces();
+            if (action === 'status' && printer?.getPrinterStatus) return printer.getPrinterStatus();
+            if (action === 'test' && printer?.testPrinterConnection) {
+                return printer.testPrinterConnection({ interface: args.interface || context.printer?.interface });
+            }
+            if (action === 'print' && printer?.printRaw) {
+                if (!args.content) return { success: false, error: 'content is required' };
+                return printer.printRaw(Buffer.from(args.content, 'utf8'), { interface: args.interface || context.printer?.interface });
+            }
         }
 
         if (name === 'manage_roaming' && this.database) {
