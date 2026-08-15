@@ -6,9 +6,7 @@
     // ── Target ─────────────────────────────────────────────
     // Node 22 supports all ES2022 features natively.
     "target": "ES2022",
-    "lib": [
-      "ES2022"
-    ],
+    "lib": ["ES2022"],
     // ── Module system ───────────────────────────────────────
     "module": "CommonJS",
     "moduleResolution": "Node",
@@ -29,24 +27,13 @@
     // ── Path aliases ──
     "baseUrl": ".",
     "paths": {
-      "@core/*": [
-        "src/core/*"
-      ],
-      "@utils/*": [
-        "src/utils/*"
-      ],
-      "@agents/*": [
-        "agents/*"
-      ],
-      "@adapters/*": [
-        "adapters/*"
-      ]
+      "@core/*": ["src/core/*"],
+      "@utils/*": ["src/utils/*"],
+      "@agents/*": ["agents/*"],
+      "@adapters/*": ["adapters/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.js"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.js"],
   "exclude": [
     "node_modules",
     "dist",

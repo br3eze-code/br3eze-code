@@ -2,7 +2,7 @@ name: Autonomous Audit
 
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Sunday 02:00 UTC = 04:00 Africa/Harare
+    - cron: '0 2 * * 0' # Sunday 02:00 UTC = 04:00 Africa/Harare
   workflow_dispatch:
 
 permissions:

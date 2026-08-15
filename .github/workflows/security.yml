@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 3 * * 1'   # Weekly Monday 03:00 UTC
+    - cron: '0 3 * * 1' # Weekly Monday 03:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -25,13 +25,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: npm audit --audit-level=high --json > npm-audit.json || true
+      - name: Run npm audit
+        run: npm audit --audit-level=high --json > npm-audit.json
       - name: Summarise audit
         run: |
           CRITICAL=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.critical||0)")
           HIGH=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.high||0)")
           echo "Critical: $CRITICAL  High: $HIGH"
-          [ "$CRITICAL" -gt 0 ] && echo "⚠️  Critical vulnerabilities found!" || true
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "High or critical vulnerabilities found. See npm-audit.json."
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -49,12 +53,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - run: node scripts/security-check.js
+      - name: Run repository security checks
+        run: node scripts/security-check.js
         env:
           NODE_ENV: test
           DATA_BACKEND: local
           LLM_PROVIDER: gemini
-        continue-on-error: true
 
   codeql:
     name: CodeQL
@@ -81,7 +85,7 @@ jobs:
       - uses: github/codeql-action/analyze@v3
         with:
           category: /language:javascript
-        continue-on-error: true   # CodeQL quota issues shouldn't block
+        continue-on-error: true # CodeQL quota issues shouldn't block
 
   secret-scan:
     name: Secret scan (gitleaks)
@@ -93,4 +97,3 @@ jobs:
       - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true

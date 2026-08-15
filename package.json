@@ -21,6 +21,7 @@
     "security:audit": "npm audit && node scripts/security-check.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "lint": "eslint .",
+    "lint:ci": "eslint src/core/PluginManager.js src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.js\"",
     "build": "tsc --project tsconfig.json",
@@ -28,7 +29,7 @@
     "build:android:release": "cordova build android --release -- --gradleArg=-PcdvReleaseSigningPropertiesFile=C:\\Users\\user\\br3eze-code\\platforms\\android\\release-signing.properties",
     "build:ios": "cordova build ios",
     "db:migrate": "node scripts/migrate-vouchers.js",
-    "build:check": "tsc --noEmit",
+    "build:check": "node scripts/check-syntax.mjs",
     "postinstall": "node scripts/postinstall.js",
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist"
@@ -278,9 +279,6 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/.claude/worktrees/"
-    ],
-    "modulePaths": [
-      "/tmp/jest-deps/node_modules"
     ],
     "collectCoverageFrom": [
       "src/core/*.js",

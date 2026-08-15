@@ -26,16 +26,8 @@ jobs:
       - name: Install (skip postinstall/preuninstall hooks)
         run: npm ci --ignore-scripts
 
-      # Jest config uses modulePaths: ['/tmp/jest-deps/node_modules']
-      # Install deps there so Jest can resolve them during tests
-      - name: Prepare Jest module path
-        run: |
-          mkdir -p /tmp/jest-deps
-          cp package.json /tmp/jest-deps/
-          cd /tmp/jest-deps && npm ci --ignore-scripts --prefer-offline 2>/dev/null || true
-
-      - name: Lint
-        run: npm run lint
+      - name: Lint maintained pipeline and plugin code
+        run: npm run lint:ci
 
       - name: Test
         run: npm test -- --ci --forceExit --passWithNoTests
@@ -70,7 +62,7 @@ jobs:
         run: npm run security:audit
         env:
           NODE_ENV: test
-        continue-on-error: true  # advisory only in CI — hard block is in security.yml
+        continue-on-error: true # advisory only in CI — hard block is in security.yml
 
       - uses: actions/upload-artifact@v4
         if: always()

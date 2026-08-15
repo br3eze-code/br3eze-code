@@ -4,6 +4,11 @@ import mikrotik from '../agents/mikrotik.agent.js';
 
 // src/interfaces/api.js
 const router = express.Router();
+const sessionManager = { getAllSessions: () => [] };
+const voucherAgent = {
+    async generate() { throw new Error('Voucher agent is not configured'); },
+    redeem() { throw new Error('Voucher agent is not configured'); }
+};
 
 router.get('/health', (req, res) => {
     res.json({
@@ -124,8 +129,9 @@ app.post('/user', auth, async (req, res) => {
     res.json({ status: 'created' });
 });
 
-export default app;
+const legacyApp = app;
 
+export { legacyApp };
 export default (agent) => {
 
     router.post('/execute', async (req, res) => {

@@ -2,8 +2,8 @@ name: 🧾 Daily Accounting Report
 
 on:
   schedule:
-    - cron: '0 2 * * *'    # daily 02:00 UTC
-    - cron: '0 2 * * 1'    # weekly Monday 02:00 UTC
+    - cron: '0 2 * * *' # daily 02:00 UTC
+    - cron: '0 2 * * 1' # weekly Monday 02:00 UTC
   push:
     branches: [main, develop]
     paths:
@@ -46,13 +46,13 @@ jobs:
       actions: read
 
     outputs:
-      report_path:   ${{ steps.report.outputs.path }}
+      report_path: ${{ steps.report.outputs.path }}
       total_revenue: ${{ steps.report.outputs.total_revenue }}
-      total_txns:    ${{ steps.report.outputs.total_txns }}
+      total_txns: ${{ steps.report.outputs.total_txns }}
       anomaly_count: ${{ steps.report.outputs.anomaly_count }}
-      failure_rate:  ${{ steps.report.outputs.failure_rate }}
+      failure_rate: ${{ steps.report.outputs.failure_rate }}
       # Fix: expose period so downstream jobs can reference it
-      period:        ${{ steps.dates.outputs.from }}
+      period: ${{ steps.dates.outputs.from }}
       artifact_name: ${{ steps.artifact_name.outputs.name }}
 
     steps:
