@@ -1,5 +1,5 @@
-import EventEmitter from 'events';
 import path from 'path';
+import { EventEmitter } from 'node:events';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
