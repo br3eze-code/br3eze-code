@@ -41,6 +41,7 @@ function syncIsDir(p) {
 class ToolRegistry {
   constructor(options = {}) {
     this.skillsPath = options.skillsPath || path.join(process.cwd(), 'src/skills');
+    this.workspace = options.workspace || process.cwd();
     this.tools = new Map();   // fullName → ToolEntry
     this.skills = new Map();   // skillName → SkillEntry
     this.hooks = new Map();   // global hooks (future use)
@@ -374,8 +375,9 @@ class ToolRegistry {
     if (!hasToolsDir && hasIndex) {
       try {
         delete require.cache[require.resolve(indexPath)];
-        const Cls = require(indexPath);
-        indexModule = typeof Cls === 'function' ? new Cls({}, this.logger) : Cls;
+        const exported = require(indexPath);
+        const Cls = exported?.default || exported;
+        indexModule = typeof Cls === 'function' ? new Cls({}, this.logger, this.workspace) : Cls;
       } catch (err) {
         this.logger.warn(`Skill "${manifest.name}": failed to load index.js — ${err.message}`);
       }

@@ -1,0 +1,52 @@
+name: workspace
+version: 1.0.0
+description: Safe domain-agnostic typed file operations inside the AgentOS workspace
+author: br3eze
+license: Apache-2.0
+tools:
+  - name: files
+    description: Inspect workspace files and directories without changing them.
+    risk: low
+    parameters:
+      - name: operation
+        type: string
+        required: true
+        description: list, read, or diff
+      - name: path
+        type: string
+        required: false
+        description: Workspace-relative path
+      - name: range
+        type: array
+        required: false
+        description: Optional 1-based line range [start,end]
+    returns: object
+  - name: edit
+    description: Create, replace, patch, rename, delete, or undo workspace files; mutations require explicit approval.
+    risk: high
+    parameters:
+      - name: operation
+        type: string
+        required: true
+        description: write, patch, rename, delete, or undo
+      - name: path
+        type: string
+        required: false
+        description: Workspace-relative source path
+      - name: destination
+        type: string
+        required: false
+        description: Workspace-relative destination for rename
+      - name: content
+        type: string
+        required: false
+        description: Complete replacement content for write
+      - name: edits
+        type: array
+        required: false
+        description: Ordered find/replace edits for patch
+      - name: undoId
+        type: string
+        required: false
+        description: Undo record identifier
+    returns: object
