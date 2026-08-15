@@ -1,7 +1,5 @@
 import promClient from 'prom-client';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { costTracker } from './cost-tracker.js';
 
 
 
@@ -51,7 +49,6 @@ class Metrics {
   }
 
   snapshot() {
-    const { costTracker } = require('./cost-tracker');
     return {
       uptime: Math.floor((Date.now() - this.startedAt) / 1000),
       requests: this.requests,
