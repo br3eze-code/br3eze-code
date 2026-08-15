@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import PaymentService from '../../src/payments/payment-service.js';
 
 describe('domain-agnostic payment capabilities', () => {

@@ -190,7 +190,7 @@ const SETTLED_METHODS = new Set(['credits', 'card', 'cash']);
  * COD and credits are local methods; provider methods are discovered from the
  * shared payment gateway so channels never need to hard-code provider names.
  */
-function getPaymentMethods({ country = 'ZW', device = 'mobile', uid = null, config = {} } = {}) {
+function getPaymentMethods({ country = null, device = 'unknown', uid = null, config = {} } = {}) {
     const methods = [
         { id: 'cod', name: 'Cash on delivery', type: 'offline', description: 'Pay when your order arrives.' },
     ];

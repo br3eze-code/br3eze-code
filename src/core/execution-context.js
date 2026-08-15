@@ -74,7 +74,7 @@ export function buildExecutionContext(input = {}) {
   const location = input.location ?? message.location ?? userDoc.location ?? null;
   const address = input.address ?? message.address ?? userDoc.address ?? null;
   const timezone = firstValue(input.timezone, message.timezone, userDoc.timezone, config.timezone, process.env.TZ, 'UTC');
-  const country = firstValue(input.country, message.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, 'ZW');
+  const country = firstValue(input.country, message.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, null);
   const device = firstValue(input.device, input.deviceModel, message.device, message.deviceModel, userDoc.deviceModel, 'unknown');
 
   return {
@@ -93,7 +93,7 @@ export function buildExecutionContext(input = {}) {
     roles,
     role: roles[0] || 'user',
     domain: firstValue(input.domain, message.domain, userDoc.domain, config.domain, 'general'),
-    country: String(country),
+    country: country == null ? null : String(country),
     timezone: String(timezone),
     device: String(device),
     deviceModel: String(device),

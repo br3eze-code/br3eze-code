@@ -2,11 +2,22 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
-import pdf from 'pdf-parse';
-import cheerio from 'cheerio';
+import { PDFParse } from 'pdf-parse';
+import { load as loadHtml } from 'cheerio';
 import { BaseSkill } from '../base.js';
 
 const execAsync = promisify(exec)
+
+async function parsePdfBuffer(buffer) {
+  const parser = new PDFParse({ data: buffer })
+  try {
+    const text = await parser.getText()
+    const info = await parser.getInfo().catch(() => ({}))
+    return { text: text?.text || '', info: info?.info || info || {} }
+  } finally {
+    await parser.destroy().catch(() => {})
+  }
+}
 
 class ResearchSkill extends BaseSkill {
   static id = 'research'
@@ -99,12 +110,12 @@ class ResearchSkill extends BaseSkill {
 
     let text = '', title = url
     if (contentType.includes('application/pdf')) {
-      const data = await pdf(Buffer.from(buf))
+      const data = await parsePdfBuffer(Buffer.from(buf))
       text = data.text
       title = data.info?.Title || url
     } else {
       const html = new TextDecoder().decode(buf)
-      const $ = cheerio.load(html)
+      const $ = loadHtml(html)
       title = $('title').text() || $('meta[property="og:title"]').attr('content') || url
       $('script, style, nav, footer').remove()
       text = $('body').text().replace(/\s+/g, ' ').trim()
@@ -126,7 +137,7 @@ class ResearchSkill extends BaseSkill {
             : `https://html.duckduckgo.com/html/?q=${encodeURIComponent(args.query)}`
 
           const { stdout } = await execAsync(`curl -sL "${searchUrl}"`)
-          const $ = cheerio.load(stdout)
+          const $ = loadHtml(stdout)
           const results = []
 
           $('.result,.gs_r').slice(0, args.max_results).each((i, el) => {
@@ -147,7 +158,7 @@ class ResearchSkill extends BaseSkill {
           this.logger.info(`RESEARCH PDF ${args.path}`, { user: ctx.userId })
           const pdfPath = path.resolve(this.workspace, args.path)
           const buffer = await fs.readFile(pdfPath)
-          const pdfData = await pdf(buffer)
+          const pdfData = await parsePdfBuffer(buffer)
 
           // Extract refs section heuristically
           const refs = pdfData.text.match(/References|Bibliography([\s\S]*)/i)?.[1]?.slice(0, 5000) || ''

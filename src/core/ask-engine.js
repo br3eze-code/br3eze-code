@@ -231,7 +231,8 @@ class AskEngine {
             const path = require('path');
             const fs = require('fs');
             const { CONFIG_PATH } = require('./config');
-            const SkillRegistry = require('./skills/SkillRegistry');
+            const SkillRegistryModule = require('./skills/SkillRegistry.js');
+            const SkillRegistry = SkillRegistryModule?.default || SkillRegistryModule;
             const registry = new SkillRegistry();
             const skillsPath = path.join(__dirname, '../skills');
             let workspace = {};
@@ -323,7 +324,8 @@ class AskEngine {
             const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
             const workspace = config.adapters?.cctv || {};
             if (!Object.keys(workspace.dahua_devices || {}).length) { this._dahua = null; return null; }
-            const DahuaSkill = require('../skills/dahua/index.js');
+            const DahuaSkillModule = require('../skills/dahua/index.js');
+            const DahuaSkill = DahuaSkillModule?.default || DahuaSkillModule;
             this._dahua = new DahuaSkill(config, logger, workspace);
         } catch (e) {
             logger.warn(`AskEngine: failed to init Dahua skill: ${e.message}`);
@@ -858,7 +860,7 @@ class AskEngine {
             }
             if (action === 'payment_methods' && paymentService?.getAvailablePaymentMethods) {
                 return paymentService.getAvailablePaymentMethods({
-                    country: args.country || context.country || 'ZW',
+                    country: args.country || context.country || null,
                     device: args.device || context.device || 'unknown'
                 });
             }

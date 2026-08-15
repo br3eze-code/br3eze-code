@@ -27,7 +27,7 @@ class ShopSkill extends BaseSkill {
         parameters: {
           type: 'object',
           properties: {
-            country: { type: 'string', default: 'ZW' },
+            country: { type: 'string', description: 'Optional ISO country code; omitted means provider/configuration default' },
             device: { type: 'string', default: 'mobile' }
           },
           required: []
@@ -184,7 +184,7 @@ class ShopSkill extends BaseSkill {
       case 'shop.list_payment_methods': {
         const uid = ctx?.userId || args.uid || null;
         return shop.getPaymentMethods({
-          country: args.country || ctx?.country || 'ZW',
+          country: args.country || ctx?.country || null,
           device: args.device || ctx?.device || 'mobile',
           uid,
           config: ctx?.paymentConfig || {},

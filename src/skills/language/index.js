@@ -1,5 +1,5 @@
 import { BaseSkill } from '../base.js';
-import franc from 'franc';
+import { franc } from 'franc';
 import nlp from 'compromise';
 
 import { createRequire } from 'module';

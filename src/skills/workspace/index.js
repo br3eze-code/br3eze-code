@@ -10,7 +10,10 @@ class WorkspaceSkill extends BaseSkill {
 
   constructor(config = {}, logger, workspace) {
     super(config, logger, workspace);
-    this.workspace = path.resolve(workspace || config.workspace || process.cwd());
+    const workspaceRoot = typeof workspace === 'string'
+      ? workspace
+      : workspace?.root || workspace?.path || config.workspace?.root || config.workspace?.path || process.cwd();
+    this.workspace = path.resolve(workspaceRoot);
     this.undoRoot = path.join(this.workspace, '.agentos', 'undo');
   }
 
