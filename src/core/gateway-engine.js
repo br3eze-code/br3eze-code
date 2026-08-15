@@ -13,19 +13,27 @@ import MobileBridge from '../api/mobile-bridge.js';
 import AICoordinator from '../ai/coordinator.js';
 import { metrics } from './metrics.js';
 import { DahuaNotifier } from './dahua-notifier.js';
+import crypto from 'crypto';
+import QRCode from 'qrcode';
+import { verifyFirebaseIdToken } from './firebase-auth.js';
+import { DEFAULT_PLANS } from './database.js';
+import * as dateUtils from '../utils/date.js';
+import { PrintBroker } from './print-broker.js';
+import shopRouter from '../api/routes/shop.js';
+import v1Router from '../api/routes/v1.js';
+import v2Router from '../api/routes/v2.js';
+import v3Router from '../api/routes/v3.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-// src/core/gateway-engine.js 
-
-
-// A2A Protocol Plugin
-let a2aPlugin;
+// A2A is an optional capability. Deployments that provide the plugin can
+// load it without changing the core gateway; its absence is not a startup error.
+let a2aPlugin = null;
 try {
-  a2aPlugin = require('../../core/plugins/a2a-protocol');
-} catch (e) {
-  logger.warn('A2A Protocol Plugin not found, cross-agent communication may be limited.');
+  const module = await import('../../core/plugins/a2a-protocol/index.js');
+  a2aPlugin = module.default ?? module;
+} catch (error) {
+  if (error?.code !== 'ERR_MODULE_NOT_FOUND') {
+    logger.warn(`A2A Protocol Plugin could not be loaded: ${error.message}`);
+  }
 }
 
 class Gateway extends EventEmitter {
@@ -213,7 +221,6 @@ class Gateway extends EventEmitter {
       if (token && provided === token) return next(); // shared-secret path unchanged
 
       if (bearerToken) {
-        const { verifyFirebaseIdToken } = require('./firebase-auth');
         const firebaseUser = await verifyFirebaseIdToken(bearerToken);
         if (firebaseUser) {
           req.firebaseUser = firebaseUser;
@@ -297,11 +304,8 @@ class Gateway extends EventEmitter {
     this.app.post('/api/v1/vouchers', async (req, res) => {
       try {
         if (!global.database) return res.status(503).json({ error: 'Database not ready' });
-        const crypto = require('crypto');
         const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
         const code = `STAR-${part()}-${part()}`;
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
         const plan = req.body.plan || 'default';
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
 
@@ -408,7 +412,7 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/vouchers/:code/qr', async (req, res) => {
       try {
-        const QRCode = require('qrcode');
+
         const voucher = await global.database.getVoucher(req.params.code);
         if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
         const url = `${req.protocol}://${req.get('host')}/login.html?code=${req.params.code}`;
@@ -496,15 +500,14 @@ class Gateway extends EventEmitter {
         const { plan, amount, method } = req.body;
         if (!plan || !amount) return res.status(400).json({ error: 'plan and amount required' });
 
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
+
 
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
           dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
         // This would integrate with UniversalBilling/Payment providers
-        const crypto = require('crypto');
+
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
         const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'hotspot.local'}/login?username=${code}&password=${code}`;
@@ -555,7 +558,7 @@ class Gateway extends EventEmitter {
     // when one is connected, falls back to server thermal printer.
     this.app.post('/api/v1/print', async (req, res) => {
       try {
-        const { PrintBroker } = require('./print-broker');
+
         const { code, voucher } = req.body;
 
         let voucherData = voucher;
@@ -581,7 +584,7 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/print/status', (req, res) => {
       try {
-        const { PrintBroker } = require('./print-broker');
+
         const mobile = PrintBroker.getInstance().getMobileClientStatus();
         res.json({ ok: true, mobileClients: mobile.count, clients: mobile.clients });
       } catch (e) { res.json({ ok: false, mobileClients: 0, clients: [] }); }
@@ -596,7 +599,7 @@ class Gateway extends EventEmitter {
     }
 
     // ── Shop ─────────────────────────────────────────────────────────────────
-    this.app.use('/api/v1/shop', require('../api/routes/shop').default);
+    this.app.use('/api/v1/shop', shopRouter);
 
     // ── Extended route sets (v1/v2/v3) ──────────────────────────────────────
     // Mounted AFTER every inline route above so already-working endpoints
@@ -604,9 +607,9 @@ class Gateway extends EventEmitter {
     // from this file — Express matches in registration order, so these
     // routers only ever handle the paths not already registered above.
     try {
-      this.app.use('/api/v1', require('../api/routes/v1').default);
-      this.app.use('/api/v2', require('../api/routes/v2').default);
-      this.app.use('/api/v3', require('../api/routes/v3').default);
+      this.app.use('/api/v1', v1Router);
+      this.app.use('/api/v2', v2Router);
+      this.app.use('/api/v3', v3Router);
     } catch (e) {
       logger.warn('Extended API routes (v1/v2/v3) not available:', e.message);
     }
@@ -678,7 +681,7 @@ class Gateway extends EventEmitter {
     try {
       const wsChannel = this.channelManager.channels.get('websocket');
       if (wsChannel?.adapter) {
-        const { PrintBroker } = require('./print-broker');
+
         PrintBroker.getInstance().attachWebSocketChannel(wsChannel.adapter);
         logger.info('[Gateway] PrintBroker attached to WebSocket channel — mobile printing enabled');
       }

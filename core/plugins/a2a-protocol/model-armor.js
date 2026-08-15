@@ -7,14 +7,7 @@
  * (dev / offline environments), so the rest of the A2A stack keeps working.
  */
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-const https = require('https');
-const { GoogleAuth } = (() => {
-    try { return require('google-auth-library'); }
-    catch { return { GoogleAuth: null }; }
-})();
+import https from 'node:https';
 
 class ModelArmor {
     constructor(config = {}) {
@@ -36,6 +29,13 @@ class ModelArmor {
 
     async initialize() {
         if (!this.config.enabled) return;
+
+        let GoogleAuth = null;
+        try {
+            ({ GoogleAuth } = await import('google-auth-library'));
+        } catch {
+            GoogleAuth = null;
+        }
 
         if (GoogleAuth && this.config.project && this.config.endpoint) {
             try {

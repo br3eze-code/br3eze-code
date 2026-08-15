@@ -39,6 +39,7 @@ class A2AProtocolAdapter extends EventEmitter {
         this.capabilityRegistry = new Map();
         this.agentDirectory = new Map();
         this.streamStates = new Map(); // streamId -> state
+        this.tasks = new Map(); // taskId -> lifecycle record
 
         this.config.capabilities.forEach(cap => this.capabilityRegistry.set(cap.name, cap));
         this.config.trustedAgents.forEach(agent => this.agentDirectory.set(agent.spiffeID, agent));
@@ -75,11 +76,14 @@ class A2AProtocolAdapter extends EventEmitter {
         }
 
         const messageId = crypto.randomUUID();
+        const taskId = task.taskId || crypto.randomUUID();
+        this.tasks.set(taskId, { taskId, traceId: task.traceId || null, status: 'submitted', createdAt: Date.now(), updatedAt: Date.now(), target: targetAgentSPIFFE });
         const message = this.buildMessageEnvelope({
             type: 'TASK_REQUEST',
             sender: this.config.spiffeID,
             recipient: targetAgentSPIFFE,
-            task: screenedTask.content,
+            task: { ...screenedTask.content, taskId },
+            taskId,
             timestamp: new Date().toISOString(),
             messageId,
             traceId: task.traceId || crypto.randomUUID()
@@ -88,6 +92,8 @@ class A2AProtocolAdapter extends EventEmitter {
         const signedMessage = await this.identity.signMessage(message);
         this.emit('task:sent', { targetAgentSPIFFE, messageId, capability: task.capability });
 
+        this.tasks.get(taskId).status = 'working';
+        this.tasks.get(taskId).updatedAt = Date.now();
         try {
             const response = await this.transport.send(signedMessage, targetAgentSPIFFE);
             const verifiedResponse = await this.identity.verifyMessage(response, targetAgentSPIFFE);
@@ -95,14 +101,32 @@ class A2AProtocolAdapter extends EventEmitter {
             if (screenedResponse.blocked) {
                 throw new A2AError('INVALID_ARGUMENT', `Output blocked: ${screenedResponse.reason}`);
             }
-            this.emit('task:complete', { targetAgentSPIFFE, messageId, duration: Date.now() - startTime });
+            this.tasks.set(taskId, { ...this.tasks.get(taskId), status: 'completed', updatedAt: Date.now(), completedAt: Date.now() });
+            this.emit('task:complete', { targetAgentSPIFFE, messageId, taskId, duration: Date.now() - startTime });
             // screenOutput returns { blocked, content } — extract the actual response result
             const responsePayload = screenedResponse.content;
             return responsePayload?.result ?? responsePayload;
         } catch (error) {
-            this.emit('task:error', { targetAgentSPIFFE, messageId, error: error.message });
-            throw new A2AError('INTERNAL', `Transport failed: ${error.message}`);
+            const current = this.tasks.get(taskId);
+            if (current) this.tasks.set(taskId, { ...current, status: 'failed', error: error.message, updatedAt: Date.now() });
+            this.emit('task:error', { targetAgentSPIFFE, messageId, taskId, error: error.message });
+            if (error instanceof A2AError) throw error;
+            const protocolError = new A2AError(error.code || 'INTERNAL', error.message);
+            protocolError.cause = error;
+            throw protocolError;
         }
+    }
+
+    getTaskStatus(taskId) {
+        return this.tasks.get(taskId) || null;
+    }
+
+    cancelTask(taskId, reason = 'Canceled by caller') {
+        const task = this.tasks.get(taskId);
+        if (!task || ['completed', 'failed', 'canceled'].includes(task.status)) return false;
+        this.tasks.set(taskId, { ...task, status: 'canceled', reason, updatedAt: Date.now() });
+        this.emit('task:canceled', { taskId, reason });
+        return true;
     }
 
     async *sendStreamingTask(targetAgentSPIFFE, task) {
@@ -176,6 +200,8 @@ class A2AProtocolAdapter extends EventEmitter {
 
     async handleTaskRequest(message) {
         const { task, messageId, traceId } = message;
+        const taskId = message.taskId || task.taskId || messageId;
+        this.tasks.set(taskId, { taskId, traceId, status: 'working', createdAt: Date.now(), updatedAt: Date.now(), source: message.sender });
         const { capability, parameters } = task;
         if (!this.capabilityRegistry.has(capability)) {
             return await this.buildErrorResponse(`Capability '${capability}' not found`, 'NOT_FOUND');
@@ -189,12 +215,14 @@ class A2AProtocolAdapter extends EventEmitter {
             const session = this.getOrCreateSession(messageId, traceId);
             // Pass adapter as 4th arg so handlers can make outbound A2A calls
             const result = await capDef.handler(parameters, session, message.sender, this);
+            this.tasks.set(taskId, { ...this.tasks.get(taskId), status: 'completed', updatedAt: Date.now(), completedAt: Date.now() });
             session.history.push({ capability, parameters, result, timestamp: Date.now(), from: message.sender });
             const response = this.buildMessageEnvelope({
                 type: 'TASK_RESPONSE',
                 sender: this.config.spiffeID,
                 recipient: message.sender,
                 inReplyTo: messageId,
+                taskId,
                 traceId,
                 result,
                 timestamp: new Date().toISOString(),
@@ -202,6 +230,7 @@ class A2AProtocolAdapter extends EventEmitter {
             });
             return await this.identity.signMessage(response);
         } catch (error) {
+            this.tasks.set(taskId, { ...this.tasks.get(taskId), status: 'failed', error: error.message, updatedAt: Date.now() });
             return await this.buildErrorResponse(error.message, 'INTERNAL');
         }
     }
@@ -429,15 +458,18 @@ class A2AProtocolAdapter extends EventEmitter {
             for (const [streamId, state] of this.streamStates) {
                 if (state.complete && state.queue.length === 0) this.streamStates.delete(streamId);
             }
+            for (const [taskId, task] of this.tasks) {
+                if (now - task.updatedAt > this.config.sessionTTL) this.tasks.delete(taskId);
+            }
         }, 60000);
         if (this.sessionInterval.unref) this.sessionInterval.unref();
     }
 
-    validateParameters(params, schema) {
+    validateParameters(params = {}, schema) {
         const errors = [];
         if (schema?.required) {
             for (const req of schema.required) {
-                if (!(req in params)) errors.push(`Missing: ${req}`);
+                if (!(req in params) || params[req] === undefined || params[req] === null) errors.push(`Missing: ${req}`);
             }
         }
         return { valid: errors.length === 0, errors };

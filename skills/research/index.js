@@ -12,6 +12,28 @@ const require = createRequire(import.meta.url);
 
 const execAsync = promisify(exec)
 
+function resolveVaultRoot(vaultPath) {
+  const vault = path.resolve(String(vaultPath || ''))
+  if (!path.isAbsolute(vault)) throw new Error('Obsidian vault_path must be absolute')
+  return vault
+}
+
+function resolveVaultNote(vaultRoot, notePath) {
+  const requested = String(notePath || '')
+  if (!requested || path.isAbsolute(requested)) throw new Error('Obsidian note path must be relative to the vault')
+  const root = path.resolve(vaultRoot)
+  const full = path.resolve(root, requested)
+  if (full !== root && !full.startsWith(`${root}${path.sep}`)) throw new Error('Obsidian note path escapes the vault')
+  if (path.basename(full).startsWith('.')) throw new Error('Hidden Obsidian files are not writable')
+  return full
+}
+
+async function atomicWrite(filePath, content) {
+  const tempPath = `${filePath}.agentos-${process.pid}-${Date.now()}.tmp`
+  await fs.writeFile(tempPath, content, 'utf8')
+  await fs.rename(tempPath, filePath)
+}
+
 class ResearchSkill extends BaseSkill {
   static id = 'research'
   static name = 'Research'
@@ -1045,8 +1067,10 @@ case 'research.logseq.write': {
           }
           case 'research.obsidian.sync': {
   this.logger.warn(`RESEARCH OBSIDIAN SYNC ${args.vault_path}`, { user: ctx.userId, reason: args.reason })
-  const vault = path.resolve(args.vault_path)
+  const vault = resolveVaultRoot(args.vault_path)
   const indexPath = path.join(this.outputDir, 'obsidian_index.json')
+  const vaultStat = await fs.stat(vault)
+  if (!vaultStat.isDirectory()) throw new Error('Obsidian vault_path is not a directory')
 
   const notes = []
   const linkGraph = {} // note -> [linked_notes]
@@ -1084,13 +1108,16 @@ case 'research.logseq.write': {
   }
 
   await walk(vault)
-  await fs.writeFile(indexPath, JSON.stringify({ notes, linkGraph, tagIndex, synced_at: new Date().toISOString() }, null, 2))
-  return { vault_path: args.vault_path, notes: notes.length, tags: Object.keys(tagIndex).length, index: indexPath }
+  await fs.mkdir(this.outputDir, { recursive: true })
+  await atomicWrite(indexPath, JSON.stringify({ vault_path: vault, notes, linkGraph, tagIndex, synced_at: new Date().toISOString() }, null, 2))
+  return { vault_path: vault, notes: notes.length, tags: Object.keys(tagIndex).length, index: indexPath }
 
 }
 case 'research.obsidian.search': {
   this.logger.info(`RESEARCH OBSIDIAN SEARCH ${args.mode}: ${args.query}`, { user: ctx.userId })
+  const vault = resolveVaultRoot(args.vault_path)
   const idx = JSON.parse(await fs.readFile(path.join(this.outputDir, 'obsidian_index.json'), 'utf8'))
+  if (idx.vault_path && path.resolve(idx.vault_path) !== vault) throw new Error('Obsidian index belongs to a different vault; run sync first')
 
   let results = []
   if (args.mode === 'tag') {
@@ -1102,7 +1129,7 @@ case 'research.obsidian.search': {
   } else {
     const q = args.query.toLowerCase()
     for (const n of idx.notes) {
-      const full = await fs.readFile(path.join(args.vault_path, n.path), 'utf8')
+      const full = await fs.readFile(resolveVaultNote(vault, n.path), 'utf8')
       if (full.toLowerCase().includes(q)) {
         const excerpt = full.slice(full.toLowerCase().indexOf(q) - 50, full.toLowerCase().indexOf(q) + 150)
         results.push({...n, excerpt })
@@ -1114,8 +1141,10 @@ case 'research.obsidian.search': {
 }
 case 'research.obsidian.write': {
   this.logger.warn(`RESEARCH OBSIDIAN WRITE ${args.path}`, { user: ctx.userId, reason: args.reason })
-  const vault2 = path.resolve(args.vault_path)
-  const notePath = path.join(vault2, args.path)
+  const vault2 = resolveVaultRoot(args.vault_path)
+  const notePath = resolveVaultNote(vault2, args.path)
+  const vaultStat = await fs.stat(vault2)
+  if (!vaultStat.isDirectory()) throw new Error('Obsidian vault_path is not a directory')
   await fs.mkdir(path.dirname(notePath), { recursive: true })
 
   let content = args.content
@@ -1124,8 +1153,8 @@ case 'research.obsidian.write': {
     content = `---\n${yaml}---\n\n${content}`
   }
 
-  await fs.writeFile(notePath, content)
-  return { path: args.path, written: true, size: content.length }
+  await atomicWrite(notePath, content)
+  return { path: args.path, written: true, size: content.length, vault_path: vault2 }
 
 }
 case 'research.readwise.sync': {
