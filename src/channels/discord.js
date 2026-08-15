@@ -119,6 +119,7 @@ class DiscordChannel extends BaseChannel {
       metadata: {
         messageId: msg.id,
         userId: msg.author?.id,
+        conversationId: msg.channel_id,
         guildId: msg.guild_id
       }
     });

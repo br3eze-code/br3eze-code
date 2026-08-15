@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { githubDeviceFlowLogin, DEFAULT_GITHUB_SCOPE } from '../src/core/oauth2.js';
+import { authorizationCodeLogin, githubDeviceFlowLogin, DEFAULT_GITHUB_SCOPE } from '../src/core/oauth2.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -57,17 +57,7 @@ async function readDesktopIdentity() {
   }
 }
 
-async function loginWithGithub() {
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  if (!clientId) throw new Error('GITHUB_CLIENT_ID is not configured for the desktop app.');
-  const identity = await githubDeviceFlowLogin({
-    clientId,
-    scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_GITHUB_SCOPE,
-    openBrowser: (url) => shell.openExternal(url),
-    onPrompt: (prompt) => mainWindow?.webContents.send('auth:github-prompt', prompt),
-    onStatus: (status) => mainWindow?.webContents.send('auth:github-status', status),
-    userAgent: 'AgentOS-Desktop',
-  });
+async function storeDesktopIdentity(identity) {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('OS credential encryption is unavailable.');
   await fs.mkdir(localDataPath, { recursive: true });
   const record = {
@@ -81,6 +71,20 @@ async function loginWithGithub() {
   };
   await fs.writeFile(credentialsPath, JSON.stringify(record, null, 2), { mode: 0o600 });
   return { provider: record.provider, login: record.login, name: record.name, scope: record.scope, loggedInAt: record.loggedInAt };
+}
+
+async function loginWithGithub() {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  if (!clientId) throw new Error('GITHUB_CLIENT_ID is not configured for the desktop app.');
+  const identity = await githubDeviceFlowLogin({
+    clientId,
+    scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_GITHUB_SCOPE,
+    openBrowser: (url) => shell.openExternal(url),
+    onPrompt: (prompt) => mainWindow?.webContents.send('auth:github-prompt', prompt),
+    onStatus: (status) => mainWindow?.webContents.send('auth:github-status', status),
+    userAgent: 'AgentOS-Desktop',
+  });
+  return storeDesktopIdentity(identity);
 }
 
 function createWindow() {
@@ -105,6 +109,28 @@ function createWindow() {
 ipcMain.handle('cctv:config', readCctvConfig);
 ipcMain.handle('auth:identity', readDesktopIdentity);
 ipcMain.handle('auth:github-device', loginWithGithub);
+ipcMain.handle('auth:google-code', async () => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) throw new Error('GOOGLE_CLIENT_ID is not configured for the desktop app.');
+  const identity = await authorizationCodeLogin({
+    provider: 'google',
+    clientId,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://127.0.0.1:0/oauth/callback',
+    scope: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile',
+    openBrowser: (url) => shell.openExternal(url),
+    onPrompt: (prompt) => mainWindow?.webContents.send('auth:google-prompt', prompt),
+    onStatus: (status) => mainWindow?.webContents.send('auth:google-status', status),
+    userAgent: 'AgentOS-Desktop',
+  });
+  return storeDesktopIdentity(identity);
+});
+ipcMain.handle('auth:facebook-code', async () => {
+  if (!process.env.FACEBOOK_OAUTH_RELAY_URL) {
+    throw new Error('Facebook desktop login requires FACEBOOK_OAUTH_RELAY_URL. Keep FACEBOOK_CLIENT_SECRET on that server; never bundle it in Electron.');
+  }
+  throw new Error('Facebook OAuth relay is configured but its callback contract is not implemented yet.');
+});
 ipcMain.handle('desktop:open-config', async () => {
   const result = await shell.openPath(configPath);
   if (result) return { ok: false, error: result };

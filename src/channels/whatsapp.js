@@ -105,6 +105,8 @@ class WhatsAppChannel extends BaseChannel {
         content,
         isDM,
         metadata: {
+          userId: sender,
+          conversationId: chatId,
           messageId: msg.key.id,
           timestamp: msg.messageTimestamp
         }

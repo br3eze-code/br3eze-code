@@ -80,6 +80,8 @@ class SlackChannel extends BaseChannel {
         content: event.text || '',
         isDM,
         metadata: {
+          userId: event.user,
+          conversationId: event.channel,
           team: event.team,
           threadTs: event.thread_ts
         }

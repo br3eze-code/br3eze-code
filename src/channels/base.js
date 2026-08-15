@@ -46,9 +46,40 @@ class BaseChannel extends EventEmitter {
   }
   
   /**
+   * Return a stable, channel-scoped user identifier.
+   * Channel adapters should provide metadata.userId when the platform
+   * distinguishes a user from the conversation recipient.
+   */
+  getUserIdentifier(event = {}) {
+    const metadata = event.metadata || {};
+    const rawUserId = metadata.userId ?? event.userId ?? event.senderId ?? event.sender;
+    return rawUserId === undefined || rawUserId === null || rawUserId === ''
+      ? null
+      : `${this.name}:${String(rawUserId)}`;
+  }
+
+  /**
+   * Normalize identity without erasing channel-specific identifiers.
+   */
+  getChannelIdentity(event = {}) {
+    const metadata = event.metadata || {};
+    const rawConversationId = metadata.conversationId ?? event.conversationId ?? event.sender;
+    return {
+      channel: this.name,
+      userId: this.getUserIdentifier(event),
+      conversationId: rawConversationId === undefined || rawConversationId === null || rawConversationId === ''
+        ? null
+        : `${this.name}:${String(rawConversationId)}`,
+      rawUserId: metadata.userId ?? event.userId ?? event.senderId ?? null,
+      rawConversationId: rawConversationId ?? null,
+    };
+  }
+
+  /**
    * Generate frame from channel-specific event
    */
   createFrame(event) {
+    const metadata = event.metadata || {};
     return {
       id: this.generateId(),
       sender: event.sender,
@@ -57,7 +88,8 @@ class BaseChannel extends EventEmitter {
       content: event.content,
       timestamp: Date.now(),
       isDM: event.isDM !== undefined ? event.isDM : true,
-      metadata: event.metadata || {}
+      identity: this.getChannelIdentity(event),
+      metadata
     };
   }
   

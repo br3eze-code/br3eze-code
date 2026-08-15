@@ -71,6 +71,19 @@ const DEFAULT_CONFIG = {
             REDIRECT_URI: process.env.GITHUB_OAUTH_REDIRECT_URI || '',
             SCOPE: process.env.GITHUB_OAUTH_SCOPE || 'read:user repo',
             WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || ''
+        },
+        GOOGLE: {
+            CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://127.0.0.1:0/oauth/callback',
+            SCOPE: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile'
+        },
+        FACEBOOK: {
+            CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.FACEBOOK_OAUTH_REDIRECT_URI || '',
+            SCOPE: process.env.FACEBOOK_OAUTH_SCOPE || 'public_profile,email',
+            RELAY_URL: process.env.FACEBOOK_OAUTH_RELAY_URL || ''
         }
     },
     server: {

@@ -36,6 +36,8 @@
     .device-meta { display: grid; gap: 7px; margin-top: 18px; color: #aab6ca; font-size: 13px; }
     .empty { padding: 34px 18px; border: 1px dashed #34527e; border-radius: 13px; text-align: center; color: #9da9bf; line-height: 1.6; }
     .empty strong { display: block; margin-bottom: 8px; color: #e7ecf5; font-size: 16px; }
+    .auth { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+    .auth-status { color: #8d9bb3; font-size: 13px; }
     .footer { margin-top: 18px; color: #6f7e98; font-size: 12px; }
     @media (max-width: 720px) { .shell { padding: 24px 18px 36px; } header { display: block; } .actions { margin-top: 20px; } .stats { grid-template-columns: 1fr; } }
   </style>
@@ -63,6 +65,11 @@
     <section class="panel">
       <div class="panel-heading"><h2>Camera inventory</h2><span id="status" class="muted">Loading configuration…</span></div>
       <div id="devices" class="devices"></div>
+      <div class="auth" aria-label="Account login">
+        <button id="google-login">Continue with Google</button>
+        <button id="facebook-login">Continue with Facebook</button>
+        <span id="auth-status" class="auth-status">Not connected</span>
+      </div>
       <p class="footer">Configuration is read from <code>~/.agentos/config.json</code>. Credentials are never displayed in this window.</p>
     </section>
   </main>
@@ -94,8 +101,22 @@
       catch (error) { $('status').textContent = error.message; }
     }
 
+    async function login(provider) {
+      $('auth-status').textContent = `Opening ${provider} login…`;
+      try {
+        const identity = provider === 'google'
+          ? await window.agentosDesktop.auth.loginWithGoogle()
+          : await window.agentosDesktop.auth.loginWithFacebook();
+        $('auth-status').textContent = identity ? `Connected as ${identity.login}` : 'Connected';
+      } catch (error) {
+        $('auth-status').textContent = error.message;
+      }
+    }
+
     $('refresh').addEventListener('click', refresh);
     $('open-config').addEventListener('click', () => window.agentosDesktop.desktop.openConfig());
+    $('google-login').addEventListener('click', () => login('google'));
+    $('facebook-login').addEventListener('click', () => login('facebook'));
     refresh();
   </script>
 </body>
