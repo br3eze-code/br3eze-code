@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { EncryptionVault } from '../../core/vault.js';
+import { isBack, isCancel } from '../../core/interaction/navigation.js';
 import { authorizationCodeLogin, githubDeviceFlowLogin, DEFAULT_GITHUB_SCOPE, USER_API_URL } from '../../core/oauth2.js';
 
 const execFileAsync = promisify(execFile);
@@ -211,11 +212,17 @@ export default (program) => {
                         { value: 'google', label: 'Google (OAuth browser flow)' },
                         { value: 'facebook', label: 'Facebook (OAuth browser flow)' },
                         { value: 'openai', label: 'OpenAI API key (usage-based API access)' },
-                        { value: 'firebase', label: 'Firebase (OAuth via br3eze.africa/login)' }
+                        { value: 'firebase', label: 'Firebase (OAuth via br3eze.africa/login)' },
+                        { value: '__back', label: '← Back' },
+                        { value: '__cancel', label: 'Cancel' }
                     ]
                 });
-                if (typeof choice !== 'string') {
+                if (typeof choice !== 'string' || isCancel(choice) || choice === '__cancel') {
                     outro('Login cancelled');
+                    return;
+                }
+                if (isBack(choice) || choice === '__back') {
+                    outro('No provider selected');
                     return;
                 }
                 provider = choice;

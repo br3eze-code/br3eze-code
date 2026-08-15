@@ -1,4 +1,5 @@
-import EventEmitter from 'events';
+import { EventEmitter } from 'node:events';
+import { normalizeNavigation } from '../core/interaction/navigation.js';
 
 /**
  * Base Channel
@@ -73,6 +74,13 @@ class BaseChannel extends EventEmitter {
       rawUserId: metadata.userId ?? event.userId ?? event.senderId ?? null,
       rawConversationId: rawConversationId ?? null,
     };
+  }
+
+  /**
+   * Normalize channel-native navigation input into a shared action.
+   */
+  normalizeNavigation(input) {
+    return normalizeNavigation(input);
   }
 
   /**
