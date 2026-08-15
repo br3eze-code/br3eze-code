@@ -11,9 +11,7 @@ export class PartnerJobService {
   }
 
   async createJob({ partnerId, customerId, services, currency }) {
-    if (!partnerId || !customerId || !Array.isArray(services) || services.length === 0) {
-      throw new TypeError('partnerId, customerId and services are required');
-    }
+    if (!partnerId || !customerId || !Array.isArray(services) || services.length === 0) throw new TypeError('partnerId, customerId and services are required');
     const amountMinor = sumMoney(services, currency);
     const id = randomUUID();
     const now = new Date().toISOString();
@@ -38,8 +36,7 @@ export class PartnerJobService {
     const ref = this.db.collection('jobs').doc(jobId);
     const snapshot = await ref.get();
     if (!snapshot.exists) throw new Error(`Job not found: ${jobId}`);
-    const job = snapshot.data();
-    const working = transitionJob(job, 'working', { actorType: actor.type });
+    const working = transitionJob(snapshot.data(), 'working', { actorType: actor.type });
     await ref.set(working);
     return working;
   }
@@ -48,8 +45,7 @@ export class PartnerJobService {
     const ref = this.db.collection('jobs').doc(jobId);
     const snapshot = await ref.get();
     if (!snapshot.exists) throw new Error(`Job not found: ${jobId}`);
-    const job = snapshot.data();
-    const verifying = transitionJob(job, 'verifying', { evidenceCount: evidence.length });
+    const verifying = transitionJob(snapshot.data(), 'verifying', { evidenceCount: evidence.length });
     await ref.set(verifying);
     return verifying;
   }
@@ -62,15 +58,18 @@ export class PartnerJobService {
     if (job.status !== 'verifying') throw new Error(`Job must be verifying before verification: ${job.status}`);
 
     const decision = this.policy.evaluateVerification(verification);
-    const next = decision.decision === 'approve' ? 'human_review' : 'human_review';
     const now = new Date().toISOString();
-    const verificationRecord = { ...verification, decision };
+    const verificationRecord = {
+      ...verification,
+      decision: decision.decision,
+      decisionReason: decision.reason,
+    };
     const updated = {
       ...job,
-      status: next,
+      status: 'human_review',
       verification: verificationRecord,
       updatedAt: now,
-      history: [...(job.history ?? []), { from: job.status, to: next, at: now, verification: verificationRecord }],
+      history: [...(job.history ?? []), { from: job.status, to: 'human_review', at: now, verification: verificationRecord }],
     };
     await ref.set(updated);
     return { job: updated, decision };
