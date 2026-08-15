@@ -5,6 +5,8 @@ import path from 'path';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
 import { BRAND } from '../config.js';
+import { formatStartText, telegramStartKeyboard, listAvailableDomains } from '../domain-menu.js';
+import { buildExecutionContext } from '../execution-context.js';
 import { acquireBotLock, releaseBotLock, LOCK_FILE } from '../../utils/bot-lock.js';
 
 import { createRequire } from 'module';
@@ -518,22 +520,28 @@ class TelegramChannel extends BaseChannel {
         const username = from.username || from.first_name || 'User';
         logger.audit?.('telegram_start', { chatId, username });
 
-        const text = `🤖 *${BRAND.name}*\nWelcome, ${username}! I'm your network intelligence assistant.`;
-        const reply_markup = {
-            inline_keyboard: [
-                [{ text: '🖥 Dashboard', callback_data: 'process:dashboard' }, { text: '⚙️ System', callback_data: 'process:status' }],
-                [{ text: '🌐 Network', callback_data: 'process:network' }, { text: '🛠 Tools', callback_data: 'process:tools' }],
-                [{ text: '👥 Users', callback_data: 'process:users' }, { text: '🎫 Voucher', callback_data: 'process:voucher' }],
-                [{ text: '👛 Wallet', callback_data: 'process:wallet' }, { text: '💳 Payment', callback_data: 'process:pay' }],
-                [{ text: '❓ Help', callback_data: 'process:help' }]
-            ]
-        };
+        const text = formatStartText({ brand: BRAND.name, username, config: this.config.domains || {} });
+        const reply_markup = telegramStartKeyboard({ config: this.config.domains || {} });
 
         if (opts.editMessageId) {
             return this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup });
         } else {
             await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
         }
+    }
+
+    async _handleDomain(msg, domainId, opts = {}) {
+        const domains = listAvailableDomains(this.config.domains || {});
+        const domain = domains.find((entry) => entry.id === String(domainId).toLowerCase());
+        const chatId = msg.chat.id;
+        if (!domain) return this.bot.sendMessage(chatId, '⚠️ That domain is not available on this AgentOS installation.');
+        const text = `🧩 *${domain.name}*\n\n${domain.description}\n\nUse /ask to describe what you want to do, or choose another action.`;
+        const reply_markup = { inline_keyboard: [
+            [{ text: '💬 Ask this domain', callback_data: `process:ask:${domain.id}` }],
+            [{ text: '🛍 Shop', callback_data: 'process:shop' }, { text: '⬅️ Back', callback_data: 'process:start' }],
+        ] };
+        if (opts.editMessageId) return this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup });
+        return this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
     }
 
     async _handleDashboard(msg, opts = {}) {
@@ -1531,6 +1539,9 @@ class TelegramChannel extends BaseChannel {
             case 'cmd':
                 await this._dispatchProcessButton(chatId, messageId, action, query);
                 break;
+            case 'domain':
+                await this._handleDomain(query.message, action, { editMessageId: messageId });
+                break;
             case 'net':
                 await this._dispatchNetButton(chatId, messageId, action, query);
                 break;
@@ -1763,7 +1774,7 @@ class TelegramChannel extends BaseChannel {
         const chatId = msg.chat.id;
         const args = match?.[1]?.trim().split(/\s+/) || [];
         const action = args[0] || 'list';
-        const toolCtx = { userId: msg._uid || msg.from.id, channel: 'telegram' };
+        const toolCtx = buildExecutionContext({ message: msg, userId: msg._uid || msg.from?.id || chatId, platformId: chatId, channel: 'telegram', userDoc: msg.userDoc, config: this.config });
 
         try {
             if (!this.agent) throw new Error('Agent not initialized');
@@ -1825,7 +1836,7 @@ class TelegramChannel extends BaseChannel {
     }
 
     async _handleShopCallback(chatId, action, extra, messageId, query) {
-        const toolCtx = { userId: query?._uid || chatId, channel: 'telegram' };
+        const toolCtx = buildExecutionContext({ message: query?.message || {}, userId: query?._uid || chatId, platformId: chatId, channel: 'telegram', userDoc: query?.userDoc, config: this.config });
         try {
             if (action === 'view') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);

@@ -21,6 +21,23 @@ class ShopSkill extends BaseSkill {
           required: []
         }
       },
+      'shop.list_payment_methods': {
+        risk: 'low',
+        description: 'List payment methods configured for the caller and device/country context',
+        parameters: {
+          type: 'object',
+          properties: {
+            country: { type: 'string', default: 'ZW' },
+            device: { type: 'string', default: 'mobile' }
+          },
+          required: []
+        }
+      },
+      'shop.get_capabilities': {
+        risk: 'low',
+        description: 'Describe shopping actions allowed by the caller role',
+        parameters: { type: 'object', properties: {}, required: [] }
+      },
       'shop.get_product': {
         risk: 'low',
         description: 'Get a single product by ID, name, or slug',
@@ -92,7 +109,7 @@ class ShopSkill extends BaseSkill {
             channelId: { type: 'string' },
             uid: { type: 'string', description: "Buyer's user ID; omit for guest cash-on-delivery" },
             address: { type: 'object' },
-            payMethod: { type: 'string', description: 'cod, credits, card, or cash (card/cash are recorded as already settled)' }
+            payMethod: { type: 'string', description: 'An ID returned by shop.list_payment_methods; do not assume a fixed provider list' }
           },
           required: ['platform', 'channelId']
         }
@@ -163,6 +180,27 @@ class ShopSkill extends BaseSkill {
       case 'shop.list_products': {
         const items = await shop.listProducts({ category: args.category, search: args.search });
         return items.map((p) => ({ ...p, url: shop.productUrl(p.id) }));
+      }
+      case 'shop.list_payment_methods': {
+        const uid = ctx?.userId || args.uid || null;
+        return shop.getPaymentMethods({
+          country: args.country || ctx?.country || 'ZW',
+          device: args.device || ctx?.device || 'mobile',
+          uid,
+          config: ctx?.paymentConfig || {},
+        });
+      }
+      case 'shop.get_capabilities': {
+        const roles = new Set([...(ctx?.roles || []), ctx?.role].filter(Boolean).map((role) => String(role).toLowerCase()));
+        const isAdmin = roles.has('admin') || roles.has('owner') || roles.has('operator');
+        return {
+          roles: [...roles],
+          canBrowse: true,
+          canPurchase: true,
+          canReview: Boolean(ctx?.userId),
+          canManageShipments: isAdmin,
+          canManageCatalog: isAdmin,
+        };
       }
       case 'shop.get_product': {
         const p = await shop.getProduct(args.productRef);

@@ -3,6 +3,8 @@ import fs from 'fs';
 import _chalk from 'chalk';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
+import { formatStartText, listAvailableDomains } from '../domain-menu.js';
+import { buildExecutionContext } from '../execution-context.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -814,9 +816,22 @@ class WhatsAppChannel extends BaseChannel {
   // ── Handlers ───────────────────────────────────────────────────────────────
   async _handleStart(jid, msg) {
     const pushName = msg.pushName || "there";
-    const text = `🤖 *AgentOS WhatsApp*\n\nWelcome, ${pushName}! I'm your network intelligence assistant.\n`;
-    await this.send(jid, text);
-    await this._handleMenu(jid);
+    const config = this.config.domains || {};
+    await this.send(jid, formatStartText({ brand: "AgentOS WhatsApp", username: pushName, config }));
+    const domains = listAvailableDomains(config);
+    const buttons = [
+      ...domains.map((domain) => ({ id: `domain:${domain.id}`, label: `🧩 ${domain.name}` })),
+      { id: "process:shop", label: "🛍️ Shop" },
+      { id: "process:ask", label: "💬 Ask" },
+      { id: "process:start", label: "🔄 Refresh menu" },
+    ];
+    if (buttons.length) await this.sendButtons(jid, { title: "Choose a domain or action", buttons, resultAction: "start_menu" });
+  }
+
+  async _handleDomain(jid, msg, domainId) {
+    const domain = listAvailableDomains(this.config.domains || {}).find((entry) => entry.id === String(domainId).toLowerCase());
+    if (!domain) return this.send(jid, "⚠️ That domain is not available on this AgentOS installation.");
+    await this.send(jid, `🧩 *${domain.name}*\n\n${domain.description}\n\nUse */ask* to describe what you want to do in this domain.`);
   }
 
   async _handleMistakes(jid, msg) {
@@ -1363,12 +1378,14 @@ class WhatsAppChannel extends BaseChannel {
   async _handleShop(jid, msg, args) {
     const action = args[1] || "list";
     const uid = msg?._uid || jid;
-    const context = {
+    const context = buildExecutionContext({
+      message: msg,
       userId: uid,
       platformId: jid,
       channel: "whatsapp",
       userDoc: msg?.userDoc,
-    };
+      config: this.config,
+    });
 
     if (action === "list") {
       const search = args.slice(2).join(" ") || undefined;
@@ -1842,6 +1859,10 @@ class WhatsAppChannel extends BaseChannel {
       if (!match) {
         return this.send(jid, `❌ Reply with a number 1-${data.buttons.length}, or the option text.`);
       }
+      if (match.id?.startsWith("domain:")) return this._handleDomain(jid, msg, match.id.slice(7));
+      if (match.id === "process:start") return this._handleStart(jid, msg);
+      if (match.id === "process:shop") return this._handleShop(jid, msg, ["/shop", "list"]);
+      if (match.id === "process:ask") return this.send(jid, "💬 Ask me what you want AgentOS to do, for example: /ask show available domains");
       const context = { userId: uid, platformId: jid, channel: "whatsapp", userDoc: msg.userDoc };
       await this.emit("message", {
         text: match.id,

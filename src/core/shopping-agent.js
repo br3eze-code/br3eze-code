@@ -1,4 +1,5 @@
 import * as shop from './shop.js';
+import { buildExecutionContext } from './execution-context.js';
 
 function platformFor(channel) {
   return String(channel?.constructor?.name || 'channel').replace(/Channel$/, '').toLowerCase();
@@ -51,12 +52,14 @@ async function send(channel, jid, text, buttons = []) {
  */
 export async function handleShop(channel, jid, msg = {}, args = []) {
   const platform = platformFor(channel);
-  const context = {
+  const context = buildExecutionContext({
+    ...msg,
+    message: msg,
     userId: msg._uid || msg.userId || jid,
     platformId: jid,
     channel: platform,
     userDoc: msg.userDoc,
-  };
+  });
   const action = String(args[1] || 'list').toLowerCase();
 
   try {
@@ -96,6 +99,18 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
       ]));
     }
 
+    if (action === 'payments' || action === 'payment' || action === 'methods') {
+      const methods = shop.getPaymentMethods({ uid: context.userId, country: context.country, device: context.device === 'unknown' ? 'mobile' : context.device, config: context.paymentConfig });
+      const lines = methods.map((method) => `• *${method.name}* — \`${method.id}\`${method.description ? `: ${method.description}` : ''}`);
+      return send(channel, jid, `💳 *Available payment methods*\n\n${lines.join('\n')}\n\nCheckout with: /shop checkout <method-id>.`, navigationButtons());
+    }
+
+    if (action === 'capabilities' || action === 'roles') {
+      const roles = new Set([...(msg.roles || []), msg.role].filter(Boolean).map((role) => String(role).toLowerCase()));
+      const admin = roles.has('admin') || roles.has('owner') || roles.has('operator');
+      return send(channel, jid, `🔐 *Shopping capabilities*\\n\\nRoles: ${[...roles].join(', ') || 'guest'}\\nBrowse: ✅\\nPurchase: ✅\\nReviews: ${context.userId ? '✅' : '❌'}\\nShipment management: ${admin ? '✅' : '❌'}\\nCatalog management: ${admin ? '✅' : '❌'}`, navigationButtons());
+    }
+
     if (action === 'cart') {
       const items = await shop.getCart(platform, jid);
       if (!items.length) return send(channel, jid, '🛒 Your cart is empty.', navigationButtons([
@@ -117,9 +132,14 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
     }
 
     if (action === 'checkout') {
+      const payMethod = args[2] || 'cod';
+      const methods = shop.getPaymentMethods({ uid: context.userId, country: context.country, device: context.device === 'unknown' ? 'mobile' : context.device, config: context.paymentConfig });
+      if (!methods.some((method) => method.id === payMethod)) {
+        return send(channel, jid, `❌ Payment method ${payMethod} is unavailable. Use /shop methods to see configured options.`, navigationButtons());
+      }
       const result = await shop.checkout(platform, jid, {
         uid: context.userId,
-        payMethod: args[2] || 'cod',
+        payMethod,
       });
       return send(channel, jid, `✅ *Order placed*\nInvoice: ${result.invoiceNumber}\nTotal: ${money(result.total)}\nPayment: ${result.payMethod}`, navigationButtons([
         { label: 'Shop again', action: 'shop:list', data: { action: 'list' } },
@@ -132,7 +152,7 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
       return send(channel, jid, `📦 *Tracking*\nStatus: ${status.status}\n${status.location ? `Location: ${status.location}\n` : ''}${status.eta ? `ETA: ${status.eta}\n` : ''}${status.trackingUrl || ''}`, navigationButtons());
     }
 
-    return send(channel, jid, '🛍️ Use `/shop list`, `/shop product <id>`, `/shop add <id> [size]`, `/shop cart`, `/shop remove <id>`, `/shop checkout`, or `/shop track <order-id>`.', navigationButtons());
+    return send(channel, jid, '🛍️ Use `/shop list`, `/shop product <id>`, `/shop add <id> [size]`, `/shop cart`, `/shop methods`, `/shop roles`, `/shop remove <id>`, `/shop checkout <method-id>`, or `/shop track <order-id>`.', navigationButtons());
   } catch (error) {
     return send(channel, jid, `❌ Shopping error: ${error.message}`, navigationButtons());
   }

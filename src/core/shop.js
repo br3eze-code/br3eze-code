@@ -1,5 +1,6 @@
 import { getDatabase } from './database.js';
 import { logger } from './logger.js';
+import { PaymentGateway } from '../payments/payment-gateway.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -185,6 +186,25 @@ async function trackShipment(orderId) {
 const SETTLED_METHODS = new Set(['credits', 'card', 'cash']);
 
 /**
+ * Return payment methods usable by the current caller and configured gateway.
+ * COD and credits are local methods; provider methods are discovered from the
+ * shared payment gateway so channels never need to hard-code provider names.
+ */
+function getPaymentMethods({ country = 'ZW', device = 'mobile', uid = null, config = {} } = {}) {
+    const methods = [
+        { id: 'cod', name: 'Cash on delivery', type: 'offline', description: 'Pay when your order arrives.' },
+    ];
+    if (uid) methods.push({ id: 'credits', name: 'Account credits', type: 'balance', description: 'Pay from your linked AgentOS balance.' });
+    try {
+        const gateway = new PaymentGateway(config);
+        methods.push(...gateway.getAvailableMethods({ country, device }));
+    } catch (error) {
+        logger.warn(`[Shop] Payment discovery unavailable: ${error.message}`);
+    }
+    return methods;
+}
+
+/**
  * Close the sale: atomic stock decrement + (optional) balance charge + order +
  * invoice. `uid` links the sale to a Power Connect account (for balance pay and
  * order history); omit for a guest cash-on-delivery sale.
@@ -254,4 +274,4 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     return order;
 }
 
-export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews };
+export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, getPaymentMethods, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews };
