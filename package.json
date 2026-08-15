@@ -10,6 +10,10 @@
   "scripts": {
     "start": "node bin/agentos.js gateway",
     "start:modern": "node agentos.mjs",
+    "desktop": "electron desktop/main.js",
+    "desktop:dev": "electron desktop/main.js",
+    "desktop:pack": "electron-builder --dir",
+    "desktop:dist": "electron-builder --win nsis",
     "automate": "pm2 start scripts/automate.js --name agentos-ops",
     "start:all": "npm run start & npm run automate",
     "dev": "nodemon bin/agentos.js --dev",
@@ -40,9 +44,49 @@
   "files": [
     "bin/",
     "src/",
+    "desktop/",
+    "agentos.mjs",
+    "main.js",
     "README.md",
     "LICENSE"
   ],
+  "build": {
+    "appId": "com.br3eze.agentos",
+    "productName": "AgentOS",
+    "extraMetadata": {
+      "main": "desktop/main.js"
+    },
+    "artifactName": "agentos-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "npmRebuild": false,
+    "files": [
+      "desktop/**/*",
+      "bin/**/*",
+      "src/**/*",
+      "www/**/*",
+      "agentos.mjs",
+      "main.js",
+      "package.json",
+      "!**/*.map",
+      "!**/test{,s}/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "executableName": "agentos"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AgentOS"
+    }
+  },
   "keywords": [
     "mikrotik",
     "routeros",
@@ -178,7 +222,8 @@
     "cordova-plugin-vibration": "^3.1.1",
     "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-aicore/cordova-plugin-wifi-billing-agent",
     "cordova-sqlite-storage": "^7.0.0",
-    "eslint": "8.56.0",
+    "electron": "^38.1.0",
+    "electron-builder": "^26.15.3",
     "eslint-config-prettier": "*",
     "eslint-plugin-prettier": "*",
     "html-minifier": "^4.0.0",

@@ -26,7 +26,7 @@ class AgentOS extends EventEmitter {
     super();
     this.id = config.id || crypto.randomUUID();
     this.config = {
-      skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'src', 'skills')) ? './src/skills' : './skills'),
+      skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'skills')) ? './skills' : './src/skills'),
       memoryAdapter: config.memoryAdapter || 'memory',
       llmProvider: config.llmProvider || 'gemini',
       maxConcurrentSkills: config.maxConcurrentSkills || 10,

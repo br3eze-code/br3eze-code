@@ -2,9 +2,7 @@ import { logger } from './logger.js';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getConfig } from './config.js';
 
 /**
  * GitHub Integration — handles Octokit interactions, OAuth callbacks, and file syncing.
@@ -38,7 +36,7 @@ class GitHubIntegration {
     }
 
     getOAuthURL(state) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = getConfig().OAUTH?.GITHUB;
         if (!config) throw new Error('GitHub OAuth config missing');
 
         const params = new URLSearchParams({
@@ -51,7 +49,7 @@ class GitHubIntegration {
     }
 
     async handleCallback(code) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = getConfig().OAUTH?.GITHUB;
         if (!config) throw new Error('GitHub OAuth config missing');
 
         const response = await fetch('https://github.com/login/oauth/access_token', {
@@ -106,7 +104,7 @@ class GitHubIntegration {
     }
 
     handleWebhook(payload, signature) {
-        const config = require('./config').OAUTH?.GITHUB;
+        const config = getConfig().OAUTH?.GITHUB;
         if (config?.WEBHOOK_SECRET && signature) {
             const hmac = crypto.createHmac('sha256', config.WEBHOOK_SECRET);
             hmac.update(typeof payload === 'string' ? payload : JSON.stringify(payload));

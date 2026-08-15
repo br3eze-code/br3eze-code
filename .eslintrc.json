@@ -6,7 +6,7 @@
   },
   "parserOptions": {
     "ecmaVersion": 2022,
-    "sourceType": "script"
+    "sourceType": "module"
   },
   "plugins": [
     "prettier"

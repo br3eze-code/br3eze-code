@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { EncryptionVault } from '../../core/vault.js';
+import { githubDeviceFlowLogin, DEFAULT_GITHUB_SCOPE } from '../../core/oauth2.js';
 
 // ==========================================
 // AGENTOS LOGIN / LOGOUT / WHOAMI
@@ -13,10 +14,6 @@ import { EncryptionVault } from '../../core/vault.js';
 // even before the gateway/DB is set up.
 // ==========================================
 
-const DEVICE_CODE_URL = 'https://github.com/login/device/code';
-const TOKEN_URL = 'https://github.com/login/oauth/access_token';
-const USER_API_URL = 'https://api.github.com/user';
-const DEFAULT_SCOPE = 'read:user repo';
 
 function credentialsPath() {
     const { PROFILE_DIR } = global.AGENTOS;
@@ -62,48 +59,15 @@ function writeCredentials({ provider, login, name, avatar, accessToken, scope })
 }
 
 async function deviceFlowLogin({ clientId, scope, log, note }) {
-    const codeRes = await fetch(DEVICE_CODE_URL, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, scope })
+    return githubDeviceFlowLogin({
+        clientId,
+        scope,
+        onPrompt: ({ verificationUri, userCode }) => {
+            note(`Open ${verificationUri} in a browser and enter this code:\n\n  ${userCode}\n`, 'GitHub Login');
+        },
+        onStatus: (message) => log.info(message),
+        userAgent: 'AgentOS-CLI'
     });
-    const codeData = await codeRes.json();
-    if (!codeRes.ok || codeData.error) {
-        throw new Error(codeData.error_description || codeData.error || 'Failed to start device flow');
-    }
-
-    const { device_code, user_code, verification_uri, expires_in, interval } = codeData;
-
-    note(`Open ${verification_uri} in a browser and enter this code:\n\n  ${user_code}\n`, 'GitHub Login');
-    log.info('Waiting for authorization...');
-
-    const deadline = Date.now() + expires_in * 1000;
-    let pollInterval = (interval || 5) * 1000;
-
-    while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, pollInterval));
-
-        const tokenRes = await fetch(TOKEN_URL, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                client_id: clientId,
-                device_code,
-                grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-            })
-        });
-        const tokenData = await tokenRes.json();
-
-        if (tokenData.access_token) {
-            return { accessToken: tokenData.access_token, scope: tokenData.scope || scope };
-        }
-        if (tokenData.error === 'authorization_pending') continue;
-        if (tokenData.error === 'slow_down') { pollInterval += 5000; continue; }
-        if (tokenData.error === 'expired_token') throw new Error('Login code expired — run `agentos login` again');
-        if (tokenData.error === 'access_denied') throw new Error('Login was denied');
-        throw new Error(tokenData.error_description || tokenData.error || 'Device flow polling failed');
-    }
-    throw new Error('Login timed out');
 }
 
 function decodeFirebaseToken(token) {
@@ -209,7 +173,7 @@ export default (program) => {
                 try {
                     const { accessToken, scope } = await deviceFlowLogin({
                         clientId,
-                        scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_SCOPE,
+                        scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_GITHUB_SCOPE,
                         log,
                         note
                     });

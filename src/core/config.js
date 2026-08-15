@@ -64,6 +64,15 @@ const DEFAULT_CONFIG = {
         token: process.env.AGENTOS_GATEWAY_TOKEN
             || require('crypto').randomBytes(32).toString('hex')
     },
+    OAUTH: {
+        GITHUB: {
+            CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.GITHUB_OAUTH_REDIRECT_URI || '',
+            SCOPE: process.env.GITHUB_OAUTH_SCOPE || 'read:user repo',
+            WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || ''
+        }
+    },
     server: {
         port: 3000,
         host: '0.0.0.0'

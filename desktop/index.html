@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentOS CCTV Control</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: #e7ecf5; background: radial-gradient(circle at top right, #1f3a61 0, #0b1020 44%, #070b14 100%); }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 32px 38px 48px; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+    .eyebrow { color: #78a8ff; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: 34px; line-height: 1.1; letter-spacing: -.03em; }
+    .subtitle { max-width: 650px; margin: 0; color: #9da9bf; line-height: 1.6; }
+    .actions { display: flex; gap: 10px; }
+    button { border: 1px solid #2b456e; border-radius: 10px; padding: 10px 14px; color: #eaf1ff; background: #142544; cursor: pointer; font: inherit; }
+    button:hover { background: #1c3560; }
+    .primary { border-color: #5e91ef; background: #2862bd; }
+    .primary:hover { background: #3472d2; }
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 26px; }
+    .stat, .panel { border: 1px solid #213354; border-radius: 16px; background: rgba(13, 23, 43, .78); box-shadow: 0 16px 42px rgba(0,0,0,.18); }
+    .stat { padding: 20px; }
+    .stat-label { color: #8d9bb3; font-size: 13px; }
+    .stat-value { display: block; margin-top: 9px; font-size: 28px; font-weight: 750; }
+    .panel { padding: 22px; }
+    .panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+    h2 { margin: 0; font-size: 18px; }
+    .muted { color: #8d9bb3; font-size: 13px; }
+    .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .device { padding: 18px; border: 1px solid #273c61; border-radius: 13px; background: #101c33; }
+    .device-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .device-name { font-weight: 700; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 9px; color: #90e2ba; background: #123c32; font-size: 11px; font-weight: 700; }
+    .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .device-meta { display: grid; gap: 7px; margin-top: 18px; color: #aab6ca; font-size: 13px; }
+    .empty { padding: 34px 18px; border: 1px dashed #34527e; border-radius: 13px; text-align: center; color: #9da9bf; line-height: 1.6; }
+    .empty strong { display: block; margin-bottom: 8px; color: #e7ecf5; font-size: 16px; }
+    .footer { margin-top: 18px; color: #6f7e98; font-size: 12px; }
+    @media (max-width: 720px) { .shell { padding: 24px 18px 36px; } header { display: block; } .actions { margin-top: 20px; } .stats { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">AgentOS Desktop</div>
+        <h1>CCTV Control Center</h1>
+        <p class="subtitle">A local control surface for your configured Dahua and Hikvision devices. This first desktop shell is read-only by design; device actions can be added behind explicit workflows later.</p>
+      </div>
+      <div class="actions">
+        <button id="open-config">Open config</button>
+        <button id="refresh" class="primary">Refresh</button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="CCTV summary">
+      <div class="stat"><span class="stat-label">Configured devices</span><strong id="device-count" class="stat-value">—</strong></div>
+      <div class="stat"><span class="stat-label">Dahua devices</span><strong id="dahua-count" class="stat-value">—</strong></div>
+      <div class="stat"><span class="stat-label">Hikvision devices</span><strong id="hikvision-count" class="stat-value">—</strong></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><h2>Camera inventory</h2><span id="status" class="muted">Loading configuration…</span></div>
+      <div id="devices" class="devices"></div>
+      <p class="footer">Configuration is read from <code>~/.agentos/config.json</code>. Credentials are never displayed in this window.</p>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]);
+
+    function render(data) {
+      const devices = data.devices || [];
+      $('device-count').textContent = devices.length;
+      $('dahua-count').textContent = devices.filter((device) => device.driver === 'dahua').length;
+      $('hikvision-count').textContent = devices.filter((device) => device.driver === 'hikvision').length;
+      $('status').textContent = data.configured ? `Updated ${new Date().toLocaleTimeString()}` : (data.message || 'No configuration found');
+      $('devices').innerHTML = devices.length ? devices.map((device) => `
+        <article class="device">
+          <div class="device-top"><span class="device-name">${escapeHtml(device.name)}</span><span class="pill">Enabled</span></div>
+          <div class="device-meta">
+            <span>Driver: ${escapeHtml(device.driver)}</span>
+            <span>Device ID: ${escapeHtml(device.deviceId || 'not set')}</span>
+            <span>Endpoint: ${escapeHtml(device.host || 'not set')}${device.port ? `:${escapeHtml(device.port)}` : ''}</span>
+          </div>
+        </article>`).join('') : '<div class="empty"><strong>No CCTV devices configured</strong>Run <code>npm run setup</code> and choose the CCTV domain, or open the AgentOS configuration file to add devices.</div>';
+    }
+
+    async function refresh() {
+      $('status').textContent = 'Loading configuration…';
+      try { render(await window.agentosDesktop.cctv.getConfig()); }
+      catch (error) { $('status').textContent = error.message; }
+    }
+
+    $('refresh').addEventListener('click', refresh);
+    $('open-config').addEventListener('click', () => window.agentosDesktop.desktop.openConfig());
+    refresh();
+  </script>
+</body>
+</html>

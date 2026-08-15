@@ -1,5 +1,6 @@
 import { Client } from 'ssh2';
 import { BaseSkill } from './base.js';
+import { buildServiceCommand, detectionCommand } from '../core/platform/service-manager.js';
 
 
 class LinuxSkill extends BaseSkill {
@@ -141,7 +142,15 @@ class LinuxSkill extends BaseSkill {
     })
   }
 
+    async _serviceManager(hostId) {
+    const detected = await this._exec(hostId, detectionCommand('linux'));
+    const manager = ['systemd', 'openrc', 'sysvinit'].find((name) => detected.includes(name));
+    if (!manager) throw new Error('No supported service manager found');
+    return manager;
+  }
+
   async healthCheck() {
+
     const firstHost = Object.keys(this.workspace.linux_hosts || {})[0]
     if (!firstHost) return { status: 'ok', note: 'no Linux hosts configured' }
     await this._exec(firstHost, 'uptime')
@@ -166,12 +175,16 @@ class LinuxSkill extends BaseSkill {
           `)
           return JSON.parse(info)
 
-        case 'lin.service.status':
-          return await this._exec(args.host, `systemctl show ${args.name} --no-page -p LoadState,ActiveState,SubState | tr '\n' ' '`)
+        case 'lin.service.status': {
+          const manager = await this._serviceManager(args.host);
+          return await this._exec(args.host, buildServiceCommand('status', manager, args.name));
+        }
 
-        case 'lin.service.restart':
-          this.logger.warn(`LINUX SERVICE RESTART ${args.host}`, { user: ctx.userId, service: args.name, reason: args.reason })
-          return await this._exec(args.host, `systemctl restart ${args.name}`, true)
+        case 'lin.service.restart': {
+          const manager = await this._serviceManager(args.host);
+          this.logger.warn(`LINUX SERVICE RESTART ${args.host}`, { user: ctx.userId, service: args.name, reason: args.reason });
+          return await this._exec(args.host, buildServiceCommand('restart', manager, args.name), true);
+        }
 
         case 'lin.process.list':
           const sort = args.sort === 'mem'? '--sort=-%mem' : '--sort=-%cpu'
@@ -185,10 +198,10 @@ class LinuxSkill extends BaseSkill {
           this.logger.warn(`LINUX KILL PID ${args.pid} on ${args.host}`, { user: ctx.userId, reason: args.reason })
           return await this._exec(args.host, `kill -9 ${args.pid}`, true)
 
-        case 'lin.logs.journal':
-          const unit = args.unit? `-u ${args.unit}` : ''
-          const prio = args.priority || 'err'
-          return await this._exec(args.host, `journalctl ${unit} -p ${prio} --since="${args.since || '1h'}" --no-pager -n 50`)
+        case 'lin.logs.journal': {
+          const manager = await this._serviceManager(args.host);
+          return await this._exec(args.host, buildServiceCommand('logs', manager, args.unit || 'system', args.since || '1h'));
+        }
 
         case 'lin.pkg.outdated':
           // Auto-detect package manager
