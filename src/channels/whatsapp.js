@@ -112,6 +112,11 @@ class WhatsAppChannel extends BaseChannel {
         }
       });
       
+      const navigation = this.normalizeNavigation(content);
+      if (navigation) {
+        this.emit('navigation', { action: navigation, frame });
+        continue;
+      }
       this.emit('message', frame);
     }
   }

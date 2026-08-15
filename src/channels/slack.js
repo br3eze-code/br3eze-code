@@ -87,6 +87,11 @@ class SlackChannel extends BaseChannel {
         }
       });
       
+      const navigation = this.normalizeNavigation(event.text || '');
+      if (navigation) {
+        this.emit('navigation', { action: navigation, frame });
+        return;
+      }
       this.emit('message', frame);
     }
   }

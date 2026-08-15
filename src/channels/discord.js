@@ -124,6 +124,11 @@ class DiscordChannel extends BaseChannel {
       }
     });
     
+    const navigation = this.normalizeNavigation(cleanContent);
+    if (navigation) {
+      this.emit('navigation', { action: navigation, frame });
+      return;
+    }
     this.emit('message', frame);
   }
   
