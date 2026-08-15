@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 const DEFAULT_CAPABILITIES = Object.freeze([
   'wifi.install',
   'wifi.manage',
@@ -7,12 +5,13 @@ const DEFAULT_CAPABILITIES = Object.freeze([
 ]);
 
 export class PartnerOnboardingService {
-  constructor({ db, paymentVerifier, provisioner, notifier, starterKitFulfillment, clock = () => new Date().toISOString() }) {
+  constructor({ db, paymentVerifier, provisioner, notifier, starterKitFulfillment, defaultCreditLimitMinor = 2_500_000, clock = () => new Date().toISOString() }) {
     this.db = db;
     this.paymentVerifier = paymentVerifier;
     this.provisioner = provisioner;
     this.notifier = notifier;
     this.starterKitFulfillment = starterKitFulfillment;
+    this.defaultCreditLimitMinor = defaultCreditLimitMinor;
     this.clock = clock;
   }
 
@@ -29,10 +28,18 @@ export class PartnerOnboardingService {
     const payment = await this.paymentVerifier.verifyPartnerDeposit(application);
     if (!payment?.verified || payment.status !== 'settled') throw new Error('Partner deposit is not verified and settled');
 
-    const partnerId = this.db.collection('tenants').doc().id || `partner-${randomUUID()}`;
+    const partnerRef = this.db.collection('tenants').doc();
+    const partnerId = partnerRef.id;
     const now = this.clock();
     const currency = application.currency ?? payment.currency;
     const depositMinor = payment.amountMinor;
+    const creditLimitMinor = Number.isSafeInteger(application.creditLimitMinor)
+      ? application.creditLimitMinor
+      : this.defaultCreditLimitMinor;
+
+    if (!currency) throw new Error('Partner currency is required');
+    if (!Number.isSafeInteger(depositMinor) || depositMinor < 0) throw new Error('Verified deposit must be integer minor units');
+    if (!Number.isSafeInteger(creditLimitMinor) || creditLimitMinor < 0) throw new Error('Credit limit must be integer minor units');
 
     const tenant = {
       id: partnerId,
@@ -56,7 +63,7 @@ export class PartnerOnboardingService {
         creditAccountId: `credit:${partnerId}`,
       },
       credit: {
-        limitMinor: 25_000,
+        limitMinor: creditLimitMinor,
         usedMinor: 0,
         currency,
         status: 'active',
@@ -78,7 +85,7 @@ export class PartnerOnboardingService {
       activatedAt: now,
     };
 
-    await this.db.collection('tenants').doc(partnerId).create(tenant);
+    await partnerRef.set(tenant);
     await applicationRef.set({ status: 'approved', partnerId, approvedAt: now }, { merge: true });
 
     const provisioning = {};
@@ -86,7 +93,7 @@ export class PartnerOnboardingService {
     if (this.starterKitFulfillment) provisioning.starterKit = await this.starterKitFulfillment.createOrder({ partnerId, application });
     if (this.notifier) await this.notifier.partnerApproved({ partnerId, application, tenant });
 
-    await this.db.collection('tenants').doc(partnerId).set({
+    await partnerRef.set({
       provisioning: {
         bot: provisioning.bot ? 'active' : 'pending',
         starterKit: provisioning.starterKit ? 'ordered' : 'pending',
