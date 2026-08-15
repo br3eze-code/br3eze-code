@@ -15,6 +15,14 @@ export const OAUTH_PROVIDERS = {
     scope: 'openid email profile',
     pkce: true,
   },
+  github: {
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    profileUrl: 'https://api.github.com/user',
+    scope: 'read:user user:email',
+    pkce: true,
+    deviceFlow: true,
+  },
   facebook: {
     authorizeUrl: 'https://www.facebook.com/v26.0/dialog/oauth',
     tokenUrl: 'https://graph.facebook.com/v26.0/oauth/access_token',

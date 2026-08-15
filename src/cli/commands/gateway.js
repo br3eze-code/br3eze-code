@@ -1,19 +1,51 @@
 import fs from 'fs';
 import path from 'path';
 import net from 'net';
-import { spawn, exec } from 'child_process';
-import _chalk from 'chalk';
+import { spawn, exec, execFile } from 'child_process';
+import chalk from 'chalk';
 import { STATE_PATH, getConfig } from '../../core/config.js';
 import { logger } from '../../core/logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-
-const chalk = _chalk.default || _chalk;
+import { getDatabase } from '../../core/database.js';
+import { getManager as getMikroTik } from '../../core/mikrotik.js';
+import FinancialService from '../../core/financial.js';
+import UniversalBilling from '../../core/universal-billing.js';
+import DiscoveryService from '../../core/discovery.js';
+import MemoryManager from '../../core/memory/MemoryManager.js';
+import nodeRegistry from '../../core/node-registry.js';
+import AskEngine from '../../core/ask-engine.js';
+import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import TaskScheduler from '../../core/taskScheduler.js';
 
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
+const DAEMON_NAME = 'agentos-gateway';
+const PM2_BIN = process.platform === 'win32' ? 'pm2.cmd' : 'pm2';
+
+function runPm2(args) {
+    return new Promise((resolve, reject) => {
+        execFile(PM2_BIN, args, { cwd: process.cwd(), windowsHide: true }, (error, stdout = '', stderr = '') => {
+            if (error) {
+                error.stdout = stdout;
+                error.stderr = stderr;
+                reject(error);
+                return;
+            }
+            resolve({ stdout, stderr });
+        });
+    });
+}
+
+async function pm2ProcessExists() {
+    try {
+        const { stdout } = await runPm2(['jlist']);
+        const processes = JSON.parse(stdout || '[]');
+        return processes.some((entry) => entry.name === DAEMON_NAME);
+    } catch (_) {
+        return false;
+    }
+}
+
 const clackProxy = {
     intro: () => { },
     outro: () => { },
@@ -53,19 +85,28 @@ export default (program) => {
             // working `pm2 start scripts/automate.js` pattern in package.json's
             // `automate` script. Was previously declared but never implemented.
             if (options.daemon) {
-                const pm2Args = ['start', path.join(process.cwd(), 'bin', 'agentos.js'), '--name', 'agentos-gateway', '--', 'gateway'];
-                if (options.port) pm2Args.push('--port', options.port);
-                if (options.force) pm2Args.push('--force');
-                if (options.verbose) pm2Args.push('--verbose');
+                const exists = await pm2ProcessExists();
+                const gatewayScript = path.join(process.cwd(), 'bin', 'agentos.js');
+                const gatewayArgs = ['gateway'];
+                if (options.port) gatewayArgs.push('--port', String(options.port));
+                if (options.force) gatewayArgs.push('--force');
+                if (options.verbose) gatewayArgs.push('--verbose');
 
-                console.log(chalk.cyan(`Starting gateway under PM2: pm2 ${pm2Args.join(' ')}`));
-                const pm2 = spawn('pm2', pm2Args, { stdio: 'inherit', shell: true });
-                pm2.on('exit', (code) => process.exit(code || 0));
-                pm2.on('error', (err) => {
-                    console.error(chalk.red(`Failed to launch pm2: ${err.message}`));
-                    console.error(chalk.gray('Is pm2 installed? Try: npm install -g pm2'));
-                    process.exit(1);
-                });
+                try {
+                    if (exists) {
+                        if (options.force) await runPm2(['delete', DAEMON_NAME]);
+                        else await runPm2(['restart', DAEMON_NAME, '--update-env']);
+                    }
+                    if (!exists || options.force) {
+                        await runPm2(['start', gatewayScript, '--name', DAEMON_NAME, '--interpreter', 'node', '--', ...gatewayArgs]);
+                    }
+                    await runPm2(['save']);
+                    console.log(chalk.green(`Gateway daemon is running under PM2 as ${DAEMON_NAME}.`));
+                } catch (error) {
+                    console.error(chalk.red(`Failed to manage gateway daemon: ${error.message}`));
+                    console.error(chalk.gray(`Install PM2 first, then retry: npm install -g pm2`));
+                    process.exitCode = 1;
+                }
                 return;
             }
 
@@ -232,22 +273,13 @@ export default (program) => {
             global.startupSpinner = spinner;
 
             // ── Silence console logs during spinner-heavy initialization ──────
-            const consoleTransports = logger.transports.filter(t => t instanceof require('winston').transports.Console);
+            const { transports: winstonTransports } = await import('winston');
+            const consoleTransports = logger.transports.filter(t => t instanceof winstonTransports.Console);
             consoleTransports.forEach(t => t.silent = true);
 
             try {
                 // 1. Core Services Initialization
-                const { getManager: getMikroTik } = require('../../core/mikrotik');
-                const { getDatabase } = require('../../core/database');
-                const { getConfig } = require('../../core/config');
                 const config = getConfig();
-                const FinancialService = require('../../core/financial').default;
-                const UniversalBilling = require('../../core/universal-billing').default;
-                const DiscoveryService = require('../../core/discovery').default;
-                const MemoryManager = require('../../core/memory/MemoryManager').default;
-                const nodeRegistry = require('../../core/node-registry').default;
-                const AskEngine = require('../../core/ask-engine').default;
-                const { Gateway: AgentOSGateway } = require('../../core/gateway-engine');
 
                 const mikrotik = getMikroTik();
                 const database = await getDatabase();
@@ -268,7 +300,7 @@ export default (program) => {
 
                 // 2. AI Engine
                 const aiInstance = process.env.GEMINI_API_KEY
-                    ? new (require('@google/generative-ai').GoogleGenerativeAI)(process.env.GEMINI_API_KEY)
+                    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
                     : null;
 
                 const askEngine = new AskEngine({
@@ -287,7 +319,6 @@ export default (program) => {
                 // Dispatches through askEngine.run() since AgentKernel isn't wired
                 // into the live gateway (see taskScheduler.js's own doc comment).
                 try {
-                    const TaskScheduler = require('../../core/taskScheduler');
                     const taskScheduler = new TaskScheduler({ engine: askEngine });
                     taskScheduler.start();
                     global.taskScheduler = taskScheduler;
@@ -413,6 +444,27 @@ export default (program) => {
             }
         });
 
+    // ── gateway:restart ──────────────────────────────────────────────────────
+    program
+        .command('gateway:restart')
+        .description('Restart the gateway daemon or foreground process')
+        .option('--port <port>', 'Override gateway port')
+        .action(async (options) => {
+            const { cancel } = await import('@clack/prompts');
+            try {
+                if (await pm2ProcessExists()) {
+                    await runPm2(['restart', DAEMON_NAME, '--update-env']);
+                    await runPm2(['save']);
+                    console.log(chalk.green(`Restarted ${DAEMON_NAME}.`));
+                    return;
+                }
+                cancel('No PM2 gateway daemon found. Start one with: agentos gateway --daemon');
+            } catch (error) {
+                cancel(`Gateway restart failed: ${error.message}`);
+                process.exitCode = 1;
+            }
+        });
+
     // ── gateway:status ────────────────────────────────────────────────────────
     program
         .command('gateway:status')
@@ -423,6 +475,22 @@ export default (program) => {
             const { STATE_PATH } = global.AGENTOS;
             const pidFile = path.join(STATE_PATH, 'gateway.pid');
 
+            try {
+                const { stdout } = await runPm2(['jlist']);
+                const processes = JSON.parse(stdout || '[]');
+                const daemon = processes.find((entry) => entry.name === DAEMON_NAME);
+                if (daemon) {
+                    const state = daemon.pm2_env?.status || 'unknown';
+                    const pid = daemon.pid || daemon.pm2_env?.pid || 'n/a';
+                    const output = `${DAEMON_NAME}: ${state} (PID: ${pid})`;
+                    if (state === 'online') outro(chalk.green(`✓ ${output}`));
+                    else cancel(output);
+                    return;
+                }
+            } catch (_) {
+                // Fall back to the foreground PID file when PM2 is not installed.
+            }
+
             if (!fs.existsSync(pidFile)) {
                 cancel('Gateway not running');
                 return;
@@ -430,7 +498,7 @@ export default (program) => {
 
             try {
                 const pid = fs.readFileSync(pidFile, 'utf8').trim();
-                process.kill(parseInt(pid), 0); // signal 0 = existence check only
+                process.kill(parseInt(pid), 0);
                 outro(chalk.green('✓ Gateway running (PID: ' + pid + ')'));
             } catch (e) {
                 cancel('Gateway not running (stale PID file)');
@@ -446,6 +514,22 @@ export default (program) => {
             const { intro, outro, spinner: clackSpinner, cancel } = await import('@clack/prompts');
             const { STATE_PATH } = global.AGENTOS;
             const pidFile = path.join(STATE_PATH, 'gateway.pid');
+
+            try {
+                if (await pm2ProcessExists()) {
+                    const spinner = clackSpinner();
+                    spinner.start(`Stopping ${DAEMON_NAME}…`);
+                    await runPm2(['delete', DAEMON_NAME]);
+                    await runPm2(['save']);
+                    spinner.stop(chalk.green('Gateway daemon stopped'));
+                    outro(chalk.green('✓ Successfully stopped gateway daemon.'));
+                    return;
+                }
+            } catch (error) {
+                cancel(`Unable to stop PM2 gateway daemon: ${error.message}`);
+                process.exitCode = 1;
+                return;
+            }
 
             if (!fs.existsSync(pidFile)) {
                 cancel('Gateway not running (no PID file found)');

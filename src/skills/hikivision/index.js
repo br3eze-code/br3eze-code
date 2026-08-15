@@ -15,6 +15,33 @@ class HikvisionSkill extends BaseSkill {
 
   static getTools() {
     return {
+      'hik.device.list': {
+        risk: 'low',
+        description: 'List configured Hikvision and compatible OEM devices',
+        parameters: { type: 'object', properties: {}, required: [] }
+      },
+      'hik.device.channels': {
+        risk: 'low',
+        description: 'List streaming channels configured on a Hikvision device',
+        parameters: {
+          type: 'object',
+          properties: { device: { type: 'string' } },
+          required: ['device']
+        }
+      },
+      'hik.stream.url': {
+        risk: 'low',
+        description: 'Build a live RTSP URL for a Hikvision channel',
+        parameters: {
+          type: 'object',
+          properties: {
+            device: { type: 'string' },
+            channel: { type: 'number', default: 101 },
+            subtype: { type: 'number', default: 0, description: '0=main stream, 1=sub stream' }
+          },
+          required: ['device']
+        }
+      },
       'hik.device.info': {
         risk: 'low',
         description: 'Get device info: model, firmware, serial',
@@ -127,15 +154,64 @@ class HikvisionSkill extends BaseSkill {
   }
 
   async healthCheck() {
-    const first = Object.keys(this.workspace.hikvision_devices || {})[0]
-    if (!first) return { status: 'ok', note: 'no Hikvision devices configured' }
-    await this._get(first, 'System/deviceInfo')
-    return { status: 'ok' }
+    const devices = Object.keys(this.workspace.hikvision_devices || {})
+    if (!devices.length) return { status: 'ok', note: 'no Hikvision devices configured' }
+    const results = await Promise.all(devices.map(async (device) => {
+      try { await this._get(device, 'System/deviceInfo'); return { device, status: 'ok' } }
+      catch (error) { return { device, status: 'error', error: error.message } }
+    }))
+    return { status: results.every(result => result.status === 'ok') ? 'ok' : 'degraded', devices: results }
+  }
+
+  _configuredDevices() {
+    return Object.entries(this.workspace.hikvision_devices || {}).map(([id, device]) => ({
+      id,
+      name: device.name || id,
+      driver: device.driver || 'hikvision',
+      host: device.host,
+      port: device.port || 80,
+      enabled: device.enabled !== false
+    }))
+  }
+
+  async _channels(deviceId) {
+    const response = await this._get(deviceId, 'Streaming/channels')
+    const parsed = await parseStringPromise(await response.text(), { explicitArray: true })
+    const nodes = parsed.StreamingChannelList?.StreamingChannel || []
+    return nodes.map((node) => ({
+      id: Number(node.id?.[0] || 0),
+      name: node.channelName?.[0] || node.name?.[0] || `Channel ${node.id?.[0] || ''}`,
+      enabled: String(node.enabled?.[0] ?? 'true').toLowerCase() !== 'false',
+      videoCodec: node.videoCodecType?.[0] || node.Video?.[0]?.videoCodecType?.[0] || null
+    }))
+  }
+
+  _streamUrl(deviceId, channel = 101, subtype = 0) {
+    const device = this.workspace.hikvision_devices?.[deviceId]
+    if (!device?.host) throw new Error(`Hikvision device ${deviceId} not found`)
+    const user = encodeURIComponent(device.user || '')
+    const password = encodeURIComponent(device.password || '')
+    const auth = user ? `${user}:${password}@` : ''
+    return `rtsp://${auth}${device.host}:${device.rtspPort || 554}/Streaming/Channels/${channel}?subtype=${subtype}`
   }
 
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+        case 'hik.device.list':
+          return this._configuredDevices()
+
+        case 'hik.device.channels':
+          return { device: args.device, channels: await this._channels(args.device) }
+
+        case 'hik.stream.url':
+          return {
+            device: args.device,
+            channel: args.channel || 101,
+            subtype: args.subtype || 0,
+            url: this._streamUrl(args.device, args.channel || 101, args.subtype || 0)
+          }
+
         case 'hik.device.info':
           const res = await this._get(args.device, 'System/deviceInfo')
           const xml = await res.text()

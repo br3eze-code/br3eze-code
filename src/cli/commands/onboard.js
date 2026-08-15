@@ -4,9 +4,24 @@ import crypto from 'crypto';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { onboardFleet, onboardRouter } from '../../core/onboard.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { OAUTH_PROVIDERS } from '../../core/oauth2.js';
+import { testMikroTikConnection } from '../../core/mikrotik.js';
+import { logger } from '../../core/logger.js';
+import winston from 'winston';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import { AnthropicProvider } from '../../core/llm/providers/AnthropicProvider.js';
+import { OpenAIProvider } from '../../core/llm/providers/OpenAIProvider.js';
+import { GeminiProvider } from '../../core/llm/providers/GeminiProvider.js';
+import { GemmaProvider } from '../../core/llm/providers/GemmaProvider.js';
+import { LlamaProvider } from '../../core/llm/providers/LlamaProvider.js';
+import { TogetherAIProvider } from '../../core/llm/providers/TogetherAIProvider.js';
+import { DeepSeekProvider } from '../../core/llm/providers/DeepSeekProvider.js';
+import { GroqProvider } from '../../core/llm/providers/GroqProvider.js';
+import { OpenRouterProvider } from '../../core/llm/providers/OpenRouterProvider.js';
+import { MoonshotProvider } from '../../core/llm/providers/MoonshotProvider.js';
+import { MiniMaxProvider } from '../../core/llm/providers/MiniMaxProvider.js';
+import { XAIProvider } from '../../core/llm/providers/XAIProvider.js';
+import { OllamaProvider } from '../../core/llm/providers/OllamaProvider.js';
 
 
 
@@ -311,6 +326,51 @@ async function collectHotspotPlans(existingPlans = []) {
     addMore = more;
   }
   return plans;
+}
+
+// ── OAuth 2.1 identity providers ─────────────────────────────────────────────
+async function collectOAuthConfig(existing = {}) {
+  note(chalk.gray('Configure standards-based sign-in for terminal and desktop clients. OAuth tokens remain provider credentials; channel IDs are stored separately.'), chalk.blue('🔐 OAuth 2.1 Identity'));
+  const current = existing.oauth || {};
+  const { enabled } = await prompt({
+    type: 'confirm',
+    name: 'enabled',
+    message: 'Enable OAuth 2.1 sign-in?',
+    default: current.enabled !== false
+  });
+  if (!enabled) return { enabled: false, version: '2.1', providers: {}, defaultProvider: null };
+
+  const choices = [
+    { value: 'none', name: 'Configure later' },
+    { value: 'google', name: 'Google (Authorization Code + PKCE)' },
+    { value: 'github', name: 'GitHub (Device Authorization for terminal)' },
+    { value: 'facebook', name: 'Facebook (Authorization Code; use server-side secret or relay)' }
+  ];
+  const { provider } = await prompt({ type: 'list', name: 'provider', message: 'Default identity provider:', choices, default: current.defaultProvider || 'none' });
+  if (provider === 'none') return { enabled: true, version: '2.1', providers: current.providers || {}, defaultProvider: null };
+
+  const definition = OAUTH_PROVIDERS[provider];
+  const previous = current.providers?.[provider] || {};
+  const answers = await prompt([
+    { type: 'input', name: 'clientId', message: `${provider} OAuth client ID:`, default: previous.clientId || process.env[`${provider.toUpperCase()}_OAUTH_CLIENT_ID`] || '', validate: value => value.trim() ? true : 'Client ID is required' },
+    ...(provider === 'facebook' ? [{ type: 'password', name: 'clientSecret', message: 'Server-side OAuth client secret (never embed in Electron):', default: previous.clientSecret || '' }] : []),
+    { type: 'input', name: 'redirectUri', message: 'Loopback redirect URI:', default: previous.redirectUri || 'http://127.0.0.1:0/oauth/callback', validate: value => { try { const uri = new URL(value); return ['http:', 'https:'].includes(uri.protocol) && ['127.0.0.1', 'localhost', '::1'].includes(uri.hostname) ? true : 'Use a loopback redirect URI for terminal/Electron clients'; } catch { return 'Enter a valid redirect URI'; } } },
+    { type: 'input', name: 'scope', message: 'Scopes:', default: previous.scope || definition?.scope || 'openid email profile' }
+  ]);
+
+  const providerConfig = {
+    clientId: answers.clientId.trim(),
+    redirectUri: answers.redirectUri.trim(),
+    scope: answers.scope.trim(),
+    pkce: Boolean(definition?.pkce),
+    ...(provider === 'facebook' ? { clientSecret: answers.clientSecret || '' } : {})
+  };
+  return {
+    enabled: true,
+    version: '2.1',
+    defaultProvider: provider,
+    providers: { ...(current.providers || {}), [provider]: providerConfig }
+  };
 }
 
 // ── Payment config ────────────────────────────────────────────────────────────
@@ -714,7 +774,10 @@ export default (program) => {
         existingConfig.ai = { provider: aiProvider, apiKey: aiKey, model: aiModel };
       }
 
-      // ── Step 5: Gateway ──────────────────────────────────────────────────
+      // ── Step 5: OAuth 2.1 identity ───────────────────────────────────────
+      const oauthConfig = await collectOAuthConfig(existingConfig);
+
+      // ── Step 6: Gateway ──────────────────────────────────────────────────
       note('Configure the AgentOS WebSocket gateway.', '🌐 Step 5 — Gateway');
       const gwAnswers = await prompt([
         { type: 'number', name: 'port', message: 'WebSocket port:', default: existingConfig.gateway?.port || 19876 },
@@ -722,7 +785,7 @@ export default (program) => {
       ]);
       const gatewayConfig = { port: gwAnswers.port, autostart: gwAnswers.autostart };
 
-      // ── Step 6: Payment & Plans ──────────────────────────────────────────
+      // ── Step 7: Payment & Plans ──────────────────────────────────────────
       const paymentConfig = await collectPaymentConfig(existingConfig.payments);
       const firebaseConfig = await collectFirebaseConfig(existingConfig.firebase);
 
@@ -744,7 +807,7 @@ export default (program) => {
         email: emailConfig,
         ai: { provider: aiProvider, apiKey: aiKey, model: aiModel },
         gateway: { ...gatewayConfig, host: '127.0.0.1', token: existingConfig.gateway?.token || process.env.AGENTOS_GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex') },
-        firebase: firebaseConfig, payments: paymentConfig, plans,
+        firebase: firebaseConfig, oauth: oauthConfig, payments: paymentConfig, plans,
         features: {
           vouchers: selectedDomains.includes('mikrotik'),
           telegramBot: wantsTelegram,
@@ -770,6 +833,7 @@ export default (program) => {
         chalk.gray(`SMS      : `) + (wantsSMS ? chalk.green(`enabled (${smsConfig.provider || 'twilio'})`) : chalk.red('disabled')) + `\n` +
         chalk.gray(`USSD     : `) + (wantsUSSD ? chalk.green('enabled (AfricasTalking)') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Email    : `) + (wantsEmail ? chalk.green(`enabled (${emailConfig.host || 'SMTP'})`) : chalk.red('disabled')) + `\n` +
+        chalk.gray(`OAuth    : `) + (oauthConfig.defaultProvider ? chalk.green(`${oauthConfig.defaultProvider} (OAuth ${oauthConfig.version})`) : chalk.gray('not configured')) + `\n` +
         chalk.gray(`Gateway  : `) + chalk.cyan(`ws://127.0.0.1:${gatewayConfig.port}`) + `\n` +
         chalk.gray(`Firebase : `) + (firebaseConfig.enabled ? chalk.green('connected') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Payments : `) + chalk.yellow(paymentConfig.provider),

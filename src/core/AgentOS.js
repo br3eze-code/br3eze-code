@@ -19,6 +19,7 @@ import { STATE_PATH } from './config.js';
 import FinancialController from './financial.js';
 import UniversalBilling from './universal-billing.js';
 import DiscoveryService from './discovery.js';
+import ServerRegistry from './server-registry.js';
 
 
 class AgentOS extends EventEmitter {
@@ -28,7 +29,7 @@ class AgentOS extends EventEmitter {
     this.config = {
       skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'skills')) ? './skills' : './src/skills'),
       memoryAdapter: config.memoryAdapter || 'memory',
-      llmProvider: config.llmProvider || 'gemini',
+      llmProvider: config.llmProvider || config.llm?.primary || 'ollama',
       maxConcurrentSkills: config.maxConcurrentSkills || 10,
       ...config
     };
@@ -36,6 +37,9 @@ class AgentOS extends EventEmitter {
     // Core components
     this.skills = new SkillRegistry(this.config);
     this.channels = new ChannelManager(this);
+    // All channel and skill instances share this canonical server inventory.
+    this.servers = ServerRegistry;
+    this.servers.configure(this.config.servers || []);
     this.memory = new MemoryManager(this.config.memoryAdapter);
     this.llm = new LLMCoordinator(this.config.llmProvider);
     this.workflows = new WorkflowEngine(this);

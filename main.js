@@ -18,6 +18,7 @@ import _cmd_google from './src/cli/commands/google.js';
 import _cmd_update from './src/cli/commands/update.js';
 import _cmd_tailscale from './src/cli/commands/tailscale.js';
 import _cmd_cli from './src/cli/commands/cli.js';
+import _cmd_grok from './src/cli/commands/grok.js';
 import { program } from 'commander';
 import _chalk from 'chalk';
 import _boxen from 'boxen';
@@ -116,6 +117,7 @@ _cmd_google(program);
 _cmd_update(program);
 _cmd_tailscale(program);
 _cmd_cli(program);
+_cmd_grok(program);
 
 // ── Logging Daemon ────────────────────────────────────────────────────────────
 program

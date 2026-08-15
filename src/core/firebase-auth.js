@@ -1,8 +1,6 @@
 import { getAuth } from './firebase.js';
 import { logger } from './logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getDatabase } from './database.js';
 
 /**
  * Verifies a Firebase ID token and resolves it to {uid, email, role}.
@@ -14,7 +12,6 @@ async function verifyFirebaseIdToken(idToken) {
   if (!auth || !idToken) return null;
   try {
     const decoded = await auth.verifyIdToken(idToken);
-    const { getDatabase } = require('./database');
     const db = await getDatabase();
     const userDoc = await db.resolveFirebaseUser(decoded.uid, {});
     return {

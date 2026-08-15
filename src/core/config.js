@@ -90,6 +90,17 @@ const DEFAULT_CONFIG = {
         port: 3000,
         host: '0.0.0.0'
     },
+    // Canonical multi-server inventory. Credentials stay in environment variables or vault refs.
+    servers: [],
+    llm: {
+        strategy: 'open-model-first',
+        primary: process.env.AGENTOS_LLM_PRIMARY || 'ollama',
+        fallbacks: (process.env.AGENTOS_LLM_FALLBACKS || 'openrouter,openai,xai').split(',').map(value => value.trim()).filter(Boolean),
+        openModels: {
+            endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || 'http://127.0.0.1:11434/v1',
+            model: process.env.AGENTOS_OPEN_MODEL || 'llama3.1:8b'
+        }
+    },
     security: {
         rateLimitWindow: 15 * 60 * 1000,
         rateLimitMax: 100,
