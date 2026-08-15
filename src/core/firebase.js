@@ -1,9 +1,9 @@
 import admin from 'firebase-admin';
 import { logger } from './logger.js';
 import { getConfig } from './config.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getDatabase as getDatabaseFromDatabase } from './database.js';
+import path from 'node:path';
+import fs from 'node:fs';
 
 /**
  * Firebase Admin Initialization
@@ -28,8 +28,6 @@ function initializeFirebase() {
   }
 
   try {
-    const path = require('path');
-    const fs = require('fs');
     let serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
 
     // Fall back to config.json's firebase.serviceAccount (e.g. onboard.js writes
@@ -129,7 +127,7 @@ function getFirebaseApp() {
  * @returns {Promise<any>}
  */
 async function getDatabase() {
-  return require('./database').getDatabase();
+  return getDatabaseFromDatabase();
 }
 
 /**
