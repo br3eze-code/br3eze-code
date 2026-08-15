@@ -26,9 +26,10 @@ import path from 'path';
 import os from 'os';
 import 'dotenv/config';
 import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getDatabase } from './src/core/database.js';
+import { logger } from './src/core/logger.js';
+import TelegramChannel from './src/core/channels/TelegramChannel.js';
+import startLogsDaemon from './src/cli/daemon/logs-daemon.js';
 /**
  * AgentOS — Master Entry Point
  * Consolidates CLI and Daemon logic.
@@ -121,7 +122,7 @@ program
     .command('logs')
     .description('Start the standalone logging daemon (UDP 5001)')
     .action(() => {
-        require('./src/cli/daemon/logs-daemon');
+        startLogsDaemon({ json: process.argv.includes('--json') });
     });
 
 
@@ -134,7 +135,6 @@ program
 
         if (mode === 'telegram') {
             console.log(chalk.cyan('\n--- Telegram Channel Diagnostic ---\n'));
-            const TelegramChannel = require('./src/core/channels/TelegramChannel');
             try {
                 const bot = new TelegramChannel({
                     token: process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN
@@ -179,7 +179,6 @@ program
         try {
             // Trigger voucher debug if available
             console.log(chalk.gray('  - Vouchers: '));
-            const { getDatabase } = require('./src/core/database');
             const db = await getDatabase();
             const stats = await db.getStats();
             console.log(chalk.green(`    ✓ ${stats.total} vouchers found (${stats.active} active)`));
@@ -196,7 +195,8 @@ const run = async () => {
     const commands = program.commands.map(c => c.name());
     const hasCommand = process.argv.some(arg => commands.includes(arg));
 
-    if (!hasCommand && !process.argv.includes('-h') && !process.argv.includes('--help')) {
+    const isMetaCommand = process.argv.includes('-h') || process.argv.includes('--help') || process.argv.includes('-V') || process.argv.includes('--version');
+    if (!hasCommand && !isMetaCommand) {
         showBanner();
         console.log(chalk.yellow('! No command specified, defaulting to: gateway\n'));
         // Insert 'gateway' before any options but after node/script
@@ -204,7 +204,7 @@ const run = async () => {
         newArgs.splice(2, 0, 'gateway');
         await program.parseAsync(newArgs);
     } else {
-        if (!process.argv.includes('gateway')) showBanner();
+        if (!process.argv.includes('gateway') && !isMetaCommand) showBanner();
         await program.parseAsync(process.argv);
     }
 
@@ -232,8 +232,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
     // Log to file if logger is available
     try {
-        const { logger } = require('./src/core/logger');
-        if (logger) logger.error('Unhandled Rejection', { reason, stack: reason?.stack });
+        logger.error('Unhandled Rejection', { reason, stack: reason?.stack });
     } catch (e) {
         // Fallback if logger is not ready
     }

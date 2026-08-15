@@ -42,7 +42,13 @@ export default (program) => {
             created: new Date(cfg.createdAt).toLocaleDateString(),
           };
         } else {
-          log.warn('Not configured — run: agentos onboard');
+          statusData.agentos = { status: 'not_configured', error: 'Run agentos onboard' };
+          statusData.health = 'not_configured';
+          if (options.json || process.argv.includes('--json')) {
+            console.log(JSON.stringify(statusData, null, 2));
+          } else {
+            log.warn('Not configured — run: agentos onboard');
+          }
           return;
         }
 
@@ -84,7 +90,7 @@ export default (program) => {
         s.start('Connecting to router…');
         let mikrotik;
         try {
-          const { getMikroTikClient } = require('../../core/mikrotik');
+          const { getMikroTikClient } = await import('../../core/mikrotik.js');
           mikrotik = await getMikroTikClient();
           await mikrotik.connect();
           const stats = await mikrotik.getSystemStats();
@@ -121,7 +127,7 @@ export default (program) => {
         }
 
         // ── Output ───────────────────────────────────────────────
-        if (options.json) {
+        if (options.json || process.argv.includes('--json')) {
           console.log(JSON.stringify(statusData, null, 2));
         } else {
           renderStatus(statusData, BRAND);

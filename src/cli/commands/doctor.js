@@ -2,15 +2,10 @@ import chalk from 'chalk';
 import { intro, outro, spinner, note, log } from '@clack/prompts';
 import { execSync } from 'child_process';
 import fs from 'fs';
-import dgram from 'dgram';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import path from 'path';
+import { pathToFileURL } from 'url';
+import { getConfig } from '../../core/config.js';
+import { getDatabase } from '../../core/database.js';
 
 
 
@@ -47,7 +42,6 @@ export default (program) => {
 
       // Load config using the core module if available, to merge env variables, etc.
       try {
-        const { getConfig } = require('../../core/config');
         config = getConfig();
       } catch (e) {
         // Fallback to the raw JSON config
@@ -56,8 +50,7 @@ export default (program) => {
       // Check 2: MikroTik Connection
       s.start('Testing MikroTik connection...');
       try {
-        const { testMikroTikConnection } = require('../../core/mikrotik');
-        const { getConfig } = require('../../core/config');
+        const { testMikroTikConnection } = await import('../../core/mikrotik.js');
         const config = getConfig();
 
         const mkConfig = config.mikrotik || (config.adapters && config.adapters.mikrotik) || {};
@@ -85,7 +78,7 @@ export default (program) => {
       // Check 3: Firebase Connectivity
       s.start('Checking Firebase connectivity...');
       try {
-        const { getDatabase } = require('../../core/database');
+
         const db = await getDatabase();
         if (db.db) {
           const statsPromise = db.getStats();
@@ -138,7 +131,6 @@ export default (program) => {
 
       // Check 5: Gateway Status
       s.start('Checking gateway process...');
-      const path = require('path');
       const pidFile = path.join(STATE_PATH, 'gateway.pid');
       if (fs.existsSync(pidFile)) {
         try {
@@ -162,7 +154,7 @@ export default (program) => {
       // Check 5.5: Printer Status
       s.start('Checking Thermal Printer...');
       try {
-        const { testPrinterConnection } = require('../../core/printer');
+        const { testPrinterConnection } = await import('../../core/printer.js');
         const printerConfig = config.printer || {};
         if (printerConfig.enabled !== false) {
            const result = await testPrinterConnection(printerConfig);
@@ -191,7 +183,7 @@ export default (program) => {
       // Check 6: AI Engine
       s.start('Checking AI Engine...');
       try {
-        const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
+        const { default: LLMCoordinator } = await import('../../core/llm/LLMCoordinator.js');
         const aiProvider = config.ai?.provider || 'none';
         const coordinator = new LLMCoordinator(aiProvider, config);
 
@@ -239,7 +231,7 @@ export default (program) => {
       // Check 6.5: Tailscale VPN
       s.start('Checking Tailscale VPN...');
       try {
-        const tailscale = require('../../core/tailscale');
+        const tailscale = await import('../../core/tailscale.js');
         const tsBasic = await tailscale.getStatus();
         if (tsBasic.installed) {
           const tsDetailed = await tailscale.getDetailedStatus();
@@ -259,11 +251,12 @@ export default (program) => {
       }
 
       // Check 7-N: Messaging Channels
-      const { BaseChannel } = require('../../core/channels/BaseChannel');
-      const channelFiles = fs.readdirSync(path.join(__dirname, '../../core/channels'));
+      const { BaseChannel } = await import('../../core/channels/BaseChannel.js');
+      const channelsPath = path.join(process.cwd(), 'src', 'core', 'channels');
+      const channelFiles = fs.readdirSync(channelsPath);
       for (const file of channelFiles) {
         if (file.endsWith('Channel.js') && file !== 'BaseChannel.js') {
-          try { require(path.join(__dirname, '../../core/channels/', file)); } catch (_) { }
+          try { await import(pathToFileURL(path.join(channelsPath, file)).href); } catch (_) { }
         }
       }
 
@@ -348,7 +341,7 @@ export default (program) => {
 
       // Cleanup to prevent handle leaks causing Assertion failed in libuv (Windows)
       try {
-        const { getDatabase } = require('../../core/database');
+
         const db = await getDatabase();
         if (db) await db.close();
       } catch (_) { }
