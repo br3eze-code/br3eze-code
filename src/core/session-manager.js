@@ -26,18 +26,31 @@ class SessionManager {
    * Get session ID for a frame
    * OpenClaw: isolated per sender in DM mode, shared in channel mode
    */
-  getSessionId(frame) {
-    const agentId = frame.agentId || 'default';
-    
-    if (this.mode === 'isolated' && frame.isDM) {
-      // Secure DM mode: isolate per sender
-      // Sanitize sender ID for filesystem safety
-      const safeSender = frame.sender.replace(/[^a-zA-Z0-9_-]/g, '_');
-      return path.join(agentId, safeSender, 'main');
+  getSessionId(frame = {}) {
+    const agentId = this._safeSegment(frame.agentId || 'default');
+    const context = frame.context || {};
+    const channel = this._safeSegment(frame.channel || context.channel || 'unknown');
+    const sender = this._safeSegment(frame.sender || context.platformId || context.userId || 'anonymous');
+    const conversation = this._safeSegment(
+      frame.conversationId || context.conversationId || frame.threadId || 'main'
+    );
+
+    // Isolated mode keeps direct conversations private to the sender while
+    // preserving separate histories for different channels/conversations.
+    if (this.mode === 'isolated' && (frame.isDM || context.isDM)) {
+      return path.join(agentId, channel, sender, conversation);
     }
-    
-    // Shared mode or channel mode: shared session
-    return path.join(agentId, 'main');
+
+    // Channel sessions are shared by participants in the same room/thread,
+    // but never accidentally shared across channels or conversations.
+    return path.join(agentId, channel, conversation);
+  }
+
+  _safeSegment(value) {
+    return String(value)
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 160) || 'unknown';
   }
   
   /**
