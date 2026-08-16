@@ -3,12 +3,12 @@
         xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-wifi-billing-agent" version="4.0.0">
 
-    <name>WiFi Billing Agent</name>
-    <description>Complete WiFi billing system with multi-agent architecture, gossip protocols, and AI orchestration</description>
+    <name>AgentOS Mobile Connectivity Agent</name>
+    <description>Cross-platform mobile connectivity, device, session, and authorized workflow capabilities for AgentOS.</description>
     <license>MIT</license>
-    <keywords>cordova,wifi,billing,agent,gossip,mesh,ai,orchestration,powerconnect</keywords>
+    <keywords>cordova,wifi,connectivity,device,agent,gossip,mesh,ai,orchestration</keywords>
 
-    <js-module src="www/WiFiBillingAgent.js" name="WiFiBillingAgent">
+    <js-module src="www/WifiBillingAgent.js" name="WiFiBillingAgent">
         <clobbers target="WiFiBillingAgent" />
         <clobbers target="cordova.plugins.WiFiBillingAgent" />
     </js-module>
@@ -155,8 +155,8 @@
         </config-file>
 
         <!-- Source Files -->
-        <source-file src="src/android/WiFiBillingAgentPlugin.java" target-dir="src/com/wifibilling/agent" />
-        <source-file src="src/android/WiFiBillingService.java" target-dir="src/com/wifibilling/agent" />
+        <source-file src="src/android/WifiBillingAgentPlugin.java" target-dir="src/com/wifibilling/agent" />
+        <source-file src="src/android/WifiBillingService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/GossipService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/SessionMonitorService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/BootReceiver.java" target-dir="src/com/wifibilling/agent" />
@@ -166,7 +166,7 @@
 
         <!-- Agent Implementations -->
         <source-file src="src/android/agents/CoreAgent.java" target-dir="src/com/wifibilling/agent/agents" />
-        <source-file src="src/android/agents/WiFiAgent.java" target-dir="src/com/wifibilling/agent/agents" />
+        <source-file src="src/android/agents/WifiAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/BillingAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/AuthAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/NotificationAgent.java" target-dir="src/com/wifibilling/agent/agents" />
@@ -219,20 +219,19 @@
         </config-file>
 
         <!-- Source Files -->
-        <source-file src="src/ios/WiFiBillingAgentPlugin.m" />
+        <source-file src="src/ios/WifiBillingAgentPlugin.m" />
         <source-file src="src/ios/WiFiBillingAgentPlugin.h" />
         <source-file src="src/ios/WiFiBillingService.m" />
         <source-file src="src/ios/WiFiBillingService.h" />
         <source-file src="src/ios/GossipService.m" />
         <source-file src="src/ios/GossipService.h" />
         <source-file src="src/ios/SessionMonitor.m" />
-        <source-file src="src/ios/SessionMonitor.h" />
 
         <!-- Agents -->
         <source-file src="src/ios/agents/CoreAgent.m" />
         <source-file src="src/ios/agents/CoreAgent.h" />
-        <source-file src="src/ios/agents/WiFiAgent.m" />
-        <source-file src="src/ios/agents/WiFiAgent.h" />
+        <source-file src="src/ios/agents/WifiAgent.m" />
+        <source-file src="src/ios/agents/WifiAgent.h" />
         <source-file src="src/ios/agents/BillingAgent.m" />
         <source-file src="src/ios/agents/BillingAgent.h" />
         <source-file src="src/ios/agents/AuthAgent.m" />
@@ -248,6 +247,6 @@
     </platform>
 
     <!-- Dependencies -->
-    <dependency id="cordova-plugin-device" version="^2.0.0" />
+    <dependency id="cordova-plugin-device" version="^3.0.0" />
     <dependency id="cordova-plugin-network-information" version="^3.0.0" />
-</plugin>
+</plugin>

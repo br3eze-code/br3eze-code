@@ -29,8 +29,9 @@ var WiFiBillingAgent = {
         nodeType: 'mobile', // mobile, hotspot, relay, server
         environment: 'production', // development, staging, production
         
-        // WiFi settings
-        preferredNetworks: ['PC-', 'PowerConnect', 'Billing-WiFi'],
+        // WiFi settings. Matching is opt-in so the bridge is domain-neutral.
+        preferredNetworks: [],
+        networkMatchers: [],
         autoReconnect: true,
         scanInterval: 10000,
         signalThreshold: -75,
@@ -54,9 +55,13 @@ var WiFiBillingAgent = {
         autonomyLevel: 'assisted', // none, assisted, semi, full
         learningEnabled: true,
         
-        // Backend settings
-        apiEndpoint: 'https://api.powerconnect.com',
+        // Backend settings. Credentials and endpoints are supplied by the host app.
+        apiEndpoint: null,
         apiKey: null,
+        tenantId: null,
+        siteId: null,
+        domain: null,
+        agentIdPrefix: 'agentos-agent-',
         firebaseConfig: null,
         
         // Notification settings
@@ -715,9 +720,12 @@ var WiFiBillingAgent = {
      */
     _isBillingNetwork: function(ssid) {
         if (!ssid) return false;
-        var patterns = this._config?.preferredNetworks || ['PC-', 'PowerConnect'];
+        var config = this._config || this.defaultConfig;
+        var patterns = config.networkMatchers || config.preferredNetworks || [];
         return patterns.some(function(pattern) {
-            return ssid.indexOf(pattern) !== -1;
+            if (pattern && typeof pattern.test === 'function') return pattern.test(ssid);
+            if (typeof pattern === 'function') return Boolean(pattern(ssid));
+            return typeof pattern === 'string' && pattern.length > 0 && ssid.indexOf(pattern) !== -1;
         });
     },
 
@@ -747,7 +755,9 @@ var WiFiBillingAgent = {
      * Internal: Generate unique agent ID
      */
     _generateAgentId: function() {
-        return 'pc-agent-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        var config = this._config || this.defaultConfig;
+        var prefix = config.agentIdPrefix || 'agentos-agent-';
+        return prefix + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     },
 
     /**

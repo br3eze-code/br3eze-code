@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget android:versionCode="20260520" id="africa.br3eze" version="2026.05.20" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
-    <name>Power Connect</name>
-    <description>WiFi Billing System by Br3eze Africa</description>
+    <name>AgentOS</name>
+    <description>Cross-platform agent runtime for authorized network, device, and workflow operations.</description>
     <author email="support@br3eze.africa" href="https://br3eze.africa">
         Br3eze Africa Team
     </author>
