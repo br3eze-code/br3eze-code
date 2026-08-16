@@ -1,9 +1,7 @@
+import crypto from 'node:crypto';
 import { BaseProvider } from './BaseProvider.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '../../logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 /**
  * Gemini LLM Provider
@@ -74,7 +72,7 @@ class GeminiProvider extends BaseProvider {
             .map(p => ({
                 name: p.functionCall.name,
                 args: p.functionCall.args,
-                id: require('crypto').randomBytes(4).toString('hex') 
+                id: crypto.randomBytes(4).toString('hex'),
             }));
 
         return {
