@@ -21,8 +21,10 @@ const invoke = (action, payload = {}) => {
   if (!isCordova()) {
     return Promise.resolve({
       supported: false,
+      nativeReady: false,
       platform: 'web',
       action,
+      code: 'NATIVE_BRIDGE_UNAVAILABLE',
       reason: 'Cordova native bridge is unavailable',
     });
   }

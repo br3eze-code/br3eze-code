@@ -4,8 +4,37 @@
  * @version 4.0.0
  */
 
-var exec = require('cordova/exec');
-var Promise = require('cordova-plugin-promise-polyfill').Promise || window.Promise;
+var nativeExec;
+var Promise = (typeof globalThis !== 'undefined' && globalThis.Promise) || function PromiseUnavailable() {};
+try {
+    Promise = require('cordova-plugin-promise-polyfill').Promise || Promise;
+} catch (_) {
+    // Browser and test environments use the host Promise implementation.
+}
+
+function unavailable(action) {
+    return {
+        supported: false,
+        nativeReady: false,
+        platform: typeof navigator !== 'undefined' && navigator.product === 'ReactNative' ? 'react-native' : 'web',
+        action: action,
+        code: 'NATIVE_BRIDGE_UNAVAILABLE',
+        reason: 'Cordova native bridge is unavailable'
+    };
+}
+
+function exec(success, error, service, action, args) {
+    if (typeof cordova === 'undefined') {
+        if (typeof error === 'function') error(unavailable(action));
+        return;
+    }
+    try {
+        nativeExec = nativeExec || require('cordova/exec');
+        return nativeExec(success, error, service, action, args);
+    } catch (_) {
+        if (typeof error === 'function') error(unavailable(action));
+    }
+}
 
 /**
  * WiFiBillingAgent - Main plugin class

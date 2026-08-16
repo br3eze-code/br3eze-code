@@ -8,7 +8,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 function loadCommonJsBridge(relativePath, { cordova, exec } = {}) {
   const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
-    .replace(/export default WiFiBillingAgent;\s*$/, 'module.exports = WiFiBillingAgent;');
+    .replace(/export default WiFiBillingAgent;\s*$/, 'module.exports = WiFiBillingAgent;')
+    .replace(/export default AICore;\s*$/, 'module.exports.default = AICore;');
   const module = { exports: {} };
   const window = { Promise };
   const context = {
@@ -65,8 +66,24 @@ describe('Cordova platform parity and domain boundaries', () => {
       supported: false,
       platform: 'web',
       action: 'capabilities',
+      nativeReady: false,
+      code: 'NATIVE_BRIDGE_UNAVAILABLE',
     });
     expect(() => bridge.execute('')).toThrow('NetworkTools.execute requires a tool name');
+  });
+
+  test('AI Core returns structured native-unavailable fallbacks outside Cordova', async () => {
+    const bridge = loadCommonJsBridge('custom-plugins/cordova-plugin-aicore/www/AICore.js');
+    await expect(bridge.request({ prompt: 'hello' })).rejects.toMatchObject({
+      supported: false,
+      nativeReady: false,
+      platform: 'web',
+      action: 'request',
+      code: 'NATIVE_BRIDGE_UNAVAILABLE',
+    });
+    await expect(new Promise((resolve, reject) => {
+      bridge.default.checkAvailability(resolve, reject);
+    })).rejects.toMatchObject({ action: 'checkAvailability', code: 'NATIVE_BRIDGE_UNAVAILABLE' });
   });
 
   test('Network Tools preserves authorized context and dispatches native requests', async () => {
@@ -100,6 +117,19 @@ describe('Cordova platform parity and domain boundaries', () => {
         },
       }],
     }]);
+  });
+
+  test('WiFi bridge returns structured native-unavailable fallbacks outside Cordova', async () => {
+    const bridge = loadCommonJsBridge(
+      'custom-plugins/cordova-plugin-wifi-billing-agent/www/WifiBillingAgent.js',
+    );
+    await expect(bridge.initialize({ tenantId: 'tenant-web' })).rejects.toMatchObject({
+      supported: false,
+      nativeReady: false,
+      platform: 'web',
+      action: 'initialize',
+      code: 'NATIVE_BRIDGE_UNAVAILABLE',
+    });
   });
 
   test('WiFi bridge has no product endpoint, SSID, or identity prefix defaults', () => {
