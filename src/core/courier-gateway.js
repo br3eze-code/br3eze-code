@@ -24,6 +24,31 @@ import CourierGuyProvider from './couriers/courier-guy-provider.js';
  *                 createShipment is NOT supported through this path.
  */
 
+function sanitizeLocationContext(context = {}) {
+    const permissionGranted = context.locationPermission === true
+      || ['true', 'granted', 'allowed', 'precise', 'approximate'].includes(String(context.locationPermission || '').toLowerCase());
+    if (!permissionGranted) return { permissionGranted: false };
+    const source = context.locationContext || context.location || {};
+    return {
+        permissionGranted: true,
+        countryCode: source.countryCode || source.country || context.country || null,
+        region: source.region || source.state || null,
+        siteId: context.siteId || context.scope?.siteId || null,
+    };
+}
+
+function auditContext(context = {}) {
+    const scope = context.scope || {};
+    return {
+        userId: context.userId || null,
+        tenantId: context.tenantId || scope.tenantId || null,
+        domain: context.domain || scope.domain || null,
+        siteId: context.siteId || scope.siteId || null,
+        role: context.role || (Array.isArray(context.roles) ? context.roles[0] : null),
+        location: sanitizeLocationContext(context),
+    };
+}
+
 class CourierGateway {
     constructor(config = {}) {
         this.config = {
@@ -35,6 +60,7 @@ class CourierGateway {
             aftershipBaseUrl: config.aftershipBaseUrl || process.env.AFTERSHIP_BASE_URL || 'https://api.aftership.com',
             ...config,
         };
+        this.auditSink = typeof config.auditSink === 'function' ? config.auditSink : null;
         this.providers = new Map();
         this._initProviders();
     }
@@ -45,7 +71,16 @@ class CourierGateway {
         this.providers.set('courier_guy', new CourierGuyProvider(this.config));
     }
 
-    getAvailableProviders() {
+    _audit(action, details, context = {}) {
+        const event = { action, ...auditContext(context), ...details, at: new Date().toISOString() };
+        if (this.auditSink) this.auditSink(event);
+        if (typeof logger.audit === 'function') logger.audit(action, event);
+        else logger.debug(`[CourierGateway] ${action} tenant=${event.tenantId || 'unscoped'} user=${event.userId || 'anonymous'} provider=${event.provider || 'none'}`);
+        return event;
+    }
+
+    getAvailableProviders(context = {}) {
+        this._audit('courier.providers.list', { provider: null }, context);
         return [...this.providers.entries()].map(([id, p]) => ({
             id, name: p.name, configured: p.isConfigured(), verified: p.verified,
             supportsCreate: typeof p.createShipment === 'function' && p.supportsCreate !== false,
@@ -59,15 +94,17 @@ class CourierGateway {
         return p;
     }
 
-    async createShipment(providerId, order) {
+    async createShipment(providerId, order, context = {}) {
         const p = this._get(providerId);
+        const locationContext = sanitizeLocationContext(context);
         if (p.supportsCreate === false) throw new Error(`${p.name} does not support creating shipments via this integration — book directly with the provider.`);
-        logger.info(`[CourierGateway] createShipment via ${p.name} for order ${order.orderId || order.id}`);
-        return p.createShipment(order);
+        this._audit('courier.shipment.create', { provider: providerId, orderId: order.orderId || order.id, locationContext }, context);
+        return p.createShipment({ ...order, agentContext: { location: locationContext } });
     }
 
-    async trackShipment(providerId, trackingId) {
+    async trackShipment(providerId, trackingId, context = {}) {
         const p = this._get(providerId);
+        this._audit('courier.shipment.track', { provider: providerId, trackingId }, context);
         return p.trackShipment(trackingId);
     }
 }

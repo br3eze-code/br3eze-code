@@ -179,7 +179,7 @@ async function getReviews(productId, limit = 5) {
 async function createShipment(orderId, providerId, scope = {}) {
     const order = await getOrder(orderId, scope);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    const shipment = await getCourierGateway().createShipment(providerId, order);
+    const shipment = await getCourierGateway().createShipment(providerId, order, scope);
     const { fs } = await _fs();
     const courier = { provider: providerId, trackingId: shipment.trackingId, status: 'created', createdAt: new Date().toISOString() };
     await fs.collection('orders').doc(orderId).update({ courier });
@@ -192,7 +192,7 @@ async function trackShipment(orderId, scope = {}) {
     const order = await getOrder(orderId, scope);
     if (!order) throw new Error(`Order ${orderId} not found.`);
     if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
-    return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId);
+    return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId, scope);
 }
 
 // card/cash are recorded as already-settled at time of sale (POS-style — payment

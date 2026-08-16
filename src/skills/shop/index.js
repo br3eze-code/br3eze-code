@@ -248,11 +248,11 @@ class ShopSkill extends BaseSkill {
       case 'shop.create_shipment':
         if (!ctx?.userId) throw new Error('Link your account before managing shipments.');
         if (!isShipmentOperator(ctx)) throw new Error('Shipment creation requires an authorized logistics role.');
-        return shop.createShipment(args.orderId, args.provider, scopeOf(ctx));
+        return shop.createShipment(args.orderId, args.provider, { ...scopeOf(ctx), ...ctx });
       case 'shop.track_shipment':
-        return shop.trackShipment(args.orderId, scopeOf(ctx));
+        return shop.trackShipment(args.orderId, { ...scopeOf(ctx), ...ctx });
       case 'shop.list_couriers': {
-        return getCourierGateway().getAvailableProviders();
+        return getCourierGateway().getAvailableProviders(ctx);
       }
       case 'shop.submit_review': {
         const uid = ctx?.userId;
