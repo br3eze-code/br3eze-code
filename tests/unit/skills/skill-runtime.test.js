@@ -136,7 +136,7 @@ describe('AgentOS skill runtime', () => {
     });
     expect(uiAgentSource).toContain('name: "ui_agent"');
     expect(uiAgentSource).toContain('type: { type: "string", enum: ["goto", "click", "type", "wait", "select", "screenshot", "extract"] }');
-    expect(uiAgentSource).not.toMatch(/from ['\"]react|ReactDOM|createRoot/);
+    expect(uiAgentSource).not.toMatch(/from ['"]react|ReactDOM|createRoot/);
   });
 
   test('runtime core remains independent of domain implementations', async () => {
