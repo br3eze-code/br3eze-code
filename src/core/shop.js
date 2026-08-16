@@ -1,9 +1,8 @@
 import { getDatabase } from './database.js';
 import { logger } from './logger.js';
 import { PaymentGateway } from '../payments/payment-gateway.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getCourierGateway } from './courier-gateway.js';
+import { notifyNewOrder } from './order-notifier.js';
 
 /**
  * Backend shop — lets a channel agent (WhatsApp/Telegram/etc.) browse products,
@@ -162,7 +161,6 @@ async function getReviews(productId, limit = 5) {
 async function createShipment(orderId, providerId) {
     const order = await getOrder(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
-    const { getCourierGateway } = require('./courier-gateway');
     const shipment = await getCourierGateway().createShipment(providerId, order);
     const { fs } = await _fs();
     const courier = { provider: providerId, trackingId: shipment.trackingId, status: 'created', createdAt: new Date().toISOString() };
@@ -176,7 +174,6 @@ async function trackShipment(orderId) {
     const order = await getOrder(orderId);
     if (!order) throw new Error(`Order ${orderId} not found.`);
     if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
-    const { getCourierGateway } = require('./courier-gateway');
     return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId);
 }
 
@@ -266,7 +263,6 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
 
     const order = { orderId: orderRef.id, invoiceNumber: number, subtotal: sub, shipping, total, payMethod, items, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment', platform, channelId, uid };
     try {
-        const { notifyNewOrder } = require('./order-notifier');
         await notifyNewOrder(order);
     } catch (e) {
         logger.warn(`[Shop] order notification failed: ${e.message}`);
