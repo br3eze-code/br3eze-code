@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "source": "skills/README.md",
+  "teams": [
+    {
+      "id": "designer",
+      "name": "Designer",
+      "skill": "designer",
+      "mission": "Shape user, service, and system experiences into reviewed, accessible designs.",
+      "dependsOn": ["product", "project-manager"],
+      "handoffsTo": ["product", "project-manager"],
+      "owns": ["design brief", "user journey", "design system", "acceptance criteria", "design handoff"]
+    },
+    {
+      "id": "catalog",
+      "name": "Catalog Specialist",
+      "skill": "catalog-specialist",
+      "mission": "Define and control products, SKUs, plans, offers, eligibility, and catalog publication.",
+      "dependsOn": ["product", "designer"],
+      "handoffsTo": ["pricing-promotions", "inventory", "orders-checkout"],
+      "owns": ["catalog hierarchy", "SKU metadata", "offer eligibility", "catalog publication"]
+    },
+    {
+      "id": "pricing-promotions",
+      "name": "Pricing and Promotions Specialist",
+      "skill": "pricing-promotions-specialist",
+      "mission": "Calculate, validate, and govern prices, discounts, taxes, credits, and promotions.",
+      "dependsOn": ["catalog", "billing-payments"],
+      "handoffsTo": ["orders-checkout", "billing-payments", "product"],
+      "owns": ["price rules", "discounts", "tax treatment", "promotion publication"]
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Specialist",
+      "skill": "inventory-specialist",
+      "mission": "Control stock, capacity, reservations, availability, and reconciliation.",
+      "dependsOn": ["catalog", "orders-checkout"],
+      "handoffsTo": ["orders-checkout", "fulfillment-expeditor", "product"],
+      "owns": ["availability", "reservations", "capacity", "inventory reconciliation"]
+    },
+    {
+      "id": "orders-checkout",
+      "name": "Orders and Checkout Specialist",
+      "skill": "orders-checkout-specialist",
+      "mission": "Control cart, checkout, order lifecycle, customer commitments, amendments, and cancellations.",
+      "dependsOn": ["catalog", "pricing-promotions", "inventory", "billing-payments"],
+      "handoffsTo": ["fulfillment-expeditor", "billing-payments", "product"],
+      "owns": ["cart", "checkout", "order state", "amendments", "cancellations"]
+    },
+    {
+      "id": "voucher-access",
+      "name": "Voucher and Access Specialist",
+      "skill": "voucher-access-specialist",
+      "mission": "Issue, validate, redeem, and review vouchers, access plans, and entitlements.",
+      "dependsOn": ["product", "billing-payments"],
+      "handoffsTo": ["billing-payments", "inventory", "product"],
+      "owns": ["voucher issuance", "redemption eligibility", "access plans", "entitlements"]
+    },
+    {
+      "id": "fulfillment-expeditor",
+      "name": "Fulfillment and Expeditor Specialist",
+      "skill": "fulfillment-expeditor-specialist",
+      "mission": "Reconcile provider evidence, track delivery, recover delays, and close fulfillment exceptions.",
+      "dependsOn": ["orders-checkout", "inventory", "procurement"],
+      "handoffsTo": ["procurement", "orders-checkout", "project-manager"],
+      "owns": ["shipment tracking", "provider evidence", "delivery exceptions", "recovery coordination"]
+    },
+    {
+      "id": "procurement",
+      "name": "Procurement Specialist",
+      "skill": "procurement-specialist",
+      "mission": "Source products and services, compare suppliers, and govern purchase proposals and exceptions.",
+      "dependsOn": ["product", "fulfillment-expeditor", "project-manager"],
+      "handoffsTo": ["fulfillment-expeditor", "billing-payments", "project-manager"],
+      "owns": ["supplier discovery", "quote comparison", "re-tendering", "purchase approval"]
+    },
+    {
+      "id": "billing-payments",
+      "name": "Billing and Payments Specialist",
+      "skill": "billing-payments-specialist",
+      "mission": "Authorize, settle, reconcile, refund, and control financial payment state transitions.",
+      "dependsOn": ["pricing-promotions", "orders-checkout", "voucher-access"],
+      "handoffsTo": ["orders-checkout", "pricing-promotions", "project-manager"],
+      "owns": ["payment authorization", "settlement", "refunds", "credits", "invoice reconciliation"]
+    },
+    {
+      "id": "product",
+      "name": "Product Specialist",
+      "skill": "product-specialist",
+      "mission": "Route cross-domain product and commerce work to the accountable specialist.",
+      "dependsOn": ["catalog", "pricing-promotions", "inventory", "orders-checkout", "voucher-access", "billing-payments"],
+      "handoffsTo": ["catalog", "pricing-promotions", "inventory", "orders-checkout", "voucher-access", "billing-payments"],
+      "owns": ["domain routing", "specialist selection", "handoff design", "ownership review"]
+    },
+    {
+      "id": "project-manager",
+      "name": "Project Manager",
+      "skill": "project-manager",
+      "mission": "Plan and control cross-team work through scope, milestones, dependencies, approvals, risks, and closure.",
+      "dependsOn": ["product", "designer"],
+      "handoffsTo": ["designer", "product", "fulfillment-expeditor", "procurement"],
+      "owns": ["project baseline", "work packages", "milestones", "risks", "approvals", "closure"]
+    }
+  ]
+}

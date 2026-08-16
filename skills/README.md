@@ -54,3 +54,9 @@ A cross-specialist handoff should identify the source and destination owners, wo
 All 11 `SKILL.md` files passed the skill package validator, and the repository diff passed `git diff --check`. The skill files were added in commit [`0c0c694`](https://github.com/br3eze-code/br3eze-code/commit/0c0c694ce79ea228eefd83f0a9261819296c40ac), titled `feat: add designer and product specialist skills`.
 
 The repository-wide audit remains separate from skill validation. At the audited remote baseline, the Jest suite reported **85 passing suites and one failing suite** because `src/core/fulfillment-exception-coordinator.js` imports the missing `src/core/specialist-activity.js` module.
+
+## Agent specialization registry
+
+The machine-readable ownership map lives at `config/specialist-agent-roster.json`. Runtime consumers can use `src/core/specialist-agent-roster.js` to list all eleven teams, resolve a skill to its accountable team, check declared handoff boundaries, and validate dependency references.
+
+The registry keeps routing separate from execution. A specialist may recommend or hand off work according to its declared boundary, but consequential actions still require the existing tenant, approval, evidence, and audit controls. Voucher operations belong to the Voucher and Access Specialist; financial redemption, credits, and settlement hand off to Billing and Payments.
