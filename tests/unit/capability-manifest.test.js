@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { buildCapabilityManifest } from '../../src/core/capability-manifest.js';
 
 describe('capability manifest', () => {
@@ -38,6 +41,18 @@ describe('capability manifest', () => {
     expect(manifest.tools).toEqual(['cctv.stream.multi']);
     expect(manifest.tools).not.toContain('mikrotik.system.reboot');
     expect(manifest.tools).not.toContain('shop.checkout');
+  });
+
+  test('capability route does not trust spoofable role headers and follows API auth middleware', () => {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+    const source = fs.readFileSync(path.join(root, 'src/core/gateway-engine.js'), 'utf8');
+    const authIndex = source.indexOf("this.app.use('/api', async");
+    const routeIndex = source.indexOf("this.app.get('/api/v1/capabilities'");
+
+    expect(authIndex).toBeGreaterThanOrEqual(0);
+    expect(routeIndex).toBeGreaterThan(authIndex);
+    expect(source).not.toContain("req.headers['x-agent-role']");
+    expect(source).not.toContain("req.headers['x-agent-capabilities']");
   });
 
   test('administrators see all currently available tools without changing the source policy', () => {
