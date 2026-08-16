@@ -35,6 +35,8 @@ function normalizeIotContext(input = {}) {
   const authorizedSiteIds = list(input.authorizedSiteIds || scope.authorizedSiteIds || siteIds);
   const authorizedDeviceIds = list(input.authorizedDeviceIds || scope.authorizedDeviceIds || deviceIds);
   const capabilities = new Set(list(input.capabilities || scope.capabilities));
+  const locationPermission = input.locationPermission ?? scope.locationPermission ?? false;
+  const locationGranted = locationPermission === true || ['true', 'granted', 'allowed', 'precise', 'approximate'].includes(String(locationPermission).toLowerCase());
 
   if (!tenantId) throw new Error('IoT context requires tenantId');
   if (CONTEXT_LEVELS[contextLevel] >= CONTEXT_LEVELS.domain && !domain && !allowedDomains.length) {
@@ -57,6 +59,7 @@ function normalizeIotContext(input = {}) {
     authorizedDeviceIds,
     capabilities: [...capabilities],
     nearby: Boolean(input.nearby || scope.nearby),
+    locationPermission: locationGranted,
     requestId: input.requestId || scope.requestId || null,
     readOnly: input.readOnly !== false && scope.readOnly !== false
   });
@@ -86,6 +89,7 @@ function assertDeviceVisible(ctx, { domain, siteId, deviceId } = {}) {
 function assertNearbyDiscovery(ctx) {
   assertCapability(ctx, CAPABILITIES.DEVICE_DISCOVER);
   if (!ctx.nearby) throw new Error('Nearby-device discovery requires explicit nearby context');
+  if (!ctx.locationPermission) throw new Error('Nearby-device discovery requires explicit location permission');
   if (ctx.contextDepth < CONTEXT_LEVELS.site) {
     throw new Error('Nearby-device discovery requires site-level context');
   }
@@ -100,6 +104,7 @@ function redactIotContext(ctx = {}) {
     siteIds: list(ctx.siteIds),
     deviceIds: list(ctx.deviceIds),
     nearby: Boolean(ctx.nearby),
+    locationPermission: Boolean(ctx.locationPermission),
     capabilities: list(ctx.capabilities)
   };
 }

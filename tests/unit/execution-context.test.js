@@ -16,6 +16,7 @@ describe('execution context', () => {
       country: 'ZW',
       timezone: 'Africa/Harare',
       device: 'mobile',
+      locationPermission: 'granted',
       location: { country: 'ZW', city: 'Harare' },
     });
 

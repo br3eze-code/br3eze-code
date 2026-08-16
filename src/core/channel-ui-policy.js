@@ -40,7 +40,10 @@ export function buildChannelUiPolicy(context = {}) {
   const channel = String(context.channel || 'unknown').toLowerCase();
   const capabilities = { ...DEFAULT_CAPABILITIES, ...(context.channelCapabilities || {}) };
   const authorizedCapabilities = new Set(normalizeList(context.authorizedCapabilities || context.capabilities));
+  const locationPermission = context.locationPermission === true
+    || ['true', 'granted', 'allowed', 'precise', 'approximate'].includes(String(context.locationPermission || context.consent?.location || '').toLowerCase());
   const can = (capability) => authorizedCapabilities.has(capability) || authorizedCapabilities.has('*');
+  const canDiscoverNearby = locationPermission && (can('device.nearby.discover') || can('iot.device.discover'));
   const restricted = ['disabled', 'suspended', 'banned', 'pending'].includes(status);
   const elevated = (ROLE_PRIORITY[role] || 0) >= ROLE_PRIORITY.operator;
 
@@ -51,8 +54,9 @@ export function buildChannelUiPolicy(context = {}) {
   if (!restricted) {
     actions.push('research.deep_search', 'assist.task');
     if (can('network.read') || can('surveillance.read') || can('fleet.read')) {
-      actions.push('network.suggest', 'device.nearby.discover');
+      actions.push('network.suggest');
     }
+    if (canDiscoverNearby) actions.push('device.nearby.discover');
   }
   if (!restricted && elevated) actions.push('operations.status', 'audit.own');
   if (!restricted && ['owner', 'admin'].includes(role)) actions.push('tenant.manage');

@@ -18,6 +18,7 @@ describe('IoT context and API boundaries', () => {
       domain: 'network',
       siteId: 'site-a',
       nearby: true,
+      locationPermission: 'granted',
       capabilities: [CAPABILITIES.DEVICE_DISCOVER]
     });
     expect(() => assertNearbyDiscovery(context)).not.toThrow();
@@ -31,6 +32,7 @@ describe('IoT context and API boundaries', () => {
       tenantId: 't1',
       domain: 'network',
       nearby: true,
+      locationPermission: 'granted',
       capabilities: [CAPABILITIES.DEVICE_DISCOVER]
     });
     expect(() => assertNearbyDiscovery(context)).toThrow(/site-level context/);

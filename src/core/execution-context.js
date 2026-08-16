@@ -22,6 +22,16 @@ function asString(value) {
   return value == null ? null : String(value);
 }
 
+function hasLocationPermission(input = {}, userDoc = {}, consent = {}) {
+  const value = firstValue(
+    input.locationPermission,
+    userDoc.locationPermission,
+    consent.location,
+    consent.locationPermission,
+  );
+  return value === true || ['true', 'granted', 'allowed', 'precise', 'approximate'].includes(String(value).toLowerCase());
+}
+
 function normalizeRoles(...roleSources) {
   const roles = roleSources.flatMap((source) => Array.isArray(source) ? source : [source]);
   return [...new Set(roles.filter(Boolean).map((role) => String(role).trim().toLowerCase()))];
@@ -74,8 +84,10 @@ export function buildExecutionContext(input = {}) {
   ));
   const roles = normalizeRoles(input.roles, input.role, userDoc.roles, userDoc.role);
   const config = input.config || {};
-  const location = input.location ?? userDoc.location ?? null;
-  const address = input.address ?? userDoc.address ?? null;
+  const consent = input.consent || userDoc.consent || {};
+  const locationPermission = hasLocationPermission(input, userDoc, consent);
+  const location = locationPermission ? (input.location ?? userDoc.location ?? null) : null;
+  const address = locationPermission ? (input.address ?? userDoc.address ?? null) : null;
   const timezone = firstValue(input.timezone, userDoc.timezone, config.timezone, process.env.TZ, 'UTC');
   const country = firstValue(input.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, null);
   const device = firstValue(input.device, input.deviceModel, userDoc.deviceModel, 'unknown');
@@ -85,7 +97,6 @@ export function buildExecutionContext(input = {}) {
   const domain = String(firstValue(input.domain, userDoc.domain, scopes.domain, config.domain, 'general'));
   const status = String(firstValue(userDoc.status, input.status, 'active')).toLowerCase();
   const influenceTier = String(firstValue(input.influenceTier, userDoc.influenceTier, 'standard')).toLowerCase();
-  const consent = input.consent || userDoc.consent || {};
   const oauth = input.oauth || null;
   const approval = input.approval || null;
   const approvalGranted = Boolean(input.approvalGranted);
@@ -130,12 +141,13 @@ export function buildExecutionContext(input = {}) {
     allowedDomains,
     authorizedSiteIds,
     authorizedCapabilities,
-    uiPolicy: buildChannelUiPolicy({ channel, roles, role: roles[0], status, influenceTier, practiceMode: input.practiceMode || userDoc.practiceMode, channelCapabilities: input.channelCapabilities, authorizedCapabilities }),
+    uiPolicy: buildChannelUiPolicy({ channel, roles, role: roles[0], status, influenceTier, practiceMode: input.practiceMode || userDoc.practiceMode, channelCapabilities: input.channelCapabilities, authorizedCapabilities, locationPermission, consent }),
 
     country: country == null ? null : String(country),
     timezone: String(timezone),
     device: String(device),
     deviceModel: String(device),
+    locationPermission,
     location,
     address,
     userDoc,
