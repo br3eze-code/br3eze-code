@@ -57,6 +57,18 @@ describe('Cordova platform parity and domain boundaries', () => {
       for (const relative of declaredFiles) {
         expect(fs.existsSync(path.join(repoRoot, pluginDir, relative))).toBe(true);
       }
+
+      for (const [, relative, targetDir] of manifest.matchAll(/<source-file\s+src="([^"]+\.java)"\s+target-dir="([^"]+)"\s*\/>/g)) {
+        const source = fs.readFileSync(path.join(repoRoot, pluginDir, relative), 'utf8');
+        const packageName = source.match(/^package\s+([\w.]+);/m)?.[1];
+        const expectedPackage = targetDir.replace(/^src\//, '').replaceAll('/', '.');
+        expect(packageName).toBe(expectedPackage);
+      }
+
+      if (pluginDir.endsWith('cordova-plugin-wifi-billing-agent')) {
+        expect(manifest).not.toContain('WiFi Billing Agent needs');
+        expect(manifest).not.toContain('Power Connect');
+      }
     }
   });
 
