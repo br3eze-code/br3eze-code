@@ -18,6 +18,29 @@ const ACTIONS = {
   'system.reboot': 'system.reboot',
 };
 
+const STREAM_URL_FIELDS = ['url', 'main', 'sub'];
+
+function redactStreamUrl(value) {
+  if (typeof value !== 'string' || !value) return value;
+  try {
+    const url = new URL(value);
+    url.username = '';
+    url.password = '';
+    return url.toString();
+  } catch (_) {
+    return value.replace(/(\w+:\/\/)([^:@/]+)(?::[^@/]*)?@/i, '$1');
+  }
+}
+
+function hasGrant(ctx, grant) {
+  const grants = [
+    ...(Array.isArray(ctx?.permissions) ? ctx.permissions : []),
+    ...(Array.isArray(ctx?.scopes) ? ctx.scopes : []),
+    ...(Array.isArray(ctx?.authorizedTools) ? ctx.authorizedTools : []),
+  ].map(String);
+  return grants.some((entry) => entry === '*' || entry === 'cctv:*' || entry === grant);
+}
+
 function normalizeProvider(value) {
   const provider = String(value || '').trim().toLowerCase();
   if (provider === 'hik' || provider === 'hikivision') return 'hikvision';
@@ -125,6 +148,52 @@ class CctvSkill extends BaseSkill {
     return { allowed: false, code: 'FORBIDDEN', reason: 'cctv.stream.multi permission is required' };
   }
 
+  _streamPolicy(ctx) {
+    const exposeCredentials = ctx?.exposeCredentials === true && hasGrant(ctx, 'cctv.stream.credentials');
+    return {
+      transport: 'rtsp',
+      browserCompatible: false,
+      credentialedUrlsExposed: exposeCredentials,
+      recommendation: 'Use a server-side RTSP-to-WebRTC or HLS media gateway for browser playback.',
+    };
+  }
+
+  _secureStream(stream, ctx) {
+    if (!stream || typeof stream !== 'object') return stream;
+    const exposeCredentials = this._streamPolicy(ctx).credentialedUrlsExposed;
+    const result = { ...stream, security: this._streamPolicy(ctx) };
+    for (const field of STREAM_URL_FIELDS) {
+      if (typeof result[field] === 'string' && !exposeCredentials) {
+        result[field] = redactStreamUrl(result[field]);
+      }
+    }
+    return result;
+  }
+
+  async _capabilities(provider, device) {
+    const { name } = this._adapter(provider);
+    const configured = this._workspace()[`${name}_devices`]?.[device]?.capabilities || {};
+    return {
+      device,
+      provider: name,
+      standards: configured.standards || ['rtsp'],
+      profiles: configured.profiles || (name === 'dahua' ? ['vendor-api', 'rtsp'] : ['vendor-api', 'rtsp']),
+      features: {
+        channels: true,
+        snapshot: true,
+        multiChannelStreaming: true,
+        ptz: configured.ptz !== false,
+        events: configured.events !== false,
+        analyticsMetadata: configured.analyticsMetadata === true,
+        browserPlayback: configured.browserPlayback === true,
+      },
+      media: {
+        browserTransport: configured.browserTransport || null,
+        serverGatewayRequired: configured.browserPlayback !== true,
+      },
+    };
+  }
+
   async _multiStream(provider, device, args, ctx) {
     const requested = this._requestedChannels(args.channels);
     const authorization = await this._authorizeMultiStream(ctx, {
@@ -152,7 +221,7 @@ class CctvSkill extends BaseSkill {
         channel: row.channel,
         subtype: args.subtype,
       }, ctx);
-      return { ...row, stream };
+      return { ...row, stream: this._secureStream(stream, ctx) };
     }));
     return { device, provider, channels };
   }
@@ -160,6 +229,15 @@ class CctvSkill extends BaseSkill {
   async execute(toolName, args = {}, ctx = {}) {
     const action = toolName.replace(/^cctv\./, '');
     if (action === 'device.list') return this._list(args.provider);
+    if (action === 'capabilities') {
+      const provider = this._providerFor(args.device, args.provider);
+      return this._capabilities(provider, args.device);
+    }
+    if (action === 'device.health') {
+      const provider = args.provider ? normalizeProvider(args.provider) : null;
+      if (provider) return { provider, ...(await this._adapter(provider).skill.healthCheck()) };
+      return this.healthCheck();
+    }
     if (action === 'channel.list') {
       const provider = this._providerFor(args.device, args.provider);
       return { device: args.device, provider, channels: await this._channels(provider, args.device, ctx) };
@@ -167,6 +245,16 @@ class CctvSkill extends BaseSkill {
     if (action === 'stream.multi') {
       const provider = this._providerFor(args.device, args.provider);
       return this._multiStream(provider, args.device, args, ctx);
+    }
+    if (action === 'snapshot.all') {
+      const provider = this._providerFor(args.device, args.provider);
+      if (provider !== 'dahua') throw new Error('snapshot.all is currently supported by the Dahua adapter only');
+      return this._adapter(provider).skill.execute('dahua.snapshot.getAll', args, ctx);
+    }
+    if (action === 'scene.describe' || action === 'events.summarize') {
+      const provider = this._providerFor(args.device, args.provider);
+      if (provider !== 'dahua') throw new Error(`${action} is currently supported by the Dahua adapter only`);
+      return this._adapter(provider).skill.execute(`dahua.${action}`, args, ctx);
     }
     if (action === 'device.discover') {
       const { skill } = this._adapter('dahua');
@@ -177,7 +265,8 @@ class CctvSkill extends BaseSkill {
     const { definition, skill } = this._adapter(provider);
     const vendorAction = ACTIONS[action];
     if (!vendorAction) throw new Error(`Unknown CCTV operation: ${toolName}`);
-    return skill.execute(`${definition.prefix}.${vendorAction}`, args, ctx);
+    const result = await skill.execute(`${definition.prefix}.${vendorAction}`, args, ctx);
+    return action === 'stream.url' ? this._secureStream(result, ctx) : result;
   }
 
   async healthCheck() {
