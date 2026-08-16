@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineSkill, defineTool, loadSkillsFrom } from '../../../src/runtime/skill.js';
+import { defineSkill, defineTool, discoverSkillMetadata, loadSkillsFrom } from '../../../src/runtime/skill.js';
 import { Registry } from '../../../src/runtime/registry.js';
 import { ui_record } from '../../../skills/ui_record.js';
 
@@ -72,6 +72,18 @@ describe('AgentOS skill runtime', () => {
       description: 'Evidence-led research',
       persona: expect.stringContaining('Use cited sources'),
     });
+  });
+
+  test('discovers sorted metadata without activating skill code', async () => {
+    for (const [name, description] of [['zeta', 'Zeta skill'], ['alpha', 'Alpha skill']]) {
+      const dir = path.join(tempRoot, name);
+      await fs.mkdir(dir);
+      await fs.writeFile(path.join(dir, 'SKILL.md'), `---\\nname: ${name}\\ndescription: ${description}\\n---\\nPrivate instructions.`);
+      await fs.writeFile(path.join(dir, 'index.js'), 'throw new Error("must not execute during metadata discovery");');
+    }
+
+    expect(discoverSkillMetadata(tempRoot).map((skill) => skill.name)).toEqual(['alpha', 'zeta']);
+    expect(discoverSkillMetadata(tempRoot).every((skill) => skill.activated === false)).toBe(true);
   });
 
   test('falls back to SKILL.md when a code skill cannot load', async () => {
