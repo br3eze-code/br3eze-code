@@ -1,15 +1,12 @@
-import path from 'path';
-import crypto from 'crypto';
-import { EventEmitter } from 'events';
+import path from 'node:path';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import { fileURLToPath } from 'node:url';
 import { logger } from './logger.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 /**
  * UserSandbox — AgentOS Authorization, RBAC, and Sandboxed Execution
@@ -38,7 +35,7 @@ let _roles = null;
 function getRoles() {
   if (!_roles) {
     try {
-      _roles = require(path.resolve(__dirname, '../policies/roles.json'));
+      _roles = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../policies/roles.json'), 'utf8'));
     } catch (_) {
       _roles = { roles: {}, users: {} };
     }
