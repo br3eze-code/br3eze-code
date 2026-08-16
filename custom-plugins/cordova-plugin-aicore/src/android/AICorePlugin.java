@@ -13,13 +13,11 @@ import android.util.Log;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
-import android.AiCapabilityDetector;
-import android.AiRouter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
 
-// NOTE: These are for the experimental Android ML Kit GenAI 
+// NOTE: These are for the experimental Android ML Kit GenAI
 // Actual imports might vary slightly based on the dynamic version of ML Kit
 // But this follows the Google AI Edge / ML Kit standard integration pattern
 import com.google.mlkit.vision.pose.Pose;
@@ -27,12 +25,11 @@ import com.google.mlkit.vision.pose.PoseDetection;
 import com.google.mlkit.vision.pose.PoseDetector;
 import com.google.mlkit.vision.pose.PoseLandmark;
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
-import com.google.mlkit.vision.common.InputImage;
-
 import com.google.mlkit.genai.prompt.Generation; // Updated package for ML Kit Prompt API (2025 standard)
 import com.google.mlkit.genai.prompt.GenerativeModelFutures; // For async handling
 import com.google.mlkit.nl.generativeai.GenerativeModel;
 import com.google.mlkit.vision.common.InputImage;
+
 import com.google.mlkit.nl.genai.PromptRequest;
 import com.google.mlkit.nl.generativeai.GenerativeModelBuilder;
 import com.google.mlkit.nl.generativeai.model.Content;

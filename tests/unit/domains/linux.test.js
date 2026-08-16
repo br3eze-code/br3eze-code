@@ -37,35 +37,35 @@ describe('LinuxDomain', () => {
   test('shell() returns stdout on success', async () => {
     exec.mockImplementation((cmd, cb) => cb(null, 'file1.txt\nfile2.txt\n', ''));
 
-    const result = await domain.execute({ tool: 'shell', params: 'ls' });
+    const result = await domain.execute({ tool: 'shell', params: 'ls', userId: 'test-user', approval: { status: 'approved' } });
     expect(result).toBe('file1.txt\nfile2.txt\n');
   });
 
   test('shell() falls back to stderr when stdout is empty', async () => {
     exec.mockImplementation((cmd, cb) => cb(null, '', 'warning: something'));
 
-    const result = await domain.execute({ tool: 'shell', params: 'somecmd' });
+    const result = await domain.execute({ tool: 'shell', params: 'somecmd', userId: 'test-user', approval: { status: 'approved' } });
     expect(result).toBe('warning: something');
   });
 
   test('shell() returns a formatted error string instead of throwing on command failure', async () => {
     exec.mockImplementation((cmd, cb) => cb(new Error('command not found: bogus'), '', ''));
 
-    const result = await domain.execute({ tool: 'shell', params: 'bogus' });
+    const result = await domain.execute({ tool: 'shell', params: 'bogus', userId: 'test-user', approval: { status: 'approved' } });
     expect(result).toBe('Error: command not found: bogus');
   });
 
   test('shell() passes the exact command string through to child_process.exec', async () => {
     exec.mockImplementation((cmd, cb) => cb(null, 'ok', ''));
 
-    await domain.execute({ tool: 'shell', params: 'whoami' });
+    await domain.execute({ tool: 'shell', params: 'whoami', userId: 'test-user', approval: { status: 'approved' } });
     expect(exec).toHaveBeenCalledWith('whoami', expect.any(Function));
   });
 
   test('uptime() returns the trimmed output of `uptime -p`', async () => {
     exec.mockImplementation((cmd, cb) => cb(null, 'up 3 days, 2 hours\n', ''));
 
-    const result = await domain.execute({ tool: 'uptime', params: undefined });
+    const result = await domain.execute({ tool: 'uptime', params: undefined, userId: 'test-user' });
     expect(result).toBe('up 3 days, 2 hours');
     expect(exec).toHaveBeenCalledWith('uptime -p', expect.any(Function));
   });

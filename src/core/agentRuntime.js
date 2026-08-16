@@ -4,6 +4,7 @@ import { PermissionMode, PermissionDenial } from './permissions.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { getMikroTikClient } from './mikrotik.js';
 import { logger } from './logger.js';
+import { formatWbsForPrompt } from './action-wbs.js';
 
 /**
  * AgentRuntime
@@ -110,19 +111,21 @@ class AgentRuntime extends EventEmitter {
 
     // ── Session bootstrap ─────────────────────────────────────────────────────
 
-    async bootstrapSession(prompt, { sessionId = null, permissionMode = null } = {}) {
+    async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
         const engine = sessionId
             ? AgentEngine.fromSession(sessionId)
             : AgentEngine.create({ ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode });
  
-        const matchedTools = this.routePrompt(prompt);
+        const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
+        const promptWithWbs = `${prompt}${wbsText}`;
+        const matchedTools = this.routePrompt(promptWithWbs);
  
         const denials = this._inferDenials(matchedTools, engine);
  
         logger.info(`AgentRuntime bootstrap — tools: [${matchedTools.join(', ')}] denials: ${denials.length}`);
  
         const session = new RuntimeSession({
-            prompt,
+            prompt: promptWithWbs,
             engine,
             matchedTools,
             permissionDenials: denials
@@ -134,14 +137,15 @@ class AgentRuntime extends EventEmitter {
 
     // ── Turn loop ─────────────────────────────────────────────────────────────
 
-    async runTurnLoop(prompt, { maxTurns = null, sessionId = null, permissionMode = null } = {}) {
-        const session  = await this.bootstrapSession(prompt, { sessionId, permissionMode });
+    async runTurnLoop(prompt, { maxTurns = null, sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
+        const session  = await this.bootstrapSession(prompt, { sessionId, permissionMode, context, wbs });
         const { engine, matchedTools, permissionDenials } = session;
         const turns    = maxTurns || this.defaultConfig.maxTurns;
         const results  = [];
+        const promptWithWbs = wbs?.length ? `${prompt}\\n\\n## Work Breakdown State\\n${formatWbsForPrompt(wbs)}` : prompt;
  
         for (let i = 0; i < turns; i++) {
-            const turnPrompt = i === 0 ? prompt : `${prompt} [turn ${i + 1}]`;
+            const turnPrompt = i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`;
             const result     = await engine.submitMessage(turnPrompt, matchedTools, permissionDenials);
             results.push(result);
             this.emit('turn', result);
@@ -158,7 +162,13 @@ class AgentRuntime extends EventEmitter {
  
     async dispatchTask(prompt, opts = {}) {
         const registry = getTaskRegistry();
-        const task     = registry.create(prompt, { description: opts.description });
+        const task     = registry.create(prompt, {
+            description: opts.description,
+            action: opts.action || 'assist.task',
+            owner: { userId: opts.context?.userId || null, platformId: opts.context?.platformId || null },
+            context: opts.context || {},
+            wbs: opts.wbs || null
+        });
  
         registry.setStatus(task.taskId, TaskStatus.RUNNING);
         this.emit('task:dispatched', task);
@@ -174,7 +184,7 @@ class AgentRuntime extends EventEmitter {
  
     async _executeTask(taskId, prompt, opts) {
         const registry = getTaskRegistry();
-        const { results } = await this.runTurnLoop(prompt, opts);
+        const { results } = await this.runTurnLoop(prompt, { ...opts, wbs: opts.wbs || registry.get(taskId)?.wbs, context: opts.context || registry.get(taskId)?.scope || {} });
         for (const r of results) {
             registry.appendOutput(taskId, 'assistant', r.output);
         }

@@ -26,14 +26,8 @@ jobs:
       - name: Install
         run: npm ci --legacy-peer-deps
 
-      - name: Prepare Jest module path
-        run: |
-          mkdir -p /tmp/jest-deps
-          cp package.json /tmp/jest-deps/
-          cd /tmp/jest-deps && npm ci --ignore-scripts --legacy-peer-deps --prefer-offline 2>/dev/null || true
-
       - name: Build check
-        run: npm run build:check || true
+        run: npm run build:check
 
       - name: Test
         run: npm test -- --ci --forceExit --passWithNoTests

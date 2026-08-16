@@ -3,6 +3,15 @@ import https from 'https';
 import http from 'http';
 import PesaPayProvider from './providers/pesapay-provider.js';
 import { URL } from 'url';
+import { createPaymentIdempotencyStore } from './idempotency-store.js';
+import {
+  normalizePaymentRequest,
+  assertTransactionId,
+  createIdempotencyKey,
+  safeWebhookBody,
+  requireWebhookVerification,
+  normalizeProviderStatus,
+} from './payment-guards.js';
 
 // src/payments/payment-gateway.js
 // CommonJS Payment Gateway for AgentOS
@@ -52,12 +61,16 @@ class PaymentGateway {
     };
     
     this.providers = new Map();
+    this.transactionSink = typeof config.transactionSink === 'function' ? config.transactionSink : null;
+    this.idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
     this.initializeProviders();
   }
 
   initializeProviders() {
     // Initialize all available payment providers
     if (this.config.stripeSecretKey) {
+      // Provider classes are declared below the gateway for legacy module layout.
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('stripe', new StripeProvider(this.config));
     }
     // PesaPay (Zimbabwe All-in-One)
@@ -65,18 +78,23 @@ class PaymentGateway {
       this.providers.set('pesapay', new PesaPayProvider(this.config));
     }
     if (this.config.ecocashMerchantCode) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('ecocash', new EcoCashProvider(this.config));
     }
     if (this.config.netoneApiKey) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('netone', new NetOneProvider(this.config));
     }
     if (this.config.paynowIntegrationId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('paynow', new PayNowProvider(this.config));
     }
     if (this.config.applePayMerchantId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('apple_pay', new ApplePayProvider(this.config));
     }
     if (this.config.googlePayMerchantId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('google_pay', new GooglePayProvider(this.config));
     }
   }
@@ -174,31 +192,31 @@ class PaymentGateway {
    * @param {Object} paymentData - Payment details
    * @returns {Promise<Object>} Payment result
    */
-  async createPayment(provider, paymentData) {
+  async createPayment(provider, paymentData = {}) {
     const providerInstance = this.providers.get(provider);
-    if (!providerInstance) {
-      throw new Error(`Payment provider '${provider}' not available`);
+    if (!providerInstance) throw new Error(`Payment provider '${provider}' not available`);
+    const normalized = normalizePaymentRequest(paymentData, { defaultCurrency: this.config.defaultCurrency });
+    const key = paymentData.idempotencyKey || createIdempotencyKey(provider, normalized.reference);
+    const previous = this.idempotency.get(key);
+    if (previous) return previous;
+    if (typeof this.idempotency.reserve === 'function' && !this.idempotency.reserve(key, {
+      provider,
+      reference: normalized.reference,
+      amount: normalized.amount,
+      currency: normalized.currency,
+    })) {
+      const concurrent = this.idempotency.get(key);
+      if (concurrent) return concurrent;
+      throw new Error('Payment request is already being processed');
     }
 
     try {
-      const result = await providerInstance.createPayment(paymentData);
-      
-      // Log transaction
-      await this.logTransaction({
-        provider,
-        ...paymentData,
-        status: result.status,
-        transactionId: result.transactionId
-      });
-
+      const result = normalizeProviderStatus(await providerInstance.createPayment({ ...normalized, idempotencyKey: key }));
+      this.idempotency.set(key, result);
+      await this.logTransaction({ provider, ...normalized, status: result.status, transactionId: result.transactionId });
       return result;
     } catch (error) {
-      await this.logTransaction({
-        provider,
-        ...paymentData,
-        status: 'failed',
-        error: error.message
-      });
+      await this.logTransaction({ provider, ...normalized, status: 'failed', error: error.message });
       throw error;
     }
   }
@@ -211,11 +229,8 @@ class PaymentGateway {
    */
   async verifyPayment(provider, transactionId) {
     const providerInstance = this.providers.get(provider);
-    if (!providerInstance) {
-      throw new Error(`Payment provider '${provider}' not available`);
-    }
-
-    return await providerInstance.verifyPayment(transactionId);
+    if (!providerInstance) throw new Error(`Payment provider '${provider}' not available`);
+    return normalizeProviderStatus(await providerInstance.verifyPayment(assertTransactionId(transactionId)));
   }
 
   /**
@@ -225,19 +240,15 @@ class PaymentGateway {
    * @param {Object} headers - Request headers
    * @returns {Promise<Object>} Webhook processing result
    */
-  async handleWebhook(provider, payload, headers) {
+  async handleWebhook(provider, payload = {}, headers = {}) {
     const providerInstance = this.providers.get(provider);
-    if (!providerInstance) {
-      throw new Error(`Payment provider '${provider}' not available`);
-    }
-
-    // Verify webhook signature
+    if (!providerInstance) throw new Error(`Payment provider '${provider}' not available`);
     const isValid = await providerInstance.verifyWebhook(payload, headers);
-    if (!isValid) {
-      throw new Error('Invalid webhook signature');
-    }
-
-    return await providerInstance.processWebhook(payload);
+    requireWebhookVerification(provider, isValid);
+    const processed = await providerInstance.processWebhook(payload);
+    const result = normalizeProviderStatus(processed);
+    await this.logTransaction({ provider, ...safeWebhookBody(payload), status: result.status, transactionId: result.transactionId });
+    return processed;
   }
 
   /**
@@ -250,11 +261,12 @@ class PaymentGateway {
    */
   async refund(provider, transactionId, amount, reason = '') {
     const providerInstance = this.providers.get(provider);
-    if (!providerInstance) {
-      throw new Error(`Payment provider '${provider}' not available`);
-    }
-
-    return await providerInstance.refund(transactionId, amount, reason);
+    if (!providerInstance) throw new Error(`Payment provider '${provider}' not available`);
+    const id = assertTransactionId(transactionId);
+    const normalizedAmount = Number(amount);
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) throw new Error('Refund amount must be greater than zero');
+    if (!String(reason || '').trim()) throw new Error('A refund reason is required');
+    return normalizeProviderStatus(await providerInstance.refund(id, normalizedAmount, String(reason).slice(0, 500)));
   }
 
   /**
@@ -262,12 +274,21 @@ class PaymentGateway {
    * @param {Object} transaction - Transaction data
    */
   async logTransaction(transaction) {
-    // This would integrate with your existing database
-    // For now, just console log
-    console.log('[Payment Transaction]', {
-      timestamp: new Date().toISOString(),
-      ...transaction
-    });
+    const record = {
+      id: transaction.transactionId || transaction.reference || createIdempotencyKey(transaction.provider || 'unknown', transaction.reference || Date.now()),
+      type: 'payment_attempt',
+      provider: transaction.provider || null,
+      transactionId: transaction.transactionId || null,
+      reference: transaction.reference || null,
+      status: transaction.status || 'unknown',
+      amount: transaction.amount ?? null,
+      currency: transaction.currency || this.config.defaultCurrency,
+      metadata: safeWebhookBody(transaction),
+      createdAt: new Date().toISOString(),
+    };
+    if (this.transactionSink) await this.transactionSink(record);
+    else console.log('[Payment Transaction]', record);
+    return record;
   }
 }
 

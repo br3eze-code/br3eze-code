@@ -1,0 +1,133 @@
+{
+  "project_info": {
+    "title": "AgentOS Secure MikroTik Mesh Remote Access",
+    "created": 1786843640.075,
+    "last_updated": 1786843640.075,
+    "total_slides": 11
+  },
+  "slides": [
+    {
+      "id": "title",
+      "state": "edit_pending",
+      "pageNum": 1
+    },
+    {
+      "id": "problem",
+      "state": "edit_pending",
+      "pageNum": 2
+    },
+    {
+      "id": "topology",
+      "state": "edit_pending",
+      "pageNum": 3
+    },
+    {
+      "id": "routeros7",
+      "state": "edit_pending",
+      "pageNum": 4
+    },
+    {
+      "id": "code_structure",
+      "state": "edit_pending",
+      "pageNum": 5
+    },
+    {
+      "id": "telegram_flow",
+      "state": "edit_pending",
+      "pageNum": 6
+    },
+    {
+      "id": "agent_contract",
+      "state": "edit_pending",
+      "pageNum": 7
+    },
+    {
+      "id": "safety",
+      "state": "edit_pending",
+      "pageNum": 8
+    },
+    {
+      "id": "packages",
+      "state": "edit_pending",
+      "pageNum": 9
+    },
+    {
+      "id": "rollout",
+      "state": "edit_pending",
+      "pageNum": 10
+    },
+    {
+      "id": "closing",
+      "state": "edit_pending",
+      "pageNum": 11
+    }
+  ],
+  "outline": [
+    {
+      "id": "title",
+      "title": "AgentOS Secure MikroTik Mesh Remote Access",
+      "summary": "Introduce the offer as a private mesh for many RouterOS 7 sites with authorized Telegram and agent operations.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "problem",
+      "title": "The customer problem",
+      "summary": "Explain the operational pain of multi-site MikroTik management and unsafe pressure to expose management ports.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "topology",
+      "title": "Recommended topology",
+      "summary": "Show Telegram, applications, and AgentOS agents entering the gateway and policy layer before private mesh connectivity to sites.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "routeros7",
+      "title": "RouterOS 7 reality check",
+      "summary": "Separate existing capabilities from the RouterOS 7 porting work that remains incomplete.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "code_structure",
+      "title": "Code structure",
+      "summary": "Explain the five layers inside src/core/mikrotik-mesh.js and how it reuses the existing manager.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "telegram_flow",
+      "title": "Telegram inline-keyboard flow",
+      "summary": "Show /start or /sites through authorized site selection, expiring callback tokens, and health actions.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "agent_contract",
+      "title": "Agent tool contract",
+      "summary": "List the controlled mesh tools and the context agents receive without exposing secrets or raw CLI access.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "safety",
+      "title": "Safety and authorization",
+      "summary": "Explain read-only defaults, mutation approvals, fleet safeguards, and redacted audit events.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "packages",
+      "title": "Sellable packages",
+      "summary": "Present Mesh Connect, Managed Network Operations, Pro Fleet Operations, and Enterprise Control Plane tiers.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "rollout",
+      "title": "Rollout plan and decision gate",
+      "summary": "Set a 90-day path from RouterOS 7 capability completion to pilot, Business launch, and MSP expansion.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "closing",
+      "title": "AgentOS Secure Network Mesh",
+      "summary": "Close with the product promise and the next engineering priority: RouterOS 7 capability negotiation and full startup injection.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

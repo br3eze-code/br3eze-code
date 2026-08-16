@@ -1,0 +1,15 @@
+Generated architecture deliverables from a reusable XML source and XSLT stylesheet.
+
+Files:
+- agentos-platform-architecture.xml
+- agentos-platform-architecture.xsl
+- output/agentos-platform-architecture-brief.pdf (A4 portrait, 3 pages)
+- output/agentos-partner-admin-control-model.pdf (A4 landscape, 4 pages)
+
+Verification:
+- PDFs generated successfully via build_architecture_pdfs.py
+- PDF metadata confirms valid page sizes and page counts
+- Visual review confirms improved hierarchy, tenant separation, and control-plane framing
+
+Note:
+- Partner monthly figures are treated as illustrative planning values supplied by the user, not audited financial results.

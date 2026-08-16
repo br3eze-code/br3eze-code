@@ -20,11 +20,11 @@ jobs:
           stale-pr-message: >
             Inactive for 14 days. Closes in 7 days unless updated or merged.
           close-issue-message: Closed due to inactivity. Reopen if still relevant.
-          close-pr-message:    Closed due to inactivity. Reopen or rebase if needed.
+          close-pr-message: Closed due to inactivity. Reopen or rebase if needed.
           days-before-issue-stale: 30
-          days-before-pr-stale:    14
-          days-before-close:        7
+          days-before-pr-stale: 14
+          days-before-close: 7
           stale-issue-label: stale
-          stale-pr-label:    stale
+          stale-pr-label: stale
           exempt-issue-labels: pinned,security,bug
-          exempt-pr-labels:    pinned,security
+          exempt-pr-labels: pinned,security

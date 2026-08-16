@@ -1,0 +1,147 @@
+name: cctv
+version: 1.0.0
+description: Vendor-neutral CCTV operations across configured camera and NVR providers.
+author: br3eze
+license: Apache-2.0
+entry: index.js
+
+tools:
+  - name: cctv.device.list
+    description: List configured CCTV devices across supported providers.
+    parameters: {}
+    returns: array
+  - name: cctv.capabilities
+    description: Report normalized device capabilities, ONVIF-style profiles, codecs, analytics, and browser playback requirements.
+    parameters:
+      - name: device
+        type: string
+        required: true
+    returns: object
+  - name: cctv.device.health
+    description: Check health of one provider or all configured CCTV providers.
+    parameters: {}
+    returns: object
+  - name: cctv.device.info
+    description: Get normalized device information.
+    parameters:
+      - name: device
+        type: string
+        required: true
+    returns: object
+  - name: cctv.channel.list
+    description: List channels configured on a CCTV device.
+    parameters:
+      - name: device
+        type: string
+        required: true
+    returns: object
+  - name: cctv.snapshot.all
+    description: Get bounded snapshots for every channel when supported by the provider.
+    parameters:
+      - name: device
+        type: string
+        required: true
+    returns: array
+  - name: cctv.snapshot.get
+    description: Get a JPEG snapshot from a CCTV channel.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: channel
+        type: number
+        required: false
+    returns: object
+  - name: cctv.stream.url
+    description: Build a live stream URL for a CCTV channel.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: channel
+        type: number
+        required: false
+      - name: subtype
+        type: number
+        required: false
+    returns: object
+  - name: cctv.stream.multi
+    description: Build main and sub-stream URLs for multiple NVR channels.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: channels
+        type: array
+        required: false
+      - name: subtype
+        type: number
+        required: false
+    returns: object
+  - name: cctv.ptz.move
+    description: Move a PTZ camera; requires approval and a reason.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: reason
+        type: string
+        required: true
+    returns: object
+  - name: cctv.ptz.preset
+    description: Move a PTZ camera to a preset; requires approval and a reason.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: preset
+        type: number
+        required: true
+      - name: reason
+        type: string
+        required: true
+    returns: object
+  - name: cctv.scene.describe
+    description: Describe the current scene from a CCTV snapshot when provider analytics are available.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: channel
+        type: number
+        required: false
+    returns: object
+  - name: cctv.events.summarize
+    description: Summarize recent CCTV events using provider event history and analytics when available.
+    parameters:
+      - name: query
+        type: string
+        required: true
+      - name: device
+        type: string
+        required: false
+    returns: object
+  - name: cctv.events.search
+    description: Search motion and device events within a bounded time window.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: minutes
+        type: number
+        required: false
+    returns: array
+  - name: cctv.system.reboot
+    description: Reboot a CCTV device; requires approval and a reason.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: reason
+        type: string
+        required: true
+    returns: object
+  - name: cctv.device.discover
+    description: Discover compatible CCTV devices on a local network when supported.
+    parameters: {}
+    returns: array

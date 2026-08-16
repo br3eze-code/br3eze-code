@@ -13,6 +13,65 @@ class PaymentService {
   }
 
   /**
+   * Create an idempotent provider payment record. This is domain-neutral and
+   * can be used by checkout, ask-engine, or external API adapters.
+   * @param {Object} params
+   * @returns {Promise<Object>} normalized payment record
+   */
+  async createPayment({ provider, paymentId, amountMinor, currency, customer, metadata = {} }) {
+    if (!provider) throw new TypeError('provider is required');
+    if (!paymentId) throw new TypeError('paymentId is required');
+    if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+      throw new TypeError('amountMinor must be a positive safe integer');
+    }
+
+    if (this.db) {
+      const existingRef = this.db.collection('payments').doc(paymentId);
+      const existing = await existingRef.get();
+      if (existing?.exists) return existing.data();
+    }
+
+    const result = await this.gateway.createPayment(provider, {
+      amount: amountMinor / 100,
+      amountMinor,
+      currency,
+      reference: paymentId,
+      customer,
+      metadata,
+    });
+    const payment = {
+      id: paymentId,
+      provider,
+      amountMinor,
+      currency,
+      status: result.status || 'pending',
+      providerReference: result.transactionId || result.providerReference || null,
+      metadata,
+      createdAt: new Date(),
+      providerResult: result,
+    };
+    if (this.db) await this.db.collection('payments').doc(paymentId).set(payment);
+    return payment;
+  }
+
+  /**
+   * Verify and persist a provider webhook using the existing gateway contract.
+   */
+  async handleWebhook(provider, payload, headers = {}) {
+    const result = await this.gateway.handleWebhook(provider, payload, headers);
+    const paymentId = result?.paymentId || result?.transactionId || result?.id;
+    if (this.db && paymentId) {
+      await this.db.collection('payments').doc(paymentId).set({
+        ...result,
+        id: paymentId,
+        provider,
+        updatedAt: new Date(),
+      }, { merge: true });
+    }
+    return result;
+  }
+
+  /**
    * Create a voucher purchase transaction
    * @param {Object} params - Purchase parameters
    * @returns {Promise<Object>} Purchase result

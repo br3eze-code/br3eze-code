@@ -91,6 +91,7 @@ class Database {
         this._transactions = [];
         this._auditLog = [];
         this._mikrotik = new Map();
+        this._userGraphs = new Map();
 
         // File paths
         this._paths = {
@@ -101,9 +102,10 @@ class Database {
             transactions: path.join(STATE_PATH, 'transactions.json'),
             audit: path.join(STATE_PATH, 'audits.json'),
             mikrotik: path.join(STATE_PATH, 'mikrotik.json'),
+            userGraphs: path.join(STATE_PATH, 'user-lifecycle-graphs.json'),
         };
 
-        this._init();
+        this.ready = this._init();
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
@@ -194,6 +196,7 @@ class Database {
         loadMap(this._paths.wallets, this._wallets);
         loadMap(this._paths.plans, this._plans);
         loadMap(this._paths.mikrotik, this._mikrotik);
+        loadMap(this._paths.userGraphs, this._userGraphs);
         loadArr(this._paths.transactions, this._transactions);
         loadArr(this._paths.audit, this._auditLog);
         logger.info(`Local DB: ${this._vouchers.size} vouchers, ${this._users.size} users, ${this._plans.size} plans`);
@@ -263,6 +266,9 @@ class Database {
         if (this.db) {
             const doc = await this.db.collection('plans').doc(planId).get();
             if (doc.exists) return { id: doc.id, ...doc.data() };
+        } else if (this.sqlite) {
+            const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(planId);
+            if (row) return { id: row.id, ...row, active: Boolean(row.active), features: SQLiteDB.fromDB(row.features) };
         } else {
             const p = this._plans.get(planId);
             if (p) return { id: planId, ...p };
@@ -274,6 +280,9 @@ class Database {
             if (this.db) {
                 const hDoc = await this.db.collection('plans').doc(hashedId).get();
                 if (hDoc.exists) return { id: hDoc.id, ...hDoc.data() };
+            } else if (this.sqlite) {
+                const row = this.sqlite.prepare('SELECT * FROM plans WHERE id = ?').get(hashedId);
+                if (row) return { id: row.id, ...row, active: Boolean(row.active), features: SQLiteDB.fromDB(row.features) };
             } else {
                 const hp = this._plans.get(hashedId);
                 if (hp) return { id: hashedId, ...hp };
@@ -315,6 +324,10 @@ class Database {
             const snap = await q.get();
             return snap.docs.map(d => ({ id: d.id, ...d.data() }));
         }
+        if (this.sqlite) {
+            const rows = this.sqlite.prepare(activeOnly ? 'SELECT * FROM plans WHERE active = 1' : 'SELECT * FROM plans').all();
+            return rows.map(row => ({ id: row.id, ...row, active: Boolean(row.active), features: SQLiteDB.fromDB(row.features) }));
+        }
         return Array.from(this._plans.entries())
             .filter(([, v]) => !activeOnly || v.active)
             .map(([id, data]) => ({ id, ...data }));
@@ -323,7 +336,26 @@ class Database {
     async createPlan(planId, data) {
         const doc = { ...data, createdAt: this._ts(), active: data.active !== false };
         if (this.db) await this.db.collection('plans').doc(planId).set(doc);
-        else { this._plans.set(planId, doc); this._saveLocal('plans'); }
+        else if (this.sqlite) {
+            this.sqlite.prepare(`INSERT OR REPLACE INTO plans
+                (id, name, description, dataLimit, deviceLimit, durationUnit, durationValue,
+                 durationDays, imageUrl, price, active, createdAt, features)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+                planId,
+                doc.name || null,
+                doc.description || null,
+                doc.dataLimit || null,
+                doc.deviceLimit ?? null,
+                doc.durationUnit || null,
+                doc.durationValue ?? null,
+                doc.durationDays ?? null,
+                doc.imageUrl || null,
+                Number(doc.price ?? doc.value ?? 0),
+                doc.active ? 1 : 0,
+                doc.createdAt,
+                SQLiteDB.toDB(doc.features || {})
+            );
+        } else { this._plans.set(planId, doc); this._saveLocal('plans'); }
         return { planId, ...doc };
     }
 
@@ -348,10 +380,19 @@ class Database {
             const doc = await this.db.collection('vouchers').doc(code).get();
             return doc.exists ? { id: doc.id, ...doc.data() } : null;
         }
-        const v = this._vouchers.get(code);
-        return v ? { id: code, ...v } : null;
+                const v = this._vouchers.get(code);
+        if (v) return { id: code, ...v };
+        if (this.sqlite) {
+            const row = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
+            if (row) return {
+                id: row.code,
+                ...row,
+                used: Boolean(row.used),
+                redemption: SQLiteDB.fromDB(row.redemption),
+            };
+        }
+        return null;
     }
-
     async createVoucher(code, data = {}) {
         if (!data.plan && (!data.durationUnit || data.durationValue == null)) {
             throw new Error('Voucher must have a plan or duration specified.');
@@ -390,7 +431,21 @@ class Database {
             }
         };
         if (this.db) await this.db.collection('vouchers').doc(code).set(doc, { merge: true });
-        else { this._vouchers.set(code, doc); this._saveLocal('vouchers'); }
+        else {
+            this._vouchers.set(code, doc);
+            this._saveLocal('vouchers');
+            if (this.sqlite) {
+                this.sqlite.prepare(`INSERT OR REPLACE INTO vouchers
+                    (code, status, used, usedAt, usedBy, redeemedByUsername, plan, planName,
+                     durationUnit, durationValue, deviceLimit, value, currency, loginUrl,
+                     expiresAt, createdBy, redemption, createdAt)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                    .run(doc.code, doc.status, doc.used ? 1 : 0, doc.usedAt, doc.usedBy,
+                        doc.redeemedByUsername, doc.plan, doc.planName, doc.durationUnit,
+                        doc.durationValue, doc.deviceLimit, doc.value, doc.currency,
+                        doc.loginUrl, doc.expiresAt, doc.createdBy, SQLiteDB.toDB(doc.redemption), now);
+            }
+        }
         return doc;
     }
 
@@ -511,7 +566,7 @@ class Database {
             const newBalance = (wallet.balance || 0) + val;
             this._wallets.set(id, { ...wallet, balance: newBalance, lastUpdated: new Date().toISOString() });
 
-            const u = this._users.get(id) || {};
+                const u = this._users.get(id) || {};
             this._users.set(id, {
                 ...u,
                 credits: newBalance,
@@ -521,6 +576,7 @@ class Database {
                 ...(userData.deviceModel && { deviceModel: userData.deviceModel }),
                 ...(userData.ip && { lastIP: userData.ip }),
             });
+            this._sqliteUpsertUser(id, this._users.get(id));
 
             this._saveLocal('vouchers');
             this._saveLocal('wallets');
@@ -558,7 +614,7 @@ class Database {
         }
     }
 
-    async createVoucher(code, data = {}) {
+    async _legacyCreateVoucher(code, data = {}) {
             if (!data.plan && (!data.durationUnit || data.durationValue == null)) {
                 throw new Error('Voucher must have a plan or value specified.');
             }
@@ -597,7 +653,7 @@ class Database {
             };
             if (this.db) await this.db.collection('vouchers').doc(code).set(doc, { merge: true });
             else {
-                const { SQLiteDB } = require('./sqlite-db');
+
                 this.sqlite.prepare('INSERT OR REPLACE INTO vouchers (code, status, used, usedAt, usedBy, redeemedByUsername, plan, planName, durationUnit, durationValue, deviceLimit, value, currency, loginUrl, expiresAt, createdBy, redemption, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                     .run(doc.code, doc.status, doc.used ? 1 : 0, doc.usedAt, doc.usedBy, doc.redeemedByUsername, doc.plan, doc.planName, doc.durationUnit, doc.durationValue, doc.deviceLimit, doc.value, doc.currency, doc.loginUrl, doc.expiresAt, doc.createdBy, SQLiteDB.toDB(doc.redemption), doc.createdAt || now);
             }
@@ -611,7 +667,7 @@ class Database {
                 const existing = await this.getVoucher(code);
                 if (!existing) return;
                 const updated = { ...existing, ...updates };
-                const { SQLiteDB } = require('./sqlite-db');
+
                 this.sqlite.prepare('INSERT OR REPLACE INTO vouchers (code, status, used, usedAt, usedBy, redeemedByUsername, plan, planName, durationUnit, durationValue, deviceLimit, value, currency, loginUrl, expiresAt, createdBy, redemption, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
                     .run(updated.code, updated.status, updated.used ? 1 : 0, updated.usedAt, updated.usedBy, updated.redeemedByUsername, updated.plan, updated.planName, updated.durationUnit, updated.durationValue, updated.deviceLimit, updated.value, updated.currency, updated.loginUrl, updated.expiresAt, updated.createdBy, SQLiteDB.toDB(updated.redemption), updated.createdAt);
             }
@@ -700,11 +756,11 @@ class Database {
                         voucher = { ...voucher, ...vUpdate };
                     });
                 } else {
-                    const { SQLiteDB } = require('./sqlite-db');
+
 
                     this.sqlite.transaction(() => {
                         voucher = this.sqlite.prepare('SELECT * FROM vouchers WHERE code = ?').get(code);
-                        if (voucher) voucher = SQLiteDB.fromDB(voucher);
+                        if (voucher) voucher = { ...voucher, redemption: SQLiteDB.fromDB(voucher.redemption) };
 
                         if (!voucher || voucher.used || voucher.status === 'used') throw new Error('Voucher is invalid or already used.');
                         if (voucher.expiresAt && new Date() > new Date(voucher.expiresAt)) throw new Error('Voucher expired');
@@ -729,17 +785,16 @@ class Database {
                             .run(vUpdate.used, vUpdate.usedAt, vUpdate.usedBy, vUpdate.status, vUpdate.redeemedByUsername, vUpdate.redemption, code);
 
                         // Update Wallet
-                        let wallet = this.sqlite.prepare('SELECT * FROM wallets WHERE id = ?').get(id);
-                        if (wallet) wallet = SQLiteDB.fromDB(wallet);
+                        let wallet = this.sqlite.prepare('SELECT * FROM wallets WHERE uid = ?').get(id);
                         const currentBalance = wallet ? (wallet.balance || 0) : 0;
                         const newBalance = currentBalance + val;
 
-                        this.sqlite.prepare('INSERT OR REPLACE INTO wallets (id, balance, currency, lastUpdated) VALUES (?, ?, ?, ?)')
+                        this.sqlite.prepare('INSERT OR REPLACE INTO wallets (uid, balance, currency, lastUpdated) VALUES (?, ?, ?, ?)')
                             .run(id, newBalance, voucher.currency || 'USD', this._ts());
 
                         // Update User
                         let user = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
-                        if (user) user = SQLiteDB.fromDB(user);
+                        if (user) user = SQLiteDB.rowToUser(user);
 
                         const vouchersUsed = [...(user?.vouchersUsed || []), code];
                         this.sqlite.prepare('UPDATE users SET credits = ?, lastSeen = ?, vouchersUsed = ?, platform = COALESCE(?, platform), deviceModel = COALESCE(?, deviceModel), lastIP = COALESCE(?, lastIP) WHERE uid = ?')
@@ -747,14 +802,22 @@ class Database {
 
                         // Create Transaction
                         const txId = `TX-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-                        this.sqlite.prepare('INSERT INTO transactions (id, type, userId, amount, currency, status, description, metadata, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                            .run(txId, 'voucher_redeem', id, val, voucher.currency || 'USD', 'completed', `Voucher ${code} redeemed for ${val} credits`, SQLiteDB.toDB({ voucherCode: code }), this._ts());
+                        this.sqlite.prepare('INSERT INTO transactions (id, type, voucherCode, userId, amount, currency, status, description, metadata, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                            .run(txId, 'voucher_redeem', code, id, val, voucher.currency || 'USD', 'completed', `Voucher ${code} redeemed for ${val} credits`, SQLiteDB.toDB({ voucherCode: code }), this._ts());
 
                         voucher = { ...voucher, ...vUpdate, redemption: JSON.parse(vUpdate.redemption) };
                     })();
                 }
 
                 await this.logAudit('voucher.redeem', id, { code, amount: voucher.value });
+                await this.syncUserLifecycleGraph(id, 'voucher.redeemed', {
+                    scope: {
+                        tenantId: userData.tenantId,
+                        domain: userData.domain,
+                        siteId: userData.siteId
+                    },
+                    details: { voucherCode: code, amount: voucher.value }
+                });
                 return { success: true, value: voucher.value, voucher };
             }
 
@@ -839,22 +902,6 @@ class Database {
     //         deviceModel, role, credits, lastIP, lastSeen, createdAt,
     //         subscriptions [{ planId, planName, purchasedAt, expiresAt }],
     //         pendingNotification { code, message, title, type }
-
-    async getUser(userId) {
-        const id = String(userId);
-        if (this.db) {
-            // Avoid orderBy composite index requirement — fetch latest batch and sort in memory
-            const snap = await this.db.collection('vouchers').limit(limit * 3).get();
-            const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            return all
-                .sort((a, b) => this._toDate(b.createdAt || 0) - this._toDate(a.createdAt || 0))
-                .slice(0, limit);
-        }
-        return Array.from(this._vouchers.entries())
-            .sort((a, b) => new Date(b[1].createdAt || 0) - new Date(a[1].createdAt || 0))
-            .slice(0, limit)
-            .map(([id, data]) => ({ id, ...data }));
-    }
 
     /**
      * Filtered voucher listing for admin/reseller dashboards.
@@ -954,10 +1001,11 @@ class Database {
             const doc = await this.db.collection('users').doc(id).get();
             return doc.exists ? { id: doc.id, ...doc.data() } : null;
         }
+        if (this.sqlite) return SQLiteDB.rowToUser(this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id));
         const u = this._users.get(id);
-        return u ? { id, ...u } : null;
+        if (u) return { id, ...u };
+        return null;
     }
-
     getUserDoc(userId) {
         const id = String(userId);
         if (this.db) {
@@ -1017,6 +1065,9 @@ class Database {
             lastIP: data.lastIP || null,
             // ── Access control ───────────────────────────────────────────────
             role: data.role || 'user',   // user | admin | reseller
+            tenantId: data.tenantId || null,
+            domain: data.domain || null,
+            siteId: data.siteId || null,
             credits: data.credits || 0,
             // ── Subscriptions ────────────────────────────────────────────────
             subscriptions: data.subscriptions || [],
@@ -1033,10 +1084,10 @@ class Database {
         };
         if (this.db) await this.db.collection('users').doc(id).set(doc, { merge: true });
         else { this._users.set(id, doc); this._saveLocal('users'); }
-        this._sqliteUpsertUser(id, doc);
+                this._sqliteUpsertUser(id, doc);
+        await this.syncUserLifecycleGraph(id, 'user.created', { scope: data });
         return doc;
     }
-
     async updateUser(userId, updates) {
         const id = String(userId);
         const safeUpdates = { ...updates, lastSeen: this._ts() };
@@ -1046,9 +1097,68 @@ class Database {
             this._users.set(id, { ...existing, ...safeUpdates });
             this._saveLocal('users');
         }
-        this._sqliteUpsertUser(id, safeUpdates);
+                this._sqliteUpsertUser(id, safeUpdates);
+        await this.syncUserLifecycleGraph(id, 'user.updated', { scope: safeUpdates });
     }
 
+    /**
+     * Synchronize a privacy-safe, per-user lifecycle graph. The graph is keyed
+     * by uid in Firestore, SQLite, and the local JSON fallback; it never uses a
+     * shared global graph for user activity.
+     */
+    async syncUserLifecycleGraph(userId, eventType, { scope = {}, details = {} } = {}) {
+        const uid = String(userId);
+        const existing = await this.getUserLifecycleGraph(uid);
+        const now = new Date().toISOString();
+        const tenantId = scope.tenantId || existing?.tenantId || null;
+        const domain = scope.domain || existing?.domain || null;
+        const siteId = scope.siteId || existing?.siteId || null;
+        const graph = existing || { uid, nodes: [], edges: [], events: [] };
+        const nodeIds = new Set(graph.nodes.map((node) => node.id));
+        const userNode = {
+            id: `user:${uid}`,
+            type: 'user',
+            uid,
+            tenantId,
+            domain,
+            siteId,
+            updatedAt: now
+        };
+        if (!nodeIds.has(userNode.id)) graph.nodes.push(userNode);
+        else graph.nodes = graph.nodes.map((node) => node.id === userNode.id ? { ...node, ...userNode } : node);
+
+        if (eventType) {
+            const eventId = `event:${uid}:${Date.now()}:${String(eventType).replace(/[^a-z0-9_.-]/gi, '_')}`;
+            const eventNode = { id: eventId, type: 'lifecycle_event', eventType, tenantId, domain, siteId, occurredAt: now, details };
+            graph.nodes.push(eventNode);
+            graph.edges.push({ from: userNode.id, to: eventId, relation: 'experienced' });
+            graph.events.push({ id: eventId, eventType, tenantId, domain, siteId, occurredAt: now });
+        }
+        graph.uid = uid;
+        graph.tenantId = tenantId;
+        graph.domain = domain;
+        graph.siteId = siteId;
+        graph.updatedAt = now;
+
+        if (this.db) await this.db.collection('user_lifecycle_graphs').doc(uid).set(graph, { merge: true });
+        else if (this.sqlite) this.sqlite.prepare(`INSERT OR REPLACE INTO user_lifecycle_graphs (uid, tenantId, domain, siteId, graph, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`)
+            .run(uid, tenantId, domain, siteId, JSON.stringify(graph), now);
+        else { this._userGraphs.set(uid, graph); this._saveLocal('userGraphs'); }
+        return graph;
+    }
+
+    async getUserLifecycleGraph(userId) {
+        const uid = String(userId);
+        if (this.db) {
+            const snap = await this.db.collection('user_lifecycle_graphs').doc(uid).get();
+            return snap.exists ? { uid, ...snap.data() } : null;
+        }
+        if (this.sqlite) {
+            const row = this.sqlite.prepare('SELECT graph FROM user_lifecycle_graphs WHERE uid = ?').get(uid);
+            return row?.graph ? JSON.parse(row.graph) : null;
+        }
+        return this._userGraphs.get(uid) || null;
+    }
     /**
      * Best-effort mirror of a user doc into the SQLite `users` table, so
      * getUserBy.../linkChannel have a durable local tier to fall back to when
@@ -1061,8 +1171,8 @@ class Database {
             const existing = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id) || {};
             const merged = { ...SQLiteDB.rowToUser(existing), ...patch, uid: id };
             this.sqlite.prepare(`INSERT OR REPLACE INTO users
-                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, createdAt, lastSeen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+                (uid, username, fullname, email, phoneNumber, address, platform, deviceModel, lastIP, role, credits, subscriptions, pendingNotification, channels, vouchersUsed, createdAt, lastSeen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
                 id,
                 merged.username || null,
                 merged.fullname || null,
@@ -1077,6 +1187,7 @@ class Database {
                 SQLiteDB.toDB(merged.subscriptions || []),
                 SQLiteDB.toDB(merged.pendingNotification || null),
                 SQLiteDB.toDB(merged.channels || {}),
+                SQLiteDB.toDB(merged.vouchersUsed || []),
                 merged.createdAt || this._ts(),
                 merged.lastSeen || this._ts(),
             );
@@ -1091,6 +1202,9 @@ class Database {
             const snap = await this.db.collection('users').where('username', '==', username).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
         }
+        if (this.sqlite) {
+            return SQLiteDB.rowToUser(this.sqlite.prepare('SELECT * FROM users WHERE username = ? LIMIT 1').get(username));
+        }
         return Array.from(this._users.values()).find(u => u.username === username) || null;
     }
 
@@ -1100,6 +1214,9 @@ class Database {
         if (this.db) {
             const snap = await this.db.collection('users').where('phoneNumber', '==', cleanPhone).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+        if (this.sqlite) {
+            return SQLiteDB.rowToUser(this.sqlite.prepare('SELECT * FROM users WHERE phoneNumber = ? LIMIT 1').get(cleanPhone));
         }
         return Array.from(this._users.values()).find(u => u.phoneNumber === cleanPhone) || null;
     }
@@ -1111,6 +1228,10 @@ class Database {
             const snap = await this.db.collection('users').where('email', '==', cleanEmail).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
         }
+        if (this.sqlite) {
+            const rows = this.sqlite.prepare('SELECT * FROM users').all();
+            return rows.map(row => SQLiteDB.rowToUser(row)).find(u => u?.email?.toLowerCase().trim() === cleanEmail) || null;
+        }
         return Array.from(this._users.values()).find(u => u.email && u.email.toLowerCase().trim() === cleanEmail) || null;
     }
 
@@ -1120,6 +1241,10 @@ class Database {
         if (this.db) {
             const snap = await this.db.collection('users').where(`channels.${channel}`, '==', idStr).limit(1).get();
             return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+        if (this.sqlite) {
+            const rows = this.sqlite.prepare('SELECT * FROM users').all();
+            return rows.map(row => SQLiteDB.rowToUser(row)).find(u => u?.channels && String(u.channels[channel]) === idStr) || null;
         }
         return Array.from(this._users.values()).find(u => u.channels && String(u.channels[channel]) === idStr) || null;
     }
@@ -1131,6 +1256,12 @@ class Database {
         const update = { [`channels.${channel}`]: idStr };
         if (this.db) {
             await this.db.collection('users').doc(id).update(update);
+        } else if (this.sqlite) {
+            const user = SQLiteDB.rowToUser(this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id));
+            if (!user) return false;
+            const channels = { ...(user.channels || {}), [channel]: idStr };
+            this.sqlite.prepare('UPDATE users SET channels = ?, lastSeen = ? WHERE uid = ?')
+                .run(SQLiteDB.toDB(channels), this._ts(), id);
         } else {
             const user = this._users.get(id);
             if (user) {
@@ -1140,6 +1271,7 @@ class Database {
                 this._saveLocal('users');
             }
         }
+        await this.syncUserLifecycleGraph(id, 'channel.linked', { scope: { channel, siteId: null }, details: { channel } });
         return true;
     }
 
@@ -1353,7 +1485,22 @@ class Database {
             createdAt: this._ts(),                     // Legacy compat
         };
         if (this.db) await this.db.collection('transactions').doc(id).set(doc);
-        else { this._transactions.push(doc); this._saveLocal('transactions'); }
+        else if (this.sqlite) {
+            this.sqlite.prepare(`INSERT INTO transactions
+                (id, type, voucherCode, userId, amount, currency, status, description,
+                 timestamp, createdAt, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                .run(id, doc.type, doc.voucherCode, doc.userId, Number(doc.amount || 0),
+                    doc.currency, doc.status, doc.description, doc.timestamp, doc.createdAt,
+                    SQLiteDB.toDB({
+                        planId: doc.planId,
+                        planName: doc.planName,
+                        paymentRef: doc.paymentRef,
+                        provider: doc.provider,
+                        redeemedBy: doc.redeemedBy,
+                        createdBy: doc.createdBy
+                    }));
+        } else { this._transactions.push(doc); this._saveLocal('transactions'); }
         return doc;
     }
 
@@ -1443,6 +1590,10 @@ class Database {
             const user = await this.getUser(id);
             return { id, balance: user?.credits || 0, currency: 'USD' };
         }
+        if (this.sqlite) {
+            const row = this.sqlite.prepare('SELECT * FROM wallets WHERE uid = ?').get(id);
+            return row ? { id: row.uid, ...row } : { id, balance: 0, currency: 'USD' };
+        }
         const w = this._wallets.get(id);
         return w ? { id, ...w } : { id, balance: 0, currency: 'USD' };
     }
@@ -1492,6 +1643,29 @@ class Database {
                     t.set(this.db.collection('transactions').doc(txId), txDoc);
                 }
             });
+        } else if (this.sqlite) {
+            const transaction = this.sqlite.transaction(() => {
+                const wallet = this.sqlite.prepare('SELECT * FROM wallets WHERE uid = ?').get(id);
+                const user = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
+                const currentBalance = wallet?.balance ?? user?.credits ?? 0;
+                const newBalance = Number(currentBalance) + Number(amount);
+                const lastUpdated = this._ts();
+                updatedWallet = { id, balance: newBalance, currency, lastUpdated };
+
+                this.sqlite.prepare('INSERT OR REPLACE INTO wallets (uid, balance, currency, lastUpdated) VALUES (?, ?, ?, ?)')
+                    .run(id, newBalance, currency, lastUpdated);
+                this.sqlite.prepare('INSERT OR IGNORE INTO users (uid, credits, lastSeen, vouchersUsed) VALUES (?, ?, ?, ?)')
+                    .run(id, newBalance, lastUpdated, SQLiteDB.toDB([]));
+                this.sqlite.prepare('UPDATE users SET credits = ?, lastSeen = ? WHERE uid = ?')
+                    .run(newBalance, lastUpdated, id);
+
+                if (!skipTransaction) {
+                    const txId = `TX-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+                    this.sqlite.prepare('INSERT INTO transactions (id, type, userId, amount, currency, status, description, timestamp, createdAt, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                        .run(txId, amount >= 0 ? 'wallet_topup' : 'wallet_debit', id, amount, currency, 'completed', reason, lastUpdated, lastUpdated, SQLiteDB.toDB({ reason }));
+                }
+            });
+            transaction();
         } else {
             const wallet = this._wallets.get(id) || { balance: 0, currency: 'USD' };
             const newBalance = (wallet.balance || 0) + amount;
@@ -1561,6 +1735,27 @@ class Database {
                 };
                 t.set(this.db.collection('transactions').doc(txId), txDoc);
             });
+        } else if (this.sqlite) {
+            const transaction = this.sqlite.transaction(() => {
+                const wallet = this.sqlite.prepare('SELECT * FROM wallets WHERE uid = ?').get(id);
+                const user = this.sqlite.prepare('SELECT * FROM users WHERE uid = ?').get(id);
+                const currentBalance = Number(wallet?.balance ?? user?.credits ?? 0);
+                if (currentBalance < amount) {
+                    throw new Error(`Insufficient credits. Balance: ${currentBalance}, Required: ${amount}`);
+                }
+                newBalance = currentBalance - amount;
+                const now = this._ts();
+                this.sqlite.prepare('INSERT OR REPLACE INTO wallets (uid, balance, currency, lastUpdated) VALUES (?, ?, ?, ?)')
+                    .run(id, newBalance, wallet?.currency || 'USD', now);
+                this.sqlite.prepare('INSERT OR IGNORE INTO users (uid, credits, lastSeen, vouchersUsed) VALUES (?, ?, ?, ?)')
+                    .run(id, newBalance, now, SQLiteDB.toDB([]));
+                this.sqlite.prepare('UPDATE users SET credits = ?, lastSeen = ? WHERE uid = ?')
+                    .run(newBalance, now, id);
+                const txId = `TX-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+                this.sqlite.prepare('INSERT INTO transactions (id, type, userId, amount, currency, status, description, timestamp, createdAt, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+                    .run(txId, 'voucher_purchase', id, -amount, wallet?.currency || 'USD', 'completed', reason, now, now, SQLiteDB.toDB({ reason }));
+            });
+            transaction();
         } else {
             const wallet = await this.getWallet(id);
             const currentBalance = wallet.balance || 0;
@@ -1570,7 +1765,7 @@ class Database {
             }
 
             newBalance = currentBalance - amount;
-            const update = { balance: newBalance, lastUpdated: this._ts() };
+            const update = { balance: newBalance, lastUpdated: new Date().toISOString() };
 
             this._wallets.set(id, update);
             const u = this._users.get(id) || {};
@@ -1659,7 +1854,16 @@ class Database {
         const hash = crypto.createHash('sha256')
             .update(JSON.stringify({ eventType, actor, payload, timestamp }))
             .digest('hex');
-        const entry = { eventType, actor, payload, hash, timestamp };
+        const entry = {
+            eventType,
+            actor,
+            ...(payload.tenantId ? { tenantId: payload.tenantId } : {}),
+            ...(payload.domain ? { domain: payload.domain } : {}),
+            ...(payload.siteId ? { siteId: payload.siteId } : {}),
+            payload,
+            hash,
+            timestamp
+        };
         if (this.db) await this.db.collection('audit_log').add(entry);
         else { this._auditLog.push(entry); this._saveLocal('audit'); }
         return hash;
@@ -1671,12 +1875,15 @@ class Database {
      * entry shape (see logAudit) actually uses `actor`/`eventType`/`timestamp`.
      */
     async getAuditLog(opts = 50) {
-        const { limit = 50, offset = 0, userId, event, hours } = typeof opts === 'number' ? { limit: opts } : (opts || {});
+        const { limit = 50, offset = 0, userId, event, hours, tenantId, domain, siteId } = typeof opts === 'number' ? { limit: opts } : (opts || {});
         const since = hours ? new Date(Date.now() - hours * 3600 * 1000) : null;
         if (this.db) {
             let q = this.db.collection('audit_log').orderBy('timestamp', 'desc');
             if (userId) q = q.where('actor', '==', userId);
             if (event) q = q.where('eventType', '==', event);
+            if (tenantId) q = q.where('tenantId', '==', tenantId);
+            if (domain) q = q.where('domain', '==', domain);
+            if (siteId) q = q.where('siteId', '==', siteId);
             if (since) q = q.where('timestamp', '>=', since.toISOString());
             const snap = await q.limit(limit + offset).get();
             return snap.docs.slice(offset).map(d => ({ id: d.id, ...d.data() }));
@@ -1684,6 +1891,9 @@ class Database {
         let entries = [...this._auditLog];
         if (userId) entries = entries.filter((e) => e.actor === userId);
         if (event) entries = entries.filter((e) => e.eventType === event);
+        if (tenantId) entries = entries.filter((e) => e.tenantId === tenantId);
+        if (domain) entries = entries.filter((e) => e.domain === domain);
+        if (siteId) entries = entries.filter((e) => e.siteId === siteId);
         if (since) entries = entries.filter((e) => this._toDate(e.timestamp) >= since);
         return entries
             .sort((a, b) => this._toDate(b.timestamp) - this._toDate(a.timestamp))
@@ -1752,10 +1962,14 @@ let instance = null;
 let initPromise = null;
 
 async function getDatabase() {
-    if (instance) return instance;
+    if (instance) {
+        await instance.ready;
+        return instance;
+    }
     if (!initPromise) {
-        initPromise = Promise.resolve().then(() => {
+        initPromise = Promise.resolve().then(async () => {
             instance = new Database();
+            await instance.ready;
             return instance;
         });
     }

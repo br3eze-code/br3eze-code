@@ -250,6 +250,37 @@
   </header>
 
   <div class="grid">
+    <!-- Cashier POS cockpit -->
+    <div class="panel" id="cashierPosPanel" style="display:none; grid-column:span 2;">
+      <div class="panel-head">POS · Cashier Shift <span class="badge" id="cashierShiftBadge">CLOSED</span></div>
+      <div class="panel-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <span id="cashierScope" style="color:var(--cyan);font-size:.72rem;">Scope unavailable</span>
+          <span id="cashierPaymentStatus" style="color:var(--dim);font-size:.72rem;">No active payment</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="ask-btn" onclick="cashierNewSale()">NEW SALE</button>
+          <button class="ask-btn" onclick="cashierOpenShift()">OPEN SHIFT</button>
+          <button class="ask-btn" onclick="cashierPaymentStatus()">PAYMENT STATUS</button>
+          <button class="ask-btn" onclick="cashierShiftStatus()">SHIFT STATUS</button>
+        </div>
+        <div class="ask-output visible" id="cashierOutput" style="margin:12px 0 0;min-height:32px;">Cashier controls appear after authenticated POS context is available.</div>
+      </div>
+    </div>
+
+    <!-- Tiered team and contractor cockpit -->
+    <div class="panel" id="teamContractorPanel" style="display:none; grid-column:span 2;">
+      <div class="panel-head">TEAM · CONTRACTOR WORK <span class="badge" id="teamTierBadge">STANDARD</span></div>
+      <div class="panel-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <span id="teamScope" style="color:var(--cyan);font-size:.72rem;">Scope unavailable</span>
+          <span id="teamSummary" style="color:var(--dim);font-size:.72rem;">No verified work data</span>
+        </div>
+        <div id="teamActions" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+        <div id="teamWorkQueue" class="ask-output visible" style="margin:0;min-height:32px;">Team work appears after verified tier context is available.</div>
+      </div>
+    </div>
+
     <!-- Platform Users -->
     <div class="panel">
       <div class="panel-head">
@@ -356,6 +387,112 @@ async function apiFetch(path, opts = {}) {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
+
+// ── cashier POS cockpit ────────────────────────────────────────────────────
+let cashierContext = null;
+let cashierSale = null;
+async function loadCashierContext() {
+  const panel = document.getElementById('cashierPosPanel');
+  try {
+    const data = await apiFetch('/api/v1/pos/context');
+    cashierContext = data.data || data;
+    const ctx = cashierContext.context;
+    if (!ctx || ctx.role !== 'cashier') return;
+    panel.style.display = '';
+    document.getElementById('cashierScope').textContent = `${ctx.tenantId} / ${ctx.siteId} / ${ctx.terminalId}`;
+    document.getElementById('cashierShiftBadge').textContent = cashierContext.shift ? 'OPEN' : 'CLOSED';
+    document.getElementById('cashierOutput').textContent = cashierContext.shift ? 'Ready for a new sale.' : 'Open a shift before creating a sale.';
+  } catch (_) { panel.style.display = 'none'; }
+}
+async function cashierOpenShift() {
+  try {
+    const data = await apiFetch('/api/v1/pos/shifts/open', { method: 'POST', body: JSON.stringify({ openingFloat: 0 }) });
+    cashierContext = cashierContext || {};
+    cashierContext.shift = data.data || data;
+    document.getElementById('cashierShiftBadge').textContent = 'OPEN';
+    document.getElementById('cashierOutput').textContent = 'Shift opened. Ready for a new sale.';
+    appendAudit('ALLOWED', 'cashier', 'pos.shift.open', '');
+  } catch (e) { document.getElementById('cashierOutput').textContent = `Shift error: ${e.message}`; }
+}
+async function cashierNewSale() {
+  try {
+    const data = await apiFetch('/api/v1/pos/sales', { method: 'POST', body: JSON.stringify({ items: [{ productRef: 'manual', name: 'Manual sale', qty: 1, unitAmount: 0 }] }) });
+    cashierSale = data.data || data;
+    document.getElementById('cashierOutput').textContent = `Draft sale ${cashierSale.id} created.`;
+    appendAudit('ALLOWED', 'cashier', 'pos.sale.create', cashierSale.id);
+  } catch (e) { document.getElementById('cashierOutput').textContent = `Sale error: ${e.message}`; }
+}
+async function cashierPaymentStatus() {
+  if (!cashierSale?.paymentId) { document.getElementById('cashierPaymentStatus').textContent = 'No active payment'; return; }
+  try { const data = await apiFetch(`/api/v1/pos/payments/${cashierSale.paymentId}`); document.getElementById('cashierPaymentStatus').textContent = (data.data || data).status || 'UNKNOWN'; }
+  catch (e) { document.getElementById('cashierPaymentStatus').textContent = `Payment error: ${e.message}`; }
+}
+async function cashierShiftStatus() { await loadCashierContext(); }
+
+// ── tiered contractor team cockpit ─────────────────────────────────────────
+const TEAM_ACTIONS = Object.freeze({
+  'team.work_queue': ['MY WORK QUEUE', 'Show assigned contractor work.'],
+  'team.submit_evidence': ['SUBMIT EVIDENCE', 'Prepare evidence for assigned work.'],
+  'team.next_action': ['NEXT ACTION', 'Suggest the next authorized team action.'],
+  'team.progress': ['TEAM PROGRESS', 'Show progress, blockers, and earned value.'],
+  'team.commission_summary': ['COMMISSION', 'Show verified and pending commission.'],
+  'team.evidence.detail': ['QA EVIDENCE', 'Show evidence and quality status.'],
+  'team.commission.approve': ['APPROVE COMMISSION', 'Review commission approvals.'],
+  'team.assignment.manage': ['ASSIGNMENTS', 'Manage contractor assignments.']
+});
+
+function renderTeamContractorContext(context = {}) {
+  const panel = document.getElementById('teamContractorPanel');
+  if (!panel) return;
+  const actions = Array.isArray(context.actions) ? context.actions : [];
+  const tier = String(context.influenceTier || context.tier || 'standard').toUpperCase();
+  if (!actions.some((action) => action.startsWith('team.'))) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  document.getElementById('teamTierBadge').textContent = tier;
+  document.getElementById('teamScope').textContent = `${context.tenantId || 'tenant'} / ${context.projectId || 'project'}${context.siteId ? ` / ${context.siteId}` : ''}`;
+  const summary = context.summary || {};
+  document.getElementById('teamSummary').textContent = `${summary.activeCount || 0} active · ${summary.verifiedCount || 0} verified · commission ${summary.commissionPending || 0}`;
+  document.getElementById('teamActions').innerHTML = actions.filter((action) => TEAM_ACTIONS[action]).map((action) => {
+    const [label, prompt] = TEAM_ACTIONS[action];
+    return `<button class="ask-btn" title="${escHtml(prompt)}" onclick="teamAction('${action}')">${label}</button>`;
+  }).join('');
+  const work = Array.isArray(context.work) ? context.work : [];
+  document.getElementById('teamWorkQueue').textContent = work.length
+    ? work.map((item) => `${item.contractorRole || 'agent'} · ${item.title || item.wbsId || 'work'} · ${item.status || 'proposed'} · ${item.commissionState || 'unearned'}`).join('\\n')
+    : 'No verified contractor work in the current scope.';
+}
+
+async function loadTeamContext() {
+  try {
+    const data = await apiFetch('/api/v1/project-manager/team-context');
+    renderTeamContractorContext(data.data || data);
+  } catch (_) {
+    if (window.AGENTOS_TEAM_CONTEXT) renderTeamContractorContext(window.AGENTOS_TEAM_CONTEXT);
+  }
+}
+
+function teamActionPrompt(action) {
+  return TEAM_ACTIONS[action]?.[1] || action;
+}
+
+async function teamAction(action) {
+  const output = document.getElementById('teamWorkQueue');
+  output.textContent = `Preparing ${action}…`;
+  try {
+    const data = await fetch(API_BASE + '/api/v1/ask', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ prompt: teamActionPrompt(action), stream: false }) });
+    if (!data.ok) throw new Error(`${data.status} ${data.statusText}`);
+    const result = await data.json();
+    output.textContent = result.result?.text || result.result || result.response || JSON.stringify(result);
+    appendAudit('ALLOWED', 'team', action, '');
+  } catch (e) {
+    output.textContent = `Team action unavailable: ${e.message}`;
+    appendAudit('DENIED', 'team', action, e.message);
+  }
+}
+
+function applyTeamContext(context) { renderTeamContractorContext(context); }
+window.applyTeamContext = applyTeamContext;
+if (window.AGENTOS_TEAM_CONTEXT) renderTeamContractorContext(window.AGENTOS_TEAM_CONTEXT);
 
 // ── load platform users ───────────────────────────────────────────────────
 async function loadPlatformUsers() {
@@ -552,7 +689,9 @@ async function refreshAll() {
     checkGateway(),
     loadPlatformUsers(),
     loadHotspotUsers(),
-    loadRoles()
+    loadRoles(),
+    loadCashierContext(),
+    loadTeamContext()
   ]);
 }
 refreshAll();

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        id="cordova-plugin-network-tools"
+        version="1.0.0">
+    <name>AgentOS Network Tools</name>
+    <description>Secure Cordova bridge for local network capabilities, connectivity, interface inventory, and AgentOS network-tool requests.</description>
+    <author>AgentOS</author>
+    <license>Apache-2.0</license>
+    <keywords>cordova, network, diagnostics, connectivity, agentos, router</keywords>
+
+    <js-module src="www/NetworkTools.js" name="NetworkTools">
+        <clobbers target="window.AgentOSNetworkTools" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+        </config-file>
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="AgentOSNetworkTools">
+                <param name="android-package" value="com.agentos.network.AgentOSNetworkToolsPlugin" />
+            </feature>
+        </config-file>
+        <source-file src="src/android/com/agentos/network/AgentOSNetworkToolsPlugin.java" target-dir="src/com/agentos/network" />
+    </platform>
+
+    <platform name="ios">
+        <framework src="SystemConfiguration.framework" />
+        <config-file target="config.xml" parent="/*">
+            <feature name="AgentOSNetworkTools">
+                <param name="ios-package" value="AgentOSNetworkToolsPlugin" />
+            </feature>
+        </config-file>
+        <source-file src="src/ios/AgentOSNetworkToolsPlugin.m" />
+    </platform>
+</plugin>

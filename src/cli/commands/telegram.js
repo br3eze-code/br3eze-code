@@ -1,9 +1,7 @@
 import https from 'https';
-import fs from 'fs';
-import path from 'path';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
 
 /**
  * agentos telegram — CLI commands for Telegram channel management
@@ -25,9 +23,6 @@ export default (program) => {
         .option('--all', 'Broadcast to all allowed chat IDs')
         .action(async (message, options) => {
             const { outro, cancel } = await import('@clack/prompts');
-            const _chalk = require('chalk');
-            const chalk  = _chalk.default || _chalk;
-
             const token = process.env.TELEGRAM_TOKEN;
             if (!token) {
                 cancel('TELEGRAM_TOKEN not set in .env');
@@ -89,9 +84,6 @@ export default (program) => {
         .description('Check Telegram bot connectivity and polling status')
         .action(async () => {
             const { outro, cancel } = await import('@clack/prompts');
-            const _chalk = require('chalk');
-            const chalk  = _chalk.default || _chalk;
-
             const token = process.env.TELEGRAM_TOKEN;
             if (!token) {
                 cancel('TELEGRAM_TOKEN not set in .env');
@@ -152,9 +144,6 @@ export default (program) => {
         .description('Send a test message to all allowed Telegram chat IDs')
         .action(async () => {
             const { outro } = await import('@clack/prompts');
-            const _chalk = require('chalk');
-            const chalk  = _chalk.default || _chalk;
-
             const token = process.env.TELEGRAM_TOKEN;
             if (!token) { console.log(chalk.red('TELEGRAM_TOKEN not set')); return; }
 

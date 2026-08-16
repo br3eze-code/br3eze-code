@@ -82,7 +82,7 @@ class OAuthVault {
             await this.db.saveOAuthToken?.(provider, userId, record);
         }
 
-        this.tokenCache.set(`${provider}_${userId}`, { ...tokens, cachedAt: Date.now() });
+        this.tokenCache.set(`${provider}_${userId}`, { ...tokens, expiresAt: tokens.expiresAt ? new Date(tokens.expiresAt).getTime() : null, cachedAt: Date.now() });
         
         if (tokens.expiresAt && tokens.refreshToken) {
             this._scheduleRefresh(provider, userId, tokens.expiresAt);
@@ -95,7 +95,7 @@ class OAuthVault {
         const cacheKey = `${provider}_${userId}`;
         const cached = this.tokenCache.get(cacheKey);
         
-        if (cached && cached.expiresAt > Date.now() + 60000) return cached.accessToken;
+        if (cached && cached.accessToken && (!cached.expiresAt || cached.expiresAt > Date.now() + 60000)) return cached.accessToken;
         
         let record;
         if (this.db && this.db.db) {
@@ -126,8 +126,7 @@ class OAuthVault {
     async _refreshToken(provider, userId, refreshToken) {
         // Implementation varies by provider (GitHub, Google, etc)
         logger.info(`Refreshing ${provider} token for ${userId}...`);
-        // For now, this is a placeholder for provider-specific refresh logic
-        return { accessToken: refreshToken }; // Mock
+        throw new Error(`OAuth refresh is not configured for provider: ${provider}`);
     }
 
     _scheduleRefresh(provider, userId, expiresAt) {

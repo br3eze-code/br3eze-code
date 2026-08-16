@@ -1,6 +1,5 @@
+import crypto from 'node:crypto';
 import MemoryAdapter from './adapters/MemoryAdapter.js';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 // src/core/memory/MemoryManager.js
 class MemoryManager {
@@ -13,11 +12,9 @@ class MemoryManager {
       case 'memory':
         return new MemoryAdapter();
       case 'firebase':
-        return new (require('./adapters/FirebaseAdapter'))();
       case 'redis':
-        return new (require('./adapters/RedisAdapter'))();
       case 'sqlite':
-        return new (require('./adapters/SQLiteAdapter'))();
+        throw new Error(`Memory adapter "${type}" is not installed in this build`);
       default:
         throw new Error(`Unknown memory adapter: ${type}`);
     }
@@ -32,20 +29,16 @@ class MemoryManager {
   }
 
   async storeInteraction(interactionId, data) {
-    // Store in user history
     const userId = data.context.userId;
     await this.adapter.push(`user:${userId}:history`, {
       id: interactionId,
       timestamp: data.timestamp,
       skill: data.result?.skill,
-      input: data.input.text || data.input.action
+      input: data.input.text || data.input.action,
     });
-    
-    // Keep only last 100 interactions
+
     await this.adapter.trim(`user:${userId}:history`, -100);
-    
-    // Store full interaction
-    await this.adapter.set(`interaction:${interactionId}`, data, 86400); // 24h TTL
+    await this.adapter.set(`interaction:${interactionId}`, data, 86400);
   }
 
   async getSession(sessionId) {
@@ -55,11 +48,11 @@ class MemoryManager {
 
   async createSession(userId, data = {}) {
     const sessionId = crypto.randomUUID();
-    await this.adapter.set(`session:${sessionId}`, {
-      userId,
-      createdAt: Date.now(),
-      data
-    }, 3600); // 1h TTL
+    await this.adapter.set(
+      `session:${sessionId}`,
+      { userId, createdAt: Date.now(), data },
+      3600,
+    );
     return sessionId;
   }
 

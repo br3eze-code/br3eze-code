@@ -735,6 +735,7 @@
 </div>
 
 <!-- CDN Libraries -->
+<script src="js/offline-runtime.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -749,10 +750,15 @@
         const s = document.createElement('script');
         s.src = 'cordova.js';
         document.head.appendChild(s);
-    } else if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-        // PWA: installable app shell with offline fallback (network-first, see sw.js)
+    } else if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+        // PWA: offline shell plus an honest queued-mutation runtime.
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js').catch(e => console.warn('[sw] registration failed:', e));
+            navigator.serviceWorker.register('sw.js').then((registration) => {
+                if (registration.sync) registration.sync.register('agentos-outbox-sync').catch(() => {});
+            }).catch(e => console.warn('[sw] registration failed:', e));
+        });
+        navigator.serviceWorker?.addEventListener('message', (event) => {
+            if (event.data?.type === 'agentos-sync-request') window.AgentOSOffline?.sync();
         });
     }
 </script>

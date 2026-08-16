@@ -1,6 +1,4 @@
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import fs from 'node:fs/promises';
 
 // src/core/TelemetryCollector.js
 class TelemetryCollector {
@@ -24,12 +22,10 @@ class TelemetryCollector {
     };
 
     this.buffer.push(event);
-    
-    // Update in-memory metrics
     this.updateMetrics(eventType, data);
 
     if (this.buffer.length >= this.config.bufferSize) {
-      this.flush();
+      void this.flush();
     }
   }
 
@@ -41,45 +37,46 @@ class TelemetryCollector {
         history: []
       });
     }
-    
+
     const metric = this.metrics.get(type);
     metric.count++;
     metric.lastValue = data;
     metric.history.push({ ts: Date.now(), value: data });
-    
-    // Keep last 1000 entries
+
     if (metric.history.length > 1000) {
       metric.history.shift();
     }
   }
 
   start() {
-    this.flushTimer = setInterval(() => this.flush(), this.config.flushInterval);
+    this.flushTimer = setInterval(() => {
+      void this.flush();
+    }, this.config.flushInterval);
   }
 
   async flush() {
     if (this.buffer.length === 0) return;
-    
+
     const batch = this.buffer.splice(0, this.buffer.length);
-    
+
     try {
       if (this.config.endpoint) {
-        await fetch(this.config.endpoint, {
+        const response = await fetch(this.config.endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ events: batch })
         });
+        if (!response.ok) {
+          throw new Error(`Telemetry endpoint returned HTTP ${response.status}`);
+        }
       }
-      
-      // Also log to file if configured
+
       if (this.config.logFile) {
-        const fs = require('fs').promises;
-        const lines = batch.map(e => JSON.stringify(e)).join('\n');
-        await fs.appendFile(this.config.logFile, lines + '\n');
+        const lines = batch.map(event => JSON.stringify(event)).join('\n');
+        await fs.appendFile(this.config.logFile, `${lines}\n`);
       }
     } catch (error) {
       console.error('Telemetry flush failed:', error);
-      // Re-add to buffer for retry
       this.buffer.unshift(...batch);
     }
   }
@@ -90,7 +87,8 @@ class TelemetryCollector {
 
   stop() {
     clearInterval(this.flushTimer);
-    this.flush(); // Final flush
+    this.flushTimer = null;
+    void this.flush();
   }
 }
 

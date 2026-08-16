@@ -119,10 +119,16 @@ class DiscordChannel extends BaseChannel {
       metadata: {
         messageId: msg.id,
         userId: msg.author?.id,
+        conversationId: msg.channel_id,
         guildId: msg.guild_id
       }
     });
     
+    const navigation = this.normalizeNavigation(cleanContent);
+    if (navigation) {
+      this.emit('navigation', { action: navigation, frame });
+      return;
+    }
     this.emit('message', frame);
   }
   

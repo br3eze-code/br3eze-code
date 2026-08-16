@@ -1,6 +1,5 @@
-import { logger } from '../logger.js';
-
 import { createRequire } from 'module';
+import { logger } from '../logger.js';
 const require = createRequire(import.meta.url);
 
 // src/core/skills/SkillRegistry.js

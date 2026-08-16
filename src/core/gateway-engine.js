@@ -13,19 +13,41 @@ import MobileBridge from '../api/mobile-bridge.js';
 import AICoordinator from '../ai/coordinator.js';
 import { metrics } from './metrics.js';
 import { DahuaNotifier } from './dahua-notifier.js';
+import crypto from 'crypto';
+import QRCode from 'qrcode';
+import { verifyFirebaseIdToken } from './firebase-auth.js';
+import { DEFAULT_PLANS, getDatabase } from './database.js';
+import { EcoCashProvider } from '../payments/payment-gateway.js';
+import EcoCashEscrow from '../services/partner/ecocash-escrow.mjs';
+import createEcoCashWebhookRouter from '../gateway/ecocash-webhook.mjs';
+import * as dateUtils from '../utils/date.js';
+import { PrintBroker } from './print-broker.js';
+import shopRouter from '../api/routes/shop.js';
+import posRouter from '../api/routes/pos.js';
+import projectManagerRouter from '../api/routes/project-manager.js';
+import v1Router from '../api/routes/v1.js';
+import v2Router from '../api/routes/v2.js';
+import v3Router from '../api/routes/v3.js';
+import { buildCapabilityManifest } from './capability-manifest.js';
+import { getUserTask, listUserTasks } from './user-task-service.js';
+import { getTaskRegistry } from './taskRegistry.js';
+import { validateNextActionProposal } from './next-action-planner.js';
+import { recordProactiveDecision } from './proactive-policy.js';
+import { ProactiveTelemetry } from './proactive-telemetry.js';
+import { buildProposalManifest } from './channel-action-manifest.js';
+import { DataAnalystRegistry } from './data-analyst.js';
+import { normalizeBotContext } from './bot.ai.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-// src/core/gateway-engine.js 
-
-
-// A2A Protocol Plugin
-let a2aPlugin;
+// A2A is an optional capability. Deployments that provide the plugin can
+// load it without changing the core gateway; its absence is not a startup error.
+let a2aPlugin = null;
 try {
-  a2aPlugin = require('../../core/plugins/a2a-protocol');
-} catch (e) {
-  logger.warn('A2A Protocol Plugin not found, cross-agent communication may be limited.');
+  const module = await import('../../core/plugins/a2a-protocol/index.js');
+  a2aPlugin = module.default ?? module;
+} catch (error) {
+  if (error?.code !== 'ERR_MODULE_NOT_FOUND') {
+    logger.warn(`A2A Protocol Plugin could not be loaded: ${error.message}`);
+  }
 }
 
 class Gateway extends EventEmitter {
@@ -54,7 +76,17 @@ class Gateway extends EventEmitter {
 
     this.app = express();
     this.server = null;
+    this.services = config.services || {};
     this.ai = new AICoordinator(this.config);
+    // Channel adapters receive the coordinator as their agent context. Attach the
+    // explicitly injected service container here so Telegram, partner bots, RBAC,
+    // and database-backed flows use the same dependencies as the gateway routes.
+    this.ai.services = this.services;
+    this.ai.database = this.services.database || null;
+    this.ai.db = this.ai.database;
+    this.ecocashRouterPromise = this._createEcoCashWebhookRouter();
+    this.proactiveTelemetry = this.services.proactiveTelemetry || new ProactiveTelemetry();
+    this.dataAnalysts = this.services.dataAnalysts || new DataAnalystRegistry();
     this.channelManager = new ChannelManager(this.ai);
 
     // Relay special events from ChannelManager to system
@@ -98,11 +130,69 @@ class Gateway extends EventEmitter {
     }
   }
 
+  async _createEcoCashWebhookRouter() {
+    const db = this.services.database || await getDatabase();
+    // Publish the resolved database to the shared injected service context before
+    // channel registration. This avoids partner bots observing a false "database
+    // unavailable" state during startup.
+    this.services.database = db;
+    this.ai.database = db;
+    this.ai.db = db;
+    const paymentConfig = {
+      ...(this.config.payments || {}),
+      ...(this.config.ecocash || {}),
+      ...this.config,
+    };
+    const ecocash = this.services.ecocash || new EcoCashProvider(paymentConfig);
+    const escrow = this.services.ecocashEscrow || new EcoCashEscrow({
+      db,
+      ecocash,
+      walletCredit: this.services.walletCredit || null,
+      now: this.services.now || (() => new Date()),
+    });
+    this.ecocash = ecocash;
+    this.ecocashEscrow = escrow;
+    return createEcoCashWebhookRouter({
+      db,
+      ecocash,
+      releaseEscrow: this.services.releaseEscrow || ((escrowId) => escrow.verifyAndRelease(escrowId)),
+      notifyPartner: this.services.notifyPartner || null,
+      verifySignature: this.services.verifyEcoCashSignature || null,
+      queue: this.services.webhookQueue || null,
+      logger,
+    });
+  }
+
+  _recordProposalDecision(task, decision, event) {
+    const registry = getTaskRegistry();
+    const history = Array.isArray(task.proposalDecisions) ? task.proposalDecisions : [];
+    const duplicate = history.find((entry) => entry.proposalId === event.proposalId && entry.decision === decision);
+    if (duplicate) return task;
+    return registry.update(task.taskId, {
+      proposalDecisions: [...history, { ...event, decision }].slice(-20),
+      lastProposalDecision: { ...event, decision },
+    });
+  }
+
   _setupExpress() {
     this.app.use(security.getSecurityMiddleware());
     this.app.use(compression());
     this.app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
     this.app.use(express.json({ limit: '10kb' }));
+
+    // EcoCash settlement is mounted through an injected, idempotent router.
+    // Lazy delegation keeps gateway construction synchronous while database and
+    // provider dependencies finish initializing in the background.
+    this.app.use(async (req, res, next) => {
+      if (req.path !== '/webhooks/ecocash') return next();
+      try {
+        const router = await this.ecocashRouterPromise;
+        return router(req, res, next);
+      } catch (error) {
+        logger.error('[Gateway] EcoCash webhook initialization failed:', error);
+        return res.status(503).json({ error: 'EcoCash webhook unavailable' });
+      }
+    });
 
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000,
@@ -213,7 +303,6 @@ class Gateway extends EventEmitter {
       if (token && provided === token) return next(); // shared-secret path unchanged
 
       if (bearerToken) {
-        const { verifyFirebaseIdToken } = require('./firebase-auth');
         const firebaseUser = await verifyFirebaseIdToken(bearerToken);
         if (firebaseUser) {
           req.firebaseUser = firebaseUser;
@@ -223,6 +312,132 @@ class Gateway extends EventEmitter {
 
       if (!token) return next(); // No shared token configured AND no valid Firebase user — keep existing open-access fallback
       return res.status(401).json({ error: 'Unauthorized — invalid or missing Bearer token' });
+    });
+
+    // ── Client capability discovery ───────────────────────────────────────────
+    // This route is intentionally mounted after /api authentication. Client
+    // headers may describe platform and bridge availability, but never identity,
+    // role, tenant, or capabilities.
+    this.app.get('/api/v1/capabilities', (req, res) => {
+      const availableTools = typeof global.mikrotik?.getAvailableTools === 'function'
+        ? global.mikrotik.getAvailableTools()
+        : [];
+      res.json(buildCapabilityManifest({
+        user: req.firebaseUser || null,
+        availableTools,
+        platform: req.headers['x-agent-platform'] || 'cordova',
+        channel: req.headers['x-agent-channel'] || 'rest',
+        bridges: {
+          aiCore: req.headers['x-agent-bridge-ai'] === 'true',
+          networkTools: req.headers['x-agent-bridge-network'] === 'true',
+          connectivity: req.headers['x-agent-bridge-connectivity'] === 'true',
+          websocket: req.headers.upgrade === 'websocket',
+        },
+      }));
+    });
+
+    // ── Next-action proposals ─────────────────────────────────────────────────
+    // Proposal routes require a verified Firebase identity. A shared gateway
+    // secret authenticates the process, but cannot establish a user/tenant owner.
+    const requireProposalIdentity = (req, res) => {
+      if (!req.firebaseUser?.uid) {
+        res.status(401).json({ error: 'Firebase identity required for proposal access' });
+        return false;
+      }
+      return true;
+    };
+
+    const proposalContext = (req) => ({
+      userId: req.firebaseUser.uid,
+      role: req.firebaseUser.role || req.firebaseUser.customClaims?.role || null,
+      tenantId: req.firebaseUser.tenantId || req.firebaseUser.customClaims?.tenantId || null,
+      domainId: req.firebaseUser.domainId || req.firebaseUser.customClaims?.domainId || null,
+      siteId: req.firebaseUser.siteId || req.firebaseUser.customClaims?.siteId || null,
+      status: req.firebaseUser.status || req.firebaseUser.customClaims?.status || null,
+      authorizedCapabilities: req.firebaseUser.authorizedCapabilities || req.firebaseUser.customClaims?.authorizedCapabilities || [],
+      proactiveOptOut: req.firebaseUser.proactiveOptOut === true || req.firebaseUser.customClaims?.proactiveOptOut === true,
+      channel: req.headers['x-agent-channel'] || 'rest',
+    });
+
+    this.app.post('/api/v1/analysis/:domain', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = normalizeBotContext({
+          ...(req.body?.context || {}),
+          ...proposalContext(req),
+          domain: req.params.domain,
+          message: req.body?.message,
+          userDoc: req.firebaseUser,
+        }, { contextType: 'analysis' });
+        const analysis = this.dataAnalysts.analyze(req.params.domain, req.body?.data || req.body?.input || {}, context);
+        res.json({ ok: true, analysis });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'ANALYSIS_FAILED' });
+      }
+    });
+
+    this.app.get('/api/v1/tasks/:taskId/proposals', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = proposalContext(req);
+        const task = getUserTask(req.params.taskId, context);
+        const proposal = task.nextActionProposal;
+        if (!proposal) return res.status(404).json({ error: 'No next-action proposal for task' });
+        const validation = validateNextActionProposal(proposal, { task, context });
+        if (!validation.valid) return res.status(409).json({ error: 'Proposal is no longer valid', validationErrors: validation.errors });
+        res.json({ ok: true, taskId: task.taskId, proposal, actions: buildProposalManifest(proposal) });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'PROPOSAL_READ_FAILED' });
+      }
+    });
+
+    this.app.post('/api/v1/proposals/:proposalId/decide', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = proposalContext(req);
+        const decision = recordProactiveDecision({
+          proposalId: req.params.proposalId,
+          decision: req.body?.decision,
+          userId: context.userId,
+          channel: context.channel,
+        });
+        const task = (req.body?.taskId
+          ? getUserTask(req.body.taskId, context)
+          : listUserTasks(context).find((candidateTask) => candidateTask.nextActionProposal?.proposalId === req.params.proposalId));
+        if (!task) return res.status(404).json({ error: 'Proposal not found for authorized task' });
+        const proposal = task.nextActionProposal;
+        if (!proposal || proposal.proposalId !== req.params.proposalId) {
+          return res.status(404).json({ error: 'Proposal not found for task' });
+        }
+        const validation = validateNextActionProposal(proposal, { task, context });
+        if (!validation.valid) return res.status(409).json({ error: 'Proposal is no longer valid', validationErrors: validation.errors });
+        const candidate = proposal.candidates?.[0];
+        if (decision.decision === 'approve' && !candidate?.requiresApproval) {
+          return res.status(400).json({ error: 'Approval is not required for this proposal' });
+        }
+        const eventType = {
+          continue: 'proposal_accepted',
+          clarify: 'proposal_clarified',
+          approve: 'proposal_approved',
+          snooze: 'proposal_snoozed',
+          dismiss: 'proposal_dismissed',
+        }[decision.decision];
+        const event = this.proactiveTelemetry.record({
+          type: eventType,
+          proposalId: proposal.proposalId,
+          taskId: task.taskId,
+          userId: context.userId,
+          channel: context.channel,
+          actionId: candidate?.actionId || null,
+          confidence: candidate?.confidence,
+          risk: candidate?.risk,
+          safe: true,
+        });
+        const updatedTask = this._recordProposalDecision(task, decision.decision, event);
+        res.json({ ok: true, decision: decision.decision, event, task: updatedTask, proposal: updatedTask.nextActionProposal });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'PROPOSAL_DECISION_FAILED' });
+      }
     });
 
     // ── SSE streaming /ask ────────────────────────────────────────────────────
@@ -297,11 +512,8 @@ class Gateway extends EventEmitter {
     this.app.post('/api/v1/vouchers', async (req, res) => {
       try {
         if (!global.database) return res.status(503).json({ error: 'Database not ready' });
-        const crypto = require('crypto');
         const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
         const code = `STAR-${part()}-${part()}`;
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
         const plan = req.body.plan || 'default';
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
 
@@ -408,7 +620,7 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/vouchers/:code/qr', async (req, res) => {
       try {
-        const QRCode = require('qrcode');
+
         const voucher = await global.database.getVoucher(req.params.code);
         if (!voucher) return res.status(404).json({ error: 'Voucher not found' });
         const url = `${req.protocol}://${req.get('host')}/login.html?code=${req.params.code}`;
@@ -496,15 +708,14 @@ class Gateway extends EventEmitter {
         const { plan, amount, method } = req.body;
         if (!plan || !amount) return res.status(400).json({ error: 'plan and amount required' });
 
-        const { DEFAULT_PLANS } = require('./database');
-        const dateUtils = require('../utils/date');
+
 
         const planObj = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
         const expiresAt = planObj.durationValue && planObj.durationUnit ?
           dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString() : null;
 
         // This would integrate with UniversalBilling/Payment providers
-        const crypto = require('crypto');
+
         const code = `PAY-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
         const loginUrl = `http://${global.mikrotik?.config?.host || global.AGENTOS?.dnsName || 'hotspot.local'}/login?username=${code}&password=${code}`;
@@ -555,7 +766,7 @@ class Gateway extends EventEmitter {
     // when one is connected, falls back to server thermal printer.
     this.app.post('/api/v1/print', async (req, res) => {
       try {
-        const { PrintBroker } = require('./print-broker');
+
         const { code, voucher } = req.body;
 
         let voucherData = voucher;
@@ -581,7 +792,7 @@ class Gateway extends EventEmitter {
 
     this.app.get('/api/v1/print/status', (req, res) => {
       try {
-        const { PrintBroker } = require('./print-broker');
+
         const mobile = PrintBroker.getInstance().getMobileClientStatus();
         res.json({ ok: true, mobileClients: mobile.count, clients: mobile.clients });
       } catch (e) { res.json({ ok: false, mobileClients: 0, clients: [] }); }
@@ -596,7 +807,9 @@ class Gateway extends EventEmitter {
     }
 
     // ── Shop ─────────────────────────────────────────────────────────────────
-    this.app.use('/api/v1/shop', require('../api/routes/shop').default);
+      this.app.use('/api/v1/shop', shopRouter);
+      this.app.use('/api/v1/pos', posRouter);
+      this.app.use('/api/v1/project-manager', projectManagerRouter);
 
     // ── Extended route sets (v1/v2/v3) ──────────────────────────────────────
     // Mounted AFTER every inline route above so already-working endpoints
@@ -604,9 +817,9 @@ class Gateway extends EventEmitter {
     // from this file — Express matches in registration order, so these
     // routers only ever handle the paths not already registered above.
     try {
-      this.app.use('/api/v1', require('../api/routes/v1').default);
-      this.app.use('/api/v2', require('../api/routes/v2').default);
-      this.app.use('/api/v3', require('../api/routes/v3').default);
+      this.app.use('/api/v1', v1Router);
+      this.app.use('/api/v2', v2Router);
+      this.app.use('/api/v3', v3Router);
     } catch (e) {
       logger.warn('Extended API routes (v1/v2/v3) not available:', e.message);
     }
@@ -619,6 +832,11 @@ class Gateway extends EventEmitter {
 
   async start() {
     logger.info('Starting AgentOS Gateway services...');
+
+    // Resolve payment/database dependencies before registering channels. Partner
+    // Telegram bots and escrow-backed handlers must never start against a partial
+    // dependency container.
+    await this.ecocashRouterPromise;
 
     // Resource monitoring log
     const { rss, heapUsed } = process.memoryUsage();
@@ -678,7 +896,7 @@ class Gateway extends EventEmitter {
     try {
       const wsChannel = this.channelManager.channels.get('websocket');
       if (wsChannel?.adapter) {
-        const { PrintBroker } = require('./print-broker');
+
         PrintBroker.getInstance().attachWebSocketChannel(wsChannel.adapter);
         logger.info('[Gateway] PrintBroker attached to WebSocket channel — mobile printing enabled');
       }

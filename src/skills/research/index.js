@@ -2,11 +2,22 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
-import pdf from 'pdf-parse';
-import cheerio from 'cheerio';
+import { PDFParse } from 'pdf-parse';
+import { load as loadHtml } from 'cheerio';
 import { BaseSkill } from '../base.js';
 
 const execAsync = promisify(exec)
+
+async function parsePdfBuffer(buffer) {
+  const parser = new PDFParse({ data: buffer })
+  try {
+    const text = await parser.getText()
+    const info = await parser.getInfo().catch(() => ({}))
+    return { text: text?.text || '', info: info?.info || info || {} }
+  } finally {
+    await parser.destroy().catch(() => {})
+  }
+}
 
 class ResearchSkill extends BaseSkill {
   static id = 'research'
@@ -30,6 +41,20 @@ class ResearchSkill extends BaseSkill {
             query: { type: 'string' },
             focus: { type: 'string', enum: ['academic', 'news', 'general'], default: 'general' },
             max_results: { type: 'number', default: 10 }
+          },
+          required: ['query']
+        }
+      },
+      'research.deep_search': {
+        risk: 'low',
+        description: 'Search the web and fetch primary source excerpts within the caller scope',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+            focus: { type: 'string', enum: ['academic', 'news', 'general'], default: 'general' },
+            max_results: { type: 'number', default: 5 },
+            fetch_results: { type: 'number', default: 3 }
           },
           required: ['query']
         }
@@ -99,12 +124,12 @@ class ResearchSkill extends BaseSkill {
 
     let text = '', title = url
     if (contentType.includes('application/pdf')) {
-      const data = await pdf(Buffer.from(buf))
+      const data = await parsePdfBuffer(Buffer.from(buf))
       text = data.text
       title = data.info?.Title || url
     } else {
       const html = new TextDecoder().decode(buf)
-      const $ = cheerio.load(html)
+      const $ = loadHtml(html)
       title = $('title').text() || $('meta[property="og:title"]').attr('content') || url
       $('script, style, nav, footer').remove()
       text = $('body').text().replace(/\s+/g, ' ').trim()
@@ -118,6 +143,32 @@ class ResearchSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+        case 'research.deep_search': {
+          const query = String(args.query || '').trim()
+          if (!query) throw new Error('query is required')
+          const maxResults = Math.min(Math.max(Number(args.max_results) || 5, 1), 10)
+          const fetchResults = Math.min(Math.max(Number(args.fetch_results) || 3, 0), maxResults)
+          this.logger.info(`RESEARCH DEEP_SEARCH ${args.focus || 'general'}: ${query}`, {
+            user: ctx.userId, tenantId: ctx.tenantId, siteId: ctx.siteId, domain: ctx.domain, channel: ctx.channel,
+          })
+          const search = await this.execute('research.search', {
+            query, focus: args.focus || 'general', max_results: maxResults,
+          }, ctx)
+          const sources = []
+          for (const result of search.results.slice(0, fetchResults)) {
+            try {
+              sources.push(await this._fetchText(result.url))
+            } catch (error) {
+              this.logger.warn(`Deep search fetch failed for ${result.url}: ${error.message}`)
+            }
+          }
+          return {
+            query, focus: args.focus || 'general', results: search.results,
+            sources: sources.map(({ title, url, text, fetched_at }) => ({ title, url, fetched_at, excerpt: text.slice(0, 2000) })),
+            scope: { userId: ctx.userId, tenantId: ctx.tenantId || null, siteId: ctx.siteId || null, domain: ctx.domain || 'general' },
+          }
+        }
+
         case 'research.search':
           this.logger.info(`RESEARCH SEARCH ${args.focus}: ${args.query}`, { user: ctx.userId })
           // Use browser.search tool if available, else fallback to DuckDuckGo
@@ -126,7 +177,7 @@ class ResearchSkill extends BaseSkill {
             : `https://html.duckduckgo.com/html/?q=${encodeURIComponent(args.query)}`
 
           const { stdout } = await execAsync(`curl -sL "${searchUrl}"`)
-          const $ = cheerio.load(stdout)
+          const $ = loadHtml(stdout)
           const results = []
 
           $('.result,.gs_r').slice(0, args.max_results).each((i, el) => {
@@ -147,7 +198,7 @@ class ResearchSkill extends BaseSkill {
           this.logger.info(`RESEARCH PDF ${args.path}`, { user: ctx.userId })
           const pdfPath = path.resolve(this.workspace, args.path)
           const buffer = await fs.readFile(pdfPath)
-          const pdfData = await pdf(buffer)
+          const pdfData = await parsePdfBuffer(buffer)
 
           // Extract refs section heuristically
           const refs = pdfData.text.match(/References|Bibliography([\s\S]*)/i)?.[1]?.slice(0, 5000) || ''

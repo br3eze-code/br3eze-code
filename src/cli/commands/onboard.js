@@ -1,12 +1,28 @@
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
+import path from 'node:path';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { onboardFleet, onboardRouter } from '../../core/onboard.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { OAUTH_PROVIDERS } from '../../core/oauth2.js';
+import { testMikroTikConnection } from '../../core/mikrotik.js';
+import { logger } from '../../core/logger.js';
+import winston from 'winston';
+import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import { BaseProvider } from '../../core/llm/providers/BaseProvider.js';
+import { AnthropicProvider } from '../../core/llm/providers/AnthropicProvider.js';
+import { OpenAIProvider } from '../../core/llm/providers/OpenAIProvider.js';
+import { GeminiProvider } from '../../core/llm/providers/GeminiProvider.js';
+import { GemmaProvider } from '../../core/llm/providers/GemmaProvider.js';
+import { LlamaProvider } from '../../core/llm/providers/LlamaProvider.js';
+import { TogetherAIProvider } from '../../core/llm/providers/TogetherAIProvider.js';
+import { DeepSeekProvider } from '../../core/llm/providers/DeepSeekProvider.js';
+import { GroqProvider } from '../../core/llm/providers/GroqProvider.js';
+import { OpenRouterProvider } from '../../core/llm/providers/OpenRouterProvider.js';
+import { MoonshotProvider } from '../../core/llm/providers/MoonshotProvider.js';
+import { MiniMaxProvider } from '../../core/llm/providers/MiniMaxProvider.js';
+import { XAIProvider } from '../../core/llm/providers/XAIProvider.js';
+import { OllamaProvider } from '../../core/llm/providers/OllamaProvider.js';
 
 
 
@@ -77,7 +93,6 @@ const DOMAIN_CATALOGUE = {
 
 // ── MikroTik adapter ────────────────────────────────────────────────────────────
 async function collectMikroTikConfig(existing = {}) {
-  const { testMikroTikConnection } = require('../../core/mikrotik');
   note(chalk.gray('Configure one or more RouterOS API endpoints.'), chalk.cyan('📡 MikroTik Routers'));
 
   const routers = {};
@@ -313,6 +328,51 @@ async function collectHotspotPlans(existingPlans = []) {
   return plans;
 }
 
+// ── OAuth 2.1 identity providers ─────────────────────────────────────────────
+async function collectOAuthConfig(existing = {}) {
+  note(chalk.gray('Configure standards-based sign-in for terminal and desktop clients. OAuth tokens remain provider credentials; channel IDs are stored separately.'), chalk.blue('🔐 OAuth 2.1 Identity'));
+  const current = existing.oauth || {};
+  const { enabled } = await prompt({
+    type: 'confirm',
+    name: 'enabled',
+    message: 'Enable OAuth 2.1 sign-in?',
+    default: current.enabled !== false
+  });
+  if (!enabled) return { enabled: false, version: '2.1', providers: {}, defaultProvider: null };
+
+  const choices = [
+    { value: 'none', name: 'Configure later' },
+    { value: 'google', name: 'Google (Authorization Code + PKCE)' },
+    { value: 'github', name: 'GitHub (Device Authorization for terminal)' },
+    { value: 'facebook', name: 'Facebook (Authorization Code; use server-side secret or relay)' }
+  ];
+  const { provider } = await prompt({ type: 'list', name: 'provider', message: 'Default identity provider:', choices, default: current.defaultProvider || 'none' });
+  if (provider === 'none') return { enabled: true, version: '2.1', providers: current.providers || {}, defaultProvider: null };
+
+  const definition = OAUTH_PROVIDERS[provider];
+  const previous = current.providers?.[provider] || {};
+  const answers = await prompt([
+    { type: 'input', name: 'clientId', message: `${provider} OAuth client ID:`, default: previous.clientId || process.env[`${provider.toUpperCase()}_OAUTH_CLIENT_ID`] || '', validate: value => value.trim() ? true : 'Client ID is required' },
+    ...(provider === 'facebook' ? [{ type: 'password', name: 'clientSecret', message: 'Server-side OAuth client secret (never embed in Electron):', default: previous.clientSecret || '' }] : []),
+    { type: 'input', name: 'redirectUri', message: 'Loopback redirect URI:', default: previous.redirectUri || 'http://127.0.0.1:0/oauth/callback', validate: value => { try { const uri = new URL(value); return ['http:', 'https:'].includes(uri.protocol) && ['127.0.0.1', 'localhost', '::1'].includes(uri.hostname) ? true : 'Use a loopback redirect URI for terminal/Electron clients'; } catch { return 'Enter a valid redirect URI'; } } },
+    { type: 'input', name: 'scope', message: 'Scopes:', default: previous.scope || definition?.scope || 'openid email profile' }
+  ]);
+
+  const providerConfig = {
+    clientId: answers.clientId.trim(),
+    redirectUri: answers.redirectUri.trim(),
+    scope: answers.scope.trim(),
+    pkce: Boolean(definition?.pkce),
+    ...(provider === 'facebook' ? { clientSecret: answers.clientSecret || '' } : {})
+  };
+  return {
+    enabled: true,
+    version: '2.1',
+    defaultProvider: provider,
+    providers: { ...(current.providers || {}), [provider]: providerConfig }
+  };
+}
+
 // ── Payment config ────────────────────────────────────────────────────────────
 async function collectPaymentConfig(existing = {}) {
   note(chalk.gray('Configure a payment gateway so customers can self-serve vouchers.'), chalk.magenta('💳 Payment Provider'));
@@ -393,10 +453,9 @@ export default (program) => {
         process.exit(1);
       }
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
-      const { logger } = require('../../core/logger');
 
       // Silence console logs during onboarding
-      logger.transports.forEach(t => { if (t instanceof require('winston').transports.Console) t.silent = true; });
+      logger.transports.forEach(t => { if (t instanceof winston.transports.Console) t.silent = true; });
 
       intro(chalk.bgCyan.black.bold(` 🚀 ${BRAND.name} Setup — v${BRAND.version} `));
 
@@ -597,7 +656,6 @@ export default (program) => {
       // ── Step 4: AI Provider ───────────────────────────────────────────────
       note(chalk.gray('Pick the AI brain powering your agents.'), chalk.magentaBright.bold('🧠 Step 4 — AI Provider'));
       // Load all providers via LLMCoordinator to ensure they are registered
-      const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
       new LLMCoordinator('none'); // Force-load all providers
 
       const registry = BaseProvider.getRegistry();
@@ -666,19 +724,19 @@ export default (program) => {
         s.start(`Validating ${aiProvider} key…`);
         try {
           let prov;
-          if (aiProvider === 'anthropic') { const { AnthropicProvider } = require('../../core/llm/providers/AnthropicProvider'); prov = new AnthropicProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openai') { const { OpenAIProvider } = require('../../core/llm/providers/OpenAIProvider'); prov = new OpenAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemini') { const { GeminiProvider } = require('../../core/llm/providers/GeminiProvider'); prov = new GeminiProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemma') { const { GemmaProvider } = require('../../core/llm/providers/GemmaProvider'); prov = new GemmaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'llama') { const { LlamaProvider } = require('../../core/llm/providers/LlamaProvider'); prov = new LlamaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'together') { const { TogetherAIProvider } = require('../../core/llm/providers/TogetherAIProvider'); prov = new TogetherAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'deepseek') { const { DeepSeekProvider } = require('../../core/llm/providers/DeepSeekProvider'); prov = new DeepSeekProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'groq') { const { GroqProvider } = require('../../core/llm/providers/GroqProvider'); prov = new GroqProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openrouter') { const { OpenRouterProvider } = require('../../core/llm/providers/OpenRouterProvider'); prov = new OpenRouterProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'moonshot') { const { MoonshotProvider } = require('../../core/llm/providers/MoonshotProvider'); prov = new MoonshotProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'minimax') { const { MiniMaxProvider } = require('../../core/llm/providers/MiniMaxProvider'); prov = new MiniMaxProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'xai') { const { XAIProvider } = require('../../core/llm/providers/XAIProvider'); prov = new XAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'ollama') { const { OllamaProvider } = require('../../core/llm/providers/OllamaProvider'); prov = new OllamaProvider({ apiKey: aiKey }); }
+          if (aiProvider === 'anthropic') prov = new AnthropicProvider({ apiKey: aiKey });
+          else if (aiProvider === 'openai') prov = new OpenAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'gemini') prov = new GeminiProvider({ apiKey: aiKey });
+          else if (aiProvider === 'gemma') prov = new GemmaProvider({ apiKey: aiKey });
+          else if (aiProvider === 'llama') prov = new LlamaProvider({ apiKey: aiKey });
+          else if (aiProvider === 'together') prov = new TogetherAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'deepseek') prov = new DeepSeekProvider({ apiKey: aiKey });
+          else if (aiProvider === 'groq') prov = new GroqProvider({ apiKey: aiKey });
+          else if (aiProvider === 'openrouter') prov = new OpenRouterProvider({ apiKey: aiKey });
+          else if (aiProvider === 'moonshot') prov = new MoonshotProvider({ apiKey: aiKey });
+          else if (aiProvider === 'minimax') prov = new MiniMaxProvider({ apiKey: aiKey });
+          else if (aiProvider === 'xai') prov = new XAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'ollama') prov = new OllamaProvider({ apiKey: aiKey });
 
           if (prov) {
             const r = await prov.validateKey();
@@ -714,7 +772,10 @@ export default (program) => {
         existingConfig.ai = { provider: aiProvider, apiKey: aiKey, model: aiModel };
       }
 
-      // ── Step 5: Gateway ──────────────────────────────────────────────────
+      // ── Step 5: OAuth 2.1 identity ───────────────────────────────────────
+      const oauthConfig = await collectOAuthConfig(existingConfig);
+
+      // ── Step 6: Gateway ──────────────────────────────────────────────────
       note('Configure the AgentOS WebSocket gateway.', '🌐 Step 5 — Gateway');
       const gwAnswers = await prompt([
         { type: 'number', name: 'port', message: 'WebSocket port:', default: existingConfig.gateway?.port || 19876 },
@@ -722,7 +783,7 @@ export default (program) => {
       ]);
       const gatewayConfig = { port: gwAnswers.port, autostart: gwAnswers.autostart };
 
-      // ── Step 6: Payment & Plans ──────────────────────────────────────────
+      // ── Step 7: Payment & Plans ──────────────────────────────────────────
       const paymentConfig = await collectPaymentConfig(existingConfig.payments);
       const firebaseConfig = await collectFirebaseConfig(existingConfig.firebase);
 
@@ -744,7 +805,7 @@ export default (program) => {
         email: emailConfig,
         ai: { provider: aiProvider, apiKey: aiKey, model: aiModel },
         gateway: { ...gatewayConfig, host: '127.0.0.1', token: existingConfig.gateway?.token || process.env.AGENTOS_GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex') },
-        firebase: firebaseConfig, payments: paymentConfig, plans,
+        firebase: firebaseConfig, oauth: oauthConfig, payments: paymentConfig, plans,
         features: {
           vouchers: selectedDomains.includes('mikrotik'),
           telegramBot: wantsTelegram,
@@ -770,6 +831,7 @@ export default (program) => {
         chalk.gray(`SMS      : `) + (wantsSMS ? chalk.green(`enabled (${smsConfig.provider || 'twilio'})`) : chalk.red('disabled')) + `\n` +
         chalk.gray(`USSD     : `) + (wantsUSSD ? chalk.green('enabled (AfricasTalking)') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Email    : `) + (wantsEmail ? chalk.green(`enabled (${emailConfig.host || 'SMTP'})`) : chalk.red('disabled')) + `\n` +
+        chalk.gray(`OAuth    : `) + (oauthConfig.defaultProvider ? chalk.green(`${oauthConfig.defaultProvider} (OAuth ${oauthConfig.version})`) : chalk.gray('not configured')) + `\n` +
         chalk.gray(`Gateway  : `) + chalk.cyan(`ws://127.0.0.1:${gatewayConfig.port}`) + `\n` +
         chalk.gray(`Firebase : `) + (firebaseConfig.enabled ? chalk.green('connected') : chalk.red('disabled')) + `\n` +
         chalk.gray(`Payments : `) + chalk.yellow(paymentConfig.provider),

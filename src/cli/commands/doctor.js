@@ -1,17 +1,84 @@
-import chalk from 'chalk';
 import { intro, outro, spinner, note, log } from '@clack/prompts';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
+import chalk from 'chalk';
 import fs from 'fs';
-import dgram from 'dgram';
+import path from 'path';
+import { pathToFileURL } from 'url';
+import { getConfig } from '../../core/config.js';
+import { getDatabase } from '../../core/database.js';
+import AgentToolbox from '../../core/agent-toolbox.js';
+import { getAgentRoleProfile } from '../../core/agent-role-profiles.js';
+import { instantiateWorkPackages } from '../../core/wbs-work-packages.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+const SPECIALIST_ROLES = ['planner', 'engineer', 'accountant', 'secretary', 'procurement', 'expeditor', 'designer', 'draftsman'];
 
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+function runFastLintRepair({ fix = false } = {}) {
+  const eslintBin = path.resolve(process.cwd(), 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint');
+  const configuredTargets = process.env.AGENTOS_DOCTOR_LINT_PATHS
+    ? process.env.AGENTOS_DOCTOR_LINT_PATHS.split(',').map((target) => target.trim()).filter(Boolean)
+    : [
+      'src/cli/commands/doctor.js',
+      'src/core/agent-toolbox.js',
+      'src/core/agent-role-profiles.js',
+      'src/core/wbs-work-packages.js',
+      'src/core/contractor-work-queue.js'
+    ];
+  const targets = configuredTargets.length > 0 ? configuredTargets : ['src/cli/commands/doctor.js'];
+  const args = [...targets, '--quiet'];
+  if (fix) args.push('--fix');
+  try {
+    const output = execFileSync(eslintBin, args, { cwd: process.cwd(), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return { status: 'ok', details: fix ? 'Fast lint repair completed' : 'Fast lint passed', output: output.trim() };
+  } catch (error) {
+    return {
+      status: 'error',
+      details: fix ? 'Fast lint repair incomplete' : 'Fast lint failed',
+      output: `${error.stdout || ''}${error.stderr || ''}`.trim(),
+      exitCode: error.status ?? 1
+    };
+  }
+}
 
+async function inspectSpecialistAgents({ config, context = {} }) {
+  const results = [];
+  const toolbox = new AgentToolbox(config);
+  try {
+    await toolbox.initialize(config.skillsPath);
+    const tools = toolbox.tools();
+    const descriptions = toolbox.describe();
+    for (const role of SPECIALIST_ROLES) {
+      const profile = getAgentRoleProfile(role);
+      let workPackages = [];
+      try {
+        workPackages = instantiateWorkPackages(role, {
+          tenantId: context.tenantId || 'doctor-scope',
+          userId: context.userId || 'doctor',
+          projectId: context.projectId || 'doctor-project',
+          siteId: context.siteId || null,
+          domain: context.domain || 'general'
+        });
+      } catch (error) {
+        results.push({ name: `Agent:${role}`, status: 'error', details: `WBS invalid: ${error.message}` });
+        continue;
+      }
+      const availableTools = tools.filter((tool) => !tool.role || tool.role === role || tool.role === '*');
+      results.push({
+        name: `Agent:${role}`,
+        status: profile && workPackages.length > 0 ? 'ok' : 'error',
+        details: profile && workPackages.length > 0
+          ? `${profile.label}; ${workPackages.length} WBS packages; ${availableTools.length || descriptions.length} toolbox definitions`
+          : 'Missing role profile or WBS packages'
+      });
+    }
+  } catch (error) {
+    for (const role of SPECIALIST_ROLES) {
+      results.push({ name: `Agent:${role}`, status: 'error', details: `Toolbox unavailable: ${error.message}` });
+    }
+  } finally {
+    try { await toolbox.destroy(); } catch (_) { /* cleanup is best effort */ }
+  }
+  return results;
+}
 
 
 export default (program) => {
@@ -47,7 +114,6 @@ export default (program) => {
 
       // Load config using the core module if available, to merge env variables, etc.
       try {
-        const { getConfig } = require('../../core/config');
         config = getConfig();
       } catch (e) {
         // Fallback to the raw JSON config
@@ -56,8 +122,7 @@ export default (program) => {
       // Check 2: MikroTik Connection
       s.start('Testing MikroTik connection...');
       try {
-        const { testMikroTikConnection } = require('../../core/mikrotik');
-        const { getConfig } = require('../../core/config');
+        const { testMikroTikConnection } = await import('../../core/mikrotik.js');
         const config = getConfig();
 
         const mkConfig = config.mikrotik || (config.adapters && config.adapters.mikrotik) || {};
@@ -85,7 +150,7 @@ export default (program) => {
       // Check 3: Firebase Connectivity
       s.start('Checking Firebase connectivity...');
       try {
-        const { getDatabase } = require('../../core/database');
+
         const db = await getDatabase();
         if (db.db) {
           const statsPromise = db.getStats();
@@ -138,7 +203,6 @@ export default (program) => {
 
       // Check 5: Gateway Status
       s.start('Checking gateway process...');
-      const path = require('path');
       const pidFile = path.join(STATE_PATH, 'gateway.pid');
       if (fs.existsSync(pidFile)) {
         try {
@@ -150,7 +214,7 @@ export default (program) => {
           s.stop(chalk.yellow('⚠ Gateway not running (stale PID)'));
           checks.push({ name: 'Gateway', status: 'warn', details: 'Stale process' });
           if (options.fix) {
-            try { fs.unlinkSync(pidFile); } catch (_) { }
+            try { fs.unlinkSync(pidFile); } catch (_) { /* stale-file cleanup is best effort */ }
             log.info(chalk.gray('Cleaned up stale PID file'));
           }
         }
@@ -162,7 +226,7 @@ export default (program) => {
       // Check 5.5: Printer Status
       s.start('Checking Thermal Printer...');
       try {
-        const { testPrinterConnection } = require('../../core/printer');
+        const { testPrinterConnection } = await import('../../core/printer.js');
         const printerConfig = config.printer || {};
         if (printerConfig.enabled !== false) {
            const result = await testPrinterConnection(printerConfig);
@@ -172,7 +236,7 @@ export default (program) => {
                checks.push({ name: 'Printer', status: 'ok', details: `${result.port}${result.message !== 'Connected' ? ' — ' + result.message : ''}` });
            } else if (result.portDiscovered) {
                // COM port was found via BT/USB but device is off or out of range — warn, not error
-               const portId = result.port.replace(/^serial:[\\\\]+\.[\\\\\/]/, ''); // strip serial:\\.\\ prefix → COM4
+               const portId = result.port.replace(/^serial:[\\\\]+\\.[\\\\/]/, ''); // strip serial:\\.\\ prefix → COM4
                s.stop(chalk.yellow(`⚠ Printer port found (${portId}) but not responding — power it on`));
                checks.push({ name: 'Printer', status: 'warn', details: `${portId} — device offline` });
            } else {
@@ -191,7 +255,7 @@ export default (program) => {
       // Check 6: AI Engine
       s.start('Checking AI Engine...');
       try {
-        const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
+        const { default: LLMCoordinator } = await import('../../core/llm/LLMCoordinator.js');
         const aiProvider = config.ai?.provider || 'none';
         const coordinator = new LLMCoordinator(aiProvider, config);
 
@@ -239,7 +303,7 @@ export default (program) => {
       // Check 6.5: Tailscale VPN
       s.start('Checking Tailscale VPN...');
       try {
-        const tailscale = require('../../core/tailscale');
+        const tailscale = await import('../../core/tailscale.js');
         const tsBasic = await tailscale.getStatus();
         if (tsBasic.installed) {
           const tsDetailed = await tailscale.getDetailedStatus();
@@ -259,11 +323,12 @@ export default (program) => {
       }
 
       // Check 7-N: Messaging Channels
-      const { BaseChannel } = require('../../core/channels/BaseChannel');
-      const channelFiles = fs.readdirSync(path.join(__dirname, '../../core/channels'));
+      const { BaseChannel } = await import('../../core/channels/BaseChannel.js');
+      const channelsPath = path.join(process.cwd(), 'src', 'core', 'channels');
+      const channelFiles = fs.readdirSync(channelsPath);
       for (const file of channelFiles) {
         if (file.endsWith('Channel.js') && file !== 'BaseChannel.js') {
-          try { require(path.join(__dirname, '../../core/channels/', file)); } catch (_) { }
+          try { await import(pathToFileURL(path.join(channelsPath, file)).href); } catch (_) { /* unavailable channel adapters are skipped */ }
         }
       }
 
@@ -323,6 +388,25 @@ export default (program) => {
         }
       }
 
+      // Check 8: Specialist agent toolbox and WBS readiness
+      s.start('Checking specialist agent toolbox...');
+      const specialistChecks = await inspectSpecialistAgents({ config });
+      const failedSpecialists = specialistChecks.filter((check) => check.status === 'error');
+      s.stop(failedSpecialists.length === 0
+        ? chalk.green(`✓ ${SPECIALIST_ROLES.length} specialist agents ready`)
+        : chalk.red(`✗ ${failedSpecialists.length} specialist agents need repair`));
+      checks.push(...specialistChecks);
+
+      // Check 9: Fast ESLint repair/check
+      s.start(options.fix ? 'Running fast ESLint repair...' : 'Running fast ESLint check...');
+      const lintResult = runFastLintRepair({ fix: Boolean(options.fix) });
+      if (lintResult.status === 'ok') {
+        s.stop(chalk.green(`✓ ${lintResult.details}`));
+      } else {
+        s.stop(chalk.red(`✗ ${lintResult.details}`));
+      }
+      checks.push({ name: 'Fast ESLint', status: lintResult.status, details: lintResult.details, output: lintResult.output });
+
       // Summary
       const errors = checks.filter(c => c.status === 'error').length;
       const warnings = checks.filter(c => c.status === 'warn').length;
@@ -334,6 +418,11 @@ export default (program) => {
       });
 
       note(summaryLines.join('\n'), chalk.bold.white('📋 Health Report'));
+      const specialistSummary = specialistChecks.reduce((summary, check) => {
+        summary[check.status] = (summary[check.status] || 0) + 1;
+        return summary;
+      }, {});
+      note(`Specialists: ${specialistSummary.ok || 0} ready, ${specialistSummary.warn || 0} warnings, ${specialistSummary.error || 0} failed`, chalk.bold.white('🤖 Agent Report'));
 
       if (errors === 0 && warnings === 0) {
         outro(chalk.bgGreen.black.bold(' ✓ SYSTEM OPTIMAL '));
@@ -348,10 +437,10 @@ export default (program) => {
 
       // Cleanup to prevent handle leaks causing Assertion failed in libuv (Windows)
       try {
-        const { getDatabase } = require('../../core/database');
+
         const db = await getDatabase();
         if (db) await db.close();
-      } catch (_) { }
+      } catch (_) { /* database cleanup is best effort */ }
 
       process.exit(errors > 0 ? 1 : 0);
     });

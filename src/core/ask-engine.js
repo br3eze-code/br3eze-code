@@ -1,5 +1,7 @@
 import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
+import { normalizeBotContext, assertBotContext } from './bot.ai.js';
+import { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw } from './printer.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -101,11 +103,27 @@ const FUNCTION_DECLARATIONS = [
         parameters: {
             type: 'object',
             properties: {
-                action: { type: 'string', enum: ['revenue_report', 'verify_payment', 'audit_log', 'trends', 'payment_link', 'transfer'] },
+                action: { type: 'string', enum: ['revenue_report', 'verify_payment', 'payment_status', 'payment_methods', 'audit_log', 'trends', 'payment_link', 'transfer'] },
                 target: { type: 'string', description: 'Payment ID, reference, or recipient username for transfer' },
+                provider: { type: 'string', description: 'Payment provider identifier for status checks' },
+                country: { type: 'string', description: 'ISO country code used for available payment methods' },
+                device: { type: 'string', description: 'Client device class used for available payment methods' },
                 plan: { type: 'string', description: 'Plan name for payment link' },
                 amount: { type: 'number', description: 'Amount for transfer or link' },
                 from: { type: 'string', description: 'Sender username (optional, defaults to current)' }
+            },
+            required: ['action']
+        }
+    },
+    {
+        name: 'manage_printer',
+        description: 'Discover printers, inspect printer status, test a printer connection, or send a raw print job.',
+        parameters: {
+            type: 'object',
+            properties: {
+                action: { type: 'string', enum: ['list', 'status', 'test', 'print'] },
+                interface: { type: 'string', description: 'Printer interface or queue identifier' },
+                content: { type: 'string', description: 'Text content for a raw print job' }
             },
             required: ['action']
         }
@@ -175,11 +193,13 @@ class AskEngine {
      *   - financial: FinancialService instance (optional)
      *   - llm:       LLMCoordinator instance (optional — rule-only if absent)
      */
-    constructor({ mikrotik, database, financial, billing, discovery, memory, llm } = {}) {
+    constructor({ mikrotik, database, financial, billing, paymentService, printer, discovery, memory, llm } = {}) {
         this.mikrotik = mikrotik;
         this.database = database;
         this.financial = financial;
         this.billing = billing;
+        this.paymentService = paymentService || billing;
+        this.printer = printer || { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw };
         this.discovery = discovery;
         this.memory = memory;
         this.llm = llm;
@@ -197,6 +217,31 @@ class AskEngine {
         this._skillToolMap = null;
     }
 
+    _context(context = {}) {
+        return context?.contextType && context?.privacy ? context : normalizeBotContext(context);
+    }
+
+    _canMutate(context = {}, action = 'operation') {
+        const ctx = this._context(context);
+        const elevated = ['owner', 'admin', 'operator'].includes(ctx.role) || ctx.roles?.some((role) => ['owner', 'admin', 'operator'].includes(role));
+        if (ctx.status !== 'active') return { ok: false, reason: 'account_not_active' };
+        if (!elevated) return { ok: false, reason: 'elevated_role_required' };
+        if (!ctx.approval?.approved && !ctx.approvalGranted) return { ok: false, reason: `approval_required:${action}` };
+        try {
+            assertBotContext(ctx, { mutation: true });
+        } catch (error) {
+            return { ok: false, reason: error.code || `context_rejected:${action}` };
+        }
+        return { ok: true };
+    }
+
+    _broadcastState(context, state) {
+        const ctx = this._context(context);
+        if (global.gateway?.broadcastToContext) {
+            global.gateway.broadcastToContext(ctx, { type: 'ai.state', state });
+        }
+    }
+
     /**
      * Generic bridge to *any* skill, instead of hand-writing a "manage_X" function +
      * dispatch block per domain (the pattern above this comment — doesn't scale, and
@@ -212,7 +257,8 @@ class AskEngine {
             const path = require('path');
             const fs = require('fs');
             const { CONFIG_PATH } = require('./config');
-            const SkillRegistry = require('./skills/SkillRegistry');
+            const SkillRegistryModule = require('./skills/SkillRegistry.js');
+            const SkillRegistry = SkillRegistryModule?.default || SkillRegistryModule;
             const registry = new SkillRegistry();
             const skillsPath = path.join(__dirname, '../skills');
             let workspace = {};
@@ -304,7 +350,8 @@ class AskEngine {
             const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
             const workspace = config.adapters?.cctv || {};
             if (!Object.keys(workspace.dahua_devices || {}).length) { this._dahua = null; return null; }
-            const DahuaSkill = require('../skills/dahua/index.js');
+            const DahuaSkillModule = require('../skills/dahua/index.js');
+            const DahuaSkill = DahuaSkillModule?.default || DahuaSkillModule;
             this._dahua = new DahuaSkill(config, logger, workspace);
         } catch (e) {
             logger.warn(`AskEngine: failed to init Dahua skill: ${e.message}`);
@@ -318,9 +365,27 @@ class AskEngine {
         return skill ? Object.keys(skill.workspace.dahua_devices || {}) : [];
     }
 
+    async _runDeepSearch(input, context) {
+        const ctx = this._context(context)
+        if (!ctx.uiPolicy?.actions?.includes('research.deep_search')) {
+            return { tier: 2, type: 'error', result: 'Research access is not available for this scoped account.' }
+        }
+        const query = String(input || '').replace(/^\s*(deep\s+search|research)\s*:??\s*/i, '').trim()
+        if (!query) return { tier: 2, type: 'error', result: 'Provide a research question after “deep search”.' }
+        const registry = await this._skillRegistry()
+        if (!registry) return { tier: 2, type: 'error', result: 'Research skill is not available.' }
+        const result = await registry.execute('research', 'research.deep_search', { query }, ctx)
+        return { tier: 2, type: 'tool', result }
+    }
+
     // ── Public: run() — returns { tier, type, result, [data], [turns], [sessionId] }
 
     async run(input, context = {}) {
+        context = this._context(context);
+        if (/^\s*(deep\s+search|research)\b/i.test(String(input || ''))) {
+            try { return await this._runDeepSearch(input, context) }
+            catch (e) { logger.error(`Deep search failed: ${e.message}`); return { tier: 2, type: 'error', result: e.message } }
+        }
         // Tier 1 — direct keyword → tool
         const tier1 = this._matchTool(input);
         if (tier1 && this.mikrotik) {
@@ -352,12 +417,12 @@ class AskEngine {
 
         try {
             // Broadcast thinking state to WebSocket clients if gateway is available
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
+            this._broadcastState(context, 'thinking');
             const res = await this._runAI(input, context);
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             return res;
         } catch (e) {
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             logger.error(`AI reasoning failed: ${e.message}`);
             return { tier: 3, type: 'error', result: e.message };
         }
@@ -366,6 +431,7 @@ class AskEngine {
     // ── Public: stream() — async generator of typed SSE events
 
     async *stream(input, context = {}) {
+        context = this._context(context);
         yield { type: 'message_start', input, ts: Date.now() };
 
         const tier1 = this._matchTool(input);
@@ -403,15 +469,15 @@ class AskEngine {
         }
 
         yield { type: 'ai_thinking' };
-        if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
+        this._broadcastState(context, 'thinking');
         try {
             const res = await this._runAI(input, context);
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             yield { type: 'message_delta', text: res.result };
             if (res.data) yield { type: 'tool_trace', trace: res.data };
             yield { type: 'message_stop', tier: 3, stop_reason: 'completed', turns: res.turns };
         } catch (e) {
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             yield { type: 'error', message: e.message };
             yield { type: 'message_stop', tier: 3, stop_reason: 'error' };
         }
@@ -564,7 +630,7 @@ class AskEngine {
 
         // ── Hotspot user write operations (Tier-2 fast path) ──────────────────
         // Patterns: "disable user John", "disable John", "block user John"
-        const disableMatch = lower.match(/(?:disable|suspend|block)\s+(?:user\s+)?([\w@.\-]+)/);
+        const disableMatch = lower.match(/(?:disable|suspend|block)\s+(?:user\s+)?([\w@.-]+)/);
         if (disableMatch && this.mikrotik) {
             const uname = disableMatch[1];
             return async () => {
@@ -576,7 +642,7 @@ class AskEngine {
         }
 
         // Patterns: "enable user John", "unblock user John", "restore John"
-        const enableMatch = lower.match(/(?:enable|unblock|restore|reactivate)\s+(?:user\s+)?([\w@.\-]+)/);
+        const enableMatch = lower.match(/(?:enable|unblock|restore|reactivate)\s+(?:user\s+)?([\w@.-]+)/);
         if (enableMatch && this.mikrotik) {
             const uname = enableMatch[1];
             return async () => {
@@ -588,7 +654,7 @@ class AskEngine {
         }
 
         // Patterns: "remove user John", "delete user John", "delete John"
-        const removeMatch = lower.match(/(?:remove|delete)\s+(?:user\s+)?([\w@.\-]+)/);
+        const removeMatch = lower.match(/(?:remove|delete)\s+(?:user\s+)?([\w@.-]+)/);
         if (removeMatch && this.mikrotik) {
             const uname = removeMatch[1];
             return async () => {
@@ -684,7 +750,25 @@ class AskEngine {
     // ── Tier-3: Gemini ReAct loop ─────────────────────────────────────────────
 
     async _runAI(input, context = {}) {
-        const messages = [{ role: 'user', content: input, blocks: [{ type: 'text', text: input }] }];
+        context = this._context(context);
+        const safeContext = {
+            userId: context.userId,
+            tenantId: context.tenantId,
+            domain: context.domain,
+            siteId: context.siteId,
+            roles: context.roles,
+            status: context.status,
+            uiPolicy: context.uiPolicy,
+            research: context.research || null,
+            wbsSummary: context.wbsSummary || null,
+            wbs: context.wbs || [],
+            oauthProviders: Object.keys(context.oauth?.providers || context.oauth || {}),
+        };
+        const contextText = `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}\n\n${context.wbsPrompt || 'WBS progress: 0% (0/0 complete)\nNo WBS steps defined.'}`;
+        const messages = [
+            { role: 'system', content: contextText, blocks: [{ type: 'text', text: contextText }] },
+            { role: 'user', content: input, blocks: [{ type: 'text', text: input }] }
+        ];
         const toolTrace = [];
         let turns = 0;
         const MAX_TURNS = 5;
@@ -767,18 +851,24 @@ class AskEngine {
             if (!uname) return { error: 'username is required' };
 
             if (action === 'disable') {
+                const authz = this._canMutate(context, 'hotspot.disable');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.disableHotspotUser(uname);
                 return r.action === 'disabled'
                     ? { status: 'ok', message: `User '${uname}' disabled and session terminated.` }
                     : { status: 'skipped', ...r };
             }
             if (action === 'enable') {
+                const authz = this._canMutate(context, 'hotspot.enable');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.enableHotspotUser(uname);
                 return r.action === 'enabled'
                     ? { status: 'ok', message: `User '${uname}' re-enabled.` }
                     : { status: 'skipped', ...r };
             }
             if (action === 'remove') {
+                const authz = this._canMutate(context, 'hotspot.remove');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.removeHotspotUser(uname);
                 return r.action === 'removed'
                     ? { status: 'ok', message: `User '${uname}' permanently removed.` }
@@ -829,13 +919,37 @@ class AskEngine {
         }
 
         if (name === 'manage_finance') {
+            const paymentService = this.paymentService;
             if (action === 'revenue_report' && this.database) return this.database.getRevenue(args.period || 'daily');
             if (action === 'revenue_report' && this.financial) return this.financial.getRevenueReport();
             if (action === 'verify_payment' && this.billing) return this.billing.verifyPayment(target);
+            if (action === 'payment_status' && paymentService?.gateway) {
+                if (!args.provider || !target) return { error: 'provider and target are required' };
+                return paymentService.gateway.verifyPayment(args.provider, target);
+            }
+            if (action === 'payment_methods' && paymentService?.getAvailablePaymentMethods) {
+                return paymentService.getAvailablePaymentMethods({
+                    country: args.country || context.country || null,
+                    device: args.device || context.device || 'unknown'
+                });
+            }
             if (action === 'audit_log' && this.financial) return this.financial.auditTrail(5);
             if (action === 'trends' && this.financial) return this.financial.getTrends();
             if (action === 'payment_link' && this.billing) return this.billing.createPaymentLink({ plan, amount });
             if (action === 'transfer' && this.database) return this.database.p2pTransfer(args.from || currentUid || 'system', target, args.amount);
+        }
+
+        if (name === 'manage_printer') {
+            const printer = this.printer;
+            if (action === 'list' && printer?.listAvailableInterfaces) return printer.listAvailableInterfaces();
+            if (action === 'status' && printer?.getPrinterStatus) return printer.getPrinterStatus();
+            if (action === 'test' && printer?.testPrinterConnection) {
+                return printer.testPrinterConnection({ interface: args.interface || context.printer?.interface });
+            }
+            if (action === 'print' && printer?.printRaw) {
+                if (!args.content) return { success: false, error: 'content is required' };
+                return printer.printRaw(Buffer.from(args.content, 'utf8'), { interface: args.interface || context.printer?.interface });
+            }
         }
 
         if (name === 'manage_roaming' && this.database) {

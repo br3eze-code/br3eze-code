@@ -1,0 +1,59 @@
+name: mikrotik-mesh
+version: 1.0.0
+description: Secure multi-site MikroTik mesh access for authorized Telegram and AgentOS operations.
+author: AgentOS
+license: Apache-2.0
+
+security:
+  defaultDecision: deny
+  readPermission: network.read
+  writePermission: network.write
+  destructivePermission: network.admin
+
+tools:
+  - name: mikrotik.mesh.list_sites
+    description: List MikroTik sites visible to the current tenant.
+    parameters: []
+    returns: array
+  - name: mikrotik.mesh.site_health
+    description: Return online or offline status for authorized MikroTik sites.
+    parameters:
+      - name: siteIds
+        type: array
+        required: false
+    returns: array
+  - name: mikrotik.mesh.execute_readonly
+    description: Execute an allowlisted read-only MikroTik tool on one authorized site.
+    parameters:
+      - name: siteId
+        type: string
+        required: true
+      - name: tool
+        type: string
+        required: true
+      - name: params
+        type: object
+        required: false
+    returns: object
+  - name: mikrotik.mesh.fleet_health
+    description: Run read-only health checks across explicitly authorized sites.
+    parameters: []
+    returns: array
+  - name: mikrotik.mesh.execute_change
+    description: Execute a previously approved MikroTik mutation on one site.
+    parameters:
+      - name: siteId
+        type: string
+        required: true
+      - name: tool
+        type: string
+        required: true
+      - name: params
+        type: object
+        required: false
+      - name: approvalId
+        type: string
+        required: true
+    returns: object
+
+dependencies: []

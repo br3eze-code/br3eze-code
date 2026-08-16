@@ -282,7 +282,7 @@ agentos
 
 | Layer | Technology |
 |-------|------------|
-| Runtime | Node.js 20 ESM |
+| Runtime | Node.js 22+ ESM |
 | Router API | MikroTik RouterOS API (routeros-client) |
 | AI Engine | Google Gemini 2.5 / other providers |
 | Messaging | node-telegram-bot-api + Baileys |
@@ -307,13 +307,41 @@ cp agentos.podman.env .env
 podman play kube agentos.yaml
 ```
 
-### Manual (Linux systemd)
+### User-local CLI and Desktop installation
+
+The supported installation path is user-local and idempotent. It keeps the CLI, Desktop runtime, and profile state under the operator’s home directory and never copies API keys into shell startup files. Node.js 22+, npm, and Git are required.
+
+On Linux or macOS, download the script first, review it, and execute the local file:
 
 ```bash
-./install.sh
-systemctl enable agentos
-systemctl start agentos
+curl -fsSL https://br3eze.africa/install.sh -o /tmp/agentos-install.sh
+less /tmp/agentos-install.sh
+bash /tmp/agentos-install.sh --ref upgrade/commerce-domains
+source ~/.bashrc  # or ~/.zshrc
+agentos onboard
+agentos login
 ```
+
+On Windows PowerShell:
+
+```powershell
+Invoke-WebRequest https://br3eze.africa/install.ps1 -OutFile $env:TEMP\agentos-install.ps1
+Get-Content $env:TEMP\agentos-install.ps1
+powershell -ExecutionPolicy Bypass -File $env:TEMP\agentos-install.ps1 -Ref upgrade/commerce-domains
+# Open a new PowerShell window, then:
+agentos onboard
+agentos login
+```
+
+The default locations are `~/.agentos/app` and `~/.agentos/bin` on Unix, and `%USERPROFILE%\\.agentos\\app` and `%USERPROFILE%\\.agentos\\bin` on Windows. Use `--profile NAME` to keep separate tenants or environments isolated. Use `--desktop` only when you want the installer to fetch development dependencies and build the Electron directory package:
+
+```bash
+bash /tmp/agentos-install.sh --desktop
+# or on PowerShell:
+# powershell -ExecutionPolicy Bypass -File $env:TEMP\agentos-install.ps1 -Desktop
+```
+
+The installer does **not** enable a network daemon or system service automatically. For a long-running gateway, use the platform’s service manager only after configuring an explicit service account, working directory, environment provider, firewall policy, and log rotation. The local profile and credential store remain user-scoped.
 
 ### RouterOS Sentinel
 

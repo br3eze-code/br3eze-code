@@ -1,0 +1,63 @@
+flowchart LR
+  subgraph Channels[Channel adapters]
+    CLI[Terminal CLI]
+    WEB[Web / PWA]
+    TG[Telegram]
+    WA[WhatsApp interactive buttons + text fallback]
+    DESKTOP[Electron / Cordova]
+  end
+
+  subgraph Core[AgentOS core]
+    ID[Unified identity + OAuth 2.1]
+    ROUTER[Agent gateway / intent router]
+    POLICY[Agent policy + approval checks]
+    REG[Server registry / multi-server orchestration]
+    SKILLS[SkillRegistry]
+  end
+
+  subgraph CCTV[CCTV skill]
+    FACADE[cctv/index.js\nVendor-neutral facade]
+    CMANIFEST[cctv/manifest.yaml\n10 normalized tools]
+    HIK[Hikvision adapter]
+    DAH[Dahua adapter]
+    CCTVWS[Workspace device maps\nhikvision_devices / dahua_devices]
+  end
+
+  subgraph SHOP[Shopping integration]
+    SHOPSKILL[shop skill + manifest]
+    SHOPCORE[src/core/shop.js\ncart, order, stock, payment]
+    DB[(Database\nproducts, carts, orders, vouchers)]
+    PAY[PaymentGateway]
+    COURIER[CourierGateway]
+    NOTIFY[Order notifier]
+    PRINT[Printer / invoice workflows]
+  end
+
+  CLI & WEB & TG & WA & DESKTOP --> ID
+  ID --> ROUTER
+  ROUTER --> POLICY
+  POLICY --> REG
+  REG --> SKILLS
+  SKILLS --> FACADE
+  SKILLS --> SHOPSKILL
+
+  CMANIFEST --> FACADE
+  FACADE --> CCTVWS
+  FACADE --> HIK
+  FACADE --> DAH
+
+  SHOPSKILL --> SHOPCORE
+  SHOPCORE --> DB
+  SHOPCORE --> PAY
+  SHOPCORE --> COURIER
+  SHOPCORE --> NOTIFY
+  SHOPCORE --> PRINT
+
+  classDef boundary fill:#172554,stroke:#60a5fa,color:#fff;
+  classDef core fill:#064e3b,stroke:#34d399,color:#fff;
+  classDef skill fill:#581c87,stroke:#c084fc,color:#fff;
+  classDef data fill:#422006,stroke:#f59e0b,color:#fff;
+  class Channels boundary;
+  class Core core;
+  class CCTV,SHOP skill;
+  class DB,CCTVWS data;

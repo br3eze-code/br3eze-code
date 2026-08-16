@@ -1,10 +1,20 @@
 import TelegramBot from 'node-telegram-bot-api';
+import StarlinkAdapter from '../../services/starlink/starlink-adapter.mjs';
+import TieredAccessControl from '../../services/admin/tiered-access.mjs';
+import InnbucksAdapter from '../../services/payments/innbucks.mjs';
+import { registerStarlinkInnbucksCommands } from '../../adapters/telegram-starlink-innbucks.mjs';
+import PartnerBotFactory from '../../services/partner/bot-factory.mjs';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
 import { BRAND } from '../config.js';
+import { IdentityLinkingService } from '../../services/identity-linking.js';
+import { formatStartText, telegramStartKeyboard, listAvailableDomains } from '../domain-menu.js';
+import { buildExecutionContext } from '../execution-context.js';
+import { buildActionManifest, actionCallback, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
+import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 import { acquireBotLock, releaseBotLock, LOCK_FILE } from '../../utils/bot-lock.js';
 
 import { createRequire } from 'module';
@@ -99,9 +109,42 @@ class TelegramChannel extends BaseChannel {
         this.pendingInputs = new Map(); // chatId -> { action, data }
         this._alertState = new Map();   // key -> lastSentTimestamp
         this.cacheCleanup = setInterval(() => this._clearOldCache(), 60000);
+        this.cacheCleanup.unref?.();
 
         logger.info('TelegramChannel: constructed');
         global.agentosbot = this.bot;
+
+        // Optional Starlink/payment command surface. Services may be injected by AgentOS;
+        // otherwise they remain unconfigured until the corresponding environment is set.
+        const services = agent?.services || {};
+        this.identityLinking = services.identityLinking || null;
+        this.starlink = services.starlink || new StarlinkAdapter(config.starlink || {});
+        this.rbac = services.rbac || new TieredAccessControl({ auditSink: (event) => logger.audit?.('access_decision', event) });
+        this.innbucks = services.innbucks || new InnbucksAdapter(config.payments?.innbucks || {});
+        if (this.starlink && this.rbac && this.innbucks) {
+            registerStarlinkInnbucksCommands(this.bot, this.starlink, this.rbac, this.innbucks, {
+                resolveUserId: (msg) => String(msg.from?.id || msg.chat?.id || 'unknown')
+            });
+        }
+
+        // Partner-branded bots are opt-in and run through their own scoped factory.
+        // The primary AgentOS bot is never duplicated or reconfigured by this block.
+        const partnerConfigs = services.partnerBots || config.partnerBots || [];
+        if (partnerConfigs.length && (agent?.database || agent?.db)) {
+            this.partnerBotFactory = services.partnerBotFactory || new PartnerBotFactory({
+                db: agent.database || agent.db,
+                paymentService: services.paymentService,
+                paymentAdapter: services.innbucks || this.innbucks,
+                escrowFactory: services.escrowFactory,
+                rbac: this.rbac,
+                logger,
+            });
+            for (const partner of partnerConfigs) {
+                this.partnerBotFactory.createBot(partner).catch((error) => {
+                    logger.error(`Partner bot ${partner?.id || 'unknown'} failed to start: ${error.message}`);
+                });
+            }
+        }
     }
 
     // ── BaseChannel contract ─────────────────────────────────────────────────
@@ -454,6 +497,7 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/start(?:\s+(\S+))?/, this._rl(this._handleStart.bind(this)));
         this.bot.onText(/\/dashboard/, this._rl(this._handleDashboard.bind(this)));
         this.bot.onText(/\/users/, this._rl(this._handleUsers.bind(this), 'admin'));
+        this.bot.onText(/\/user(?:\s+(.+))?/, this._rl(this._handleUser.bind(this)));
         this.bot.onText(/\/stats/, this._rl(this._handleStats.bind(this), 'admin'));
         this.bot.onText(/\/voucher(?:\s+(\w+))?/, this._rl(this._handleVoucher.bind(this), 'admin'));
         this.bot.onText(/\/kick\s+(\S+)/, this._rl(this._handleKick.bind(this), 'admin'));
@@ -507,6 +551,45 @@ class TelegramChannel extends BaseChannel {
 
     // ── Command handlers ──────────────────────────────────────────────────────
 
+    async _buildUiContext(message, platformId) {
+        let userDoc = message?.userDoc || null
+        if (!userDoc) {
+            try {
+                const { getDatabase } = require('../database')
+                userDoc = await (await getDatabase()).getUser(message?._uid || platformId)
+            } catch (error) {
+                logger.debug(`Telegram UI context lookup failed: ${error.message}`)
+            }
+        }
+        return buildExecutionContext({ message, userId: message?._uid || userDoc?.uid || platformId, platformId, channel: 'telegram', userDoc, config: this.config })
+    }
+
+    async _sendUiActions(message, opts = {}) {
+        const chatId = message.chat.id
+        const context = await this._buildUiContext(message, chatId)
+        const actions = buildActionManifest(context)
+        const rows = []
+        for (let i = 0; i < actions.length; i += 2) {
+            rows.push(actions.slice(i, i + 2).map(({ action, label }) => ({ text: label, callback_data: actionCallback(action) })))
+        }
+        if (!rows.length) return
+        const text = context.uiPolicy.restricted ? 'Available account actions:' : 'Available actions for your role and scope:'
+        const reply_markup = { inline_keyboard: rows }
+        if (opts.editMessageId) return this._safeEdit(chatId, opts.editMessageId, text, { reply_markup })
+        return this.bot.sendMessage(chatId, text, { reply_markup })
+    }
+
+    async _executeUiAction(message, action, query = '') {
+        const chatId = message.chat.id
+        const context = await this._buildUiContext(message, chatId)
+        if (!context.uiPolicy.actions.includes(action)) return this.bot.sendMessage(chatId, '❌ This action is not available for your current role or status.')
+        if (action === 'research.deep_search' && !query.trim()) {
+            this.pendingInputs.set(chatId, { action: 'ui:research.deep_search' })
+            return this.bot.sendMessage(chatId, '🔎 Send the research question to search. Your tenant, site, domain, and identity scope will be retained.')
+        }
+        return this._processAI(chatId, actionPrompt(action, query), message)
+    }
+
     async _handleStart(msg, opts = {}) {
         const startPayload = Array.isArray(opts) ? opts[1] : undefined;
         if (startPayload && startPayload.startsWith('link_')) {
@@ -518,26 +601,61 @@ class TelegramChannel extends BaseChannel {
         const username = from.username || from.first_name || 'User';
         logger.audit?.('telegram_start', { chatId, username });
 
-        const text = `🤖 *${BRAND.name}*\nWelcome, ${username}! I'm your network intelligence assistant.`;
-        const reply_markup = {
-            inline_keyboard: [
-                [{ text: '🖥 Dashboard', callback_data: 'process:dashboard' }, { text: '⚙️ System', callback_data: 'process:status' }],
-                [{ text: '🌐 Network', callback_data: 'process:network' }, { text: '🛠 Tools', callback_data: 'process:tools' }],
-                [{ text: '👥 Users', callback_data: 'process:users' }, { text: '🎫 Voucher', callback_data: 'process:voucher' }],
-                [{ text: '👛 Wallet', callback_data: 'process:wallet' }, { text: '💳 Payment', callback_data: 'process:pay' }],
-                [{ text: '❓ Help', callback_data: 'process:help' }]
-            ]
-        };
+        const text = formatStartText({ brand: BRAND.name, username, config: this.config.domains || {} });
+        const reply_markup = telegramStartKeyboard({ config: this.config.domains || {} });
 
         if (opts.editMessageId) {
             return this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup });
         } else {
             await this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
         }
+        await this._sendUiActions(msg)
+    }
+
+    async _handleDomain(msg, domainId, opts = {}) {
+        const domains = listAvailableDomains(this.config.domains || {});
+        const domain = domains.find((entry) => entry.id === String(domainId).toLowerCase());
+        const chatId = msg.chat.id;
+        if (!domain) return this.bot.sendMessage(chatId, '⚠️ That domain is not available on this AgentOS installation.');
+        const text = `🧩 *${domain.name}*\n\n${domain.description}\n\nUse /ask to describe what you want to do, or choose another action.`;
+        const reply_markup = { inline_keyboard: [
+            [{ text: '💬 Ask this domain', callback_data: `process:ask:${domain.id}` }],
+            [{ text: '🛍 Shop', callback_data: 'process:shop' }, { text: '⬅️ Back', callback_data: 'process:start' }],
+        ] };
+        if (opts.editMessageId) return this._safeEdit(chatId, opts.editMessageId, text, { parse_mode: 'Markdown', reply_markup });
+        return this.bot.sendMessage(chatId, text, { parse_mode: 'Markdown', reply_markup });
     }
 
     async _handleDashboard(msg, opts = {}) {
         await this._sendDashboard(msg, opts);
+    }
+
+    async _handleUser(msg, match) {
+        const argument = match?.[1]?.trim() || ''
+        const context = await this._buildUiContext(msg, msg.chat.id)
+        try {
+            if (!argument || argument === 'list') {
+                const tasks = listUserTasks(context)
+                const lines = tasks.slice(-10).reverse().map((task) => `${task.status === 'running' ? '🏃' : task.status === 'completed' ? '✅' : task.status === 'failed' ? '❌' : '🕐'} ${task.taskId.slice(0, 8)} ${task.action || 'task'} — ${task.wbsSummary?.progress || 0}%`)
+                return this.bot.sendMessage(msg.chat.id, lines.length ? `📋 *My tasks*\\n\\n${lines.join('\\n')}` : '📋 No tasks found.', { parse_mode: 'Markdown' })
+            }
+            const [command, taskId, stepId, ...rest] = argument.split(/\s+/)
+            if (command === 'show' && taskId) {
+                const task = getUserTask(taskId, context)
+                return this.bot.sendMessage(msg.chat.id, `📋 *Task ${task.taskId.slice(0, 8)}*\\nStatus: *${task.status}*\\nAction: ${task.action || 'task'}\\nWBS: ${task.wbsSummary?.progress || 0}%\\n\\n${task.wbs.map((step) => `${step.status === 'completed' ? '✅' : step.status === 'running' ? '🏃' : '▫️'} ${step.order}. ${step.title}`).join('\\n')}`, { parse_mode: 'Markdown' })
+            }
+            if (command === 'stop' && taskId) {
+                const task = stopUserTask(taskId, context)
+                return this.bot.sendMessage(msg.chat.id, `⛔ Task ${task.taskId.slice(0, 8)} stopped.`, { parse_mode: 'Markdown' })
+            }
+            if (command === 'step' && taskId && stepId) {
+                const task = updateUserTaskStep(taskId, stepId, { status: rest[0] || 'completed', result: rest.slice(1).join(' ') }, context)
+                return this.bot.sendMessage(msg.chat.id, `✅ WBS step updated. Progress: ${task.wbsSummary.progress}%`)
+            }
+            return this.bot.sendMessage(msg.chat.id, 'Usage: `/user list`, `/user show <taskId>`, `/user stop <taskId>`, or `/user step <taskId> <stepId> [status] [result]`', { parse_mode: 'Markdown' })
+        } catch (error) {
+            return this.bot.sendMessage(msg.chat.id, `❌ ${error.message}`)
+        }
     }
 
     async _handleUsers(msg, opts = {}) {
@@ -1185,9 +1303,19 @@ class TelegramChannel extends BaseChannel {
         }
 
         try {
+            const { getDatabase } = require('../database');
+            const db = await getDatabase();
+            this.identityLinking ||= new IdentityLinkingService({ db });
+
             if (/^\d{6}$/.test(input)) {
                 const { verifyLinkCode } = await import('./link-verifier.js');
                 const result = await verifyLinkCode(input, 'telegram', chatId);
+                if (result.ok && result.uid) {
+                    await this.identityLinking.link({
+                        userId: result.uid,
+                        identity: { provider: 'telegram', channel: 'telegram', subject: String(chatId) }
+                    });
+                }
                 await this.bot.sendMessage(chatId, result.message, { parse_mode: 'Markdown' });
                 if (result.ok) return this._handleWhoAmI(msg);
                 return;
@@ -1195,10 +1323,12 @@ class TelegramChannel extends BaseChannel {
 
             // resolveFirebaseUser auto-detects email vs phone (+countrycode
             // or 7-15 digits) vs raw uid shape — no need to branch on it here.
-            const { getDatabase } = require('../database');
-            const db = await getDatabase();
-            const result = await db.resolveFirebaseUser(input, { channel: 'telegram', channelId: chatId });
+            const result = await db.resolveFirebaseUser(input, { channel: 'telegram', channelId: String(chatId) });
             if (result) {
+                await this.identityLinking.link({
+                    userId: result.uid,
+                    identity: { provider: 'telegram', channel: 'telegram', subject: String(chatId) }
+                });
                 await this.bot.sendMessage(chatId,
                     `✅ *Account Linked!*\nWelcome, *${result.fullname || 'User'}*. Your Telegram is now connected to your web account.`,
                     { parse_mode: 'Markdown' });
@@ -1372,6 +1502,11 @@ class TelegramChannel extends BaseChannel {
                         await this._finishSetup(chatId, ip, user, input);
                         break;
                     }
+                    if (action.startsWith('ui:')) {
+                        const uiAction = action.slice(3)
+                        await this._executeUiAction({ chat: { id: chatId }, _uid: chatId }, uiAction, input)
+                        break
+                    }
                     if (action.startsWith('tool:')) {
                         const toolName = action.substring(5); // e.g. "user.add"
                         await this._handleTool({ chat: { id: chatId } }, [null, toolName, input]);
@@ -1520,6 +1655,12 @@ class TelegramChannel extends BaseChannel {
 
         await this.bot.answerCallbackQuery(query.id).catch(() => { });
 
+        const uiAction = parseActionCallback(data)
+        if (uiAction) {
+            await this._executeUiAction(query.message, uiAction)
+            return
+        }
+
         const parts = data.split(':');
         const category = parts[0];
         const action = parts[1];
@@ -1530,6 +1671,9 @@ class TelegramChannel extends BaseChannel {
             case 'action':
             case 'cmd':
                 await this._dispatchProcessButton(chatId, messageId, action, query);
+                break;
+            case 'domain':
+                await this._handleDomain(query.message, action, { editMessageId: messageId });
                 break;
             case 'net':
                 await this._dispatchNetButton(chatId, messageId, action, query);
@@ -1763,7 +1907,7 @@ class TelegramChannel extends BaseChannel {
         const chatId = msg.chat.id;
         const args = match?.[1]?.trim().split(/\s+/) || [];
         const action = args[0] || 'list';
-        const toolCtx = { userId: msg._uid || msg.from.id, channel: 'telegram' };
+        const toolCtx = buildExecutionContext({ message: msg, userId: msg._uid || msg.from?.id || chatId, platformId: chatId, channel: 'telegram', userDoc: msg.userDoc, config: this.config });
 
         try {
             if (!this.agent) throw new Error('Agent not initialized');
@@ -1825,7 +1969,7 @@ class TelegramChannel extends BaseChannel {
     }
 
     async _handleShopCallback(chatId, action, extra, messageId, query) {
-        const toolCtx = { userId: query?._uid || chatId, channel: 'telegram' };
+        const toolCtx = buildExecutionContext({ message: query?.message || {}, userId: query?._uid || chatId, platformId: chatId, channel: 'telegram', userDoc: query?.userDoc, config: this.config });
         try {
             if (action === 'view') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);

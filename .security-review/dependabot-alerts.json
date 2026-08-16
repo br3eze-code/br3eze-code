@@ -1,0 +1,5 @@
+[1;37m{[m
+  [1;34m"message"[m[1;37m:[m [32m"Resource not accessible by integration"[m[1;37m,[m
+  [1;34m"documentation_url"[m[1;37m:[m [32m"https://docs.github.com/rest/dependabot/alerts#list-dependabot-alerts-for-a-repository"[m[1;37m,[m
+  [1;34m"status"[m[1;37m:[m [32m"403"[m
+[1;37m}[m

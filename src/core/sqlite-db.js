@@ -75,6 +75,7 @@ class SQLiteDB {
                 subscriptions TEXT,
                 pendingNotification TEXT,
                 channels TEXT,
+                vouchersUsed TEXT,
                 createdAt TEXT,
                 lastSeen TEXT,
                 checksum TEXT
@@ -99,7 +100,8 @@ class SQLiteDB {
                 imageUrl TEXT,
                 price REAL,
                 active INTEGER,
-                createdAt TEXT
+                createdAt TEXT,
+                features TEXT
             );
 
             CREATE TABLE IF NOT EXISTS transactions (
@@ -113,7 +115,8 @@ class SQLiteDB {
                 description TEXT,
                 timestamp TEXT,
                 createdAt TEXT,
-                checksum TEXT
+                checksum TEXT,
+                metadata TEXT
             );
 
             CREATE TABLE IF NOT EXISTS audit_log (
@@ -138,9 +141,28 @@ class SQLiteDB {
                 usage TEXT,
                 savedAt TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS user_lifecycle_graphs (
+                uid TEXT PRIMARY KEY,
+                tenantId TEXT,
+                domain TEXT,
+                siteId TEXT,
+                graph TEXT,
+                updatedAt TEXT
+            );
         `;
 
         this._db.exec(schema);
+        this._ensureColumn('users', 'vouchersUsed', 'TEXT');
+        this._ensureColumn('plans', 'features', 'TEXT');
+        this._ensureColumn('transactions', 'metadata', 'TEXT');
+    }
+
+    _ensureColumn(table, column, definition) {
+        const columns = this._db.prepare(`PRAGMA table_info(${table})`).all();
+        if (!columns.some((entry) => entry.name === column)) {
+            this._db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        }
     }
 
     /**
@@ -174,6 +196,7 @@ class SQLiteDB {
             channels: SQLiteDB.fromDB(row.channels) || {},
             subscriptions: SQLiteDB.fromDB(row.subscriptions) || [],
             pendingNotification: SQLiteDB.fromDB(row.pendingNotification),
+            vouchersUsed: SQLiteDB.fromDB(row.vouchersUsed) || [],
         };
     }
 }

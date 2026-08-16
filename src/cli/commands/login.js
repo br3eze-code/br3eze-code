@@ -1,6 +1,12 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { EncryptionVault } from '../../core/vault.js';
+import { isBack, isCancel } from '../../core/interaction/navigation.js';
+import { authorizationCodeLogin, githubDeviceFlowLogin, DEFAULT_GITHUB_SCOPE, USER_API_URL } from '../../core/oauth2.js';
+
+const execFileAsync = promisify(execFile);
 
 // ==========================================
 // AGENTOS LOGIN / LOGOUT / WHOAMI
@@ -13,10 +19,6 @@ import { EncryptionVault } from '../../core/vault.js';
 // even before the gateway/DB is set up.
 // ==========================================
 
-const DEVICE_CODE_URL = 'https://github.com/login/device/code';
-const TOKEN_URL = 'https://github.com/login/oauth/access_token';
-const USER_API_URL = 'https://api.github.com/user';
-const DEFAULT_SCOPE = 'read:user repo';
 
 function credentialsPath() {
     const { PROFILE_DIR } = global.AGENTOS;
@@ -62,48 +64,15 @@ function writeCredentials({ provider, login, name, avatar, accessToken, scope })
 }
 
 async function deviceFlowLogin({ clientId, scope, log, note }) {
-    const codeRes = await fetch(DEVICE_CODE_URL, {
-        method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, scope })
+    return githubDeviceFlowLogin({
+        clientId,
+        scope,
+        onPrompt: ({ verificationUri, userCode }) => {
+            note(`Open ${verificationUri} in a browser and enter this code:\n\n  ${userCode}\n`, 'GitHub Login');
+        },
+        onStatus: (message) => log.info(message),
+        userAgent: 'AgentOS-CLI'
     });
-    const codeData = await codeRes.json();
-    if (!codeRes.ok || codeData.error) {
-        throw new Error(codeData.error_description || codeData.error || 'Failed to start device flow');
-    }
-
-    const { device_code, user_code, verification_uri, expires_in, interval } = codeData;
-
-    note(`Open ${verification_uri} in a browser and enter this code:\n\n  ${user_code}\n`, 'GitHub Login');
-    log.info('Waiting for authorization...');
-
-    const deadline = Date.now() + expires_in * 1000;
-    let pollInterval = (interval || 5) * 1000;
-
-    while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, pollInterval));
-
-        const tokenRes = await fetch(TOKEN_URL, {
-            method: 'POST',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                client_id: clientId,
-                device_code,
-                grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-            })
-        });
-        const tokenData = await tokenRes.json();
-
-        if (tokenData.access_token) {
-            return { accessToken: tokenData.access_token, scope: tokenData.scope || scope };
-        }
-        if (tokenData.error === 'authorization_pending') continue;
-        if (tokenData.error === 'slow_down') { pollInterval += 5000; continue; }
-        if (tokenData.error === 'expired_token') throw new Error('Login code expired — run `agentos login` again');
-        if (tokenData.error === 'access_denied') throw new Error('Login was denied');
-        throw new Error(tokenData.error_description || tokenData.error || 'Device flow polling failed');
-    }
-    throw new Error('Login timed out');
 }
 
 function decodeFirebaseToken(token) {
@@ -117,6 +86,64 @@ function decodeFirebaseToken(token) {
     } catch (e) {
         return null;
     }
+}
+
+async function openBrowser(url) {
+    if (process.platform === 'win32') {
+        await execFileAsync('cmd', ['/c', 'start', '', url]);
+    } else if (process.platform === 'darwin') {
+        await execFileAsync('open', [url]);
+    } else {
+        await execFileAsync('xdg-open', [url]);
+    }
+}
+
+async function authorizationCodeProviderLogin(provider, { log, note }) {
+    const section = provider === 'google' ? global.AGENTOS.config.OAUTH.GOOGLE : global.AGENTOS.config.OAUTH.FACEBOOK;
+    if (!section.CLIENT_ID) throw new Error(`No ${provider} OAuth client ID configured.`);
+    if (provider === 'facebook' && !section.REDIRECT_URI) {
+        throw new Error('FACEBOOK_OAUTH_REDIRECT_URI must be an exact loopback URI registered in the Meta App Dashboard.');
+    }
+    const result = await authorizationCodeLogin({
+        provider,
+        clientId: section.CLIENT_ID,
+        clientSecret: section.CLIENT_SECRET,
+        redirectUri: section.REDIRECT_URI,
+        scope: section.SCOPE,
+        openBrowser,
+        onPrompt: ({ authorizationUrl }) => note(`Your browser will open for ${provider} authorization.\nIf it does not, open this URL:\n${authorizationUrl}`, `${provider} Login`),
+        onStatus: message => log.info(message),
+        userAgent: 'AgentOS-CLI'
+    });
+    return result;
+}
+
+async function openaiApiKeyLogin({ log, note, text }) {
+    const apiKey = (await text({
+        message: 'Paste your OpenAI API key:',
+        placeholder: 'sk-…',
+        validate: value => value.trim().startsWith('sk-') ? undefined : 'Enter an OpenAI API key beginning with sk-'
+    })).trim();
+    if (!apiKey) throw new Error('Login cancelled or empty API key.');
+
+    const response = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKey}`, 'User-Agent': 'AgentOS-CLI' }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'OpenAI API key validation failed.');
+
+    note(
+        'OpenAI API access is authenticated with an API key. AgentOS does not use or imitate the private ChatGPT web OAuth flow.',
+        'OpenAI authentication'
+    );
+    return {
+        provider: 'openai-api',
+        login: 'openai-api-user',
+        name: 'OpenAI API account',
+        avatar: '',
+        accessToken: apiKey,
+        scope: 'openai:api'
+    };
 }
 
 async function firebaseLogin({ log, note }) {
@@ -162,11 +189,11 @@ async function firebaseLogin({ log, note }) {
 export default (program) => {
     program
         .command('login')
-        .description('Log in to AgentOS via GitHub or Firebase OAuth')
-        .option('--provider <provider>', 'Login provider: github or firebase')
+        .description('Log in to AgentOS via GitHub, Google, Facebook, OpenAI API key, or Firebase')
+        .option('--provider <provider>', 'Login provider: github, google, facebook, openai, or firebase')
         .option('--client-id <id>', 'GitHub OAuth App client ID (overrides GITHUB_CLIENT_ID)')
         .action(async (options) => {
-            const { intro, outro, note, log, select } = await import('@clack/prompts');
+            const { intro, outro, note, log, select, text } = await import('@clack/prompts');
             intro('🔐 AgentOS Login');
 
             const existing = readCredentials();
@@ -182,11 +209,20 @@ export default (program) => {
                     message: 'Select login provider:',
                     options: [
                         { value: 'github', label: 'GitHub (OAuth device flow)' },
-                        { value: 'firebase', label: 'Firebase (OAuth via br3eze.africa/login)' }
+                        { value: 'google', label: 'Google (OAuth browser flow)' },
+                        { value: 'facebook', label: 'Facebook (OAuth browser flow)' },
+                        { value: 'openai', label: 'OpenAI API key (usage-based API access)' },
+                        { value: 'firebase', label: 'Firebase (OAuth via br3eze.africa/login)' },
+                        { value: '__back', label: '← Back' },
+                        { value: '__cancel', label: 'Cancel' }
                     ]
                 });
-                if (typeof choice !== 'string') {
+                if (typeof choice !== 'string' || isCancel(choice) || choice === '__cancel') {
                     outro('Login cancelled');
+                    return;
+                }
+                if (isBack(choice) || choice === '__back') {
+                    outro('No provider selected');
                     return;
                 }
                 provider = choice;
@@ -209,7 +245,7 @@ export default (program) => {
                 try {
                     const { accessToken, scope } = await deviceFlowLogin({
                         clientId,
-                        scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_SCOPE,
+                        scope: process.env.GITHUB_OAUTH_SCOPE || DEFAULT_GITHUB_SCOPE,
                         log,
                         note
                     });
@@ -230,6 +266,28 @@ export default (program) => {
                     });
 
                     log.success(`Logged in as ${user.login}${user.name ? ` (${user.name})` : ''}`);
+                    outro('✓ Login complete');
+                } catch (err) {
+                    log.error(`Login failed: ${err.message}`);
+                    outro('Login failed');
+                    process.exitCode = 1;
+                }
+            } else if (provider === 'google' || provider === 'facebook') {
+                try {
+                    const creds = await authorizationCodeProviderLogin(provider, { log, note });
+                    writeCredentials(creds);
+                    log.success(`Logged in as ${creds.login}`);
+                    outro('✓ Login complete');
+                } catch (err) {
+                    log.error(`Login failed: ${err.message}`);
+                    outro('Login failed');
+                    process.exitCode = 1;
+                }
+            } else if (provider === 'openai') {
+                try {
+                    const creds = await openaiApiKeyLogin({ log, note, text });
+                    writeCredentials(creds);
+                    log.success('OpenAI API key validated and stored securely.');
                     outro('✓ Login complete');
                 } catch (err) {
                     log.error(`Login failed: ${err.message}`);

@@ -1,8 +1,7 @@
 import fs from 'fs';
 import { CONFIG_PATH } from '../../core/config.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import DahuaSkill from '../../skills/dahua/index.js';
 
 // ==========================================
 // AGENTOS DAHUA COMMAND
@@ -11,15 +10,15 @@ const require = createRequire(import.meta.url);
 
 export default (program) => {
   const dahua = program
-    .command('dahua')
-    .description('Manage Dahua cameras');
+    .command('cctv')
+    .alias('dahua')
+    .description('Manage configured CCTV devices');
 
   // ── Resolve skill (lazy, throws on bad config — callers already catch) ────
   const getSkill = () => {
     if (!fs.existsSync(CONFIG_PATH)) {
       throw new Error('No configuration found — run: agentos onboard');
     }
-    const DahuaSkill = require('../../skills/dahua/index.js').default;
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     const workspace = config.adapters?.cctv || {};
     return new DahuaSkill(config, console, workspace);

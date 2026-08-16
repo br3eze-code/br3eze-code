@@ -3,6 +3,10 @@ import fs from 'fs';
 import _chalk from 'chalk';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
+import { formatStartText, listAvailableDomains } from '../domain-menu.js';
+import { buildExecutionContext } from '../execution-context.js';
+import { buildActionManifest, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
+import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -447,6 +451,7 @@ class WhatsAppChannel extends BaseChannel {
           if (now - time > 300000) this.messageCache.delete(id);
         }
       }, 60000);
+      this.cacheCleanup.unref?.();
     } catch (error) {
       this.errorCount++;
       logger.error("WhatsApp initialization error:", error);
@@ -590,6 +595,7 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set("dashboard", this._handleDashboard);
     this.handlers.set("voucher", this._handleVoucher);
     this.handlers.set("users", this._handleUsers);
+    this.handlers.set("user", this._handleUser);
     this.handlers.set("stats", this._handleStats);
     this.handlers.set("kick", this._handleKick);
     this.handlers.set("reboot", this._handleReboot);
@@ -812,11 +818,62 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
+  async _buildUiContext(msg, jid) {
+    let userDoc = msg?.userDoc || null
+    if (!userDoc) {
+      try {
+        const { getDatabase } = require('../database')
+        userDoc = await (await getDatabase()).getUser(msg?._uid || jid)
+      } catch (error) {
+        logger.debug(`WhatsApp UI context lookup failed: ${error.message}`)
+      }
+    }
+    return buildExecutionContext({ message: msg, userId: msg?._uid || userDoc?.uid || jid, platformId: jid, channel: 'whatsapp', userDoc, config: this.config })
+  }
+
+  async _sendUiActions(jid, msg) {
+    const context = await this._buildUiContext(msg, jid)
+    const actions = buildActionManifest(context)
+    if (!actions.length) return
+    const buttons = actions.map(({ action, label }) => ({ id: `ui:${encodeURIComponent(action)}`, label }))
+    return this.sendButtons(jid, { title: context.uiPolicy.restricted ? 'Available account actions' : 'Available actions for your role and scope', buttons, resultAction: 'ui_actions' })
+  }
+
+  async _executeUiAction(jid, msg, action, query = '') {
+    const context = await this._buildUiContext(msg, jid)
+    if (!context.uiPolicy.actions.includes(action)) return this.send(jid, '❌ This action is not available for your current role or status.')
+    if (action === 'research.deep_search' && !String(query).trim()) {
+      this.pendingInputs.set(jid, { action: 'ui:research.deep_search' })
+      return this.send(jid, '🔎 Send the research question to search. Your tenant, site, domain, and identity scope will be retained.')
+    }
+          const text = actionPrompt(action, query)
+
+    if (this.agent?.processInteraction) {
+      const result = await this.agent.processInteraction({ text }, { ...context, userDoc: msg?.userDoc })
+      return this.send(jid, result?.result?.text || result?.text || result?.message || 'Request completed.')
+    }
+    return this.send(jid, `Use */ask ${text}* to continue.`)
+  }
+
   async _handleStart(jid, msg) {
     const pushName = msg.pushName || "there";
-    const text = `🤖 *AgentOS WhatsApp*\n\nWelcome, ${pushName}! I'm your network intelligence assistant.\n`;
-    await this.send(jid, text);
-    await this._handleMenu(jid);
+    const config = this.config.domains || {};
+    await this.send(jid, formatStartText({ brand: "AgentOS WhatsApp", username: pushName, config }));
+    const domains = listAvailableDomains(config);
+    const buttons = [
+      ...domains.map((domain) => ({ id: `domain:${domain.id}`, label: `🧩 ${domain.name}` })),
+      { id: "process:shop", label: "🛍️ Shop" },
+      { id: "process:ask", label: "💬 Ask" },
+      { id: "process:start", label: "🔄 Refresh menu" },
+    ];
+    if (buttons.length) await this.sendButtons(jid, { title: "Choose a domain or action", buttons, resultAction: "start_menu" });
+    await this._sendUiActions(jid, msg)
+  }
+
+  async _handleDomain(jid, msg, domainId) {
+    const domain = listAvailableDomains(this.config.domains || {}).find((entry) => entry.id === String(domainId).toLowerCase());
+    if (!domain) return this.send(jid, "⚠️ That domain is not available on this AgentOS installation.");
+    await this.send(jid, `🧩 *${domain.name}*\n\n${domain.description}\n\nUse */ask* to describe what you want to do in this domain.`);
   }
 
   async _handleMistakes(jid, msg) {
@@ -915,6 +972,34 @@ class WhatsAppChannel extends BaseChannel {
     } catch (err) {
       logger.error("WhatsAppChannel Dashboard error:", err);
       await this.send(jid, `❌ Dashboard error: ${err.message}`);
+    }
+  }
+
+  async _handleUser(jid, msg, match) {
+    const argument = (typeof match === 'string' ? match : match?.[1] || msg?.text?.replace(/^\/user\s*/i, '') || '').trim()
+    const context = await this._buildUiContext(msg, jid)
+    try {
+      if (!argument || argument === 'list') {
+        const tasks = listUserTasks(context)
+        const lines = tasks.slice(-10).reverse().map((task) => `${task.status === 'running' ? '🏃' : task.status === 'completed' ? '✅' : task.status === 'failed' ? '❌' : '🕐'} ${task.taskId.slice(0, 8)} ${task.action || 'task'} — ${task.wbsSummary?.progress || 0}%`)
+        return this.send(jid, lines.length ? `📋 *My tasks*\\n\\n${lines.join('\\n')}` : '📋 No tasks found.')
+      }
+      const [command, taskId, stepId, ...rest] = argument.split(/\\s+/)
+      if (command === 'show' && taskId) {
+        const task = getUserTask(taskId, context)
+        return this.send(jid, `📋 *Task ${task.taskId.slice(0, 8)}*\\nStatus: *${task.status}*\\nAction: ${task.action || 'task'}\\nWBS: ${task.wbsSummary?.progress || 0}%\\n\\n${task.wbs.map((step) => `${step.status === 'completed' ? '✅' : step.status === 'running' ? '🏃' : '▫️'} ${step.order}. ${step.title}`).join('\\n')}`)
+      }
+      if (command === 'stop' && taskId) {
+        const task = stopUserTask(taskId, context)
+        return this.send(jid, `⛔ Task ${task.taskId.slice(0, 8)} stopped.`)
+      }
+      if (command === 'step' && taskId && stepId) {
+        const task = updateUserTaskStep(taskId, stepId, { status: rest[0] || 'completed', result: rest.slice(1).join(' ') }, context)
+        return this.send(jid, `✅ WBS step updated. Progress: ${task.wbsSummary.progress}%`)
+      }
+      return this.send(jid, 'Usage: /user list, /user show <taskId>, /user stop <taskId>, or /user step <taskId> <stepId> [status] [result]')
+    } catch (error) {
+      return this.send(jid, `❌ ${error.message}`)
     }
   }
 
@@ -1363,12 +1448,14 @@ class WhatsAppChannel extends BaseChannel {
   async _handleShop(jid, msg, args) {
     const action = args[1] || "list";
     const uid = msg?._uid || jid;
-    const context = {
+    const context = buildExecutionContext({
+      message: msg,
       userId: uid,
       platformId: jid,
       channel: "whatsapp",
       userDoc: msg?.userDoc,
-    };
+      config: this.config,
+    });
 
     if (action === "list") {
       const search = args.slice(2).join(" ") || undefined;
@@ -1769,7 +1856,14 @@ class WhatsAppChannel extends BaseChannel {
     // Resolve the canonical user identity once for all branches
     const uid = msg._uid || jid;
 
-    if (action === "ussd_menu") {
+    if (action?.startsWith('ui:')) {
+      const uiAction = parseActionCallback(action)
+      if (!uiAction) return this.send(jid, '❌ Invalid action.')
+      if (uiAction === 'research.deep_search') {
+        return this._executeUiAction(jid, msg, uiAction, text)
+      }
+      return this._executeUiAction(jid, msg, uiAction)
+    } else if (action === "ussd_menu") {
       const choice = text.trim();
       switch (choice) {
         case "0":
@@ -1842,6 +1936,10 @@ class WhatsAppChannel extends BaseChannel {
       if (!match) {
         return this.send(jid, `❌ Reply with a number 1-${data.buttons.length}, or the option text.`);
       }
+      if (match.id?.startsWith("domain:")) return this._handleDomain(jid, msg, match.id.slice(7));
+      if (match.id === "process:start") return this._handleStart(jid, msg);
+      if (match.id === "process:shop") return this._handleShop(jid, msg, ["/shop", "list"]);
+      if (match.id === "process:ask") return this.send(jid, "💬 Ask me what you want AgentOS to do, for example: /ask show available domains");
       const context = { userId: uid, platformId: jid, channel: "whatsapp", userDoc: msg.userDoc };
       await this.emit("message", {
         text: match.id,

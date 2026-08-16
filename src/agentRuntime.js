@@ -2,8 +2,8 @@ import EventEmitter from 'events';
 import { AgentEngine } from './agentEngine.js';
 import { PermissionMode, PermissionDenial } from './permissions.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
-import { getMikroTikClient } from './mikrotik';
-import { logger } from './logger';
+import { getMikroTikClient } from './core/mikrotik.js';
+import { logger } from './core/logger.js';
 
 /**
  * AgentRuntime

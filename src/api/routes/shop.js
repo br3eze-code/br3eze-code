@@ -2,6 +2,7 @@ import express from 'express';
 import * as shop from '../../core/shop.js';
 import { generateOrderPdf } from '../../core/invoice-pdf.js';
 import { logger } from '../../core/logger.js';
+import { getProductQueryService } from '../../core/product-query-service-bridge.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -17,11 +18,64 @@ const router = express.Router();
 
 const ok = (res, data) => res.json({ ok: true, data });
 const fail = (res, e, status = 400) => res.status(status).json({ ok: false, error: e.message });
+const requestOrderScope = (req) => {
+  const user = req.firebaseUser || {};
+  const claims = user.customClaims || {};
+  return {
+    tenantId: user.tenantId || claims.tenantId || null,
+    siteId: user.siteId || claims.siteId || null,
+    domain: user.domain || user.domainId || claims.domain || claims.domainId || null,
+  };
+};
 const canViewOrder = (req, order) => {
   const isOwner = req.firebaseUser?.uid && order.userId === req.firebaseUser.uid;
   const isAdmin = req.firebaseUser?.role === 'admin';
   return isOwner || isAdmin;
 };
+const requestProductScope = (req) => {
+  const user = req.firebaseUser || {};
+  const claims = user.customClaims || {};
+  return {
+    userId: user.uid || null,
+    tenantId: user.tenantId || claims.tenantId || null,
+    siteId: user.siteId || claims.siteId || null,
+    domain: user.domain || user.domainId || claims.domain || claims.domainId || null,
+    role: user.role || claims.role || 'user',
+    tier: user.influenceTier || claims.influenceTier || 'standard',
+  };
+};
+
+router.get('/products/query', async (req, res) => {
+  const scope = requestProductScope(req);
+  if (!scope.userId) return res.status(401).json({ ok: false, error: 'Firebase identity required' });
+  if (!scope.tenantId) return res.status(403).json({ ok: false, error: 'Tenant scope required' });
+  try {
+    const service = await getProductQueryService();
+    if (!service) return res.status(503).json({ ok: false, error: 'Product query service is not built' });
+    const include = String(req.query.include || 'name,brand,tier,category,description,price,availability')
+      .split(',').map((field) => field.trim()).filter(Boolean);
+    const result = await service.search({
+      scope,
+      filters: {
+        name: req.query.name || req.query.search,
+        brand: req.query.brand,
+        tier: req.query.tier,
+        category: req.query.category,
+        sku: req.query.sku,
+        availability: req.query.availability,
+        limit: req.query.limit,
+      },
+      include,
+      source: req.query.source || 'auto',
+      viewerRole: scope.role,
+      viewerTier: scope.tier,
+      purpose: 'product_inquiry',
+    });
+    return ok(res, result);
+  } catch (e) {
+    return fail(res, e, e.status || 500);
+  }
+});
 
 router.get('/products', async (req, res) => {
   try {
@@ -115,7 +169,7 @@ router.post('/orders/:id/ship', async (req, res) => {
     if (req.firebaseUser && req.firebaseUser.role !== 'admin') return res.status(403).json({ ok: false, error: 'Admin role required' });
     const { provider } = req.body || {};
     if (!provider) return res.status(400).json({ ok: false, error: 'provider required' });
-    ok(res, await shop.createShipment(req.params.id, provider));
+    ok(res, await shop.createShipment(req.params.id, provider, requestOrderScope(req)));
   } catch (e) { fail(res, e, 500); }
 });
 
@@ -124,7 +178,7 @@ router.get('/orders/:id/track', async (req, res) => {
     const order = await shop.getOrder(req.params.id);
     if (!order) return res.status(404).json({ ok: false, error: 'Order not found' });
     if (!canViewOrder(req, order)) return res.status(403).json({ ok: false, error: 'Forbidden' });
-    ok(res, await shop.trackShipment(req.params.id));
+    ok(res, await shop.trackShipment(req.params.id, requestOrderScope(req)));
   } catch (e) { fail(res, e, 500); }
 });
 

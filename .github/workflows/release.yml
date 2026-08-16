@@ -16,7 +16,7 @@ jobs:
     name: Auto-release
     runs-on: ubuntu-latest
     outputs:
-      version:  ${{ steps.version.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
       released: ${{ steps.bump.outputs.bumped }}
 
     steps:

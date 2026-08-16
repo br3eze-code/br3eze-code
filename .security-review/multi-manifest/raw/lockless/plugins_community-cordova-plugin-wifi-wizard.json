@@ -1,0 +1,3142 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "babel-helper-builder-binary-assignment-operator-visitor": {
+      "name": "babel-helper-builder-binary-assignment-operator-visitor",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-explode-assignable-expression"
+      ],
+      "effects": [
+        "babel-plugin-transform-exponentiation-operator"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-builder-binary-assignment-operator-visitor"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-call-delegate": {
+      "name": "babel-helper-call-delegate",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-traverse"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-call-delegate"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-define-map": {
+      "name": "babel-helper-define-map",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-function-name"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-define-map"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-explode-assignable-expression": {
+      "name": "babel-helper-explode-assignable-expression",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-helper-builder-binary-assignment-operator-visitor"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-explode-assignable-expression"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-function-name": {
+      "name": "babel-helper-function-name",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-helper-define-map",
+        "babel-helper-remap-async-to-generator",
+        "babel-plugin-transform-es2015-function-name"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-function-name"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-remap-async-to-generator": {
+      "name": "babel-helper-remap-async-to-generator",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-function-name",
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-plugin-transform-async-to-generator"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-remap-async-to-generator"
+      ],
+      "fixAvailable": true
+    },
+    "babel-helper-replace-supers": {
+      "name": "babel-helper-replace-supers",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-plugin-transform-es2015-object-super"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-helper-replace-supers"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-async-to-generator": {
+      "name": "babel-plugin-transform-async-to-generator",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-remap-async-to-generator"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-async-to-generator"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-block-scoping": {
+      "name": "babel-plugin-transform-es2015-block-scoping",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-block-scoping"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-classes": {
+      "name": "babel-plugin-transform-es2015-classes",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-define-map",
+        "babel-helper-function-name",
+        "babel-helper-replace-supers",
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-classes"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-computed-properties": {
+      "name": "babel-plugin-transform-es2015-computed-properties",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-computed-properties"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-function-name": {
+      "name": "babel-plugin-transform-es2015-function-name",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-function-name"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-function-name"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-modules-amd": {
+      "name": "babel-plugin-transform-es2015-modules-amd",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-plugin-transform-es2015-modules-commonjs",
+        "babel-template"
+      ],
+      "effects": [
+        "babel-plugin-transform-es2015-modules-umd"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-modules-amd"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-modules-commonjs": {
+      "name": "babel-plugin-transform-es2015-modules-commonjs",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template"
+      ],
+      "effects": [
+        "babel-plugin-transform-es2015-modules-amd",
+        "babel-preset-env"
+      ],
+      "range": "<=7.0.0-beta.0",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-modules-commonjs"
+      ],
+      "fixAvailable": {
+        "name": "babel-preset-env",
+        "version": "0.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-plugin-transform-es2015-modules-systemjs": {
+      "name": "babel-plugin-transform-es2015-modules-systemjs",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-template"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-modules-systemjs"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-modules-umd": {
+      "name": "babel-plugin-transform-es2015-modules-umd",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-plugin-transform-es2015-modules-amd",
+        "babel-template"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-modules-umd"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-object-super": {
+      "name": "babel-plugin-transform-es2015-object-super",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-replace-supers"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-object-super"
+      ],
+      "fixAvailable": true
+    },
+    "babel-plugin-transform-es2015-parameters": {
+      "name": "babel-plugin-transform-es2015-parameters",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-call-delegate",
+        "babel-template",
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-preset-env"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-es2015-parameters"
+      ],
+      "fixAvailable": {
+        "name": "babel-preset-env",
+        "version": "0.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-plugin-transform-exponentiation-operator": {
+      "name": "babel-plugin-transform-exponentiation-operator",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-helper-builder-binary-assignment-operator-visitor"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-plugin-transform-exponentiation-operator"
+      ],
+      "fixAvailable": true
+    },
+    "babel-preset-env": {
+      "name": "babel-preset-env",
+      "severity": "critical",
+      "isDirect": true,
+      "via": [
+        "babel-plugin-transform-async-to-generator",
+        "babel-plugin-transform-es2015-block-scoping",
+        "babel-plugin-transform-es2015-classes",
+        "babel-plugin-transform-es2015-computed-properties",
+        "babel-plugin-transform-es2015-function-name",
+        "babel-plugin-transform-es2015-modules-amd",
+        "babel-plugin-transform-es2015-modules-commonjs",
+        "babel-plugin-transform-es2015-modules-systemjs",
+        "babel-plugin-transform-es2015-modules-umd",
+        "babel-plugin-transform-es2015-object-super",
+        "babel-plugin-transform-es2015-parameters",
+        "babel-plugin-transform-exponentiation-operator"
+      ],
+      "effects": [],
+      "range": ">=0.0.1",
+      "nodes": [
+        "node_modules/babel-preset-env"
+      ],
+      "fixAvailable": {
+        "name": "babel-preset-env",
+        "version": "0.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-template": {
+      "name": "babel-template",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "babel-traverse"
+      ],
+      "effects": [
+        "babel-helper-remap-async-to-generator",
+        "babel-plugin-transform-es2015-computed-properties",
+        "babel-plugin-transform-es2015-modules-amd",
+        "babel-plugin-transform-es2015-modules-commonjs",
+        "babel-plugin-transform-es2015-modules-systemjs",
+        "babel-plugin-transform-es2015-modules-umd"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-template"
+      ],
+      "fixAvailable": {
+        "name": "babel-preset-env",
+        "version": "0.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "babel-traverse": {
+      "name": "babel-traverse",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1117412,
+          "name": "babel-traverse",
+          "dependency": "babel-traverse",
+          "title": "Babel vulnerable to arbitrary code execution when compiling specifically crafted malicious code",
+          "url": "https://github.com/advisories/GHSA-67hx-6x53-jw92",
+          "severity": "critical",
+          "cwe": [
+            "CWE-184",
+            "CWE-697"
+          ],
+          "cvss": {
+            "score": 9.3,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+          },
+          "range": "<7.23.2"
+        }
+      ],
+      "effects": [
+        "babel-helper-call-delegate",
+        "babel-helper-explode-assignable-expression",
+        "babel-helper-function-name",
+        "babel-helper-remap-async-to-generator",
+        "babel-helper-replace-supers",
+        "babel-plugin-transform-es2015-block-scoping",
+        "babel-plugin-transform-es2015-classes",
+        "babel-plugin-transform-es2015-parameters",
+        "babel-template"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/babel-traverse"
+      ],
+      "fixAvailable": {
+        "name": "babel-preset-env",
+        "version": "0.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "bl": {
+      "name": "bl",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1090072,
+          "name": "bl",
+          "dependency": "bl",
+          "title": "Remote Memory Exposure in bl",
+          "url": "https://github.com/advisories/GHSA-pp7h-53gx-mx7r",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-125",
+            "CWE-126"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:L"
+          },
+          "range": "<1.2.3"
+        }
+      ],
+      "effects": [
+        "request"
+      ],
+      "range": "<1.2.3",
+      "nodes": [
+        "node_modules/bl",
+        "node_modules/npm/node_modules/request/node_modules/bl"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "boom": {
+      "name": "boom",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "hoek"
+      ],
+      "effects": [
+        "cryptiles",
+        "hawk"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/boom",
+        "node_modules/npm/node_modules/request/node_modules/hawk/node_modules/boom"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "brace-expansion": {
+      "name": "brace-expansion",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1091680,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "ReDoS in brace-expansion",
+          "url": "https://github.com/advisories/GHSA-832h-xg76-4gv6",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.7"
+        },
+        {
+          "source": 1105443,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion Regular Expression Denial of Service vulnerability",
+          "url": "https://github.com/advisories/GHSA-v6h2-p8h4-qcjw",
+          "severity": "low",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 3.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": ">=1.0.0 <=1.1.11"
+        },
+        {
+          "source": 1115540,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: Zero-step sequence causes process hang and memory exhaustion",
+          "url": "https://github.com/advisories/GHSA-f886-m6hf-6m8v",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.13"
+        },
+        {
+          "source": 1123897,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+          "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-407"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<1.1.16"
+        },
+        {
+          "source": 1130588,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+          "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.17"
+        },
+        {
+          "source": 1130737,
+          "name": "brace-expansion",
+          "dependency": "brace-expansion",
+          "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+          "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.1.18"
+        }
+      ],
+      "effects": [],
+      "range": "<=1.1.17",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/brace-expansion",
+        "node_modules/npm/node_modules/minimatch/node_modules/brace-expansion"
+      ],
+      "fixAvailable": true
+    },
+    "browserify": {
+      "name": "browserify",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "glob",
+        "shell-quote"
+      ],
+      "effects": [
+        "cordova-js"
+      ],
+      "range": "2.3.0 - 11.2.0",
+      "nodes": [
+        "node_modules/browserify"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "browserify-sign": {
+      "name": "browserify-sign",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "elliptic"
+      ],
+      "effects": [
+        "crypto-browserify"
+      ],
+      "range": ">=2.4.0",
+      "nodes": [
+        "node_modules/browserify-sign"
+      ],
+      "fixAvailable": true
+    },
+    "chownr": {
+      "name": "chownr",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1091617,
+          "name": "chownr",
+          "dependency": "chownr",
+          "title": "Time-of-check Time-of-use (TOCTOU) Race Condition in chownr",
+          "url": "https://github.com/advisories/GHSA-c6rq-rjc2-86v2",
+          "severity": "low",
+          "cwe": [
+            "CWE-367"
+          ],
+          "cvss": {
+            "score": 2.5,
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:L/A:N"
+          },
+          "range": "<1.1.0"
+        }
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "<1.1.0",
+      "nodes": [
+        "node_modules/npm/node_modules/chownr"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "configstore": {
+      "name": "configstore",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [
+        "update-notifier"
+      ],
+      "range": "0.2.0 - 2.1.0",
+      "nodes": [
+        "node_modules/configstore"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova": {
+      "name": "cordova",
+      "severity": "critical",
+      "isDirect": true,
+      "via": [
+        "cordova-lib",
+        "underscore",
+        "update-notifier"
+      ],
+      "effects": [],
+      "range": "0.0.0-fake || 3.1.0-0.1.0 - 8.0.0 || 10.0.1-nightly.2020.8.5.4e1cada0 - 10.0.1-nightly.2020.8.17.4e1cada0",
+      "nodes": [
+        "node_modules/cordova"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-common": {
+      "name": "cordova-common",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "plist",
+        "shelljs"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "<=2.2.5",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-common"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-js": {
+      "name": "cordova-js",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "browserify"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "<=4.1.4",
+      "nodes": [
+        "node_modules/cordova-js"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-lib": {
+      "name": "cordova-lib",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "cordova-common",
+        "cordova-js",
+        "dep-graph",
+        "glob",
+        "npm",
+        "npmconf",
+        "plist",
+        "rc",
+        "request",
+        "semver",
+        "shelljs",
+        "tar",
+        "underscore",
+        "xcode"
+      ],
+      "effects": [
+        "cordova"
+      ],
+      "range": "<=12.0.3-nightly.20250528000309072.sha.8c63c3ac",
+      "nodes": [
+        "node_modules/cordova-lib"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-registry-mapper": {
+      "name": "cordova-registry-mapper",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "tape"
+      ],
+      "effects": [],
+      "range": "0.0.3 - 1.1.13",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-registry-mapper"
+      ],
+      "fixAvailable": true
+    },
+    "create-ecdh": {
+      "name": "create-ecdh",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "elliptic"
+      ],
+      "effects": [
+        "crypto-browserify"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/create-ecdh"
+      ],
+      "fixAvailable": true
+    },
+    "cryptiles": {
+      "name": "cryptiles",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "boom"
+      ],
+      "effects": [
+        "hawk"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/cryptiles",
+        "node_modules/npm/node_modules/request/node_modules/hawk/node_modules/cryptiles"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "crypto-browserify": {
+      "name": "crypto-browserify",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        "browserify-sign",
+        "create-ecdh"
+      ],
+      "effects": [],
+      "range": ">=3.4.0",
+      "nodes": [
+        "node_modules/crypto-browserify"
+      ],
+      "fixAvailable": true
+    },
+    "deep-extend": {
+      "name": "deep-extend",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1102329,
+          "name": "deep-extend",
+          "dependency": "deep-extend",
+          "title": "Prototype Pollution in deep-extend",
+          "url": "https://github.com/advisories/GHSA-hr2v-3952-633q",
+          "severity": "critical",
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<0.5.1"
+        }
+      ],
+      "effects": [
+        "rc"
+      ],
+      "range": "<0.5.1",
+      "nodes": [
+        "node_modules/deep-extend"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "dep-graph": {
+      "name": "dep-graph",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "underscore"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": ">=1.0.2",
+      "nodes": [
+        "node_modules/dep-graph"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "elliptic": {
+      "name": "elliptic",
+      "severity": "low",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112030,
+          "name": "elliptic",
+          "dependency": "elliptic",
+          "title": "Elliptic Uses a Cryptographic Primitive with a Risky Implementation",
+          "url": "https://github.com/advisories/GHSA-848j-6mx2-7j84",
+          "severity": "low",
+          "cwe": [
+            "CWE-1240"
+          ],
+          "cvss": {
+            "score": 5.6,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          },
+          "range": "<=6.6.1"
+        }
+      ],
+      "effects": [
+        "browserify-sign",
+        "create-ecdh"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/elliptic"
+      ],
+      "fixAvailable": true
+    },
+    "extend": {
+      "name": "extend",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112515,
+          "name": "extend",
+          "dependency": "extend",
+          "title": "Prototype Pollution in extend",
+          "url": "https://github.com/advisories/GHSA-qrmc-fj45-qfc2",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": ">=3.0.0 <3.0.2"
+        }
+      ],
+      "effects": [],
+      "range": "3.0.0 - 3.0.1",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/extend"
+      ],
+      "fixAvailable": true
+    },
+    "form-data": {
+      "name": "form-data",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1109540,
+          "name": "form-data",
+          "dependency": "form-data",
+          "title": "form-data uses unsafe random function in form-data for choosing boundary",
+          "url": "https://github.com/advisories/GHSA-fjxv-7rqg-78g4",
+          "severity": "critical",
+          "cwe": [
+            "CWE-330"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<2.5.4"
+        },
+        {
+          "source": 1120745,
+          "name": "form-data",
+          "dependency": "form-data",
+          "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+          "url": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+          "severity": "high",
+          "cwe": [
+            "CWE-93"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<2.5.6"
+        },
+        "mime"
+      ],
+      "effects": [
+        "request"
+      ],
+      "range": "<=2.5.5",
+      "nodes": [
+        "node_modules/form-data",
+        "node_modules/npm/node_modules/request/node_modules/form-data"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "fstream": {
+      "name": "fstream",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1102334,
+          "name": "fstream",
+          "dependency": "fstream",
+          "title": "Arbitrary File Overwrite in fstream",
+          "url": "https://github.com/advisories/GHSA-xf7w-r453-m56c",
+          "severity": "high",
+          "cwe": [
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<1.0.12"
+        }
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "<1.0.12",
+      "nodes": [
+        "node_modules/npm/node_modules/fstream"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "glob": {
+      "name": "glob",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "minimatch"
+      ],
+      "effects": [
+        "browserify",
+        "cordova-lib",
+        "tape"
+      ],
+      "range": "3.0.0 - 5.0.14",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-registry-mapper/node_modules/tape/node_modules/glob",
+        "node_modules/glob"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "got": {
+      "name": "got",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1088948,
+          "name": "got",
+          "dependency": "got",
+          "title": "Got allows a redirect to a UNIX socket",
+          "url": "https://github.com/advisories/GHSA-pfrx-2q88-qq97",
+          "severity": "moderate",
+          "cwe": [],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"
+          },
+          "range": "<11.8.5"
+        }
+      ],
+      "effects": [
+        "package-json"
+      ],
+      "range": "<11.8.5",
+      "nodes": [
+        "node_modules/got"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "hawk": {
+      "name": "hawk",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1091678,
+          "name": "hawk",
+          "dependency": "hawk",
+          "title": "Regular Expression Denial of Service in hawk",
+          "url": "https://github.com/advisories/GHSA-jcpv-g9rr-qxrc",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.1.3"
+        },
+        {
+          "source": 1095062,
+          "name": "hawk",
+          "dependency": "hawk",
+          "title": "Uncontrolled Resource Consumption in Hawk",
+          "url": "https://github.com/advisories/GHSA-44pw-h2cw-w3vq",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.4,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:N/I:N/A:H"
+          },
+          "range": "<9.0.1"
+        },
+        "boom",
+        "cryptiles",
+        "hoek",
+        "sntp"
+      ],
+      "effects": [
+        "request"
+      ],
+      "range": "<=9.0.0",
+      "nodes": [
+        "node_modules/hawk",
+        "node_modules/npm/node_modules/request/node_modules/hawk"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "hoek": {
+      "name": "hoek",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1105092,
+          "name": "hoek",
+          "dependency": "hoek",
+          "title": "hoek subject to prototype pollution via the clone function.",
+          "url": "https://github.com/advisories/GHSA-c429-5p7v-vgjp",
+          "severity": "high",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 8.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<=6.1.3"
+        },
+        {
+          "source": 1105121,
+          "name": "hoek",
+          "dependency": "hoek",
+          "title": "Prototype Pollution in hoek",
+          "url": "https://github.com/advisories/GHSA-jp4x-w63m-7wgm",
+          "severity": "high",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 8.8,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<4.2.1"
+        }
+      ],
+      "effects": [
+        "boom",
+        "hawk",
+        "sntp"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/hoek",
+        "node_modules/npm/node_modules/request/node_modules/hawk/node_modules/hoek"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "hosted-git-info": {
+      "name": "hosted-git-info",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1089809,
+          "name": "hosted-git-info",
+          "dependency": "hosted-git-info",
+          "title": "Regular Expression Denial of Service in hosted-git-info",
+          "url": "https://github.com/advisories/GHSA-43f8-2h32-f4cj",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<2.8.9"
+        }
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "<2.8.9",
+      "nodes": [
+        "node_modules/npm/node_modules/hosted-git-info"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "ini": {
+      "name": "ini",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1093224,
+          "name": "ini",
+          "dependency": "ini",
+          "title": "ini before 1.3.6 vulnerable to Prototype Pollution via ini.parse",
+          "url": "https://github.com/advisories/GHSA-qqgx-2p2h-9c37",
+          "severity": "high",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 7.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          },
+          "range": "<1.3.6"
+        }
+      ],
+      "effects": [
+        "npm",
+        "rc"
+      ],
+      "range": "<1.3.6",
+      "nodes": [
+        "node_modules/npm/node_modules/ini",
+        "node_modules/rc/node_modules/ini"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "is-my-json-valid": {
+      "name": "is-my-json-valid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1089938,
+          "name": "is-my-json-valid",
+          "dependency": "is-my-json-valid",
+          "title": "Regular expression deinal of service (ReDoS) in is-my-json-valid",
+          "url": "https://github.com/advisories/GHSA-4hpf-3wq7-5rpr",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": ">=2.0.0 <2.17.2"
+        },
+        "jsonpointer"
+      ],
+      "effects": [],
+      "range": "2.0.0 - 2.20.5",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid"
+      ],
+      "fixAvailable": true
+    },
+    "json-schema": {
+      "name": "json-schema",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1101855,
+          "name": "json-schema",
+          "dependency": "json-schema",
+          "title": "json-schema is vulnerable to Prototype Pollution",
+          "url": "https://github.com/advisories/GHSA-896r-f27r-55mw",
+          "severity": "critical",
+          "cwe": [
+            "CWE-915",
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<0.4.0"
+        }
+      ],
+      "effects": [
+        "jsprim"
+      ],
+      "range": "<0.4.0",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim/node_modules/json-schema"
+      ],
+      "fixAvailable": true
+    },
+    "jsonpointer": {
+      "name": "jsonpointer",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1102906,
+          "name": "jsonpointer",
+          "dependency": "jsonpointer",
+          "title": "Prototype Pollution in node-jsonpointer",
+          "url": "https://github.com/advisories/GHSA-282f-qqgm-c34q",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-843",
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 5.6,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          },
+          "range": "<5.0.0"
+        }
+      ],
+      "effects": [
+        "is-my-json-valid"
+      ],
+      "range": "<5.0.0",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/har-validator/node_modules/is-my-json-valid/node_modules/jsonpointer"
+      ],
+      "fixAvailable": true
+    },
+    "jsprim": {
+      "name": "jsprim",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "json-schema"
+      ],
+      "effects": [],
+      "range": "0.3.0 - 1.4.1 || 2.0.0 - 2.0.1",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/jsprim"
+      ],
+      "fixAvailable": true
+    },
+    "latest-version": {
+      "name": "latest-version",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "package-json"
+      ],
+      "effects": [
+        "update-notifier"
+      ],
+      "range": "0.2.0 - 5.1.0",
+      "nodes": [
+        "node_modules/latest-version"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "lodash": {
+      "name": "lodash",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1106900,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Prototype Pollution in lodash",
+          "url": "https://github.com/advisories/GHSA-fvqr-27wr-82fm",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-471",
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<4.17.5"
+        },
+        {
+          "source": 1106913,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Command Injection in lodash",
+          "url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+          "severity": "high",
+          "cwe": [
+            "CWE-77",
+            "CWE-94"
+          ],
+          "cvss": {
+            "score": 7.2,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<4.17.21"
+        },
+        {
+          "source": 1106914,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Prototype Pollution in lodash",
+          "url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+          "severity": "high",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<4.17.11"
+        },
+        {
+          "source": 1106918,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Prototype Pollution in lodash",
+          "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695",
+          "severity": "critical",
+          "cwe": [
+            "CWE-20",
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 9.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
+          },
+          "range": "<4.17.12"
+        },
+        {
+          "source": 1106920,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "Prototype Pollution in lodash",
+          "url": "https://github.com/advisories/GHSA-p6mc-m468-83gw",
+          "severity": "high",
+          "cwe": [
+            "CWE-770",
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 7.4,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:H"
+          },
+          "range": ">=3.7.0 <4.17.19"
+        },
+        {
+          "source": 1115810,
+          "name": "lodash",
+          "dependency": "lodash",
+          "title": "lodash vulnerable to Prototype Pollution via array path bypass in `_.unset` and `_.omit`",
+          "url": "https://github.com/advisories/GHSA-f23m-r3pf-42rh",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
+          },
+          "range": "<=4.17.23"
+        }
+      ],
+      "effects": [
+        "xmlbuilder"
+      ],
+      "range": "<=4.17.23",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/lodash"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "mime": {
+      "name": "mime",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1093780,
+          "name": "mime",
+          "dependency": "mime",
+          "title": "mime Regular Expression Denial of Service when MIME lookup performed on untrusted user input",
+          "url": "https://github.com/advisories/GHSA-wrvr-8mpx-r7pp",
+          "severity": "high",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.4.1"
+        }
+      ],
+      "effects": [
+        "form-data"
+      ],
+      "range": "<1.4.1",
+      "nodes": [
+        "node_modules/mime"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "minimatch": {
+      "name": "minimatch",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1093710,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "Regular Expression Denial of Service in minimatch",
+          "url": "https://github.com/advisories/GHSA-hxm2-r34f-qmc5",
+          "severity": "high",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.0.2"
+        },
+        {
+          "source": 1096485,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch ReDoS vulnerability",
+          "url": "https://github.com/advisories/GHSA-f8q6-p94x-37v3",
+          "severity": "high",
+          "cwe": [
+            "CWE-400",
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.0.5"
+        },
+        {
+          "source": 1113459,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+          "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<3.1.3"
+        },
+        {
+          "source": 1113538,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+          "url": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+          "severity": "high",
+          "cwe": [
+            "CWE-407"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.1.3"
+        },
+        {
+          "source": 1113546,
+          "name": "minimatch",
+          "dependency": "minimatch",
+          "title": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+          "url": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<3.1.4"
+        }
+      ],
+      "effects": [
+        "glob",
+        "npm"
+      ],
+      "range": "<=3.1.3",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-registry-mapper/node_modules/tape/node_modules/glob/node_modules/minimatch",
+        "node_modules/cordova-lib/node_modules/minimatch",
+        "node_modules/minimatch",
+        "node_modules/npm/node_modules/minimatch"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "minimist": {
+      "name": "minimist",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1096466,
+          "name": "minimist",
+          "dependency": "minimist",
+          "title": "Prototype Pollution in minimist",
+          "url": "https://github.com/advisories/GHSA-vh95-rmgr-6w4m",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 5.6,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L"
+          },
+          "range": "<0.2.1"
+        },
+        {
+          "source": 1097677,
+          "name": "minimist",
+          "dependency": "minimist",
+          "title": "Prototype Pollution in minimist",
+          "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+          "severity": "critical",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<0.2.4"
+        }
+      ],
+      "effects": [
+        "mkdirp",
+        "rc"
+      ],
+      "range": "<=0.2.3",
+      "nodes": [
+        "node_modules/npm/node_modules/mkdirp/node_modules/minimist",
+        "node_modules/rc/node_modules/minimist"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "mkdirp": {
+      "name": "mkdirp",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "minimist"
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "0.4.1 - 0.5.1",
+      "nodes": [
+        "node_modules/npm/node_modules/mkdirp"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "node-gyp": {
+      "name": "node-gyp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "request",
+        "semver",
+        "tar"
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "<=10.3.1",
+      "nodes": [
+        "node_modules/npm/node_modules/node-gyp"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "node-uuid": {
+      "name": "node-uuid",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1090841,
+          "name": "node-uuid",
+          "dependency": "node-uuid",
+          "title": "Insecure Entropy Source - Math.random() in node-uuid",
+          "url": "https://github.com/advisories/GHSA-265q-28rp-chq5",
+          "severity": "high",
+          "cwe": [
+            "CWE-331"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+          },
+          "range": "<1.4.4"
+        }
+      ],
+      "effects": [
+        "xcode"
+      ],
+      "range": "<1.4.4",
+      "nodes": [
+        "node_modules/xcode/node_modules/node-uuid"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "npm": {
+      "name": "npm",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1088925,
+          "name": "npm",
+          "dependency": "npm",
+          "title": "Incorrect Permission Assignment for Critical Resource in NPM",
+          "url": "https://github.com/advisories/GHSA-ph34-pc88-72gc",
+          "severity": "high",
+          "cwe": [
+            "CWE-732"
+          ],
+          "cvss": {
+            "score": 7.8,
+            "vectorString": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<5.7.1"
+        },
+        {
+          "source": 1089203,
+          "name": "npm",
+          "dependency": "npm",
+          "title": "npm CLI exposing sensitive information through logs",
+          "url": "https://github.com/advisories/GHSA-93f3-23rq-pjfp",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-532"
+          ],
+          "cvss": {
+            "score": 4.4,
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:H/I:N/A:N"
+          },
+          "range": "<6.14.6"
+        },
+        {
+          "source": 1089206,
+          "name": "npm",
+          "dependency": "npm",
+          "title": "npm Vulnerable to Global node_modules Binary Overwrite",
+          "url": "https://github.com/advisories/GHSA-4328-8hgf-7wjr",
+          "severity": "high",
+          "cwe": [
+            "CWE-22",
+            "CWE-269"
+          ],
+          "cvss": {
+            "score": 7.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<6.13.4"
+        },
+        {
+          "source": 1089207,
+          "name": "npm",
+          "dependency": "npm",
+          "title": "npm symlink reference outside of node_modules",
+          "url": "https://github.com/advisories/GHSA-x8qc-rrcw-4r46",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 7.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<6.13.3"
+        },
+        {
+          "source": 1090086,
+          "name": "npm",
+          "dependency": "npm",
+          "title": "Arbitrary File Write in npm",
+          "url": "https://github.com/advisories/GHSA-m6cx-g6qm-p2cx",
+          "severity": "high",
+          "cwe": [
+            "CWE-59",
+            "CWE-61"
+          ],
+          "cvss": {
+            "score": 7.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<6.13.3"
+        },
+        "chownr",
+        "fstream",
+        "hosted-git-info",
+        "ini",
+        "minimatch",
+        "mkdirp",
+        "node-gyp",
+        "npm-registry-client",
+        "npm-user-validate",
+        "request",
+        "semver",
+        "tar"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "<=10.9.5 || 11.0.0-pre.0 - 11.8.0",
+      "nodes": [
+        "node_modules/npm"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "npm-registry-client": {
+      "name": "npm-registry-client",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "request"
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/npm/node_modules/npm-registry-client"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "npm-user-validate": {
+      "name": "npm-user-validate",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1086466,
+          "name": "npm-user-validate",
+          "dependency": "npm-user-validate",
+          "title": "Regular Expression Denial of Service in npm-user-validate",
+          "url": "https://github.com/advisories/GHSA-xgh6-85xh-479p",
+          "severity": "low",
+          "cwe": [],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=1.0.0"
+        },
+        {
+          "source": 1089876,
+          "name": "npm-user-validate",
+          "dependency": "npm-user-validate",
+          "title": "Regular expression denial of service in npm-user-validate",
+          "url": "https://github.com/advisories/GHSA-pw54-mh39-w3hc",
+          "severity": "high",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.0.1"
+        }
+      ],
+      "effects": [
+        "npm"
+      ],
+      "range": "<=1.0.0",
+      "nodes": [
+        "node_modules/npm/node_modules/npm-user-validate"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "npmconf": {
+      "name": "npmconf",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "semver"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": ">=0.1.1",
+      "nodes": [
+        "node_modules/npmconf"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "package-json": {
+      "name": "package-json",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "got"
+      ],
+      "effects": [
+        "latest-version"
+      ],
+      "range": "<=6.5.0",
+      "nodes": [
+        "node_modules/package-json"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "plist": {
+      "name": "plist",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1095138,
+          "name": "plist",
+          "dependency": "plist",
+          "title": "Prototype pollution in Plist before 3.0.5 can cause denial of service",
+          "url": "https://github.com/advisories/GHSA-4cpg-3vgw-4877",
+          "severity": "critical",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<3.0.5"
+        },
+        "xmlbuilder",
+        "xmldom"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "<=3.0.4",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/plist"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "qs": {
+      "name": "qs",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1087525,
+          "name": "qs",
+          "dependency": "qs",
+          "title": "Prototype Pollution Protection Bypass in qs",
+          "url": "https://github.com/advisories/GHSA-gqgv-6jq5-jjj9",
+          "severity": "high",
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=6.2.0 <6.2.3"
+        },
+        {
+          "source": 1087527,
+          "name": "qs",
+          "dependency": "qs",
+          "title": "Prototype Pollution Protection Bypass in qs",
+          "url": "https://github.com/advisories/GHSA-gqgv-6jq5-jjj9",
+          "severity": "high",
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<6.0.4"
+        },
+        {
+          "source": 1104115,
+          "name": "qs",
+          "dependency": "qs",
+          "title": "qs vulnerable to Prototype Pollution",
+          "url": "https://github.com/advisories/GHSA-hrpp-h998-j3pp",
+          "severity": "high",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<6.2.4"
+        },
+        {
+          "source": 1113719,
+          "name": "qs",
+          "dependency": "qs",
+          "title": "qs's arrayLimit bypass in its bracket notation allows DoS via memory exhaustion",
+          "url": "https://github.com/advisories/GHSA-6rw7-vpxm-498p",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-20"
+          ],
+          "cvss": {
+            "score": 3.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<6.14.1"
+        }
+      ],
+      "effects": [
+        "request"
+      ],
+      "range": "<=6.14.0",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/qs",
+        "node_modules/request/node_modules/qs"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "rc": {
+      "name": "rc",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        "deep-extend",
+        "ini",
+        "minimist"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "0.1.0 - 1.2.6",
+      "nodes": [
+        "node_modules/rc"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "request": {
+      "name": "request",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1096727,
+          "name": "request",
+          "dependency": "request",
+          "title": "Server-Side Request Forgery in Request",
+          "url": "https://github.com/advisories/GHSA-p8p7-x288-28g6",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-918"
+          ],
+          "cvss": {
+            "score": 6.1,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+          },
+          "range": "<=2.88.2"
+        },
+        "bl",
+        "form-data",
+        "hawk",
+        "qs",
+        "tunnel-agent"
+      ],
+      "effects": [
+        "cordova-lib",
+        "node-gyp",
+        "npm",
+        "npm-registry-client"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/npm/node_modules/request",
+        "node_modules/request"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "semver": {
+      "name": "semver",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1112918,
+          "name": "semver",
+          "dependency": "semver",
+          "title": "semver vulnerable to Regular Expression Denial of Service",
+          "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw",
+          "severity": "high",
+          "cwe": [
+            "CWE-1333"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": ">=2.0.0-alpha <5.7.2"
+        }
+      ],
+      "effects": [
+        "cordova-lib",
+        "node-gyp",
+        "npm",
+        "npmconf"
+      ],
+      "range": "2.0.0-alpha - 5.7.1",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-common/node_modules/semver",
+        "node_modules/cordova-lib/node_modules/semver",
+        "node_modules/npm/node_modules/node-gyp/node_modules/semver",
+        "node_modules/npm/node_modules/semver",
+        "node_modules/npmconf/node_modules/semver"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "shell-quote": {
+      "name": "shell-quote",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1090892,
+          "name": "shell-quote",
+          "dependency": "shell-quote",
+          "title": "Potential Command Injection in shell-quote",
+          "url": "https://github.com/advisories/GHSA-qg8p-v9q4-gh34",
+          "severity": "critical",
+          "cwe": [
+            "CWE-78",
+            "CWE-94"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<1.6.1"
+        },
+        {
+          "source": 1123944,
+          "name": "shell-quote",
+          "dependency": "shell-quote",
+          "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+          "url": "https://github.com/advisories/GHSA-395f-4hp3-45gv",
+          "severity": "high",
+          "cwe": [
+            "CWE-407"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=1.8.4"
+        }
+      ],
+      "effects": [
+        "browserify"
+      ],
+      "range": "<=1.8.4",
+      "nodes": [
+        "node_modules/shell-quote"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "shelljs": {
+      "name": "shelljs",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1088208,
+          "name": "shelljs",
+          "dependency": "shelljs",
+          "title": "Improper Privilege Management in shelljs",
+          "url": "https://github.com/advisories/GHSA-64g7-mvw6-v9qj",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-269"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<0.8.5"
+        },
+        {
+          "source": 1095126,
+          "name": "shelljs",
+          "dependency": "shelljs",
+          "title": "Improper Privilege Management in shelljs",
+          "url": "https://github.com/advisories/GHSA-4rq4-32rv-6wp6",
+          "severity": "high",
+          "cwe": [
+            "CWE-269"
+          ],
+          "cvss": {
+            "score": 7.1,
+            "vectorString": "CVSS:3.0/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:H"
+          },
+          "range": "<0.8.5"
+        }
+      ],
+      "effects": [
+        "cordova-common",
+        "cordova-lib"
+      ],
+      "range": "<=0.8.4",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-common/node_modules/shelljs",
+        "node_modules/shelljs"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "sntp": {
+      "name": "sntp",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "hoek"
+      ],
+      "effects": [
+        "hawk"
+      ],
+      "range": "0.0.0 || >=0.1.1",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/hawk/node_modules/sntp",
+        "node_modules/sntp"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "sshpk": {
+      "name": "sshpk",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1089418,
+          "name": "sshpk",
+          "dependency": "sshpk",
+          "title": "Regular Expression Denial of Service in sshpk",
+          "url": "https://github.com/advisories/GHSA-2m39-62fm-q8r3",
+          "severity": "high",
+          "cwe": [
+            "CWE-185",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<1.13.2"
+        }
+      ],
+      "effects": [],
+      "range": "<1.13.2",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk"
+      ],
+      "fixAvailable": true
+    },
+    "stringstream": {
+      "name": "stringstream",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1090117,
+          "name": "stringstream",
+          "dependency": "stringstream",
+          "title": "Out-of-bounds Read in stringstream",
+          "url": "https://github.com/advisories/GHSA-mf6x-7mm4-x2g7",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-125"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<0.0.6"
+        }
+      ],
+      "effects": [],
+      "range": "<0.0.6",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/stringstream"
+      ],
+      "fixAvailable": true
+    },
+    "tape": {
+      "name": "tape",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "glob"
+      ],
+      "effects": [
+        "cordova-registry-mapper"
+      ],
+      "range": "2.10.0 - 3.6.1",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-registry-mapper/node_modules/tape"
+      ],
+      "fixAvailable": true
+    },
+    "tar": {
+      "name": "tar",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1089685,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Arbitrary File Creation/Overwrite due to insufficient absolute path sanitization",
+          "url": "https://github.com/advisories/GHSA-3jfq-g458-7qm9",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 8.2,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<3.2.2"
+        },
+        {
+          "source": 1091020,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Symlink Arbitrary File Overwrite in tar",
+          "url": "https://github.com/advisories/GHSA-gfjr-3jmm-4g9v",
+          "severity": "high",
+          "cwe": [
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<2.0.0"
+        },
+        {
+          "source": 1095117,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Arbitrary File Creation/Overwrite on Windows via insufficient relative path sanitization",
+          "url": "https://github.com/advisories/GHSA-5955-9wpr-37jh",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 8.2,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:N"
+          },
+          "range": "<4.4.18"
+        },
+        {
+          "source": 1095119,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Arbitrary File Overwrite in tar",
+          "url": "https://github.com/advisories/GHSA-j44m-qm6p-hp7m",
+          "severity": "high",
+          "cwe": [
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<2.2.2"
+        },
+        {
+          "source": 1097493,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Denial of service while parsing a tar file due to lack of folders count validation",
+          "url": "https://github.com/advisories/GHSA-f5x3-32g6-xq36",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"
+          },
+          "range": "<6.2.1"
+        },
+        {
+          "source": 1112659,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+          "url": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+          "severity": "high",
+          "cwe": [
+            "CWE-22",
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 8.2,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N"
+          },
+          "range": "<7.5.7"
+        },
+        {
+          "source": 1113300,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+          "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.2"
+        },
+        {
+          "source": 1113375,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+          "url": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 7.1,
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+          },
+          "range": "<7.5.8"
+        },
+        {
+          "source": 1114200,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+          "url": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+          "severity": "high",
+          "cwe": [
+            "CWE-22",
+            "CWE-59"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.9"
+        },
+        {
+          "source": 1114302,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+          "url": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+          "severity": "high",
+          "cwe": [
+            "CWE-22"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.10"
+        },
+        {
+          "source": 1114680,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+          "url": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+          "severity": "high",
+          "cwe": [
+            "CWE-176",
+            "CWE-367"
+          ],
+          "cvss": {
+            "score": 8.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:H/A:L"
+          },
+          "range": "<=7.5.3"
+        },
+        {
+          "source": 1120782,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar applies PAX size override to intermediary GNU long-name/long-link headers, causing tar parser interpretation differential (file smuggling)",
+          "url": "https://github.com/advisories/GHSA-vmf3-w455-68vh",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-436"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=7.5.15"
+        },
+        {
+          "source": 1123939,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar: Process crash via PAX numeric path type confusion",
+          "url": "https://github.com/advisories/GHSA-w8wr-v893-vjvp",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-704"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<=7.5.17"
+        },
+        {
+          "source": 1123940,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar: Decompression/parse DoS via unlimited input",
+          "url": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+          "severity": "critical",
+          "cwe": [
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=7.5.18"
+        },
+        {
+          "source": 1123941,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+          "url": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+          "severity": "high",
+          "cwe": [
+            "CWE-835"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=7.5.17"
+        },
+        {
+          "source": 1123942,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar: Uncaught Exception DoS via NUL byte in PAX path/linkpath records",
+          "url": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-248"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<=7.5.16"
+        },
+        {
+          "source": 1124287,
+          "name": "tar",
+          "dependency": "tar",
+          "title": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
+          "url": "https://github.com/advisories/GHSA-r292-9mhp-454m",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-400",
+            "CWE-674"
+          ],
+          "cvss": {
+            "score": 5.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          },
+          "range": "<=7.5.20"
+        }
+      ],
+      "effects": [
+        "node-gyp",
+        "npm"
+      ],
+      "range": "<=7.5.20",
+      "nodes": [
+        "node_modules/npm/node_modules/tar",
+        "node_modules/tar"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "tough-cookie": {
+      "name": "tough-cookie",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1095103,
+          "name": "tough-cookie",
+          "dependency": "tough-cookie",
+          "title": "Regular Expression Denial of Service in tough-cookie",
+          "url": "https://github.com/advisories/GHSA-g7q5-pjjr-gqvp",
+          "severity": "high",
+          "cwe": [
+            "CWE-400"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<2.3.3"
+        },
+        {
+          "source": 1097682,
+          "name": "tough-cookie",
+          "dependency": "tough-cookie",
+          "title": "tough-cookie Prototype Pollution vulnerability",
+          "url": "https://github.com/advisories/GHSA-72xf-g2v4-qvf3",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-1321"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": "<4.1.3"
+        }
+      ],
+      "effects": [],
+      "range": "<=4.1.2",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/tough-cookie"
+      ],
+      "fixAvailable": true
+    },
+    "tunnel-agent": {
+      "name": "tunnel-agent",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1085744,
+          "name": "tunnel-agent",
+          "dependency": "tunnel-agent",
+          "title": "Memory Exposure in tunnel-agent",
+          "url": "https://github.com/advisories/GHSA-xc7v-wxcw-j472",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-200"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<0.6.0"
+        }
+      ],
+      "effects": [
+        "request"
+      ],
+      "range": "<0.6.0",
+      "nodes": [
+        "node_modules/npm/node_modules/request/node_modules/tunnel-agent",
+        "node_modules/tunnel-agent"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "underscore": {
+      "name": "underscore",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1109570,
+          "name": "underscore",
+          "dependency": "underscore",
+          "title": "Arbitrary Code Execution in underscore",
+          "url": "https://github.com/advisories/GHSA-cf4h-3jhx-xvhq",
+          "severity": "critical",
+          "cwe": [
+            "CWE-94"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": ">=1.3.2 <1.12.1"
+        },
+        {
+          "source": 1117689,
+          "name": "underscore",
+          "dependency": "underscore",
+          "title": "Underscore has unlimited recursion in _.flatten and _.isEqual, potential for DoS attack",
+          "url": "https://github.com/advisories/GHSA-qpx9-hpmf-5gmw",
+          "severity": "high",
+          "cwe": [
+            "CWE-674",
+            "CWE-770"
+          ],
+          "cvss": {
+            "score": 5.9,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+          },
+          "range": "<=1.13.7"
+        }
+      ],
+      "effects": [
+        "cordova",
+        "cordova-lib",
+        "dep-graph"
+      ],
+      "range": "<=1.13.7",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/cordova-common/node_modules/underscore",
+        "node_modules/dep-graph/node_modules/underscore",
+        "node_modules/underscore"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "update-notifier": {
+      "name": "update-notifier",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "configstore",
+        "latest-version"
+      ],
+      "effects": [
+        "cordova"
+      ],
+      "range": "0.1.8 - 5.1.0",
+      "nodes": [
+        "node_modules/update-notifier"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "configstore"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "xcode": {
+      "name": "xcode",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        "node-uuid"
+      ],
+      "effects": [
+        "cordova-lib"
+      ],
+      "range": "0.2.0 - 0.8.5",
+      "nodes": [
+        "node_modules/xcode"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "xmlbuilder": {
+      "name": "xmlbuilder",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "lodash"
+      ],
+      "effects": [
+        "plist"
+      ],
+      "range": "2.5.0 - 4.2.0",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/xmlbuilder"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    },
+    "xmldom": {
+      "name": "xmldom",
+      "severity": "critical",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1090199,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "Misinterpretation of malicious XML input",
+          "url": "https://github.com/advisories/GHSA-h6q6-9hqw-rwfv",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-115",
+            "CWE-436"
+          ],
+          "cvss": {
+            "score": 4.3,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N"
+          },
+          "range": "<0.5.0"
+        },
+        {
+          "source": 1091573,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom allows multiple root nodes in a DOM",
+          "url": "https://github.com/advisories/GHSA-crh6-fp67-6883",
+          "severity": "critical",
+          "cwe": [
+            "CWE-20",
+            "CWE-1288"
+          ],
+          "cvss": {
+            "score": 9.8,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1096547,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "Misinterpretation of malicious XML input",
+          "url": "https://github.com/advisories/GHSA-5fg8-2547-mr8q",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-116"
+          ],
+          "cvss": {
+            "score": 6.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N"
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1117098,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom: XML injection via unsafe CDATA serialization allows attacker-controlled markup insertion",
+          "url": "https://github.com/advisories/GHSA-wh4c-j3r5-mjhp",
+          "severity": "high",
+          "cwe": [
+            "CWE-91"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1117892,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom: Uncontrolled recursion in XML serialization leads to DoS",
+          "url": "https://github.com/advisories/GHSA-2v35-w6hq-6mfw",
+          "severity": "high",
+          "cwe": [
+            "CWE-674"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1117895,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom has XML injection through unvalidated DocumentType serialization",
+          "url": "https://github.com/advisories/GHSA-f6ww-3ggp-fr8h",
+          "severity": "high",
+          "cwe": [
+            "CWE-91"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1117898,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom has XML node injection through unvalidated processing instruction serialization",
+          "url": "https://github.com/advisories/GHSA-x6wf-f3px-wcqx",
+          "severity": "high",
+          "cwe": [
+            "CWE-91"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=0.6.0"
+        },
+        {
+          "source": 1117901,
+          "name": "xmldom",
+          "dependency": "xmldom",
+          "title": "xmldom has XML node injection through unvalidated comment serialization",
+          "url": "https://github.com/advisories/GHSA-j759-j44w-7fr8",
+          "severity": "high",
+          "cwe": [
+            "CWE-91"
+          ],
+          "cvss": {
+            "score": 0,
+            "vectorString": null
+          },
+          "range": "<=0.6.0"
+        }
+      ],
+      "effects": [
+        "plist"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-lib/node_modules/xmldom"
+      ],
+      "fixAvailable": {
+        "name": "cordova",
+        "version": "13.0.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 5,
+      "moderate": 15,
+      "high": 26,
+      "critical": 40,
+      "total": 86
+    },
+    "dependencies": {
+      "prod": 1,
+      "dev": 728,
+      "optional": 4,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 728
+    }
+  }
+}

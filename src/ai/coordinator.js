@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import EventEmitter from 'events';
 import { logger } from '../core/logger.js';
 import { QNAPProcessor } from './qnap-integration.js';
+import ModelGateway from '../core/model-gateway.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -18,6 +19,18 @@ class AICoordinator extends EventEmitter {
     super();
     this.config = config;
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.modelGateway = new ModelGateway({
+      providers: {
+        'gemini-2.0-flash': async ({ model, messages, maxTokens }) => {
+          const generativeModel = this.genAI.getGenerativeModel({ model });
+          const prompt = messages.map((message) => `${message.role || 'user'}: ${typeof message.content === 'string' ? message.content : JSON.stringify(message.content)}`).join('\\n');
+          const result = await generativeModel.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: maxTokens } });
+          const response = result.response;
+          const usage = response.usageMetadata || {};
+          return { text: response.text(), usage: { inputTokens: usage.promptTokenCount, outputTokens: usage.candidatesTokenCount } };
+        },
+      },
+    });
     this.skillRegistry = new (require('../core/skills/SkillRegistry').default)();
     this.qnap = new QNAPProcessor();
     this.conversationContext = new Map(); // Context per user
@@ -210,18 +223,22 @@ When managing CCTV, you can target specific devices by their deviceId.`;
         return await this.executeDirectCommand(intent, context);
       }
 
-      // Otherwise use Gemini for complex reasoning
-      const chat = this.model.startChat({
-        history: this.getConversationHistory(context.userId),
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.8,
-          topK: 40
-        }
+      // Otherwise use the metered model gateway for complex reasoning.
+      const history = this.getConversationHistory(context.userId);
+      const gatewayResult = await this.modelGateway.complete({
+        tenantId: context.userId || `anonymous:${context.channel || 'unknown'}`,
+        plan: context.plan || 'business',
+        capability: context.capability || 'reasoning',
+        preferredModel: context.model || 'gemini-2.0-flash',
+        messages: [
+          { role: 'system', content: this.getSystemPrompt() },
+          ...history,
+          { role: 'user', content: text },
+        ],
+        metadata: { channel: context.channel || 'unknown', userId: context.userId || 'anonymous' },
+        outputTokenBudget: context.outputTokenBudget || 1024,
       });
-
-      const result = await chat.sendMessage(text);
-      const response = result.response.text();
+      const response = gatewayResult.text || gatewayResult.content || '';
 
       // Parse tool calls from response if present
       const toolCall = this.parseToolCall(response);

@@ -1,0 +1,19 @@
+{
+  "name": "@agentos/custom-workflows",
+  "version": "1.0.0",
+  "type": "workflow-and-graph",
+  "entrypoint": "index.js",
+  "description": "Custom AgentOS workflow orchestration and graph-engineering plugins",
+  "exports": [
+    "custom.graph-engineering",
+    "custom.workflow-orchestration"
+  ],
+  "lifecycle": [
+    "initialize",
+    "preShutdown"
+  ],
+  "operations": {
+    "graph": ["addNode", "addEdge", "validate", "topologicalSort", "snapshot"],
+    "workflow": ["register", "execute", "status"]
+  }
+}

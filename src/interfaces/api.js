@@ -1,9 +1,15 @@
 import express from 'express';
 import config from '../core/config.js';
 import mikrotik from '../agents/mikrotik.agent.js';
+import { createBatchRouter } from './batch-api.js';
 
 // src/interfaces/api.js
 const router = express.Router();
+const sessionManager = { getAllSessions: () => [] };
+const voucherAgent = {
+    async generate() { throw new Error('Voucher agent is not configured'); },
+    redeem() { throw new Error('Voucher agent is not configured'); }
+};
 
 router.get('/health', (req, res) => {
     res.json({
@@ -124,9 +130,15 @@ app.post('/user', auth, async (req, res) => {
     res.json({ status: 'created' });
 });
 
-export default app;
+const legacyApp = app;
 
+export { legacyApp };
 export default (agent) => {
+
+    router.use(createBatchRouter({
+        agent,
+        authorize: async (req) => req.authContext || req.user || null
+    }));
 
     router.post('/execute', async (req, res) => {
         try {

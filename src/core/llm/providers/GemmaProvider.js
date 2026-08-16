@@ -1,9 +1,8 @@
 import { BaseProvider } from './BaseProvider.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { logger } from '../../logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { OllamaProvider } from './OllamaProvider.js';
+import { GeminiProvider } from './GeminiProvider.js';
 
 /**
  * Gemma LLM Provider (Google Open Models)
@@ -29,10 +28,8 @@ class GemmaProvider extends BaseProvider {
 
     async validateKey() {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
             return new OllamaProvider().validateKey();
         }
-        const { GeminiProvider } = require('./GeminiProvider');
         return new GeminiProvider({ apiKey: this.apiKey }).validateKey();
     }
 
@@ -47,7 +44,6 @@ class GemmaProvider extends BaseProvider {
 
     async generate(messages, tools = []) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.generate(messages, tools);
         }
@@ -83,11 +79,9 @@ class GemmaProvider extends BaseProvider {
 
     async embed(input) {
         if (this.isLocal) {
-            const { OllamaProvider } = require('./OllamaProvider');
             const local = new OllamaProvider({ model: this.model.replace('local/', '') });
             return local.embed(input);
         }
-        const { GeminiProvider } = require('./GeminiProvider');
         const gemini = new GeminiProvider({ apiKey: this.apiKey });
         return gemini.embed(input);
     }

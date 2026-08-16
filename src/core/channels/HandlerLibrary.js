@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { logger } from '../logger.js';
 
 import { createRequire } from 'module';
+import { handleShop } from '../shopping-agent.js';
 const require = createRequire(import.meta.url);
 
 /**
@@ -192,6 +193,14 @@ const HandlerLibrary = {
   /**
    * /ping
    */
+  /**
+   * /shop
+   */
+  async handleShop(channel, jid, msg, args) {
+    return handleShop(channel, jid, msg, args);
+  },
+
+
   async handlePing(channel, jid) {
     const start = Date.now();
     await channel.send(jid, '🏓 *Pong!*');

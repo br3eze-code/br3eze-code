@@ -1,12 +1,9 @@
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-const { X509Certificate } = require('crypto');
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import crypto, { X509Certificate } from 'node:crypto';
 
 class AgentIdentity {
-    constructor(spiffeID, mTLSConfig) {
+    constructor(spiffeID, mTLSConfig = {}) {
         this.spiffeID = spiffeID;
         this.mTLSConfig = mTLSConfig;
         this.cert = null;
@@ -28,29 +25,17 @@ class AgentIdentity {
             this.privateKey = crypto.createPrivateKey(keyPem);
             this.trustBundle = bundlePem;
             const san = this.cert.subjectAltName;
-            if (!san || !san.includes(this.spiffeID)) {
-                throw new Error(`SPIFFE ID mismatch: expected ${this.spiffeID}, cert has ${san}`);
-            }
+            if (!san || !san.includes(this.spiffeID)) throw new Error(`SPIFFE ID mismatch: expected ${this.spiffeID}, cert has ${san}`);
         } catch (error) {
-            if (this.mTLSConfig.enabled) {
-                throw new Error(`Failed to load SPIFFE credentials from ${this.mTLSConfig.certPath}: ${error.message}`);
-            }
+            if (this.mTLSConfig.enabled) throw new Error(`Failed to load SPIFFE credentials from ${this.mTLSConfig.certPath}: ${error.message}`);
         }
     }
 
     async signMessage(message) {
-        if (!this.privateKey) {
-            message._signature = null;
-            return message;
-        }
+        if (!this.privateKey) return { ...message, _signature: null };
         const payload = JSON.stringify({ ...message, _signature: undefined });
         const signature = crypto.sign('sha256', Buffer.from(payload), this.privateKey);
-        return {
-            ...message,
-            _signature: signature.toString('base64'),
-            _signer: this.spiffeID,
-            _certFingerprint: this.cert.fingerprint256
-        };
+        return { ...message, _signature: signature.toString('base64'), _signer: this.spiffeID, _certFingerprint: this.cert.fingerprint256 };
     }
 
     async verifyMessage(message, expectedSPIFFE) {
@@ -58,22 +43,14 @@ class AgentIdentity {
             if (this.mTLSConfig.enabled) throw new Error('Message not signed');
             return message;
         }
-        if (message._signer !== expectedSPIFFE) {
-            throw new Error(`Signer mismatch: expected ${expectedSPIFFE}, got ${message._signer}`);
-        }
-        // Cryptographically verify the signature if we have a trust bundle
-        if (this.trustBundle && message._signature) {
-            const { _signature, _signer, _certFingerprint, ...cleanMessage } = message;
-            const payload = JSON.stringify({ ...cleanMessage, _signature: undefined });
-            // Derive the public key from the trust bundle (CA cert)
-            const publicKey = crypto.createPublicKey(this.trustBundle);
-            const sigBuf = Buffer.from(message._signature, 'base64');
-            const valid = crypto.verify('sha256', Buffer.from(payload), publicKey, sigBuf);
-            if (!valid) throw new Error(`Invalid signature from ${expectedSPIFFE}`);
-            return cleanMessage;
-        }
-        // mTLS disabled / no trust bundle — strip sig fields and pass through
+        if (message._signer !== expectedSPIFFE) throw new Error(`Signer mismatch: expected ${expectedSPIFFE}, got ${message._signer}`);
         const { _signature, _signer, _certFingerprint, ...cleanMessage } = message;
+        if (this.trustBundle) {
+            const payload = JSON.stringify({ ...cleanMessage, _signature: undefined });
+            const publicKey = crypto.createPublicKey(this.trustBundle);
+            const valid = crypto.verify('sha256', Buffer.from(payload), publicKey, Buffer.from(_signature, 'base64'));
+            if (!valid) throw new Error(`Invalid signature from ${expectedSPIFFE}`);
+        }
         return cleanMessage;
     }
 }

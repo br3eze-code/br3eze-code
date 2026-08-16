@@ -514,8 +514,10 @@ class UniversalBilling extends EventEmitter {
         const mikrotik = this.mikrotik || global.mikrotik;
         if (!this.db || !mikrotik) return;
 
+        if (mikrotik.isConfigured === false) return;
+
         if (!mikrotik.state || !mikrotik.state.isConnected) {
-            console.log('[Billing] Guard: MikroTik not connected, skipping run');
+            logger.debug('[Billing] Guard: configured MikroTik is not connected; skipping enforcement run');
             return;
         }
 
@@ -617,6 +619,16 @@ class UniversalBilling extends EventEmitter {
                     if (mikrotik.isCircuitOpen) break;
                     try {
                         await mikrotik.executeTool('user.disable', { username: u.username });
+                        if (u.id || u.uid) {
+                            await this.db.syncUserLifecycleGraph(u.id || u.uid, 'user.restricted', {
+                                scope: {
+                                    tenantId: u.tenantId,
+                                    domain: u.domain,
+                                    siteId: u.siteId
+                                },
+                                details: { status: u.status, enforcement: 'mikrotik.user.disable' }
+                            });
+                        }
                     } catch (e) { /* ignore */ }
                 }
             }

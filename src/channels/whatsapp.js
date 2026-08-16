@@ -2,6 +2,11 @@ import { BaseChannel } from './base.js';
 import { Logger } from '../utils/logger.js';
 import QRCode from 'qrcode-terminal';
 import path from 'path';
+import {
+  extractWhatsAppAction,
+  buildReplyButtons,
+  buildListMessage,
+} from './whatsapp-interactive.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -89,15 +94,21 @@ class WhatsAppChannel extends BaseChannel {
       const isDM = chatId.endsWith('@s.whatsapp.net');
       const sender = msg.key.participant || chatId;
       
-      // Extract text
+      const action = extractWhatsAppAction(msg.message);
+
+      // Extract text and preserve a text fallback for clients that do not render buttons.
       let content = '';
       if (msg.message.conversation) {
         content = msg.message.conversation;
       } else if (msg.message.extendedTextMessage) {
         content = msg.message.extendedTextMessage.text;
+      } else if (msg.message.buttonsResponseMessage) {
+        content = msg.message.buttonsResponseMessage.selectedDisplayText || '';
+      } else if (msg.message.listResponseMessage) {
+        content = msg.message.listResponseMessage.singleSelectReply?.title || '';
       }
-      
-      if (!content) continue;
+
+      if (!content && !action) continue;
       
       const frame = this.createFrame({
         sender: chatId,
@@ -105,11 +116,18 @@ class WhatsAppChannel extends BaseChannel {
         content,
         isDM,
         metadata: {
+          userId: sender,
+          conversationId: chatId,
           messageId: msg.key.id,
           timestamp: msg.messageTimestamp
         }
       });
       
+      const navigation = action || this.normalizeNavigation(content);
+      if (navigation) {
+        this.emit('navigation', { action: navigation, frame });
+        continue;
+      }
       this.emit('message', frame);
     }
   }
@@ -121,14 +139,30 @@ class WhatsAppChannel extends BaseChannel {
     this.connected = false;
   }
   
+  async sendNavigationButtons(recipient, options) {
+    if (!this.connected || !this.sock) throw new Error('WhatsApp not connected');
+    return this.sock.sendMessage(recipient, buildReplyButtons(options));
+  }
+
+  async sendNavigationList(recipient, options) {
+    if (!this.connected || !this.sock) throw new Error('WhatsApp not connected');
+    return this.sock.sendMessage(recipient, buildListMessage(options));
+  }
+
   async send(recipient, message) {
     if (!this.connected || !this.sock) {
       throw new Error('WhatsApp not connected');
     }
     
     const formatted = this.formatMessage(message);
-    
+
     try {
+      if (message?.type === 'reply-buttons') {
+        return await this.sendNavigationButtons(recipient, message);
+      }
+      if (message?.type === 'list') {
+        return await this.sendNavigationList(recipient, message);
+      }
       await this.sock.sendMessage(recipient, {
         text: formatted.text || formatted
       });

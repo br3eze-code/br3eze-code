@@ -1,8 +1,10 @@
-import path from 'path';
-import crypto from 'crypto';
-import { EventEmitter } from 'events';
+import crypto from 'node:crypto';
 
-import { createRequire } from 'module';
+import fs from 'node:fs';
+import path from 'node:path';
+import { EventEmitter } from 'node:events';
+import { createRequire } from 'node:module';
+
 const require = createRequire(import.meta.url);
 
 /**
@@ -26,7 +28,7 @@ const require = createRequire(import.meta.url);
 
 let CronExpressionParser = null;
 try {
-  ({ CronExpressionParser } = require('cron-parser'));
+  ({ CronExpressionParser } = await import('cron-parser'));
 } catch (_) {
   // optional dependency — cron schedules unavailable, interval/once still work
 }
@@ -134,7 +136,6 @@ class TaskScheduler extends EventEmitter {
   _initDB() {
     try {
       const Database = require('better-sqlite3');
-      const fs = require('fs');
       fs.mkdirSync(path.dirname(this._dbPath), { recursive: true });
       this._db = new Database(this._dbPath);
       this._db.exec(`

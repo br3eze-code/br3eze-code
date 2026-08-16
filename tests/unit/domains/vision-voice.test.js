@@ -8,7 +8,7 @@ describe('VisionDomain', () => {
   });
 
   test('registers generateImage and editImage tools', () => {
-    expect(domain.getSkills().map(t => t.name).sort()).toEqual(['editImage', 'generateImage']);
+    expect(domain.getSkills().map(t => t.name).sort()).toEqual(['editImage', 'generateImage', 'recommendProducts']);
   });
 
   test('generateImage() defaults to the openai provider', async () => {

@@ -2,7 +2,29 @@
 /* global cordova */
 'use strict';
 
-const exec = require('cordova/exec');
+let nativeExec;
+
+const unavailable = action => ({
+  supported: false,
+  nativeReady: false,
+  platform: typeof navigator !== 'undefined' && navigator.product === 'ReactNative' ? 'react-native' : 'web',
+  action,
+  code: 'NATIVE_BRIDGE_UNAVAILABLE',
+  reason: 'Cordova native bridge is unavailable',
+});
+
+const exec = (success, error, service, action, args) => {
+  if (typeof cordova === 'undefined') {
+    if (typeof error === 'function') error(unavailable(action));
+    return;
+  }
+  try {
+    nativeExec ||= require('cordova/exec');
+    return nativeExec(success, error, service, action, args);
+  } catch (_) {
+    if (typeof error === 'function') error(unavailable(action));
+  }
+};
 
 const AICore = {
   checkAvailability(success, error) {
@@ -18,12 +40,12 @@ const AICore = {
 
 exports.request = payload =>
   new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AiCorePlugin', 'request', [payload]);
+    exec(resolve, reject, 'AICorePlugin', 'request', [payload]);
   });
 
 exports.capabilities = () =>
   new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AiCorePlugin', 'capabilities', []);
+    exec(resolve, reject, 'AICorePlugin', 'capabilities', []);
   });
 
 // Polyfill window.ai for Web AI API compatibility

@@ -130,7 +130,7 @@ class DiscordChannel extends BaseChannel {
 
   _registerHandlers() {
     this.handlers = new Map();
-    const H = require('./HandlerLibrary');
+    const H = require('./HandlerLibrary').default || require('./HandlerLibrary');
 
     this.handlers.set('start', this._handleStart);
     this.handlers.set('menu', this._handleMenu);
@@ -140,6 +140,7 @@ class DiscordChannel extends BaseChannel {
     this.handlers.set('users', (j) => H.handleUsers(this, j));
     this.handlers.set('voucher', (j, m, a) => H.handleVoucher(this, j, m, a));
     this.handlers.set('bulk', (j, m, a) => H.handleBulkVoucher(this, j, m, a));
+    this.handlers.set('shop', (j, m, a) => H.handleShop(this, j, m, a));
     this.handlers.set('ping', (j) => H.handlePing(this, j));
   }
 
@@ -156,6 +157,7 @@ class DiscordChannel extends BaseChannel {
 /voucher <plan> - Create a single voucher
 /bulk <plan> <qty> - Create multiple vouchers
 /ping - Connectivity Test
+/shop <list|product|add|cart|checkout> - Shopping assistant
 /help - Show help`;
     await this.send(jid, text);
   }

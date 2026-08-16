@@ -43,10 +43,32 @@ export function defineSkill(def) {
  *   - SKILL.md whose front-matter/first heading provides name + description.
  * Code skills win; a SKILL.md-only directory becomes a persona-only skill.
  */
+export function discoverSkillMetadata(dir) {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((entry) => {
+            const md = path.join(dir, entry.name, 'SKILL.md');
+            if (!fs.existsSync(md)) return null;
+            const meta = _parseSkillMd(fs.readFileSync(md, 'utf8'), entry.name);
+            return {
+                name: meta.name,
+                description: meta.description,
+                path: path.join(dir, entry.name),
+                activated: false,
+            };
+        })
+        .filter(Boolean);
+}
+
 export function loadSkillsFrom(dir) {
     const skills = [];
     if (!fs.existsSync(dir)) return skills;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
         if (!entry.isDirectory()) continue;
         const sub = path.join(dir, entry.name);
         const idx = ['index.js', 'skill.js'].map((f) => path.join(sub, f)).find((f) => fs.existsSync(f));

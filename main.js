@@ -11,6 +11,9 @@ import _cmd_status from './src/cli/commands/status.js';
 import _cmd_dashboard from './src/cli/commands/dashboard.js';
 import _cmd_skill from './src/cli/commands/skill.js';
 import _cmd_dahua from './src/cli/commands/dahua.js';
+import _cmd_starlink from './src/cli/commands/starlink.js';
+import _cmd_mikrotik from './src/cli/commands/mikrotik.js';
+import _cmd_agent from './src/cli/commands/agent.js';
 import _cmd_shop from './src/cli/commands/shop.js';
 import _cmd_wacli from './src/cli/commands/wacli.js';
 import _cmd_telegram from './src/cli/commands/telegram.js';
@@ -18,6 +21,7 @@ import _cmd_google from './src/cli/commands/google.js';
 import _cmd_update from './src/cli/commands/update.js';
 import _cmd_tailscale from './src/cli/commands/tailscale.js';
 import _cmd_cli from './src/cli/commands/cli.js';
+import _cmd_grok from './src/cli/commands/grok.js';
 import { program } from 'commander';
 import _chalk from 'chalk';
 import _boxen from 'boxen';
@@ -26,9 +30,10 @@ import path from 'path';
 import os from 'os';
 import 'dotenv/config';
 import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { getDatabase } from './src/core/database.js';
+import { logger } from './src/core/logger.js';
+import TelegramChannel from './src/core/channels/TelegramChannel.js';
+import startLogsDaemon from './src/cli/daemon/logs-daemon.js';
 /**
  * AgentOS — Master Entry Point
  * Consolidates CLI and Daemon logic.
@@ -108,6 +113,9 @@ _cmd_status(program);
 _cmd_dashboard(program);
 _cmd_skill(program);
 _cmd_dahua(program);
+_cmd_starlink(program);
+_cmd_mikrotik(program);
+_cmd_agent(program);
 _cmd_shop(program);
 _cmd_wacli(program);
 _cmd_telegram(program);
@@ -115,13 +123,14 @@ _cmd_google(program);
 _cmd_update(program);
 _cmd_tailscale(program);
 _cmd_cli(program);
+_cmd_grok(program);
 
 // ── Logging Daemon ────────────────────────────────────────────────────────────
 program
     .command('logs')
     .description('Start the standalone logging daemon (UDP 5001)')
     .action(() => {
-        require('./src/cli/daemon/logs-daemon');
+        startLogsDaemon({ json: process.argv.includes('--json') });
     });
 
 
@@ -134,7 +143,6 @@ program
 
         if (mode === 'telegram') {
             console.log(chalk.cyan('\n--- Telegram Channel Diagnostic ---\n'));
-            const TelegramChannel = require('./src/core/channels/TelegramChannel');
             try {
                 const bot = new TelegramChannel({
                     token: process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN
@@ -179,7 +187,6 @@ program
         try {
             // Trigger voucher debug if available
             console.log(chalk.gray('  - Vouchers: '));
-            const { getDatabase } = require('./src/core/database');
             const db = await getDatabase();
             const stats = await db.getStats();
             console.log(chalk.green(`    ✓ ${stats.total} vouchers found (${stats.active} active)`));
@@ -193,10 +200,11 @@ program
 // ── Main Logic ────────────────────────────────────────────────────────────────
 const run = async () => {
     // Helper to check if any known command is in argv
-    const commands = program.commands.map(c => c.name());
+    const commands = program.commands.flatMap(c => [c.name(), ...(c.aliases?.() || [])]);
     const hasCommand = process.argv.some(arg => commands.includes(arg));
 
-    if (!hasCommand && !process.argv.includes('-h') && !process.argv.includes('--help')) {
+    const isMetaCommand = process.argv.includes('-h') || process.argv.includes('--help') || process.argv.includes('-V') || process.argv.includes('--version');
+    if (!hasCommand && !isMetaCommand) {
         showBanner();
         console.log(chalk.yellow('! No command specified, defaulting to: gateway\n'));
         // Insert 'gateway' before any options but after node/script
@@ -204,7 +212,7 @@ const run = async () => {
         newArgs.splice(2, 0, 'gateway');
         await program.parseAsync(newArgs);
     } else {
-        if (!process.argv.includes('gateway')) showBanner();
+        if (!process.argv.includes('gateway') && !isMetaCommand) showBanner();
         await program.parseAsync(process.argv);
     }
 
@@ -232,8 +240,7 @@ process.on('unhandledRejection', (reason, promise) => {
 
     // Log to file if logger is available
     try {
-        const { logger } = require('./src/core/logger');
-        if (logger) logger.error('Unhandled Rejection', { reason, stack: reason?.stack });
+        logger.error('Unhandled Rejection', { reason, stack: reason?.stack });
     } catch (e) {
         // Fallback if logger is not ready
     }

@@ -134,14 +134,24 @@ class MikroTikManager extends EventEmitter {
         this.cache = new NodeCache({ stdTTL: 30, checkperiod: 60 });
         const globalConfig = getConfig();
         const mikrotikConfig = globalConfig.tools?.mikrotik?.connection || globalConfig.adapters?.mikrotik || globalConfig.mikrotik || {};
+        const configuredHost = options.host || options.ip || mikrotikConfig.host || mikrotikConfig.ip || process.env.MIKROTIK_HOST || process.env.MIKROTIK_IP;
+        const configuredUser = options.user || mikrotikConfig.username || mikrotikConfig.user || process.env.MIKROTIK_USER;
+        const configuredPassword = options.password || options.pass || mikrotikConfig.password || mikrotikConfig.pass || process.env.MIKROTIK_PASSWORD || process.env.MIKROTIK_PASS;
+        this.isConfigured = Boolean(configuredHost || configuredUser || configuredPassword);
 
         this.config = {
-            host: options.host || options.ip || mikrotikConfig.host || mikrotikConfig.ip || '192.168.88.1',
-            user: options.user || mikrotikConfig.username || mikrotikConfig.user || 'admin',
-            password: options.password || options.pass || mikrotikConfig.password || mikrotikConfig.pass || '',
+            host: configuredHost || '192.168.88.1',
+            user: configuredUser || 'admin',
+            password: configuredPassword || '',
             port: options.port || mikrotikConfig.port || 8728,
             timeout: options.timeout || DEFAULT_TIMEOUT
         };
+        this.scope = {
+            tenantId: options.tenantId || mikrotikConfig.tenantId || null,
+            siteId: options.siteId || options.routerId || mikrotikConfig.siteId || mikrotikConfig.routerId || null,
+            domain: options.domain || mikrotikConfig.domain || 'network'
+        };
+        this.stateId = options.stateId || this.scope.siteId || ((options.host || options.ip) ? this.config.host : 'default');
 
         this.state = {
             conn: null,
@@ -303,6 +313,7 @@ class MikroTikManager extends EventEmitter {
 
 
     async connect() {
+        if (!this.isConfigured) return false;
         if (this.state.isConnected) {
             logger.debug('Already connected to MikroTik');
             return true;
@@ -550,8 +561,9 @@ class MikroTikManager extends EventEmitter {
             if (db) {
                 // Fetch latest health before syncing
                 const health = this.state.isConnected ? await this.getSystemHealth().catch(() => ({})) : {};
-                await db.updateMikrotikState('default', {
+                await db.updateMikrotikState(this.stateId, {
                     ...this.getState(),
+                    ...this.scope,
                     health
                 });
             }
@@ -561,6 +573,7 @@ class MikroTikManager extends EventEmitter {
     }
 
     _scheduleReconnect() {
+        if (!this.isConfigured) return;
         this.state.reconnectAttempts++;
         const delay = Math.min(RECONNECT_INTERVAL * Math.pow(2, this.state.reconnectAttempts - 1), MAX_RECONNECT_DELAY);
         logger.info(`Scheduling MikroTik reconnect (attempt ${this.state.reconnectAttempts}) in ${delay}ms`);
@@ -654,6 +667,8 @@ class MikroTikManager extends EventEmitter {
             isInitialized: this.state.isInitialized,
             host: this.config.host,
             port: this.config.port,
+            stateId: this.stateId,
+            ...this.scope,
             reconnectAttempts: this.state.reconnectAttempts,
             lastConnectedAt: this.state.lastConnectedAt,
             lastError: this.state.lastError?.message || null,
@@ -1971,7 +1986,7 @@ class MikroTikPool {
     }
 
     async addRouter(id, config) {
-        const manager = new MikroTikManager(config);
+        const manager = new MikroTikManager({ ...config, stateId: config.stateId || id, siteId: config.siteId || id });
         await manager.connect();
         if (!this.defaultRouter) this.defaultRouter = manager;
         this.connections.set(id, manager);
@@ -2061,11 +2076,21 @@ async function testConnection(config = null) {
         return { success: false, message: error.message, code: error.code || 'UNKNOWN_ERROR' };
     } finally {
         if (timer) clearTimeout(timer);
-        if (conn) {
-            try { if (conn.close) conn.close(); } catch (_) { }
+        try {
+            // RouterOSAPI.close() is a no-op while connect() is still pending.
+            // Destroy the underlying connector as a final cancellation fallback
+            // so timed-out probes cannot keep a TCP handle alive.
+            if (client?.close) await client.close();
+        } catch (_) {
+            // Cleanup is best-effort; preserve the probe result above.
         }
-        if (client) {
-            try { if (client.close) client.close(); } catch (_) { }
+        try {
+            client?.rosApi?.connector?.destroy?.();
+        } catch (_) {
+            // The connector is an internal dependency detail and may not exist.
+        }
+        if (conn && conn !== client) {
+            try { if (conn.close) await conn.close(); } catch (_) { }
         }
     }
 }

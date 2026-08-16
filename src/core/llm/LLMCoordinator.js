@@ -1,5 +1,6 @@
 import { logger } from '../logger.js';
 import { BaseProvider } from './providers/BaseProvider.js';
+
 import HookRegistry from './hooks.js';
 
 // Importing each provider module runs its BaseProvider.register(...) side
@@ -12,7 +13,9 @@ import './providers/GroqProvider.js';
 import './providers/LlamaProvider.js';
 import './providers/MiniMaxProvider.js';
 import './providers/MoonshotProvider.js';
+import './providers/NanoAIProvider.js';
 import './providers/OllamaProvider.js';
+
 import './providers/OpenAIProvider.js';
 import './providers/OpenRouterProvider.js';
 import './providers/TogetherAIProvider.js';
@@ -140,7 +143,7 @@ class LLMCoordinator {
 
     /**
      * Generate embeddings for the given input
-     * @param {string|string[]} input 
+     * @param {string|string[]} input
      */
     async embed(input) {
         if (typeof this.provider.embed !== 'function') {

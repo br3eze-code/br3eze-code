@@ -1,8 +1,6 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import { CONFIG_PATH } from '../../core/config.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import ShopSkill from '../../skills/shop/index.js';
 
 // ==========================================
 // AGENTOS SHOP COMMAND
@@ -19,7 +17,6 @@ export default (program) => {
     if (!fs.existsSync(CONFIG_PATH)) {
       throw new Error('No configuration found — run: agentos onboard');
     }
-    const ShopSkill = require('../../skills/shop/index.js').default;
     const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     return new ShopSkill(config, console, {});
   };

@@ -6,10 +6,6 @@ import { getMikroTikClient } from '../mikrotik.js';
 import { getDatabase } from '../database.js';
 import voucherAgent from '../voucher.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-
 
 /**
  * WebSocketCLI — Interactive terminal emulator over WebSocket
@@ -28,6 +24,7 @@ class WebSocketCLI {
         this.cols = 80;
         this.rows = 24;
         this.isProcessing = false;
+        this.activeAbortController = null;
         this.pendingConfirm = null;
 
         this._commands = this._buildCommands();
@@ -107,6 +104,11 @@ class WebSocketCLI {
         if (input === '\r' || input === '\n') {
             this._executeCommand();
         } else if (input === '\u0003') {            // Ctrl+C
+            if (this.isProcessing && this.activeAbortController) {
+                this.activeAbortController.abort(new Error('Operation cancelled by user'));
+                this._out({ type: 'cancelled', message: 'Operation cancelled.' });
+                return;
+            }
             this.buffer = ''; this.cursorPos = 0;
             this._out({ type: 'clear_line' });
             this.sendPrompt();
@@ -171,15 +173,17 @@ class WebSocketCLI {
         }
 
         this.isProcessing = true;
+        this.activeAbortController = new AbortController();
         try {
             if (this._commands[key]) {
-                await this._commands[key].fn(args);
+                await this._commands[key].fn(args, { signal: this.activeAbortController.signal });
             } else {
                 this._out({ type: 'thinking', message: 'AgentOS: Consulting AI…' });
                 const aiResult = await this.channel.agent.processInteraction(text, {
                     channel: 'websocket',
                     userId: this.clientId,
-                    isCli: true
+                    isCli: true,
+                    signal: this.activeAbortController.signal
                 });
                 this._out({
                     type: 'ai_response',
@@ -191,6 +195,7 @@ class WebSocketCLI {
             this._out({ type: 'error', message: err.message });
         }
         this.isProcessing = false;
+        this.activeAbortController = null;
         this.sendPrompt();
     }
 

@@ -1,12 +1,6 @@
-import path from 'path';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 // skills/SkillRegistry.js
 // Central skill registry — discovers and wires all built-in skills
@@ -19,7 +13,7 @@ class SkillRegistry {
   }
 
   /** Load all built-in skills. Called once during Bootstrap §26. */
-  loadBuiltinSkills() {
+  async loadBuiltinSkills() {
     const builtins = [
       'mikrotik',   // manage_network  — RouterOS users, firewall, system
       'finance',    // manage_finance  — revenue, P2P, Mastercard A2A
@@ -30,28 +24,33 @@ class SkillRegistry {
       'voucher',    // manage_vouchers — create, redeem, stats, recurring billing
     ];
 
+    const registryDir = path.dirname(fileURLToPath(import.meta.url));
     for (const name of builtins) {
       try {
-        const skillPath = path.join(__dirname, name, 'index.js');
-        const skill = require(skillPath);
+        const skillPath = path.join(registryDir, name, 'index.js');
+        const module = await import(pathToFileURL(skillPath).href);
+        const skill = module.default || module;
         let meta = {};
-        try { meta = require(path.join(__dirname, name, 'skill.json')); } catch {}
+        try {
+          meta = JSON.parse(await fs.readFile(path.join(registryDir, name, 'skill.json'), 'utf8'));
+        } catch {
+          // Metadata is optional for legacy built-in skills.
+        }
         this.register(name, {
-          description:  meta.description  || name,
-          parameters:   meta.parameters   || {},
-          dispatch:     meta.dispatch      || null,
-          version:      meta.version       || '1.0.0',
-          tags:         meta.tags          || [],
-          execute:      (params, ctx) => skill.execute(params, ctx)
+          description: meta.description || name,
+          parameters: meta.parameters || {},
+          dispatch: meta.dispatch || null,
+          version: meta.version || '1.0.0',
+          tags: meta.tags || [],
+          execute: (params, ctx) => skill.execute(params, ctx)
         });
-      } catch (err) {
-        // Skill not yet implemented — register as stub
+      } catch {
         this.register(name, {
           description: `${name} (stub — not yet implemented)`,
-          parameters:  {},
-          version:     '0.0.0',
-          tags:        [],
-          execute:     async () => ({ success: false, error: `Skill '${name}' not implemented` })
+          parameters: {},
+          version: '0.0.0',
+          tags: [],
+          execute: async () => ({ success: false, error: `Skill '${name}' not implemented` })
         });
       }
     }

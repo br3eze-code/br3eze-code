@@ -15,22 +15,28 @@ function createWebhookHandler(gateway, onPaymentSuccess, onPaymentFailed) {
     const provider = req.params.provider;
     
     try {
-      // Verify webhook signature
-      const isValid = await gateway.handleWebhook(
+      // The gateway verifies the signature and processes the event atomically.
+      // Do not call processWebhook a second time: duplicate provider processing
+      // can repeat settlement, fulfillment, or callback side effects.
+      const verifiedResult = await gateway.handleWebhook(
         provider,
         req.body,
         req.headers
       );
 
-      if (!isValid) {
+      if (verifiedResult === false) {
         return res.status(400).json({ error: 'Invalid signature' });
       }
 
-      // Process webhook
-      const result = await gateway.providers.get(provider).processWebhook(req.body);
+      // Current gateways return the processed event. The boolean `true`
+      // branch is retained only for legacy adapters/tests that expose
+      // verification separately; production gateways are never processed twice.
+      const result = verifiedResult === true
+        ? await gateway.providers.get(provider).processWebhook(req.body)
+        : verifiedResult;
 
       // Handle different event types
-      switch (result.type) {
+      switch (result?.type) {
         case 'payment_success':
           await onPaymentSuccess(result);
           break;

@@ -1,0 +1,121 @@
+name: network-tools
+version: 1.0.0
+description: Domain-agnostic network operations toolbox with provider-aware health, inventory, diagnostics, and controlled network administration.
+author: AgentOS
+license: Apache-2.0
+
+security:
+  defaultDecision: deny
+  readPermission: network.read
+  writePermission: network.write
+  destructivePermission: network.admin
+
+tools:
+  - name: network.capabilities
+    description: Report the capabilities of configured network providers.
+    parameters: []
+    returns: object
+  - name: network.health
+    description: Check connectivity and health for a selected network provider.
+    parameters: []
+    returns: object
+  - name: network.system.identity
+    description: Get provider system identity and version information.
+    parameters: []
+    returns: object
+  - name: network.system.resources
+    description: Get provider resource and uptime information.
+    parameters: []
+    returns: object
+  - name: network.interface.list
+    description: List provider interfaces and traffic statistics.
+    parameters: []
+    returns: array
+  - name: network.ip.addresses
+    description: List assigned IP addresses.
+    parameters: []
+    returns: array
+  - name: network.ip.routes
+    description: List routing-table entries with a bounded result count.
+    parameters:
+      - name: limit
+        type: number
+        required: false
+        default: 50
+    returns: array
+  - name: network.arp.table
+    description: List ARP table entries.
+    parameters: []
+    returns: array
+  - name: network.dhcp.leases
+    description: List DHCP leases.
+    parameters: []
+    returns: array
+  - name: network.firewall.summary
+    description: Return a firewall rule and connection summary.
+    parameters: []
+    returns: object
+  - name: network.firewall.list
+    description: List firewall rules by type with a bounded result count.
+    parameters:
+      - name: type
+        type: string
+        required: false
+        default: filter
+      - name: limit
+        type: number
+        required: false
+        default: 100
+    returns: array
+  - name: network.diagnostics.ping
+    description: Ping a host with a bounded probe count.
+    parameters:
+      - name: host
+        type: string
+        required: true
+      - name: count
+        type: number
+        required: false
+        default: 4
+    returns: array
+  - name: network.diagnostics.traceroute
+    description: Trace a route to a host.
+    parameters:
+      - name: host
+        type: string
+        required: true
+    returns: array
+  - name: network.firewall.block
+    description: Block a target in the provider firewall address list.
+    parameters:
+      - name: target
+        type: string
+        required: true
+      - name: list
+        type: string
+        required: false
+        default: blocked
+    returns: object
+  - name: network.firewall.unblock
+    description: Remove a target from the provider firewall address list.
+    parameters:
+      - name: target
+        type: string
+        required: true
+      - name: list
+        type: string
+        required: false
+        default: blocked
+    returns: object
+
+config:
+  - name: providers
+    type: object
+    required: false
+    description: Provider adapter configuration keyed by provider name.
+  - name: defaultProvider
+    type: string
+    required: false
+    description: Explicit provider selected when a request omits provider.
+
+dependencies: []

@@ -1,17 +1,13 @@
-import db from '../storage/db';
+import { getDatabase } from '../core/database.js';
 
 // src/services/vouchers.js
-
-
 class VoucherService {
-
     generateCode() {
         return "AG-" + Math.random().toString(36).substr(2, 6).toUpperCase();
     }
 
     async create(plan) {
         const code = this.generateCode();
-
         const voucher = {
             code,
             plan,
@@ -19,22 +15,27 @@ class VoucherService {
             createdAt: Date.now()
         };
 
-        await db.save(code, voucher);
+        const db = await getDatabase();
+        await db.saveVoucher(voucher);
         return voucher;
     }
 
     async redeem(code, username) {
-        const voucher = await db.get(code);
+        const db = await getDatabase();
+        const voucher = await db.getVoucher(code);
 
         if (!voucher) throw new Error("Invalid voucher");
         if (voucher.used) throw new Error("Already used");
 
-        voucher.used = true;
-        voucher.user = username;
+        const updates = {
+            used: true,
+            user: username,
+            redeemedByUsername: username,
+            status: 'used'
+        };
+        await db.updateVoucher(code, updates);
 
-        await db.save(code, voucher);
-
-        return voucher;
+        return { ...voucher, ...updates };
     }
 }
 

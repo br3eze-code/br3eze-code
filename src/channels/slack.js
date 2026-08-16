@@ -80,11 +80,18 @@ class SlackChannel extends BaseChannel {
         content: event.text || '',
         isDM,
         metadata: {
+          userId: event.user,
+          conversationId: event.channel,
           team: event.team,
           threadTs: event.thread_ts
         }
       });
       
+      const navigation = this.normalizeNavigation(event.text || '');
+      if (navigation) {
+        this.emit('navigation', { action: navigation, frame });
+        return;
+      }
       this.emit('message', frame);
     }
   }

@@ -76,10 +76,11 @@ class HealthMonitor extends EventEmitter {
     let router = null;
     if (this.agent?.mikrotik) {
         const mt = this.agent.mikrotik;
-        router = {
-            isConnected: mt.state?.isConnected || false,
-            health: mt.state?.lastKnownHealth || null
-        };
+            router = {
+                isConfigured: mt.isConfigured !== false,
+                isConnected: mt.state?.isConnected || false,
+                health: mt.state?.lastKnownHealth || null
+            };
     }
     
     // Add Channel health if available
@@ -97,7 +98,7 @@ class HealthMonitor extends EventEmitter {
         };
     }
     
-    const status = (unhealthy.length === 0 && (!router || router.isConnected) && (!database || database.isFirebaseConnected)) 
+    const status = (unhealthy.length === 0 && (!router || router.isConfigured === false || router.isConnected) && (!database || database.isFirebaseConnected))
       ? 'healthy' 
       : 'degraded';
     

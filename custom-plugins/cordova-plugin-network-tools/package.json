@@ -1,0 +1,11 @@
+{
+  "name": "cordova-plugin-network-tools",
+  "version": "1.0.0",
+  "description": "Secure Cordova bridge for AgentOS network diagnostics and tools.",
+  "cordova": {
+    "id": "cordova-plugin-network-tools",
+    "platforms": ["android", "ios"]
+  },
+  "keywords": ["cordova", "network", "diagnostics", "agentos"],
+  "license": "Apache-2.0"
+}

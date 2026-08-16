@@ -1,0 +1,328 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@google-cloud/storage": {
+      "name": "@google-cloud/storage",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "retry-request",
+        "teeny-request"
+      ],
+      "effects": [
+        "firebase-admin"
+      ],
+      "range": "2.2.0 - 2.5.0 || >=5.19.0",
+      "nodes": [
+        "node_modules/@google-cloud/storage"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-plugin-firebasex": {
+      "name": "cordova-plugin-firebasex",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-analytics",
+        "cordova-plugin-firebasex-config",
+        "cordova-plugin-firebasex-core",
+        "cordova-plugin-firebasex-crashlytics",
+        "cordova-plugin-firebasex-firestore",
+        "cordova-plugin-firebasex-functions",
+        "cordova-plugin-firebasex-inappmessaging",
+        "cordova-plugin-firebasex-messaging"
+      ],
+      "effects": [],
+      "range": ">=20.0.1",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex"
+      ],
+      "fixAvailable": {
+        "name": "cordova-plugin-firebasex",
+        "version": "19.1.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-plugin-firebasex-analytics": {
+      "name": "cordova-plugin-firebasex-analytics",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "xcode"
+      ],
+      "effects": [
+        "cordova-plugin-firebasex"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-analytics"
+      ],
+      "fixAvailable": {
+        "name": "cordova-plugin-firebasex",
+        "version": "19.1.0",
+        "isSemVerMajor": true
+      }
+    },
+    "cordova-plugin-firebasex-config": {
+      "name": "cordova-plugin-firebasex-config",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-config"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-core": {
+      "name": "cordova-plugin-firebasex-core",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "xcode"
+      ],
+      "effects": [
+        "cordova-plugin-firebasex-config",
+        "cordova-plugin-firebasex-firestore",
+        "cordova-plugin-firebasex-functions",
+        "cordova-plugin-firebasex-inappmessaging",
+        "cordova-plugin-firebasex-messaging"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-core"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-crashlytics": {
+      "name": "cordova-plugin-firebasex-crashlytics",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "xcode"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-crashlytics"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-firestore": {
+      "name": "cordova-plugin-firebasex-firestore",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-firestore"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-functions": {
+      "name": "cordova-plugin-firebasex-functions",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-functions"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-inappmessaging": {
+      "name": "cordova-plugin-firebasex-inappmessaging",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-inappmessaging"
+      ],
+      "fixAvailable": true
+    },
+    "cordova-plugin-firebasex-messaging": {
+      "name": "cordova-plugin-firebasex-messaging",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-messaging"
+      ],
+      "fixAvailable": true
+    },
+    "firebase-admin": {
+      "name": "firebase-admin",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "@google-cloud/storage"
+      ],
+      "effects": [],
+      "range": "7.0.0 - 8.2.0 || >=11.0.0",
+      "nodes": [
+        "node_modules/firebase-admin"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "gaxios": {
+      "name": "gaxios",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [],
+      "range": "6.4.0 - 6.7.1",
+      "nodes": [
+        "node_modules/gaxios"
+      ],
+      "fixAvailable": true
+    },
+    "retry-request": {
+      "name": "retry-request",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "teeny-request"
+      ],
+      "effects": [
+        "@google-cloud/storage"
+      ],
+      "range": "7.0.0 - 7.0.2",
+      "nodes": [
+        "node_modules/retry-request"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "teeny-request": {
+      "name": "teeny-request",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [
+        "@google-cloud/storage",
+        "retry-request"
+      ],
+      "range": "3.9.1 - 9.0.0",
+      "nodes": [
+        "node_modules/teeny-request"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "gaxios",
+        "teeny-request",
+        "xcode"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/gaxios/node_modules/uuid",
+        "node_modules/teeny-request/node_modules/uuid",
+        "node_modules/xcode/node_modules/uuid"
+      ],
+      "fixAvailable": {
+        "name": "firebase-admin",
+        "version": "10.3.0",
+        "isSemVerMajor": true
+      }
+    },
+    "xcode": {
+      "name": "xcode",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [
+        "cordova-plugin-firebasex-analytics",
+        "cordova-plugin-firebasex-core",
+        "cordova-plugin-firebasex-crashlytics"
+      ],
+      "range": ">=0.9.2",
+      "nodes": [
+        "node_modules/xcode"
+      ],
+      "fixAvailable": {
+        "name": "cordova-plugin-firebasex",
+        "version": "19.1.0",
+        "isSemVerMajor": true
+      }
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 16,
+      "high": 0,
+      "critical": 0,
+      "total": 16
+    },
+    "dependencies": {
+      "prod": 983,
+      "dev": 1025,
+      "optional": 173,
+      "peer": 130,
+      "peerOptional": 0,
+      "total": 2170
+    }
+  }
+}

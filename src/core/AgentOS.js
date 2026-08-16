@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import EventEmitter from 'events';
 import SkillRegistry from './SkillRegistry.js';
+import AgentToolbox from './agent-toolbox.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
 import LLMCoordinator from './llm/LLMCoordinator.js';
@@ -19,6 +20,7 @@ import { STATE_PATH } from './config.js';
 import FinancialController from './financial.js';
 import UniversalBilling from './universal-billing.js';
 import DiscoveryService from './discovery.js';
+import ServerRegistry from './server-registry.js';
 
 
 class AgentOS extends EventEmitter {
@@ -26,16 +28,20 @@ class AgentOS extends EventEmitter {
     super();
     this.id = config.id || crypto.randomUUID();
     this.config = {
-      skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'src', 'skills')) ? './src/skills' : './skills'),
+      skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'skills')) ? './skills' : './src/skills'),
       memoryAdapter: config.memoryAdapter || 'memory',
-      llmProvider: config.llmProvider || 'gemini',
+      llmProvider: config.llmProvider || config.llm?.primary || 'ollama',
       maxConcurrentSkills: config.maxConcurrentSkills || 10,
       ...config
     };
 
     // Core components
     this.skills = new SkillRegistry(this.config);
+    this.toolbox = new AgentToolbox(this.config, this.skills);
     this.channels = new ChannelManager(this);
+    // All channel and skill instances share this canonical server inventory.
+    this.servers = ServerRegistry;
+    this.servers.configure(this.config.servers || []);
     this.memory = new MemoryManager(this.config.memoryAdapter);
     this.llm = new LLMCoordinator(this.config.llmProvider);
     this.workflows = new WorkflowEngine(this);
@@ -364,8 +370,8 @@ Be concise and helpful.
 }
 
   async executeTool(toolName, params, context) {
-  return this.skills.executeTool(toolName, params, context);
-}
+  return this.toolbox.execute(toolName, params, context);
+  }
 
   // Channel management
   async sendMessage(channel, userId, message) {

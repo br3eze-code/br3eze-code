@@ -26,18 +26,33 @@ class SessionManager {
    * Get session ID for a frame
    * OpenClaw: isolated per sender in DM mode, shared in channel mode
    */
-  getSessionId(frame) {
-    const agentId = frame.agentId || 'default';
-    
-    if (this.mode === 'isolated' && frame.isDM) {
-      // Secure DM mode: isolate per sender
-      // Sanitize sender ID for filesystem safety
-      const safeSender = frame.sender.replace(/[^a-zA-Z0-9_-]/g, '_');
-      return path.join(agentId, safeSender, 'main');
+  getSessionId(frame = {}) {
+    const agentId = this._safeSegment(frame.agentId || 'default');
+    const context = frame.context || {};
+    const channel = this._safeSegment(frame.channel || context.channel || 'unknown');
+    const sender = this._safeSegment(frame.sender || context.platformId || context.userId || 'anonymous');
+    const tenant = this._safeSegment(frame.tenantId || context.tenantId || context.scopes?.tenantId || 'public');
+    const domain = this._safeSegment(frame.domain || context.domain || context.scopes?.domain || 'general');
+    const site = this._safeSegment(frame.siteId || context.siteId || context.scopes?.siteId || 'all-sites');
+    const conversation = this._safeSegment(
+      frame.conversationId || context.conversationId || frame.threadId || 'main'
+    );
+
+    // Per-user context is the safe default for every channel. A shared room
+    // identifier must not merge private history, role-aware UI, OAuth context,
+    // or tool state between participants.
+    const userScoped = path.join(agentId, tenant, domain, site, channel, sender, conversation);
+    if (this.mode === 'shared' && (frame.allowSharedContext || context.allowSharedContext)) {
+      return path.join(agentId, tenant, domain, site, channel, conversation);
     }
-    
-    // Shared mode or channel mode: shared session
-    return path.join(agentId, 'main');
+    return userScoped;
+  }
+
+  _safeSegment(value) {
+    return String(value)
+      .trim()
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 160) || 'unknown';
   }
   
   /**

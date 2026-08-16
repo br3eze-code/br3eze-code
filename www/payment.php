@@ -1,40 +1,38 @@
 <?php
-// File: payment_success.php
-header('Content-Type: application/json');
+declare(strict_types=1);
 
-require 'vendor/autoload.php';
-require_once 'database_config.php'; // Provides $pdo
+require_once __DIR__ . '/agentos_fallback.php';
+require_once __DIR__ . '/database_config.php';
 
-$sessionId = $_GET['session_id'] ?? '';
+$context = agentos_context(true);
+$transactionId = (int) agentos_input('transaction_id', 0);
+$sessionId = trim((string) agentos_input('session_id', ''));
 
-if (empty($sessionId)) {
-    http_response_code(400); // Bad Request
-    echo json_encode(['success' => false, 'status' => 'error', 'message' => 'No session ID provided.']);
-    exit();
+if ($transactionId <= 0 && $sessionId === '') {
+    agentos_json(['success' => false, 'code' => 'REFERENCE_REQUIRED', 'message' => 'A payment reference is required.'], 400);
 }
 
 try {
-    // Query YOUR database, not Stripe's API.
-    // The webhook is responsible for updating this record.
-    $stmt = $pdo->prepare("SELECT status, username FROM transactions WHERE payment_reference = ?");
-    $stmt->execute([$sessionId]);
-    $transaction = $stmt->fetch();
-
-    if (!$transaction) {
-        http_response_code(404); // Not Found
-        echo json_encode(['success' => false, 'status' => 'not_found', 'message' => 'Transaction not found.']);
+    if ($transactionId > 0) {
+        $stmt = $pdo->prepare('SELECT id, status, payment_method, amount_cents, currency, tenant_id, site_id FROM transactions WHERE id = ? AND username = ? AND tenant_id = ? AND (site_id IS NULL OR site_id = ?)');
+        $stmt->execute([$transactionId, $context['userId'], $context['tenantId'], $context['siteId']]);
     } else {
-        // Return the status ('completed', 'pending', or 'failed') to the frontend.
-        echo json_encode([
-            'success' => $transaction['status'] === 'completed',
-            'status' => $transaction['status'],
-            'username' => $transaction['username']
-        ]);
+        $stmt = $pdo->prepare('SELECT id, status, payment_method, amount_cents, currency, tenant_id, site_id FROM transactions WHERE payment_reference = ? AND username = ? AND tenant_id = ? AND (site_id IS NULL OR site_id = ?)');
+        $stmt->execute([$sessionId, $context['userId'], $context['tenantId'], $context['siteId']]);
     }
+    $transaction = $stmt->fetch();
+    if (!$transaction) agentos_json(['success' => false, 'code' => 'TRANSACTION_NOT_FOUND', 'message' => 'Transaction not found.'], 404);
 
-} catch (PDOException $e) {
-    http_response_code(500); // Internal Server Error
-    error_log("Payment success check failed: " . $e->getMessage()); // Log error
-    echo json_encode(['success' => false, 'status' => 'error', 'message' => 'A database error occurred.']);
+    $status = strtolower((string) $transaction['status']);
+    agentos_json([
+        'success' => in_array($status, ['completed', 'succeeded', 'successful', 'paid'], true),
+        'status' => $status,
+        'payment_method' => $transaction['payment_method'],
+        'amount_cents' => (int) $transaction['amount_cents'],
+        'currency' => strtoupper((string) $transaction['currency']),
+        'transaction_id' => (int) $transaction['id'],
+        'traceId' => $context['traceId']
+    ]);
+} catch (Throwable $error) {
+    agentos_safe_exception($error);
 }
-?>

@@ -1,8 +1,6 @@
 import _chalk from 'chalk';
-import path from 'path';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import path from 'node:path';
+import SkillRegistry from '../../core/SkillRegistry.js';
 
 // src/cli/commands/skill.js
 // ==========================================
@@ -24,7 +22,6 @@ export default (program) => {
     .action(async () => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         const skillsDir = path.join(process.cwd(), 'src', 'skills');
         await registry.loadFromDirectory(skillsDir);
@@ -60,7 +57,6 @@ export default (program) => {
     .action(async (skillName, options) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 
@@ -88,7 +84,6 @@ export default (program) => {
     .action(async (skillName) => {
       const { intro, outro, note, log } = await import('@clack/prompts');
       try {
-        const SkillRegistry = require('../../core/SkillRegistry').default;
         const registry = new SkillRegistry({});
         await registry.loadFromDirectory(path.join(process.cwd(), 'src', 'skills'));
 

@@ -1,12 +1,10 @@
-import crypto from 'crypto';
-import vm from 'vm';
-import fs from 'fs';
-import path from 'path';
-import { EventEmitter } from 'events';
+import crypto from 'node:crypto';
+import vm from 'node:vm';
+import fs from 'node:fs';
+import path from 'node:path';
+import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import { logger } from './logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 
 const FORGE_DIR = process.env.TOOLFORGE_DIR
@@ -99,9 +97,9 @@ class VMSandbox {
       TextEncoder: typeof TextEncoder !== 'undefined' ? TextEncoder : undefined,
       TextDecoder: typeof TextDecoder !== 'undefined' ? TextDecoder : undefined,
       // Crypto (non-sensitive — random UUIDs, hashing)
-      crypto: { randomUUID: () => require('crypto').randomUUID() },
+      crypto: { randomUUID: () => crypto.randomUUID() },
       // Timing (read-only — no side effects)
-      performance: { now: () => require('perf_hooks').performance.now() },
+      performance: { now: () => performance.now() },
     };
 
     if (spec.capabilities.includes(CAPABILITY.FETCH)) {

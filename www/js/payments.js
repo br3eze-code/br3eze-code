@@ -8,6 +8,17 @@
    saved yet.
    ========================================================== */
 
+async function agentOSPaymentRequest(url, options) {
+    if (window.AgentOSOffline) {
+        const result = await window.AgentOSOffline.request(url, options);
+        if (result && result.queued) {
+            return new Response(JSON.stringify({ offline: true, queued: true, paid: false, status: 'pending', idempotencyKey: result.idempotencyKey }), { status: 202, headers: { 'Content-Type': 'application/json', 'X-AgentOS-Offline': 'queued' } });
+        }
+        return result;
+    }
+    return fetch(url, options);
+}
+
 const Payments = {
     stripe: null,
     elements: null,
@@ -122,7 +133,7 @@ const Payments = {
             const idToken = await this._idToken();
             if (!idToken) throw new Error('Your session expired — please log in again.');
 
-            const siRes = await fetch('/api/setup-intent/create', {
+            const siRes = await agentOSPaymentRequest('/api/setup-intent/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uid: window.currentUser.id, idToken }),
@@ -147,7 +158,7 @@ const Payments = {
             if (result.error) throw new Error(result.error.message);
 
             const pmId = result.setupIntent.payment_method;
-            const saveRes = await fetch('/api/payment-method/save', {
+            const saveRes = await agentOSPaymentRequest('/api/payment-method/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uid: window.currentUser.id, idToken, paymentMethodId: pmId, billingAddress: address }),
@@ -209,17 +220,21 @@ const Payments = {
             const idToken = await this._idToken();
             if (!idToken) throw new Error('Your session expired — please log in again.');
 
-            const res = await fetch('/api/charge-card', {
+            const res = await agentOSPaymentRequest('/api/charge-card', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uid: window.currentUser.id, idToken, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }),
             });
             const data = await res.json();
+            if (data.offline && data.queued) {
+                showToast('Payment request queued. It will not be charged until the server confirms it.', 'warning');
+                return;
+            }
             if (data.requiresAction) {
                 const stripe = await this.ensureStripe();
                 const result = await stripe.handleCardAction(data.clientSecret);
                 if (result.error) throw new Error(result.error.message);
-                const confirmRes = await fetch('/api/charge-card/confirm', {
+                const confirmRes = await agentOSPaymentRequest('/api/charge-card/confirm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ uid: window.currentUser.id, idToken, paymentIntentId: data.paymentIntentId }),

@@ -17,8 +17,6 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { getDatabase } from '../../src/core/database.js';
-
 process.env.AGENTOS_PROFILE = 'test-voucher-redemption';
 
 const profileDir = path.join(os.homedir(), '.agentos-test-voucher-redemption');
@@ -28,6 +26,7 @@ describe('redeemVoucher via SQLite fallback', () => {
   let sqliteAvailable = true;
 
   beforeAll(async () => {
+    const { getDatabase } = await import('../../src/core/database.js');
     db = await getDatabase();
     sqliteAvailable = !!db.sqlite;
     if (!sqliteAvailable) {

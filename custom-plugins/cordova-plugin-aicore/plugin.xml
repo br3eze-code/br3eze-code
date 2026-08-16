@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-aicore"
         version="1.0.1">
     <name>AI Core</name>
@@ -48,4 +49,4 @@
         <!-- Required for async futures -->
         <framework src="com.google.guava:guava:33.0.0-android" />
     </platform>
-</plugin>
+</plugin>

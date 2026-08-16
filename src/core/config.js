@@ -1,11 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import yaml from 'js-yaml';
 import 'dotenv/config';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
+const DEFAULT_LOGIN_DOMAIN = process.env.LOGIN_DOMAIN || process.env.PUBLIC_DOMAIN || 'br3eze.africa';
 
 const BRAND = {
     name: 'AgentOS',
@@ -58,15 +59,62 @@ const DEFAULT_CONFIG = {
         allowedChats: [],
         botUsername: 'AgentOSBot'
     },
+    starlink: {
+        clientId: process.env.STARLINK_CLIENT_ID || '',
+        clientSecret: process.env.STARLINK_CLIENT_SECRET || '',
+        baseUrl: process.env.STARLINK_API_BASE_URL || '',
+        localProxyUrl: process.env.STARLINK_LOCAL_PROXY_URL || ''
+    },
+    payments: {
+        innbucks: {
+            mode: process.env.INNBUCKS_MODE || 'paynow',
+            baseUrl: process.env.INNBUCKS_BASE_URL || process.env.PAYNOW_BASE_URL || '',
+            integrationId: process.env.PAYNOW_INTEGRATION_ID || '',
+            integrationKey: process.env.PAYNOW_INTEGRATION_KEY || ''
+        }
+    },
     gateway: {
         port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
         host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',
         token: process.env.AGENTOS_GATEWAY_TOKEN
-            || require('crypto').randomBytes(32).toString('hex')
+            || crypto.randomBytes(32).toString('hex')
+    },
+    OAUTH: {
+        GITHUB: {
+            CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.GITHUB_OAUTH_REDIRECT_URI || '',
+            SCOPE: process.env.GITHUB_OAUTH_SCOPE || 'read:user repo',
+            WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || ''
+        },
+        GOOGLE: {
+            CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://127.0.0.1:0/oauth/callback',
+            SCOPE: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile'
+        },
+        FACEBOOK: {
+            CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || '',
+            CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || '',
+            REDIRECT_URI: process.env.FACEBOOK_OAUTH_REDIRECT_URI || '',
+            SCOPE: process.env.FACEBOOK_OAUTH_SCOPE || 'public_profile,email',
+            RELAY_URL: process.env.FACEBOOK_OAUTH_RELAY_URL || ''
+        }
     },
     server: {
         port: 3000,
         host: '0.0.0.0'
+    },
+    // Canonical multi-server inventory. Credentials stay in environment variables or vault refs.
+    servers: [],
+    llm: {
+        strategy: 'open-model-first',
+        primary: process.env.AGENTOS_LLM_PRIMARY || 'ollama',
+        fallbacks: (process.env.AGENTOS_LLM_FALLBACKS || 'openrouter,openai,xai').split(',').map(value => value.trim()).filter(Boolean),
+        openModels: {
+            endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || 'http://127.0.0.1:11434/v1',
+            model: process.env.AGENTOS_OPEN_MODEL || 'llama3.1:8b'
+        }
     },
     security: {
         rateLimitWindow: 15 * 60 * 1000,
@@ -184,7 +232,6 @@ function loadConfig() {
     for (const yamlPath of yamlPaths) {
         if (fs.existsSync(yamlPath)) {
             try {
-                const yaml = require('js-yaml');
                 const content = fs.readFileSync(yamlPath, 'utf8');
                 const loaded = yaml.load(content);
 
@@ -314,4 +361,4 @@ export const security = {
     apiKey: process.env.API_KEY,
     ALERT_COOLDOWN_MS: 60000
 };
-export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, DEFAULT_LOGIN_DOMAIN, loadConfig, saveConfig, getConfig };

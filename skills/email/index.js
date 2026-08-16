@@ -1,6 +1,5 @@
 // skills/email/index.js
 import nodemailer from 'nodemailer';
-import aws from '@aws-sdk/client-ses';
 
 class EmailSkill {
   constructor() {
@@ -9,7 +8,7 @@ class EmailSkill {
 
   async execute(params, context) {
     const { action, provider = 'smtp', ...config } = params;
-    
+
     switch (action) {
       case 'send':
         return this.sendEmail(provider, config, context);
@@ -24,7 +23,7 @@ class EmailSkill {
 
   async sendEmail(provider, config, context) {
     const transporter = await this.getTransporter(provider, context);
-    
+
     const mailOptions = {
       from: config.from || context.config?.email?.defaultFrom,
       to: config.to,
@@ -39,7 +38,7 @@ class EmailSkill {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    
+
     return {
       success: true,
       messageId: result.messageId,
@@ -70,7 +69,7 @@ class EmailSkill {
           maxConnections: 5
         });
         break;
-        
+
       case 'sendgrid':
         transporter = nodemailer.createTransport({
           service: 'SendGrid',
@@ -79,9 +78,16 @@ class EmailSkill {
           }
         });
         break;
-        
-      case 'aws-ses':
+
+            case 'aws-ses': {
+        let aws;
+        try {
+          aws = await import('@aws-sdk/client-ses');
+        } catch {
+          throw new Error('AWS SES provider requires optional dependency @aws-sdk/client-ses');
+        }
         const ses = new aws.SES({
+
           region: config.region,
           credentials: {
             accessKeyId: config.accessKeyId,
@@ -91,10 +97,14 @@ class EmailSkill {
         transporter = nodemailer.createTransport({
           SES: { ses, aws }
         });
-        break;
+                break;
+      }
+      default:
+        throw new Error(`Unsupported email provider: ${provider}`);
     }
 
     this.transporters.set(provider, transporter);
+
     return transporter;
   }
 
