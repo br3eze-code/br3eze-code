@@ -1,8 +1,7 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { logger } from './logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 /**
  * AgentOS Tailscale Integration
@@ -21,8 +20,6 @@ class Tailscale {
             return this._bin;
         }
 
-        const fs = require('fs');
-        const path = require('path');
         try {
             execSync('tailscale version', { stdio: 'ignore' });
             this._bin = 'tailscale';
