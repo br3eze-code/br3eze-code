@@ -26,6 +26,7 @@ import shopRouter from '../api/routes/shop.js';
 import v1Router from '../api/routes/v1.js';
 import v2Router from '../api/routes/v2.js';
 import v3Router from '../api/routes/v3.js';
+import { buildCapabilityManifest } from './capability-manifest.js';
 
 // A2A is an optional capability. Deployments that provide the plugin can
 // load it without changing the core gateway; its absence is not a startup error.
@@ -204,6 +205,31 @@ class Gateway extends EventEmitter {
     this.app.get('/shop', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'shop.html')));
     this.app.get('/product/:id', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'product.html')));
     this.app.get('/order/:id', (req, res) => res.sendFile(path.join(process.cwd(), 'www', 'order.html')));
+
+    // ── Client capability discovery ───────────────────────────────────────────
+    // Cordova, desktop, and channel UIs use this manifest to render only
+    // actions that are both supported by the bridge and authorized for the user.
+    this.app.get('/api/v1/capabilities', (req, res) => {
+      const availableTools = typeof global.mikrotik?.getAvailableTools === 'function'
+        ? global.mikrotik.getAvailableTools()
+        : [];
+      const user = req.firebaseUser || (req.headers['x-agent-role'] ? {
+        role: req.headers['x-agent-role'],
+        capabilities: String(req.headers['x-agent-capabilities'] || '').split(',').filter(Boolean),
+      } : null);
+      res.json(buildCapabilityManifest({
+        user,
+        availableTools,
+        platform: req.headers['x-agent-platform'] || 'cordova',
+        channel: req.headers['x-agent-channel'] || 'rest',
+        bridges: {
+          aiCore: req.headers['x-agent-bridge-ai'] === 'true',
+          networkTools: req.headers['x-agent-bridge-network'] === 'true',
+          connectivity: req.headers['x-agent-bridge-connectivity'] === 'true',
+          websocket: req.headers.upgrade === 'websocket',
+        },
+      }));
+    });
 
     // ── Health ────────────────────────────────────────────────────────────────
     this.app.get('/health', (req, res) => {
