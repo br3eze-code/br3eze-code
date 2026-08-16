@@ -23,6 +23,8 @@ import createEcoCashWebhookRouter from '../gateway/ecocash-webhook.mjs';
 import * as dateUtils from '../utils/date.js';
 import { PrintBroker } from './print-broker.js';
 import shopRouter from '../api/routes/shop.js';
+import posRouter from '../api/routes/pos.js';
+import projectManagerRouter from '../api/routes/project-manager.js';
 import v1Router from '../api/routes/v1.js';
 import v2Router from '../api/routes/v2.js';
 import v3Router from '../api/routes/v3.js';
@@ -805,7 +807,9 @@ class Gateway extends EventEmitter {
     }
 
     // ── Shop ─────────────────────────────────────────────────────────────────
-    this.app.use('/api/v1/shop', shopRouter);
+      this.app.use('/api/v1/shop', shopRouter);
+      this.app.use('/api/v1/pos', posRouter);
+      this.app.use('/api/v1/project-manager', projectManagerRouter);
 
     // ── Extended route sets (v1/v2/v3) ──────────────────────────────────────
     // Mounted AFTER every inline route above so already-working endpoints

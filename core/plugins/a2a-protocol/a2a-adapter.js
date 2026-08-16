@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { AgentIdentity } from './agent-identity.js';
 import { ModelArmor } from './model-armor.js';
 import { GrpcTransport } from './grpc-transport.js';
+import { validateAgentosA2AMessage, emitAgentosA2AEvent } from '../../../src/core/a2a-agentos-policy.js';
 
 class A2AError extends Error {
     constructor(code, message) {
@@ -29,6 +30,7 @@ class A2AProtocolAdapter extends EventEmitter {
             rateLimiting: config.rateLimiting || { requestsPerMinute: 120, burstSize: 20 },
             modelArmor: config.modelArmor || { enabled: true },
             sessionTTL: config.sessionTTL || 3600000,
+            enforceAgentosScope: config.enforceAgentosScope === true,
         };
 
         this.identity = new AgentIdentity(this.config.spiffeID, this.config.mTLS);
@@ -69,6 +71,29 @@ class A2AProtocolAdapter extends EventEmitter {
         }
         if (!this.checkRateLimit(targetAgentSPIFFE)) {
             throw new A2AError('RESOURCE_EXHAUSTED', 'Rate limit exceeded');
+        }
+        const taskEnvelope = this.buildMessageEnvelope({
+            type: 'TASK_REQUEST',
+            sender: this.config.spiffeID,
+            recipient: targetAgentSPIFFE,
+            task,
+            taskId: task.taskId,
+            traceId: task.traceId || crypto.randomUUID()
+        });
+        if (task.agentos || this.config.enforceAgentosScope) {
+            const validation = validateAgentosA2AMessage(taskEnvelope);
+            if (!validation.valid) {
+                throw new A2AError(validation.errors.includes('approval_required') ? 'APPROVAL_REQUIRED' : 'INVALID_ARGUMENT', 'AgentOS task validation failed');
+            }
+            emitAgentosA2AEvent('a2a.task.created', {
+                taskId: task.taskId,
+                tenantId: validation.scope?.tenantId,
+                projectId: validation.scope?.projectId,
+                wbsId: task.agentos?.wbsId,
+                sourceRole: validation.senderRole,
+                targetRole: validation.targetRole,
+                traceId: task.traceId
+            });
         }
         const screenedTask = await this.modelArmor.screenInput(task);
         if (screenedTask.blocked) {
@@ -177,6 +202,22 @@ class A2AProtocolAdapter extends EventEmitter {
             const verifiedMessage = await this.identity.verifyMessage(rawMessage, senderSPIFFE);
             if (!this.isTrustedAgent(senderSPIFFE)) {
                 return await this.buildErrorResponse(`Untrusted agent: ${senderSPIFFE}`, 'PERMISSION_DENIED');
+            }
+            if (verifiedMessage.task?.agentos || this.config.enforceAgentosScope) {
+                const validation = validateAgentosA2AMessage(verifiedMessage);
+                if (!validation.valid) {
+                    const code = validation.errors.includes('approval_required') ? 'APPROVAL_REQUIRED' : 'INVALID_ARGUMENT';
+                    return await this.buildErrorResponse('AgentOS task validation failed', code);
+                }
+                emitAgentosA2AEvent('a2a.task.accepted', {
+                    taskId: validation.taskId,
+                    tenantId: validation.scope?.tenantId,
+                    projectId: validation.scope?.projectId,
+                    wbsId: verifiedMessage.task.agentos.wbsId,
+                    sourceRole: validation.senderRole,
+                    targetRole: validation.targetRole,
+                    traceId: verifiedMessage.traceId
+                });
             }
             const screenedMessage = await this.modelArmor.screenInput(verifiedMessage);
             if (screenedMessage.blocked) {

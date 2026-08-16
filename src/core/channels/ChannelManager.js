@@ -216,10 +216,19 @@ class ChannelManager extends EventEmitter {
         suggestions: result.help ? [result.help] : undefined
       };
     }
+    const payload = result.result || {};
+    const activitySummary = result.metadata?.activitySummary || payload.activitySummary;
+    const activityText = activitySummary?.activityNumbers?.length
+      ? `\n\nActivity: ${activitySummary.activityNumbers.join(', ')}`
+      : '';
     return {
-      text: result.result && result.result.text ? result.result.text : JSON.stringify(result.result),
-      buttons: result.result && result.result.buttons,
-      metadata: result.metadata
+      text: `${payload.text ? payload.text : JSON.stringify(payload)}${activityText}`,
+      buttons: payload.buttons,
+      metadata: {
+        ...result.metadata,
+        activitySummary: activitySummary || undefined,
+        chartSeries: activitySummary?.series || result.metadata?.chartSeries || undefined,
+      }
     };
   }
 

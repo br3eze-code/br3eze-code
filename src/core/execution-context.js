@@ -1,6 +1,7 @@
 import { buildChannelUiPolicy } from './channel-ui-policy.js';
 import { summarizeActionWbs, formatWbsForPrompt } from './action-wbs.js';
 import { normalizeDeviceInfo } from './device-context.js';
+import { resolveAgentRole, getAgentRoleProfile } from './agent-role-profiles.js';
 
 const CHANNEL_ID_FIELDS = {
   telegram: ['from.id', 'chat.id', 'user.id'],
@@ -84,6 +85,8 @@ export function buildExecutionContext(input = {}) {
     platformId,
   ));
   const roles = normalizeRoles(input.roles, input.role, userDoc.roles, userDoc.role);
+  const agentRole = resolveAgentRole(input) || resolveAgentRole(userDoc);
+  const agentProfile = getAgentRoleProfile(agentRole);
   const config = input.config || {};
   const consent = input.consent || userDoc.consent || {};
   const locationPermission = hasLocationPermission(input, userDoc, consent);
@@ -126,6 +129,8 @@ export function buildExecutionContext(input = {}) {
     conversationId: asString(firstValue(input.conversationId, message.conversationId, message.threadId, platformId)),
     roles,
     role: roles[0] || 'user',
+    agentRole,
+    agentProfile,
     tenantId,
     siteId,
     domain,

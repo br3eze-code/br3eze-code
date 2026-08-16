@@ -2,8 +2,12 @@
   "roles": {
     "admin": {
       "label": "Administrator",
-      "tools": ["*"],
-      "routers": ["*"],
+      "tools": [
+        "*"
+      ],
+      "routers": [
+        "*"
+      ],
       "requireApproval": [],
       "limits": {},
       "canManageRoles": true,
@@ -11,43 +15,108 @@
     },
     "operator": {
       "label": "Network Operator",
-      "tools": ["network.read","network.write","surveillance.read","surveillance.write","fleet.read","fleet.write","device.discovery","research.read","assistant.use","identity.manage","commerce.read","commerce.write","system.read","mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
-      "routers": ["*"],
-      "requireApproval": ["system.reboot","mikrotik.firewall.*","mikrotik.ip.route.*"],
-      "limits": {"voucher.create":{"maxDuration":"30day"}},
+      "tools": [
+        "network.read",
+        "network.write",
+        "surveillance.read",
+        "surveillance.write",
+        "fleet.read",
+        "fleet.write",
+        "device.discovery",
+        "research.read",
+        "assistant.use",
+        "identity.manage",
+        "commerce.read",
+        "commerce.write",
+        "system.read",
+        "mikrotik.*",
+        "dahua.*",
+        "agentos.*",
+        "users.active",
+        "user.kick",
+        "voucher.*",
+        "system.stats"
+      ],
+      "routers": [
+        "*"
+      ],
+      "requireApproval": [
+        "system.reboot",
+        "mikrotik.firewall.*",
+        "mikrotik.ip.route.*"
+      ],
+      "limits": {
+        "voucher.create": {
+          "maxDuration": "30day"
+        }
+      },
       "canManageRoles": false,
       "sandbox": false
     },
     "reseller": {
       "label": "Reseller",
-      "tools": ["commerce.read","commerce.write","voucher.create","voucher.list","voucher.revoke","users.active","agentos.voucher.create"],
+      "tools": [
+        "commerce.read",
+        "commerce.write",
+        "voucher.create",
+        "voucher.list",
+        "voucher.revoke",
+        "users.active",
+        "agentos.voucher.create"
+      ],
       "routers": [],
       "requireApproval": [],
-      "limits": {"voucher.create":{"maxDuration":"7day","maxBatch":50}},
+      "limits": {
+        "voucher.create": {
+          "maxDuration": "7day",
+          "maxBatch": 50
+        }
+      },
       "canManageRoles": false,
       "sandbox": false
     },
     "helpdesk": {
       "label": "Help Desk",
-      "tools": ["identity.manage","system.read","commerce.read","users.active","user.kick","system.stats","voucher.list"],
+      "tools": [
+        "identity.manage",
+        "system.read",
+        "commerce.read",
+        "users.active",
+        "user.kick",
+        "system.stats",
+        "voucher.list"
+      ],
       "routers": [],
-      "requireApproval": ["user.kick"],
+      "requireApproval": [
+        "user.kick"
+      ],
       "limits": {},
       "canManageRoles": false,
       "sandbox": false
     },
     "viewer": {
       "label": "Read-Only Viewer",
-      "tools": ["system.read","identity.manage","commerce.read","system.stats","users.active","voucher.list"],
+      "tools": [
+        "system.read",
+        "identity.manage",
+        "commerce.read",
+        "system.stats",
+        "users.active",
+        "voucher.list"
+      ],
       "routers": [],
-      "requireApproval": ["*"],
+      "requireApproval": [
+        "*"
+      ],
       "limits": {},
       "canManageRoles": false,
       "sandbox": false
     },
     "developer": {
       "label": "Developer / Sandbox",
-      "tools": ["*"],
+      "tools": [
+        "*"
+      ],
       "routers": [],
       "requireApproval": [],
       "limits": {},
@@ -56,16 +125,26 @@
     },
     "researcher": {
       "label": "Research Agent",
-      "tools": ["research.*","research.read","assistant.use","language.*"],
+      "tools": [
+        "research.*",
+        "research.read",
+        "assistant.use",
+        "language.*"
+      ],
       "routers": [],
-      "requireApproval": ["research.synthesize","research.zotero.sync"],
+      "requireApproval": [
+        "research.synthesize",
+        "research.zotero.sync"
+      ],
       "limits": {},
       "canManageRoles": false,
       "sandbox": false
     },
     "writer": {
       "label": "Content Writer",
-      "tools": ["language.*"],
+      "tools": [
+        "language.*"
+      ],
       "routers": [],
       "requireApproval": [],
       "limits": {},
@@ -74,10 +153,60 @@
     },
     "user": {
       "label": "End User",
-      "tools": ["commerce.write","research.read","assistant.use","identity.manage","system.read","agentos.voucher.create","agentos.channels.status","system.stats"],
+      "tools": [
+        "commerce.write",
+        "research.read",
+        "assistant.use",
+        "identity.manage",
+        "system.read",
+        "agentos.voucher.create",
+        "agentos.channels.status",
+        "system.stats"
+      ],
       "routers": [],
       "requireApproval": [],
-      "limits": {"agentos.voucher.create":{"maxDuration":"1day","maxBatch":1}},
+      "limits": {
+        "agentos.voucher.create": {
+          "maxDuration": "1day",
+          "maxBatch": 1
+        }
+      },
+      "canManageRoles": false,
+      "sandbox": false
+    },
+    "cashier": {
+      "label": "Cashier",
+      "tools": [
+        "commerce.read",
+        "commerce.sale.create",
+        "commerce.sale.read",
+        "commerce.payment.start",
+        "commerce.payment.read",
+        "commerce.receipt.issue",
+        "commerce.customer.lookup",
+        "commerce.shift.open",
+        "commerce.shift.read",
+        "commerce.cash.movement.create",
+        "voucher.list",
+        "assistant.use",
+        "system.read"
+      ],
+      "routers": [
+        "pos"
+      ],
+      "requireApproval": [
+        "commerce.refund",
+        "commerce.void",
+        "commerce.discount.override",
+        "commerce.cash.movement.large",
+        "commerce.shift.close.with_variance"
+      ],
+      "limits": {
+        "sale.maxAmount": "tenant-configured",
+        "discount.maxPercent": 0,
+        "refund.maxAmountWithoutSupervisor": 0,
+        "cash.movement.maxAmount": "tenant-configured"
+      },
       "canManageRoles": false,
       "sandbox": false
     }

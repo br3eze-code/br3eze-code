@@ -61,6 +61,7 @@ class PaymentGateway {
     };
     
     this.providers = new Map();
+    this.transactionSink = typeof config.transactionSink === 'function' ? config.transactionSink : null;
     this.idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
     this.initializeProviders();
   }
@@ -266,12 +267,21 @@ class PaymentGateway {
    * @param {Object} transaction - Transaction data
    */
   async logTransaction(transaction) {
-    // This would integrate with your existing database
-    // For now, just console log
-    console.log('[Payment Transaction]', {
-      timestamp: new Date().toISOString(),
-        ...safeWebhookBody(transaction)
-      });
+    const record = {
+      id: transaction.transactionId || transaction.reference || createIdempotencyKey(transaction.provider || 'unknown', transaction.reference || Date.now()),
+      type: 'payment_attempt',
+      provider: transaction.provider || null,
+      transactionId: transaction.transactionId || null,
+      reference: transaction.reference || null,
+      status: transaction.status || 'unknown',
+      amount: transaction.amount ?? null,
+      currency: transaction.currency || this.config.defaultCurrency,
+      metadata: safeWebhookBody(transaction),
+      createdAt: new Date().toISOString(),
+    };
+    if (this.transactionSink) await this.transactionSink(record);
+    else console.log('[Payment Transaction]', record);
+    return record;
   }
 }
 

@@ -52,7 +52,7 @@ function agentos_route_catalog(): array
         'GET' => [
             '/health', '/manifest', '/js/env.js', '/api/llm/health', '/api/trends',
             '/api/stats', '/api/token', '/api/memory', '/api/nodes', '/api/v1/nodes',
-            '/api/v1/capabilities', '/api/payment/methods', '/payment/methods', '/billing/methods',
+            '/api/v1/capabilities', '/api/v1/pos/context', '/api/v1/pos/catalog', '/api/v1/pos/shifts/current', '/api/v1/pos/sales/:id', '/api/v1/pos/payments/:id', '/api/payment/methods', '/payment/methods', '/billing/methods',
             '/channels', '/api/channels', '/channels/capabilities', '/api/v1/trends', '/api/v1/tools', '/api/v1/vouchers',
             '/api/v1/vouchers/stats', '/api/v1/analysis/:domain', '/api/v1/channels/telegram/status',
             '/api/v1/print/status', '/api/v1/users/:id/memory', '/api/v1/users/:id/permissions',
@@ -74,7 +74,7 @@ function agentos_route_catalog(): array
             '/api/v1/ask', '/api/v1/print', '/api/v1/proposals/:proposalId/decide',
             '/api/v1/sync', '/api/v1/tasks/:taskId/proposals', '/api/v1/tools', '/api/v1/tools/:tool',
             '/api/v1/users/:id/memory', '/api/v1/users/:id/permissions', '/api/v1/users/kick',
-            '/api/v1/users/sync', '/api/v1/vouchers', '/api/v1/vouchers/pay', '/api/v1/vouchers/redeem',
+            '/api/v1/users/sync', '/api/v1/vouchers', '/api/v1/vouchers/pay', '/api/v1/vouchers/redeem', '/api/v1/pos/shifts/open', '/api/v1/pos/sales', '/api/v1/pos/sales/:id/hold', '/api/v1/pos/sales/:id/recall', '/api/v1/pos/sales/:id/payments', '/api/v1/pos/sales/:id/refund-request', '/api/v1/pos/sales/:id/void-request',
             '/batch/execute', '/billing/payment-link', '/billing/verify', '/billing/webhook', '/cart',
             '/cart/add', '/cart/remove', '/channels', '/channels/:type/send', '/channels/broadcast',
             '/checkout', '/diagnostics/ping-router', '/execute', '/firewall/block', '/notify',

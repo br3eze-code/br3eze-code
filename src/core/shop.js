@@ -182,7 +182,7 @@ async function createShipment(orderId, providerId, scope = {}) {
     const shipment = await getCourierGateway().createShipment(providerId, order, scope);
     const { fs } = await _fs();
     const courier = { provider: providerId, trackingId: shipment.trackingId, status: 'created', createdAt: new Date().toISOString() };
-    await fs.collection('orders').doc(orderId).update({ courier });
+    await fs.collection('orders').doc(orderId).update({ courier, fulfillmentStatus: 'shipment_created', updatedAt: new Date().toISOString() });
     logger.info(`[Shop] Shipment created for order ${orderId} via ${providerId}: ${shipment.trackingId}`);
     return { ...courier, raw: shipment.raw };
 }
@@ -192,7 +192,10 @@ async function trackShipment(orderId, scope = {}) {
     const order = await getOrder(orderId, scope);
     if (!order) throw new Error(`Order ${orderId} not found.`);
     if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
-    return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId, scope);
+    const tracking = await getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId, scope);
+    const fulfillmentStatus = tracking?.status || tracking?.state || order.fulfillmentStatus || 'in_transit';
+    await _fs().then(({ fs }) => fs.collection('orders').doc(orderId).update({ 'courier.status': fulfillmentStatus, fulfillmentStatus, updatedAt: new Date().toISOString() }));
+    return tracking;
 }
 
 // card/cash are recorded as already-settled at time of sale (POS-style — payment
@@ -235,6 +238,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     const number = 'INV-' + Date.now().toString(36).toUpperCase();
     const orderRef = fs.collection('orders').doc();
     const invoiceRef = fs.collection('invoices').doc();
+    const transactionRef = fs.collection('transactions').doc();
 
     await fs.runTransaction(async (tx) => {
         const prod = {};
@@ -264,8 +268,15 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
         tx.set(orderRef, {
             userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope),
             items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod,
+            paymentTransactionId: transactionRef.id,
             shippingAddress: address, billingAddress: address,
-            invoiceId: invoiceRef.id, invoiceNumber: number, createdAt: new Date().toISOString(),
+            invoiceId: invoiceRef.id, invoiceNumber: number, fulfillmentStatus: 'unfulfilled', createdAt: new Date().toISOString(),
+        });
+        tx.set(transactionRef, {
+            id: transactionRef.id, type: 'commerce_order', orderId: orderRef.id, invoiceId: invoiceRef.id,
+            userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope),
+            amount: total, currency: 'USD', paymentMethod: payMethod, status,
+            idempotencyKey: `order:${orderRef.id}`, createdAt: new Date().toISOString(),
         });
         tx.set(invoiceRef, {
             userId: uid || null, orderId: orderRef.id, ...normalizeScope(scope), number,

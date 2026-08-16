@@ -1,6 +1,8 @@
-import { Logger } from '../utils/logger.js';
 import { ToolNotFoundError, SkillDisabledError } from './tool-registry.js';
 import { buildExecutionContext } from './execution-context.js';
+import { attachOnboardingWbs } from './onboarding-wbs.js';
+import { logger as defaultLogger } from './logger.js';
+import { resolveAgentRole, getAgentRoleProfile, isApprovalRequired } from './agent-role-profiles.js';
 
 /**
  * Agent Runtime
@@ -17,15 +19,30 @@ class AgentRuntime {
     this.providerManager = options.providerManager;
     this.safetyEnvelope = options.safetyEnvelope;
     
-    this.logger = new Logger('AgentRuntime');
+    this.logger = options.logger || defaultLogger;
     this.maxIterations = options.maxIterations || 10;
   }
   
   /**
+   * Normalize a user frame and attach the minimal onboarding WBS.
+   * This is intentionally non-mutating and never executes a tool.
+   */
+  _handleUser(frame = {}) {
+    const prepared = attachOnboardingWbs(frame);
+    const agentRole = resolveAgentRole(prepared) || resolveAgentRole(prepared.userDoc || {});
+    return {
+      ...prepared,
+      agentRole,
+      agentProfile: getAgentRoleProfile(agentRole)
+    };
+  }
+
+  /**
    * Main execution loop
    */
   async execute(frame) {
-    const sessionId = this.sessionManager.getSessionId(frame);
+    const preparedFrame = this._handleUser(frame);
+    const sessionId = this.sessionManager.getSessionId(preparedFrame);
     
     this.logger.debug(`Executing for session: ${sessionId}`);
     
@@ -41,13 +58,13 @@ class AgentRuntime {
       : manifest.tools;
 
     // Build system prompt with capabilities
-    const systemPrompt = this.buildSystemPrompt(manifest);
+    const systemPrompt = this.buildSystemPrompt(manifest, preparedFrame);
     
     // Prepare conversation
     const conversation = [
       { role: 'system', content: systemPrompt },
       ...history,
-      { role: 'user', content: frame.content }
+      { role: 'user', content: preparedFrame.content }
     ];
     
     // Execution loop with tool calling
@@ -70,7 +87,7 @@ class AgentRuntime {
         });
         
         // Execute tools
-        const toolResults = await this.executeTools(response.toolCalls, frame);
+        const toolResults = await this.executeTools(response.toolCalls, preparedFrame);
         
         // Add tool results to conversation
         for (const result of toolResults) {
@@ -100,7 +117,7 @@ class AgentRuntime {
     // Persist to memory store for long-term recall
     await this.memoryStore.append(sessionId, {
       timestamp: Date.now(),
-      input: frame.content,
+      input: preparedFrame.content,
       output: finalResponse,
       toolsUsed: conversation.filter(m => m.role === 'tool').length
     });
@@ -164,6 +181,13 @@ class AgentRuntime {
           continue;
         }
         
+        // Professional role approval gate. Approval is explicit and scoped to
+        // this execution context; a role profile never grants permissions.
+        if (ctx.agentRole && isApprovalRequired(ctx.agentRole, toolName) && !ctx.approvalGranted) {
+          results.push({ toolCallId: call.id, result: { error: 'Approval required', approvalRequired: true, agentRole: ctx.agentRole, toolName } });
+          continue;
+        }
+
         // Safety check
         if (!this.safetyEnvelope.checkToolExecution(toolName, call.arguments)) {
           results.push({ toolCallId: call.id, result: { error: 'Blocked by safety envelope' } });
@@ -189,7 +213,7 @@ class AgentRuntime {
   /**
    * Build system prompt with capability manifest
    */
-  buildSystemPrompt(manifest) {
+  buildSystemPrompt(manifest, frame = {}) {
     const toolDescriptions = (manifest?.tools || []).map(tool => {
       // Parameters can be an array or JSON-schema object — handle both
       const paramDefs = Array.isArray(tool.parameters)
@@ -203,7 +227,14 @@ class AgentRuntime {
       return `- ${tool.name}(${params}): ${tool.description || ''}`;
     }).join('\n');
 
-    return `You are AgentOS, an AI assistant that helps manage systems through available tools.
+    const wbsSection = frame.wbsPrompt ? `\n\nCurrent user task plan:\n${frame.wbsPrompt}\nNext action: ${frame.nextAction?.title || 'Await user intent.'}` : '';
+    const profile = frame.agentProfile;
+    const profileSection = profile ? `\n\nProfessional role: ${profile.label} (${profile.role})\nRole mandate: ${profile.description}\nRole capabilities: ${profile.capabilities.join(', ')}\nApproval-required actions: ${profile.approvalRequired.join(', ')}\nRole next action: ${profile.defaultNextAction}` : '';
+    const packages = Array.isArray(frame.workPackages) ? frame.workPackages : [];
+    const workPackageSection = packages.length
+      ? `\n\nRole work packages:\n${packages.map((item) => `- ${item.wbsId}: ${item.title} [${item.status}]${item.requiresApproval ? ' (approval required)' : ''}`).join('\\n')}`
+      : '';
+    return `You are AgentOS, an AI assistant that helps manage systems through available tools.${profileSection}${workPackageSection}${wbsSection}
 
 Available tools:
 ${toolDescriptions}
