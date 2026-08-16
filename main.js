@@ -11,6 +11,9 @@ import _cmd_status from './src/cli/commands/status.js';
 import _cmd_dashboard from './src/cli/commands/dashboard.js';
 import _cmd_skill from './src/cli/commands/skill.js';
 import _cmd_dahua from './src/cli/commands/dahua.js';
+import _cmd_starlink from './src/cli/commands/starlink.js';
+import _cmd_mikrotik from './src/cli/commands/mikrotik.js';
+import _cmd_agent from './src/cli/commands/agent.js';
 import _cmd_shop from './src/cli/commands/shop.js';
 import _cmd_wacli from './src/cli/commands/wacli.js';
 import _cmd_telegram from './src/cli/commands/telegram.js';
@@ -110,6 +113,9 @@ _cmd_status(program);
 _cmd_dashboard(program);
 _cmd_skill(program);
 _cmd_dahua(program);
+_cmd_starlink(program);
+_cmd_mikrotik(program);
+_cmd_agent(program);
 _cmd_shop(program);
 _cmd_wacli(program);
 _cmd_telegram(program);
@@ -194,7 +200,7 @@ program
 // ── Main Logic ────────────────────────────────────────────────────────────────
 const run = async () => {
     // Helper to check if any known command is in argv
-    const commands = program.commands.map(c => c.name());
+    const commands = program.commands.flatMap(c => [c.name(), ...(c.aliases?.() || [])]);
     const hasCommand = process.argv.some(arg => commands.includes(arg));
 
     const isMetaCommand = process.argv.includes('-h') || process.argv.includes('--help') || process.argv.includes('-V') || process.argv.includes('--version');
