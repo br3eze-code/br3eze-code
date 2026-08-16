@@ -215,6 +215,7 @@
     "cordova-android": "^15.0.0",
     "cordova-browser": "^7.0.0",
     "cordova-plugin-aicore": "file:custom-plugins/cordova-plugin-aicore",
+    "cordova-plugin-network-tools": "file:custom-plugins/cordova-plugin-network-tools",
     "cordova-plugin-android-permissions": "^1.1.5",
     "cordova-plugin-camera": "^8.0.0",
     "cordova-plugin-device": "^3.0.0",

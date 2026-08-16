@@ -1,4 +1,8 @@
 import TelegramBot from 'node-telegram-bot-api';
+import StarlinkAdapter from '../../services/starlink/starlink-adapter.mjs';
+import TieredAccessControl from '../../services/admin/tiered-access.mjs';
+import InnbucksAdapter from '../../services/payments/innbucks.mjs';
+import { registerStarlinkInnbucksCommands } from '../../adapters/telegram-starlink-innbucks.mjs';
 import https from 'https';
 import fs from 'fs';
 import path from 'path';
@@ -104,6 +108,18 @@ class TelegramChannel extends BaseChannel {
 
         logger.info('TelegramChannel: constructed');
         global.agentosbot = this.bot;
+
+        // Optional Starlink/payment command surface. Services may be injected by AgentOS;
+        // otherwise they remain unconfigured until the corresponding environment is set.
+        const services = agent?.services || {};
+        this.starlink = services.starlink || new StarlinkAdapter(config.starlink || {});
+        this.rbac = services.rbac || new TieredAccessControl({ auditSink: (event) => logger.audit?.('access_decision', event) });
+        this.innbucks = services.innbucks || new InnbucksAdapter(config.payments?.innbucks || {});
+        if (this.starlink && this.rbac && this.innbucks) {
+            registerStarlinkInnbucksCommands(this.bot, this.starlink, this.rbac, this.innbucks, {
+                resolveUserId: (msg) => String(msg.from?.id || msg.chat?.id || 'unknown')
+            });
+        }
     }
 
     // ── BaseChannel contract ─────────────────────────────────────────────────

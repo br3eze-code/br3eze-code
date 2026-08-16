@@ -128,6 +128,7 @@
         </platform>
 
             <!-- NETWORK TOOLS -->
+        <plugin name="cordova-plugin-network-tools" spec="file:custom-plugins/cordova-plugin-network-tools" />
         <plugin name="community-cordova-plugin-wifi-wizard" spec="^3.4.0" />
     <plugin name="cordova-plugin-oauth" />
     <plugin name="cordova-plugin-contacts" />

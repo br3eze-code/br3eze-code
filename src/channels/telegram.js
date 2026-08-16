@@ -12,15 +12,18 @@ const require = createRequire(import.meta.url);
 class TelegramChannel extends EventEmitter {
   constructor(token, askEngine, options = {}) {
     super();
-    
+
     if (!token || !/^[\d]+:[A-Za-z0-9_-]{35,}$/.test(token)) {
       throw new Error('Invalid Telegram bot token format');
     }
 
     this.askEngine = askEngine;
+    this.mesh = options.meshRegistry || options.mikrotikMeshRegistry || null;
+    this.meshContext = options.meshContext || ((chatId) => ({ tenantId: undefined, authorizedSiteIds: [], userId: chatId, channel: 'telegram' }));
+    this.meshCallbackTokens = new Map();
     this.messageCache = new Map();
     this.userSessions = new Map(); // Track user state for multi-step commands
-    
+
     // Secure bot configuration
     this.bot = new TelegramBot(token, {
       polling: {
@@ -45,7 +48,7 @@ class TelegramChannel extends EventEmitter {
 
     this._setupHandlers();
     this._startCacheCleanup();
-    
+
     // Rate limiting per chat
     this.rateLimiter = new Map();
   }
@@ -54,15 +57,16 @@ class TelegramChannel extends EventEmitter {
     // Command handlers with validation
     this.bot.onText(/\/start/, this._handleRateLimit(this._handleStart.bind(this)));
     this.bot.onText(/\/users/, this._handleRateLimit(this._handleUsers.bind(this)));
+    this.bot.onText(/\/sites/, this._handleRateLimit(this._handleMeshSites.bind(this)));
     this.bot.onText(/\/voucher (\w+)/, this._handleRateLimit(this._handleVoucher.bind(this)));
     this.bot.onText(/\/reboot/, this._handleRateLimit(this._handleReboot.bind(this)));
-    
+
     // Callback queries for inline keyboards
     this.bot.on('callback_query', this._handleRateLimit(this._handleCallback.bind(this)));
-    
+
     // Natural language processing
     this.bot.on('message', this._handleRateLimit(this._handleNaturalLanguage.bind(this)));
-    
+
     // Error handling
     this.bot.on('error', (error) => {
       logger.error('Telegram bot error:', error);
@@ -82,7 +86,7 @@ class TelegramChannel extends EventEmitter {
     return async (msg, match) => {
       const chatId = msg.chat.id;
       const now = Date.now();
-      
+
       if (!this.rateLimiter.has(chatId)) {
         this.rateLimiter.set(chatId, { count: 1, resetTime: now + 60000 });
       } else {
@@ -97,7 +101,7 @@ class TelegramChannel extends EventEmitter {
           }
         }
       }
-      
+
       try {
         await fn(msg, match);
       } catch (error) {
@@ -110,9 +114,9 @@ class TelegramChannel extends EventEmitter {
   async _handleStart(msg) {
     const chatId = msg.chat.id;
     const username = msg.from.username || msg.from.first_name;
-    
+
     logger.audit('telegram_start', { chatId, username });
-    
+
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
@@ -136,20 +140,20 @@ class TelegramChannel extends EventEmitter {
       chatId,
       `🤖 *AgentOS Control Panel*\n\n` +
       `Welcome, ${username}! I'm your network intelligence assistant.\n\n` +
-      `Select an action below or type naturally (e.g., "kick john" or "create 1 hour voucher"):`, 
+      `Select an action below or type naturally (e.g., "kick john" or "create 1 hour voucher"):`,
       { ...keyboard, parse_mode: 'Markdown' }
     );
   }
 
   async _handleUsers(msg) {
     const chatId = msg.chat.id;
-    
+
     try {
       const { getManager } = require('../core/mikrotik');
       const mt = getManager();
-      
+
       const activeUsers = await mt.getActiveUsers();
-      
+
       if (activeUsers.length === 0) {
         return this.bot.sendMessage(chatId, '👥 No active users');
       }
@@ -161,19 +165,19 @@ class TelegramChannel extends EventEmitter {
         const name = user.user || user.name || 'Unknown';
         const ip = user.address;
         const uptime = user.uptime || 'N/A';
-        
+
         message += `${index + 1}. *${name}* - ${ip} (${uptime})\n`;
-        
+
         keyboard.reply_markup.inline_keyboard.push([
           { text: `❌ Kick ${name}`, callback_data: `kick_${name}` }
         ]);
       });
 
-      await this.bot.sendMessage(chatId, message, { 
-        ...keyboard, 
-        parse_mode: 'Markdown' 
+      await this.bot.sendMessage(chatId, message, {
+        ...keyboard,
+        parse_mode: 'Markdown'
       });
-      
+
     } catch (error) {
       logger.error('Failed to get users:', error);
       this.bot.sendMessage(chatId, '❌ Failed to fetch users');
@@ -183,10 +187,10 @@ class TelegramChannel extends EventEmitter {
   async _handleVoucher(msg, match) {
     const chatId = msg.chat.id;
     const plan = match[1];
-    
+
     // Delegate to AI engine for validation and creation
     const result = await this.askEngine.processCommand('voucher.create', { plan, chatId });
-    
+
     if (result.success) {
       const qrCode = result.qrCode; // Base64 QR
       await this.bot.sendPhoto(chatId, Buffer.from(qrCode, 'base64'), {
@@ -204,10 +208,10 @@ class TelegramChannel extends EventEmitter {
 
   async _handleReboot(msg) {
     const chatId = msg.chat.id;
-    
+
     // Confirmation flow
     this.userSessions.set(chatId, { action: 'awaiting_reboot_confirm' });
-    
+
     await this.bot.sendMessage(
       chatId,
       '⚠️ *Confirm System Reboot?*\n\nReply with YES to proceed.',
@@ -218,30 +222,120 @@ class TelegramChannel extends EventEmitter {
   async _handleCallback(query) {
     const chatId = query.message.chat.id;
     const data = query.data;
-    
+
     // Answer callback immediately to remove loading state
     await this.bot.answerCallbackQuery(query.id);
-    
+
     if (data.startsWith('kick_')) {
       const username = data.replace('kick_', '');
       const result = await this.askEngine.processCommand('user.kick', { username });
-      
+
       await this.bot.sendMessage(
         chatId,
-        result.success 
-          ? `✅ User *${username}* disconnected` 
+        result.success
+          ? `✅ User *${username}* disconnected`
           : `❌ Failed to kick ${username}`,
         { parse_mode: 'Markdown' }
       );
     } else if (data === 'dashboard') {
       await this._sendDashboard(chatId);
+    } else if (data === 'network_menu' || data === 'mesh:sites') {
+      await this._handleMeshSites({ chat: { id: chatId } });
+    } else if (data.startsWith('mesh:site:')) {
+      await this._handleMeshSiteSelection(chatId, data.slice('mesh:site:'.length));
+    } else if (data.startsWith('mesh:health:')) {
+      await this._handleMeshHealth(chatId, data.slice('mesh:health:'.length));
+    } else if (data === 'mesh:fleet-health') {
+      await this._handleMeshFleetHealth(chatId);
     }
+  }
+
+  _meshToken(siteId) {
+    const token = `m${Buffer.from(String(siteId)).toString('base64url').slice(0, 24)}`;
+    this.meshCallbackTokens.set(token, { siteId: String(siteId), expiresAt: Date.now() + 300000 });
+    return token;
+  }
+
+  _resolveMeshSite(token) {
+    const entry = this.meshCallbackTokens.get(token);
+    if (!entry || entry.expiresAt < Date.now()) {
+      this.meshCallbackTokens.delete(token);
+      return null;
+    }
+    return entry.siteId;
+  }
+
+  _meshContext(chatId) {
+    const context = typeof this.meshContext === 'function' ? this.meshContext(chatId) : {};
+    return { ...context, userId: context.userId || chatId, channel: 'telegram' };
+  }
+
+  async _handleMeshSites(msg) {
+    const chatId = msg.chat.id;
+    if (!this.mesh) return this.bot.sendMessage(chatId, '📡 Mesh access is not configured for this bot.');
+    const context = this._meshContext(chatId);
+    const sites = this.mesh.list({ tenantId: context.tenantId }).filter((site) =>
+      !context.authorizedSiteIds?.length || context.authorizedSiteIds.includes(site.id));
+    if (!sites.length) return this.bot.sendMessage(chatId, '📡 No authorized MikroTik sites are available.');
+    const keyboard = sites.map((site) => [{
+      text: `${site.status === 'online' ? '🟢' : '⚪'} ${site.name}`,
+      callback_data: `mesh:site:${this._meshToken(site.id)}`,
+    }]);
+    keyboard.push([{ text: '📊 Fleet health', callback_data: 'mesh:fleet-health' }]);
+    return this.bot.sendMessage(chatId, '📡 *Select a MikroTik site:*', {
+      parse_mode: 'Markdown', reply_markup: { inline_keyboard: keyboard },
+    });
+  }
+
+  async _handleMeshSiteSelection(chatId, token) {
+    if (!this.mesh) return this.bot.sendMessage(chatId, '📡 Mesh access is not configured.');
+    const siteId = this._resolveMeshSite(token);
+    if (!siteId) return this.bot.sendMessage(chatId, '⚠️ This site button expired. Use /sites again.');
+    const context = this._meshContext(chatId);
+    if (context.authorizedSiteIds?.length && !context.authorizedSiteIds.includes(siteId)) {
+      return this.bot.sendMessage(chatId, '⛔ You are not authorized for this site.');
+    }
+    this.userSessions.set(chatId, { action: 'mesh_site_selected', siteId, expiresAt: Date.now() + 300000 });
+    const site = this.mesh.describe(siteId);
+    return this.bot.sendMessage(chatId, `📡 *${site?.name || siteId}*\nChoose an operation:`, {
+      parse_mode: 'Markdown', reply_markup: { inline_keyboard: [
+        [{ text: '✅ Health', callback_data: `mesh:health:${this._meshToken(siteId)}` }],
+        [{ text: '↩ Sites', callback_data: 'mesh:sites' }],
+      ] },
+    });
+  }
+
+  async _handleMeshHealth(chatId, token) {
+    const siteId = this._resolveMeshSite(token);
+    if (!siteId) return this.bot.sendMessage(chatId, '⚠️ This health button expired. Use /sites again.');
+    const context = this._meshContext(chatId);
+    try {
+      const result = await this.mesh.health([siteId], context);
+      return this.bot.sendMessage(chatId, `📊 *${siteId}*\n\n\`${this._safeTelegramJson(result[0])}\``, { parse_mode: 'Markdown' });
+    } catch (error) {
+      return this.bot.sendMessage(chatId, `❌ Mesh health check failed: ${error.message}`);
+    }
+  }
+
+  async _handleMeshFleetHealth(chatId) {
+    if (!this.mesh) return this.bot.sendMessage(chatId, '📡 Mesh access is not configured.');
+    const context = this._meshContext(chatId);
+    try {
+      const results = await this.mesh.health(context.authorizedSiteIds, context);
+      return this.bot.sendMessage(chatId, `📊 *Fleet health*\n\n\`${this._safeTelegramJson(results)}\``, { parse_mode: 'Markdown' });
+    } catch (error) {
+      return this.bot.sendMessage(chatId, `❌ Fleet health check failed: ${error.message}`);
+    }
+  }
+
+  _safeTelegramJson(value) {
+    return JSON.stringify(value).replace(/[`\\\\]/g, '\\$&').slice(0, 3500);
   }
 
   async _handleNaturalLanguage(msg) {
     if (!msg.text || msg.text.startsWith('/')) return;
     const chatId = msg.chat.id;
-    
+
     // Check for confirmation responses
     const session = this.userSessions.get(chatId);
     if (session?.action === 'awaiting_reboot_confirm') {
@@ -258,18 +352,18 @@ class TelegramChannel extends EventEmitter {
 
     // Process through AI
     const typing = setInterval(() => this.bot.sendChatAction(chatId, 'typing'), 3000);
-    
+
     try {
       const result = await this.askEngine.processQuery(msg.text, {
         context: 'telegram',
         userId: chatId,
         username: msg.from.username
       });
-      
+
       clearInterval(typing);
-      
+
       if (result.response) {
-        await this.bot.sendMessage(chatId, result.response, { 
+        await this.bot.sendMessage(chatId, result.response, {
           parse_mode: 'Markdown',
           reply_markup: result.suggestions ? {
             inline_keyboard: result.suggestions.map(s => [{ text: s, callback_data: s }])
@@ -288,14 +382,14 @@ class TelegramChannel extends EventEmitter {
       const { getManager } = require('../core/mikrotik');
       const mt = getManager();
       const stats = await mt.getSystemStats();
-      
+
       const message = `📊 *System Stats*\n\n` +
         `CPU: ${stats['cpu-load']}%\n` +
         `Uptime: ${stats.uptime}\n` +
         `Version: ${stats.version}\n` +
         `Memory: ${stats['memory-usage-percent']}%\n` +
         `Board: ${stats['board-name']}`;
-      
+
       await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     } catch (error) {
       this.bot.sendMessage(chatId, '❌ Failed to fetch stats');
@@ -309,6 +403,9 @@ class TelegramChannel extends EventEmitter {
         if (now - value.timestamp > 300000) { // 5 min expiry
           this.messageCache.delete(key);
         }
+      }
+      for (const [token, value] of this.meshCallbackTokens.entries()) {
+        if (value.expiresAt < now) this.meshCallbackTokens.delete(token);
       }
     }, 60000);
   }

@@ -57,6 +57,20 @@ const DEFAULT_CONFIG = {
         allowedChats: [],
         botUsername: 'AgentOSBot'
     },
+    starlink: {
+        clientId: process.env.STARLINK_CLIENT_ID || '',
+        clientSecret: process.env.STARLINK_CLIENT_SECRET || '',
+        baseUrl: process.env.STARLINK_API_BASE_URL || '',
+        localProxyUrl: process.env.STARLINK_LOCAL_PROXY_URL || ''
+    },
+    payments: {
+        innbucks: {
+            mode: process.env.INNBUCKS_MODE || 'paynow',
+            baseUrl: process.env.INNBUCKS_BASE_URL || process.env.PAYNOW_BASE_URL || '',
+            integrationId: process.env.PAYNOW_INTEGRATION_ID || '',
+            integrationKey: process.env.PAYNOW_INTEGRATION_KEY || ''
+        }
+    },
     gateway: {
         port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
         host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',

@@ -2,9 +2,20 @@
 /* global cordova */
 'use strict';
 
-const exec = require('cordova/exec');
+let exec;
 
-const isCordova = () => typeof cordova !== 'undefined' && typeof exec === 'function';
+const getExec = () => {
+  if (exec) return exec;
+  if (typeof cordova === 'undefined') return null;
+  try {
+    exec = require('cordova/exec');
+  } catch (_) {
+    exec = null;
+  }
+  return exec;
+};
+
+const isCordova = () => typeof cordova !== 'undefined' && typeof getExec() === 'function';
 
 const invoke = (action, payload = {}) => {
   if (!isCordova()) {
@@ -17,7 +28,7 @@ const invoke = (action, payload = {}) => {
   }
 
   return new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AgentOSNetworkTools', action, [payload]);
+    getExec()(resolve, reject, 'AgentOSNetworkTools', action, [payload]);
   });
 };
 
