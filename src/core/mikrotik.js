@@ -2061,11 +2061,21 @@ async function testConnection(config = null) {
         return { success: false, message: error.message, code: error.code || 'UNKNOWN_ERROR' };
     } finally {
         if (timer) clearTimeout(timer);
-        if (conn) {
-            try { if (conn.close) conn.close(); } catch (_) { }
+        try {
+            // RouterOSAPI.close() is a no-op while connect() is still pending.
+            // Destroy the underlying connector as a final cancellation fallback
+            // so timed-out probes cannot keep a TCP handle alive.
+            if (client?.close) await client.close();
+        } catch (_) {
+            // Cleanup is best-effort; preserve the probe result above.
         }
-        if (client) {
-            try { if (client.close) client.close(); } catch (_) { }
+        try {
+            client?.rosApi?.connector?.destroy?.();
+        } catch (_) {
+            // The connector is an internal dependency detail and may not exist.
+        }
+        if (conn && conn !== client) {
+            try { if (conn.close) await conn.close(); } catch (_) { }
         }
     }
 }
