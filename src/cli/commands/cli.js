@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import React from 'react';
+import { render, Text, Box, useInput } from 'ink';
+import { getConfig } from '../../core/config.js';
 
 export default (program) => {
     program
@@ -11,7 +11,6 @@ export default (program) => {
         .option('--port <port>', 'Gateway port', '19876')
         .option('--token <token>', 'Authentication token')
         .action(async (options) => {
-            const { getConfig } = require('../../core/config');
             const config = getConfig();
             const token = options.token || config.gateway?.token || process.env.GATEWAY_TOKEN;
             const port = options.port || config.gateway?.port || 19876;
@@ -20,9 +19,6 @@ export default (program) => {
             const wsUrl = `ws://${host}:${port}/ws`;
             
             // Start the Ink React App
-            const React = require('react');
-            const { render, Text, Box, useInput } = await import('ink');
-            
             const App = () => {
                 const [messages, setMessages] = React.useState([
                     { type: 'info', text: 'Welcome to AgentOS Interactive CLI!' },
@@ -33,6 +29,8 @@ export default (program) => {
                 const [cursorPos, setCursorPos] = React.useState(0);
                 const [history, setHistory] = React.useState([]);
                 const [historyIndex, setHistoryIndex] = React.useState(-1);
+                const [status, setStatus] = React.useState('idle');
+                const [lastError, setLastError] = React.useState('');
                 const wsRef = React.useRef(null);
                 
                 React.useEffect(() => {
@@ -62,6 +60,11 @@ export default (program) => {
                                     setMessages(prev => [...prev, { type: 'table', title: payload.title, data: payload.data }]);
                                 } else {
                                     const text = payload.text || payload.message || payload.result || payload.content || '';
+                                    if (payload.type === 'executing' || payload.type === 'thinking') setStatus(payload.type);
+                                    else if (payload.type === 'approval' || payload.type === 'confirm') setStatus('approval');
+                                    else if (payload.type === 'cancelled') setStatus('cancelled');
+                                    else if (payload.type === 'error') { setStatus('error'); setLastError(text); }
+                                    else if (payload.type === 'prompt' || payload.type === 'ai_response' || payload.type === 'success') setStatus('idle');
                                     if (text) {
                                         setMessages(prev => [...prev, { type: payload.type || 'text', text }]);
                                     }
@@ -79,6 +82,11 @@ export default (program) => {
                 }, []);
                 
                 useInput((char, key) => {
+                    if (key.escape || (key.ctrl && char === 'c')) {
+                        if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify({ type: 'cli.input', input: '\u0003' }));
+                        setStatus('cancelled');
+                        return;
+                    }
                     if (key.return) {
                         const trimmed = input.trim();
                         if (trimmed) {
@@ -171,10 +179,13 @@ export default (program) => {
                         })
                     ),
                     
-                    // Input prompt
-                    React.createElement(Box, null,
-                        React.createElement(Text, { color: 'green', bold: true }, connected ? 'AgentOS> ' : 'Connecting... '),
-                        React.createElement(Text, {}, input)
+                    // Input prompt and state bar
+                    React.createElement(Box, { flexDirection: 'column' },
+                        React.createElement(Text, { dimColor: true }, `status: ${status}${lastError ? ` — ${lastError}` : ''}  |  Enter submit  Esc/Ctrl+C cancel  ↑↓ history  /back`),
+                        React.createElement(Box, null,
+                            React.createElement(Text, { color: 'green', bold: true }, connected ? 'AgentOS> ' : 'Connecting... '),
+                            React.createElement(Text, {}, input)
+                        )
                     )
                 );
             };

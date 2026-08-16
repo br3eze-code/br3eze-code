@@ -3,6 +3,12 @@ import path from 'path';
 import http from 'http';
 import { logger } from '../../core/logger.js';
 import readline from 'readline';
+import {
+    createAbortController,
+    createQueuedRepl,
+    formatAgentResult,
+    createTerminalSpinner
+} from '../terminal-session.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -14,7 +20,7 @@ const require = createRequire(import.meta.url);
 // falls back to a standalone one-shot AskEngine otherwise.
 // ==========================================
 
-function postJSON({ host, port, token }, body) {
+function postJSON({ host, port, token }, body, { signal } = {}) {
     return new Promise((resolve, reject) => {
         const data = JSON.stringify(body);
         const req = http.request({
@@ -44,6 +50,10 @@ function postJSON({ host, port, token }, body) {
         });
         req.on('error', reject);
         req.on('timeout', () => req.destroy(new Error('Gateway request timed out')));
+        if (signal) {
+            if (signal.aborted) req.destroy(signal.reason || new Error('Operation cancelled by user'));
+            else signal.addEventListener('abort', () => req.destroy(signal.reason || new Error('Operation cancelled by user')), { once: true });
+        }
         req.write(data);
         req.end();
     });
@@ -62,7 +72,7 @@ function gatewayIsRunning(stateDir) {
 }
 
 /** Standalone, gateway-less one-shot AskEngine — used when no gateway is running. */
-async function runStandalone(prompt, { stream }) {
+async function runStandalone(prompt, { stream, signal }) {
     const { getManager: getMikroTik } = require('../../core/mikrotik');
     const { getDatabase } = require('../../core/database');
     const { getConfig } = require('../../core/config');
@@ -106,7 +116,7 @@ async function runStandalone(prompt, { stream }) {
     });
 
     if (stream) {
-        for await (const ev of askEngine.stream(prompt)) {
+        for await (const ev of askEngine.stream(prompt, { signal })) {
             if (ev.type === 'text' && ev.delta) process.stdout.write(ev.delta);
             else if (ev.type === 'error') process.stderr.write(`\n[error] ${ev.message}\n`);
         }
@@ -118,32 +128,11 @@ async function runStandalone(prompt, { stream }) {
 }
 
 function startRepl(dispatch, { json }) {
-    console.log('AgentOS interactive ask — type a message and press Enter. Ctrl+C or "exit" to quit.\n');
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: '› ' });
-    rl.prompt();
-
-    rl.on('line', async (line) => {
-        const prompt = line.trim();
-        if (!prompt) { rl.prompt(); return; }
-        if (['exit', 'quit', ':q'].includes(prompt.toLowerCase())) { rl.close(); return; }
-
-        try {
-            const result = await dispatch(prompt);
-            if (json) {
-                console.log(JSON.stringify(result, null, 2));
-            } else {
-                console.log(typeof result?.result === 'string' ? result.result : JSON.stringify(result?.result, null, 2));
-            }
-        } catch (err) {
-            console.error(`error: ${err.message}`);
-        }
-        console.log('');
-        rl.prompt();
-    });
-
-    rl.on('close', () => {
-        console.log('\nGoodbye.');
-        process.exit(0);
+    console.log('AgentOS interactive ask — Enter submits, Ctrl+J inserts a newline, Ctrl+C cancels, /back returns, /exit quits.\n');
+    return createQueuedRepl({
+        dispatch,
+        json,
+        renderResult: (result, options) => formatAgentResult(result, options)
     });
 }
 
@@ -168,9 +157,9 @@ export default (program) => {
             const port = options.port || config.gateway?.port || 19876;
             const usingGateway = STATE_PATH && gatewayIsRunning(STATE_PATH);
 
-            const dispatch = (p) => usingGateway
-                ? postJSON({ host: config.gateway?.host, port, token: config.gateway?.token }, { prompt: p, stream: false })
-                : runStandalone(p, { stream: false });
+            const dispatch = (p, { signal } = {}) => usingGateway
+                ? postJSON({ host: config.gateway?.host, port, token: config.gateway?.token }, { prompt: p, stream: false }, { signal })
+                : runStandalone(p, { stream: false, signal });
 
             if (!prompt.trim()) {
                 if (!process.stdin.isTTY) {
@@ -193,7 +182,11 @@ export default (program) => {
                         console.log(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2));
                     }
                 } else {
-                    const result = await runStandalone(prompt, { stream: !!options.stream });
+                    const controller = createAbortController();
+                    const spinner = options.stream ? null : createTerminalSpinner('AgentOS is working');
+                    const result = await runStandalone(prompt, { stream: !!options.stream, signal: controller.signal });
+                    spinner?.stop('success', 'AgentOS completed');
+                    controller.dispose();
                     if (result) {
                         if (options.json) {
                             console.log(JSON.stringify(result, null, 2));

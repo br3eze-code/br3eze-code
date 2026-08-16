@@ -48,24 +48,37 @@ const TerminalAnimator = {
         const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
         let i = 0;
         let msg = message;
-        process.stdout.write('\x1b[?25l'); // Hide cursor
+        const interactive = Boolean(process.stdout.isTTY && !process.env.NO_COLOR && !process.env.AGENTOS_PLAIN);
+        let stopped = false;
 
-        const interval = setInterval(() => {
-            process.stdout.write(`\r  ${A.CYBER_PURPLE}${frames[i % frames.length]}${A.RESET} ${msg}`);
+        const render = () => {
+            if (!interactive || stopped) return;
+            process.stdout.write(`\r\x1b[K  ${A.CYBER_PURPLE}${frames[i % frames.length]}${A.RESET} ${msg}`);
             i++;
-        }, 80);
+        };
+
+        if (interactive) {
+            process.stdout.write('\x1b[?25l');
+            render();
+        } else {
+            process.stdout.write(`[working] ${msg}\n`);
+        }
+        const interval = interactive ? setInterval(render, 80) : null;
+        interval?.unref?.();
 
         return {
-            update: (newMsg) => { msg = newMsg; },
+            update: (newMsg) => { msg = newMsg; render(); },
             stop: (success = true) => {
-                clearInterval(interval);
-                process.stdout.write('\r\x1b[K'); // Clear line
-                if (success) {
-                    logger.success(msg);
+                if (stopped) return;
+                stopped = true;
+                if (interval) clearInterval(interval);
+                const marker = success ? '✓' : '✗';
+                if (interactive) {
+                    process.stdout.write(`\r\x1b[K  ${success ? A.SUCCESS : A.ERROR}${marker}${A.RESET} ${msg}\n`);
+                    process.stdout.write('\x1b[?25h');
                 } else {
-                    logger.error(msg);
+                    process.stdout.write(`[${success ? 'success' : 'error'}] ${msg}\n`);
                 }
-                process.stdout.write('\x1b[?25h'); // Show cursor
             }
         };
     },
