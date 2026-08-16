@@ -52,7 +52,7 @@ export function buildChannelUiPolicy(context = {}) {
     : ['help', 'context.show', 'context.clear'];
 
   if (!restricted) {
-    actions.push('research.deep_search', 'assist.task');
+    actions.push('research.deep_search', 'assist.task', 'assist.next_action');
     if (can('network.read') || can('surveillance.read') || can('fleet.read')) {
       actions.push('network.suggest');
     }

@@ -19,6 +19,18 @@ const TEMPLATES = Object.freeze({
     ['execute', 'Execute only authorized, approved actions'],
     ['verify', 'Verify results and report remaining work']
   ],
+  'assist.next_action': [
+    ['observe', 'Read the current authorized task and WBS state'],
+    ['propose', 'Propose one safe next action with evidence'],
+    ['confirm', 'Ask for clarification or approval when required'],
+    ['execute', 'Execute only the approved action'],
+    ['verify', 'Verify the result and update task progress']
+  ],
+  'assist.clarify': [
+    ['scope', 'Identify the missing scope or intent field'],
+    ['ask', 'Ask one bounded clarification question'],
+    ['resume', 'Resume the authorized task after the answer']
+  ],
   'network.user.kick': [
     ['scope', 'Resolve the authorized tenant, site, domain, and target user'],
     ['confirm', 'Confirm the destructive network operation'],

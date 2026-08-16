@@ -6,6 +6,12 @@ const ACTIONS = Object.freeze({
   'context.clear': { label: 'Clear context', prompt: 'Clear only my current conversation context.' },
   'research.deep_search': { label: 'Deep search', prompt: null },
   'assist.task': { label: 'Assist with a task', prompt: null },
+  'assist.next_action': { label: 'Suggest next step', prompt: 'Suggest the safest next step for my current task.' },
+  'assist.continue': { label: 'Continue task', prompt: 'Continue the current authorized task.' },
+  'assist.clarify': { label: 'Clarify task', prompt: 'Ask me only the most important clarification needed to continue.' },
+  'assist.prepare': { label: 'Prepare preview', prompt: 'Prepare a read-only preview of the next step.' },
+  'assist.approve': { label: 'Approve action', prompt: null },
+  'assist.verify': { label: 'Verify result', prompt: 'Verify the current task result and update progress.' },
   'network.suggest': { label: 'Network suggestions', prompt: 'Suggest safe network actions for my current authorized scope.' },
   'device.nearby.discover': { label: 'Nearby devices', prompt: 'Discover nearby devices within my authorized scope.' },
   'operations.status': { label: 'Operations status', prompt: 'Show operations status for my authorized scope.' },
@@ -16,6 +22,8 @@ const ACTIONS = Object.freeze({
   'game.start': { label: 'Start a game', prompt: 'Start an AgentOS game.' },
   'practice.explain': { label: 'Explain mode', prompt: 'Explain the next action before taking it.' },
   'practice.simulate': { label: 'Simulation mode', prompt: 'Simulate the requested action without changing anything.' },
+  'assist.snooze': { label: 'Snooze suggestion', prompt: null },
+  'assist.dismiss': { label: 'Dismiss suggestion', prompt: null },
   'network.user.kick': { label: 'Kick network user', prompt: null },
   'network.user.disable': { label: 'Disable network user', prompt: null },
 });
@@ -29,6 +37,17 @@ export function buildActionManifest(context = {}) {
   return policy.actions
     .filter((action) => canRenderAction(policy, action))
     .map((action) => ({ action, ...getActionDefinition(action) }));
+}
+
+export function buildProposalManifest(proposal = {}, context = {}) {
+  const policy = context.uiPolicy || buildChannelUiPolicy(context);
+  if (!proposal?.valid || !proposal?.candidates?.length || policy.restricted) return [];
+  const top = proposal.candidates[0];
+  const actions = ['assist.continue', 'assist.clarify'];
+  if (top.requiresApproval) actions.push('assist.approve');
+  actions.push('assist.snooze', 'assist.dismiss');
+  return actions.filter((action) => ['assist.continue', 'assist.clarify', 'assist.snooze', 'assist.dismiss'].includes(action) || canRenderAction(policy, action))
+    .map((action) => ({ action, ...getActionDefinition(action), proposalId: proposal.proposalId }));
 }
 
 export function actionPrompt(action, query = '') {
@@ -51,4 +70,4 @@ export function parseActionCallback(value) {
   }
 }
 
-export default { buildActionManifest, getActionDefinition, actionPrompt, actionCallback, parseActionCallback };
+export default { buildActionManifest, buildProposalManifest, getActionDefinition, actionPrompt, actionCallback, parseActionCallback };

@@ -1,0 +1,44 @@
+[Unit]
+Description=AgentOS Gateway (%i profile)
+Documentation=https://github.com/br3eze-code/br3eze-code
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=%h/.agentos-%i/app
+EnvironmentFile=-%h/.agentos-%i/app/.env
+Environment=NODE_ENV=production
+Environment=AGENTOS_PROFILE=%i
+ExecStart=%h/.local/bin/agentos gateway
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.agentos-%i
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+UMask=0077
+
+[Install]
+WantedBy=default.target
+
+# Install as a user service (no sudo):
+#   mkdir -p ~/.config/systemd/user
+#   cp systemd/agentos-gateway@.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now agentos-gateway@default.service
+#
+# The default profile uses the non-instanced unit and ~/.agentos/app.
+# Named profiles use ~/.agentos-<profile>/app and this template.

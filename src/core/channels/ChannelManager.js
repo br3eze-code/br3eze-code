@@ -3,6 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
+import { getTaskRegistry } from '../taskRegistry.js';
+import { evaluateProactiveNotification } from '../proactive-policy.js';
+import { buildProposalManifest } from '../channel-action-manifest.js';
+import ProactiveTelemetry from '../proactive-telemetry.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -18,7 +22,56 @@ class ChannelManager extends EventEmitter {
     super();
     this.agent = agent;
     this.channels = new Map();
+    this.proactiveTelemetry = agent?.services?.proactiveTelemetry || new ProactiveTelemetry();
+    this._proposalEventHandlers = [];
     this._loadAdapters();
+    this._wireProposalNotifications();
+  }
+
+  _wireProposalNotifications() {
+    const registry = getTaskRegistry();
+    const onProposal = (task) => {
+      void this._notifyProposal(task).catch((error) => {
+        logger.warn(`ChannelManager: proposal notification failed: ${error.message}`);
+      });
+    };
+    registry.on('task:created', onProposal);
+    registry.on('task:wbs-updated', onProposal);
+    this._proposalEventHandlers = [
+      ['task:created', onProposal],
+      ['task:wbs-updated', onProposal],
+    ];
+  }
+
+  async _notifyProposal(task) {
+    const proposal = task?.nextActionProposal;
+    const context = task?.planningContext || task?.scope || {};
+    const channelType = task?.scope?.channel || context.channel;
+    const userId = task?.scope?.userId || context.userId;
+    if (!proposal?.valid || !channelType || !userId) return { allowed: false, reason: 'missing_delivery_scope' };
+    const history = this.proactiveTelemetry.list({ userId, taskId: task.taskId, limit: 100 });
+    const policy = evaluateProactiveNotification({ proposal, context, history });
+    if (!policy.allowed || !policy.speakNow) return policy;
+    const channel = this.channels.get(channelType);
+    if (!channel) return { allowed: false, reason: 'channel_unavailable' };
+    const top = proposal.candidates?.[0];
+    const event = this.proactiveTelemetry.record({
+      type: 'proposal_created',
+      proposalId: proposal.proposalId,
+      taskId: task.taskId,
+      userId,
+      channel: channelType,
+      actionId: top?.actionId || null,
+      confidence: top?.confidence,
+      risk: top?.risk,
+      safe: top?.risk !== 'high',
+    });
+    await channel.send(userId, {
+      text: top?.label || 'A safe next step is ready.',
+      buttons: buildProposalManifest(proposal),
+      metadata: { type: 'next-action-proposal', proposalId: proposal.proposalId, taskId: task.taskId, eventId: event.eventId },
+    });
+    return { allowed: true, event };
   }
 
   /**
@@ -198,6 +251,9 @@ class ChannelManager extends EventEmitter {
   }
 
   async closeAll() {
+    const registry = getTaskRegistry();
+    for (const [eventName, handler] of this._proposalEventHandlers) registry.off(eventName, handler);
+    this._proposalEventHandlers = [];
     for (const [type, channel] of this.channels) {
       try {
         await channel.destroy();

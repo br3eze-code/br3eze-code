@@ -9,18 +9,36 @@ function valueAfter(flag, fallback) {
   return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
 }
 
+function assertSafeProfile(value) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value)) throw new Error('Invalid AGENTOS profile name.');
+  return value;
+}
+
+function writeRestricted(file, contents) {
+  const temp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(temp, contents, { mode: 0o600, flag: 'wx' });
+  fs.chmodSync(temp, 0o600);
+  fs.renameSync(temp, file);
+}
+
 const home = os.homedir();
-const profile = process.env.AGENTOS_PROFILE || valueAfter('--profile', 'default');
+const profile = assertSafeProfile(process.env.AGENTOS_PROFILE || valueAfter('--profile', 'default'));
 const profileDir = profile === 'default' ? path.join(home, '.agentos') : path.join(home, `.agentos-${profile}`);
-const installDir = path.resolve(valueAfter('--install-dir', path.join(profileDir, 'app')));
+const requestedInstallDir = valueAfter('--install-dir', path.join(profileDir, 'app'));
+const installDir = path.resolve(requestedInstallDir);
+if (installDir === path.parse(installDir).root || installDir === home) throw new Error('Refusing unsafe install directory.');
+if (installDir.includes('\n') || installDir.includes('\r')) throw new Error('Invalid install directory.');
 const configPath = path.join(profileDir, 'config.json');
 const stateDir = path.join(profileDir, 'state');
 const credentialsPath = path.join(profileDir, 'credentials.json');
 const envPath = path.join(installDir, '.env');
 
-fs.mkdirSync(profileDir, { recursive: true, mode: 0o700 });
-fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+for (const dir of [profileDir, stateDir]) {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  fs.chmodSync(dir, 0o700);
+}
 fs.mkdirSync(installDir, { recursive: true, mode: 0o755 });
+if (fs.lstatSync(installDir).isSymbolicLink()) throw new Error('Refusing symlink install directory.');
 
 if (!fs.existsSync(configPath)) {
   const config = {
@@ -43,7 +61,7 @@ if (!fs.existsSync(configPath)) {
       websocketApi: true
     }
   };
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
+  writeRestricted(configPath, `${JSON.stringify(config, null, 2)}\n`);
 }
 
 if (!fs.existsSync(envPath)) {
@@ -55,11 +73,16 @@ if (!fs.existsSync(envPath)) {
     'AGENTOS_PROFILE=' + profile,
     ''
   ].join('\n');
-  fs.writeFileSync(envPath, contents, { mode: 0o600 });
+  writeRestricted(envPath, contents);
 }
 
 for (const file of [configPath, envPath, credentialsPath]) {
-  try { fs.chmodSync(file, 0o600); } catch { /* file may not exist yet */ }
+  try {
+    if (fs.lstatSync(file).isSymbolicLink()) throw new Error(`Refusing symlink credential path: ${file}`);
+    fs.chmodSync(file, 0o600);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
 }
 
 console.log(JSON.stringify({ profile, profileDir, installDir, configPath, stateDir, envPath }, null, 2));

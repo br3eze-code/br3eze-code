@@ -1,116 +1,136 @@
 <?php
-// File: stripe_webhook.php
+declare(strict_types=1);
 
-// Only respond to POST requests
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     header('Allow: POST', true, 405);
     exit;
 }
 
-require 'vendor/autoload.php';
-// Load our app's configuration and functions
-require_once 'database_config.php'; // Provides $pdo and constants
-require_once 'mikrotik_functions.php'; // Provides updateUserProfileOnMikroTik()
+require_once __DIR__ . '/agentos_fallback.php';
+require_once __DIR__ . '/database_config.php';
+require_once __DIR__ . '/mikrotik_functions.php';
 
-// Use the webhook secret from our config file
-$endpoint_secret = STRIPE_WEBHOOK_SECRET;
+$payload = file_get_contents('php://input') ?: '';
+$event = json_decode($payload, true);
+if (!is_array($event)) {
+    agentos_json(['success' => false, 'code' => 'INVALID_PAYLOAD', 'message' => 'Invalid webhook payload.'], 400);
+}
 
-$payload = @file_get_contents('php://input');
-$sig_header = $_SERVER['HTTP_STRIPE_SIGNATURE'];
-$event = null;
+$provider = strtolower((string) (agentos_header('X-AgentOS-Provider') ?? $event['provider'] ?? ''));
+if ($provider === '') {
+    $provider = agentos_header('Stripe-Signature') !== null ? 'stripe' : 'ecocash';
+}
+
+function agentos_verify_stripe(string $payload): bool
+{
+    $header = agentos_header('Stripe-Signature');
+    $secret = getenv('STRIPE_WEBHOOK_SECRET') ?: '';
+    if ($header === null || $secret === '') return false;
+    $timestamp = null;
+    $signatures = [];
+    foreach (explode(',', $header) as $part) {
+        [$key, $value] = array_pad(explode('=', trim($part), 2), 2, null);
+        if ($key === 't') $timestamp = ctype_digit((string) $value) ? (int) $value : null;
+        if ($key === 'v1' && is_string($value)) $signatures[] = $value;
+    }
+    $tolerance = max(1, (int) (getenv('STRIPE_WEBHOOK_TOLERANCE') ?: 300));
+    if ($timestamp === null || abs(time() - $timestamp) > $tolerance || !$signatures) return false;
+    $expected = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
+    foreach ($signatures as $signature) {
+        if (hash_equals($expected, $signature)) return true;
+    }
+    return false;
+}
+
+function agentos_verify_ecocash(string $payload): bool
+{
+    $signature = agentos_header('X-EcoCash-Signature') ?? agentos_header('X-AgentOS-Signature');
+    $secret = getenv('ECOCASH_WEBHOOK_SECRET') ?: (getenv('ECOCASH_API_KEY') ?: '');
+    if ($signature === null || $secret === '') return false;
+    $provided = str_starts_with($signature, 'v1=') ? substr($signature, 3) : $signature;
+    $timestamp = agentos_header('X-EcoCash-Timestamp');
+    $signedPayload = $timestamp !== null ? $timestamp . '.' . $payload : $payload;
+    $expected = hash_hmac('sha256', $signedPayload, $secret);
+    return hash_equals($expected, $provided);
+}
+
+$verified = match ($provider) {
+    'stripe' => agentos_verify_stripe($payload),
+    'ecocash' => agentos_verify_ecocash($payload),
+    default => false,
+};
+if (!$verified) {
+    agentos_json(['success' => false, 'code' => 'INVALID_SIGNATURE', 'message' => 'Invalid or unsupported webhook signature.'], 400);
+}
+
+$type = (string) ($event['type'] ?? $event['status'] ?? '');
+$object = $event['data']['object'] ?? $event['data'] ?? $event;
+$metadata = is_array($object['metadata'] ?? null) ? $object['metadata'] : [];
+$transactionId = (int) ($metadata['local_transaction_id'] ?? $object['transaction_id'] ?? 0);
+$paymentReference = (string) ($object['id'] ?? $object['transactionRef'] ?? $object['payment_reference'] ?? '');
+$eventId = (string) ($event['id'] ?? $object['event_id'] ?? $paymentReference);
+$successTypes = $provider === 'stripe'
+    ? ['payment_intent.succeeded', 'checkout.session.completed']
+    : ['SUCCESS', 'SUCCESSFUL', 'payment.succeeded', 'payment_success'];
+
+if (!in_array(strtoupper($type), array_map('strtoupper', $successTypes), true)) {
+    agentos_json(['success' => true, 'status' => 'ignored', 'provider' => $provider]);
+}
+if ($transactionId <= 0 || $paymentReference === '' || $eventId === '') {
+    agentos_json(['success' => false, 'code' => 'WEBHOOK_REFERENCE_REQUIRED', 'message' => 'Webhook transaction reference is missing.'], 400);
+}
 
 try {
-    $event = \Stripe\Webhook::constructEvent($payload, $sig_header, $endpoint_secret);
-} catch (\UnexpectedValueException $e) {
-    // Invalid payload
-    http_response_code(400);
-    exit();
-} catch (\Stripe\Exception\SignatureVerificationException $e) {
-    // Invalid signature
-    http_response_code(400);
-    exit();
-}
-
-// Handle only the checkout.session.completed event
-if ($event->type == 'checkout.session.completed') {
-    $session = $event->data->object;
-    $local_transaction_id = $session->metadata->local_transaction_id ?? null;
-    $stripe_session_id = $session->id;
-
-    if (!$local_transaction_id) {
-        // We can't process this without our local ID
-        http_response_code(400);
-        exit("Error: Missing local_transaction_id in webhook metadata.");
-    }
-
+    $pdo->beginTransaction();
+    $eventInsert = $pdo->prepare('INSERT INTO webhook_events (provider, event_id) VALUES (?, ?)');
     try {
-        // Use a database transaction for atomicity. All or nothing.
-        $pdo->beginTransaction();
-
-        // 1. Find the PENDING transaction in our database
-        $stmt_trans = $pdo->prepare("SELECT * FROM transactions WHERE id = ? AND status = 'pending' FOR UPDATE");
-        $stmt_trans->execute([$local_transaction_id]);
-        $transaction = $stmt_trans->fetch(PDO::FETCH_ASSOC);
-
-        if (!$transaction) {
-            // This can happen if the webhook is sent twice.
-            // If the transaction is already 'completed', we can safely ignore it.
+        $eventInsert->execute([$provider, $eventId]);
+    } catch (PDOException $duplicate) {
+        if ((string) $duplicate->getCode() === '23000' || str_contains(strtolower($duplicate->getMessage()), 'unique')) {
             $pdo->rollBack();
-            http_response_code(200); // Acknowledge receipt, but do nothing.
-            exit("Transaction not found or already processed.");
+            agentos_json(['success' => true, 'status' => 'already_processed', 'event_id' => $eventId]);
         }
-           $user_stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
-        $user_stmt->execute([$transaction['user_id']]);
-        $user = $user_stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$user) {
-            throw new Exception("User with ID {$transaction['user_id']} not found for transaction {$local_transaction_id}.");
-        }
-        $username_to_update = $user['username'];
-
-        // 2. Get the product details (specifically the MikroTik profile)
-        $prod_stmt = $pdo->prepare("SELECT mikrotik_profile FROM products WHERE id = ?");
-        $prod_stmt->execute([$transaction['product_id']]);
-        $product = $prod_stmt->fetch();
-
-        if (!$product) {
-            throw new Exception("Product associated with transaction ID {$local_transaction_id} not found.");
-        }
-        
-        $profile_to_set = $product['mikrotik_profile'];
-
-        // 3. FULFILL THE ORDER: Update the user on the MikroTik router
-        $mikrotikResult = updateUserProfileOnMikroTik($username_to_update, $profile_to_set);
-
-        if (!$mikrotikResult['success']) {
-            // Throw an exception if MikroTik update fails. This will trigger the catch block.
-            throw new Exception("MikroTik update failed for user '{$username_to_update}': " . $mikrotikResult['message']);
-        }
-
-        // 4. MARK AS COMPLETED: Update our local transaction record
-        $update_stmt = $pdo->prepare(
-            "UPDATE transactions SET status = 'completed', payment_reference = ? WHERE id = ?"
-        );
-        // We store the Stripe Session ID as the reference.
-        $update_stmt->execute([$stripe_session_id, $local_transaction_id]);
-
-        // If all steps succeeded, commit the transaction
-        $pdo->commit();
-
-    } catch (Exception $e) {
-        // Something went wrong. Roll back any database changes.
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        
-        // Log the error to a file
-        error_log("Webhook processing failed: " . $e->getMessage());
-
-        // Respond with an error to make Stripe retry the webhook
-        http_response_code(500);
-        exit();
+        throw $duplicate;
     }
-}
 
-// Send a 200 OK response to Stripe to acknowledge receipt of the event
-http_response_code(200);
+    $stmt = $pdo->prepare('SELECT id, username, product_id, status, amount_cents, currency, payment_method FROM transactions WHERE id = ?');
+    $stmt->execute([$transactionId]);
+    $transaction = $stmt->fetch();
+    if (!$transaction) {
+        $pdo->commit();
+        agentos_json(['success' => true, 'status' => 'ignored']);
+    }
+    if (in_array(strtolower((string) $transaction['status']), ['completed', 'succeeded', 'successful', 'paid', 'paid_pending_fulfillment'], true)) {
+        $pdo->commit();
+        agentos_json(['success' => true, 'status' => 'already_processed', 'event_id' => $eventId]);
+    }
+
+    $eventAmount = $object['amount_total'] ?? $object['amount_received'] ?? $object['amount'] ?? null;
+    if ($eventAmount !== null) {
+        $eventCents = $provider === 'ecocash' && is_string($eventAmount) && str_contains($eventAmount, '.')
+            ? (int) round((float) $eventAmount * 100) : (int) $eventAmount;
+        if ($eventCents !== (int) $transaction['amount_cents']) throw new RuntimeException('WEBHOOK_AMOUNT_MISMATCH');
+    }
+    $eventCurrency = strtoupper((string) ($object['currency'] ?? ''));
+    if ($eventCurrency !== '' && $eventCurrency !== strtoupper((string) $transaction['currency'])) throw new RuntimeException('WEBHOOK_CURRENCY_MISMATCH');
+
+    $status = 'completed';
+    if (getenv('AGENTOS_AUTO_FULFILL') === '1') {
+        $productStmt = $pdo->prepare('SELECT mikrotik_profile FROM products WHERE id = ?');
+        $productStmt->execute([(int) $transaction['product_id']]);
+        $product = $productStmt->fetch();
+        if ($product && !empty($product['mikrotik_profile'])) {
+            $router = updateUserProfileOnMikroTik((string) $transaction['username'], (string) $product['mikrotik_profile']);
+            if (!$router['success'] && ($router['code'] ?? '') === 'NOT_CONFIGURED') $status = 'paid_pending_fulfillment';
+            elseif (!$router['success']) throw new RuntimeException('FULFILLMENT_FAILED');
+        }
+    }
+
+    $update = $pdo->prepare('UPDATE transactions SET status = ?, payment_reference = ?, provider_event_id = ? WHERE id = ? AND status = ?');
+    $update->execute([$status, $paymentReference, $eventId, $transactionId, $transaction['status']]);
+    $pdo->commit();
+    agentos_json(['success' => true, 'status' => $status, 'provider' => $provider, 'event_id' => $eventId]);
+} catch (Throwable $error) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    agentos_safe_exception($error);
+}

@@ -393,6 +393,14 @@ const db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
 const storage = typeof firebase !== 'undefined' ? firebase.storage() : null;
 window.currentUser = null;
 
+function syncOfflineUserContext(user) {
+    if (window.AgentOSOffline && user) window.AgentOSOffline.setContext({
+        userId: user.uid || user.id,
+        tenantId: user.tenantId || user.tenant || null,
+        siteId: user.siteId || user.site || null,
+        role: user.role || 'user'
+    });
+}
 
 // --- ENABLE OFFLINE PERSISTENCE ---
 // synchronizeTabs lets multiple open tabs share one IndexedDB persistence
@@ -412,9 +420,23 @@ if (db) {
 /*  =====  AUTH ACTIONS  =====  */
 const Auth = {
     async login(loginIdentifier, password) {
-        if (!navigator.onLine) showToast('Offline. Trying local cache...', 'warning');
+        if (!navigator.onLine) showToast('Offline mode: server actions will be queued until connectivity returns.', 'warning');
         window.Loading.show('Logging in...');
         try {
+            if (!navigator.onLine || !auth) {
+                const cached = JSON.parse(localStorage.getItem('mesh_profile') || 'null');
+                const identifier = String(loginIdentifier || '').toLowerCase();
+                if (!cached || ![cached.email, cached.username, cached.phoneNumber].filter(Boolean).map(String).map((value) => value.toLowerCase()).includes(identifier)) {
+                    throw new Error('This account is not available offline. Connect once to sign in and cache a local profile.');
+                }
+                const hash = await CryptoUtils.hash(password);
+                if (hash !== cached.passwordHash) throw new Error('Invalid offline credentials.');
+                window.currentUser = cached;
+                syncOfflineUserContext(cached);
+                window.Loading.hide();
+                showMainApp();
+                return;
+            }
             let email = loginIdentifier.toLowerCase();
             if (!loginIdentifier.includes('@')) {
                 try {
@@ -470,6 +492,7 @@ const Auth = {
             showToast('Mesh Profile created! Relaying to cloud...', 'success');
             // Auto-login locally as mesh user
             window.currentUser = meshUser;
+            syncOfflineUserContext(meshUser);
             window.Loading.hide();
             showMainApp();
             return;
@@ -512,7 +535,8 @@ const Auth = {
             window.NetworkTools.stopConnectionMonitoring();
             window.NetworkTools.stopTrafficAccounting();
         }
-        await auth.signOut();
+        if (auth) await auth.signOut().catch(() => {});
+        localStorage.removeItem('agentos_offline_context');
         Subscriptions.unsubscribeAll();
         // Reset AppData
         AppData.plans = [];
@@ -1179,38 +1203,7 @@ function toggleAuthForm() {
     document.getElementById('signupForm').classList.toggle('hidden');
 }
 
-function toggleDropdown(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.classList.toggle('active'); // Assuming CSS handles .active display:block
-        // Fallback for simple display toggle if no CSS class
-        if (!el.classList.contains('user-dropdown')) { // Safety check
-            el.style.display = el.style.display === 'block' ? 'none' : 'block';
-        }
-    }
-}
-window.toggleDropdown = toggleDropdown;
 window.Auth = Auth;
-
-function showAuthScreen() {
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('mainApp').style.display = 'none';
-    document.getElementById('mainHeader').style.display = 'none';
-    if (typeof Loading !== 'undefined') window.Loading.hide();
-}
-
-async function showMainApp() {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'block';
-    document.getElementById('mainHeader').style.display = 'flex';
-
-    // Initialize standard views
-    showSection('home');
-    updateNavbar();
-    updateDashboard();
-
-    if (typeof Loading !== 'undefined') window.Loading.hide();
-}
 
 /*  =====  APP INIT  =====  */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1244,6 +1237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (user) {
                 try {
                     currentUser = await DataStore.getUser(user.uid);
+                    syncOfflineUserContext(currentUser || user);
 
                     if (!currentUser) {
                         console.log('Profile not found yet, waiting for DB creation...');
@@ -1276,6 +1270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 currentUser = null;
+                localStorage.removeItem('agentos_offline_context');
                 window.Loading.hide();
                 showAuthScreen();
             }

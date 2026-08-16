@@ -3,6 +3,7 @@ import https from 'https';
 import http from 'http';
 import PesaPayProvider from './providers/pesapay-provider.js';
 import { URL } from 'url';
+import { createPaymentIdempotencyStore } from './idempotency-store.js';
 import {
   normalizePaymentRequest,
   assertTransactionId,
@@ -60,7 +61,7 @@ class PaymentGateway {
     };
     
     this.providers = new Map();
-    this.idempotency = config.idempotencyStore || new Map();
+    this.idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
     this.initializeProviders();
   }
 
@@ -190,6 +191,16 @@ class PaymentGateway {
     const key = paymentData.idempotencyKey || createIdempotencyKey(provider, normalized.reference);
     const previous = this.idempotency.get(key);
     if (previous) return previous;
+    if (typeof this.idempotency.reserve === 'function' && !this.idempotency.reserve(key, {
+      provider,
+      reference: normalized.reference,
+      amount: normalized.amount,
+      currency: normalized.currency,
+    })) {
+      const concurrent = this.idempotency.get(key);
+      if (concurrent) return concurrent;
+      throw new Error('Payment request is already being processed');
+    }
 
     try {
       const result = normalizeProviderStatus(await providerInstance.createPayment({ ...normalized, idempotencyKey: key }));

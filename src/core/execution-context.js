@@ -140,6 +140,7 @@ export function buildExecutionContext(input = {}) {
     wbsSummary,
     wbsPrompt: formatWbsForPrompt(wbs, wbsSummary),
     scopes: { tenantId, siteId, domain, allowedDomains, authorizedSiteIds },
+    scope: { tenantId, siteId, domain },
     allowedDomains,
     authorizedSiteIds,
     authorizedCapabilities,

@@ -6,6 +6,7 @@ import {
     completeActionWbsStep,
     summarizeActionWbs
 } from './action-wbs.js';
+import { createNextActionProposal } from './next-action-planner.js';
 
 /**
  * TaskRegistry — in-memory sub-agent task lifecycle management.
@@ -63,8 +64,24 @@ class TaskRegistry extends EventEmitter {
                 channel: context.channel || null
             },
             wbs: taskWbs,
-            wbsSummary: summarizeActionWbs(taskWbs)
+            wbsSummary: summarizeActionWbs(taskWbs),
+            planningContext: {
+                tenantId: context.tenantId || null,
+                domainId: context.domainId || null,
+                siteId: context.siteId || null,
+                userId: context.userId || owner?.userId || null,
+                channel: context.channel || null,
+                role: context.role || null,
+                status: context.status || context.userDoc?.status || null,
+                authorizedCapabilities: Array.isArray(context.authorizedCapabilities || context.capabilities)
+                    ? [...(context.authorizedCapabilities || context.capabilities)] : [],
+                locationPermission: context.locationPermission === true,
+                proactiveOptOut: context.proactiveOptOut === true,
+                timeZone: context.timeZone || null
+            },
+            nextActionProposal: null
         };
+        task.nextActionProposal = createNextActionProposal({ task, context, now });
         this.tasks.set(taskId, task);
         this.counter++;
         this.emit('task:created', task);
@@ -94,6 +111,7 @@ class TaskRegistry extends EventEmitter {
         if (!task) return null;
         task.wbs = updateActionWbs(task.wbs, stepId, patch);
         task.wbsSummary = summarizeActionWbs(task.wbs);
+        task.nextActionProposal = createNextActionProposal({ task, context: task.planningContext || task.scope, now: Date.now() });
         task.updatedAt = Date.now();
         this.emit('task:wbs-updated', task);
         return task;
@@ -104,6 +122,7 @@ class TaskRegistry extends EventEmitter {
         if (!task) return null;
         task.wbs = completeActionWbsStep(task.wbs, stepId, result);
         task.wbsSummary = summarizeActionWbs(task.wbs);
+        task.nextActionProposal = createNextActionProposal({ task, context: task.planningContext || task.scope, now: Date.now() });
         task.updatedAt = Date.now();
         this.emit('task:wbs-updated', task);
         return task;

@@ -1,64 +1,73 @@
 <?php
-//file: create-checkout.php
-require 'vendor/autoload.php';
-require_once 'database_config.php';
+declare(strict_types=1);
 
-// --- Database Connection ---
-$conn = new mysqli("localhost", "root", "", "hotspot_db");
-if ($conn->connect_error) {
-    die("Database Connection Failed.");
-}
+require_once __DIR__ . '/agentos_fallback.php';
+require_once __DIR__ . '/database_config.php';
 
-// --- Paynow Setup ---
-// Replace with your REAL secret key in production
-\Paynow\Paynow::setApiKey('sk_test_YOUR_SECRET_KEY'); 
+$context = agentos_context(true);
+agentos_require_mutation_approval();
+$idempotencyKey = agentos_idempotency_key();
+$productId = (int) agentos_input('product_id', 0);
+$provider = agentos_provider((string) agentos_input('provider', 'paynow'), ['paynow', 'stripe', 'ecocash', 'manual']);
 
-// --- Get Data from Form ---
-$product_id = $_POST['product_id'] ?? 0;
-$username = $_POST['username'] ?? '';
+if ($productId <= 0) agentos_json(['success' => false, 'code' => 'PRODUCT_REQUIRED', 'message' => 'Product is required.'], 400);
 
-if (empty($product_id) || empty($username)) {
-    die("Error: Missing product or username.");
-}
+try {
+    $existing = $pdo->prepare('SELECT id, status, payment_method, amount_cents, currency FROM transactions WHERE idempotency_key = ? AND tenant_id = ? AND username = ?');
+    $existing->execute([$idempotencyKey, $context['tenantId'], $context['userId']]);
+    $previous = $existing->fetch();
+    if ($previous) {
+        agentos_json([
+            'success' => true,
+            'status' => $previous['status'],
+            'provider' => $previous['payment_method'],
+            'amount_cents' => (int) $previous['amount_cents'],
+            'currency' => $previous['currency'],
+            'transaction_id' => (int) $previous['id'],
+            'idempotent_replay' => true,
+            'traceId' => $context['traceId']
+        ], 202);
+    }
 
-// --- Fetch Product Details from DB ---
-$stmt = $conn->prepare("SELECT price_id FROM products WHERE id = ?");
-$stmt->bind_param("i", $product_id);
-$stmt->execute();
-$result = $stmt->get_result();
-if ($result->num_rows === 0) {
-    die("Error: Invalid product selected.");
-}
-$product = $result->fetch_assoc();
-$price_id = $product['price_id'];
+    $productStmt = $pdo->prepare('SELECT id, name, price_cents, currency, price_id FROM products WHERE id = ? AND tenant_id = ? AND (site_id IS NULL OR site_id = ?) AND active = 1');
+    $productStmt->execute([$productId, $context['tenantId'], $context['siteId']]);
+    $product = $productStmt->fetch();
+    if (!$product) agentos_json(['success' => false, 'code' => 'PRODUCT_NOT_FOUND', 'message' => 'Product not found.'], 404);
 
-// --- Create Paynow Checkout Session ---
-try{
-$checkout_session = \Paynow\Checkout\Session::create([
-    'payment_method_types' => ['card'],
-    'line_items' => [[
-        'price' => $price_id,
-        'quantity' => 1,
-    ]],
-    'mode' => 'payment',
-    'success_url' => 'http://localhost/Br3eze/payment_success.html?session_id={CHECKOUT_SESSION_ID}',
-    'client_reference_id' => $username,
-    'cancel_url' => 'http://localhost/Br3eze/index.html',
-    'client_reference_id' => $username, // IMPORTANT: This links the payment to your hotspot user
-'metadata' => [
-            'local_transaction_id' => $transaction_id // Also pass our local transaction ID
-        ]
+    $transactionStmt = $pdo->prepare(
+        "INSERT INTO transactions (username, tenant_id, site_id, product_id, amount_cents, currency, payment_method, status, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)"
+    );
+    $transactionStmt->execute([
+        $context['userId'],
+        $context['tenantId'],
+        $context['siteId'],
+        $productId,
+        (int) $product['price_cents'],
+        strtoupper((string) $product['currency']),
+        $provider,
+        $idempotencyKey
     ]);
-  // Update our transaction record with Paynow's reference ID
-    $update_stmt = $pdo->prepare("UPDATE transactions SET payment_reference = ? WHERE id = ?");
-    $update_stmt->execute([$checkout_session->id, $transaction_id]);
+    $transactionId = $pdo->lastInsertId();
 
-// --- Redirect to Paynow ---
-header("HTTP/1.1 303 See Other");
-header("Location: " . $checkout_session->url);
-} catch (\Paynow\Exception\ApiErrorException $e) {
-    // Handle potential Paynow API errors
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Could not create payment session: ' . $e->getMessage()]);
-    exit();
+    $result = [
+        'success' => true,
+        'status' => 'pending',
+        'provider' => $provider,
+        'amount_cents' => (int) $product['price_cents'],
+        'currency' => strtoupper((string) $product['currency']),
+        'transaction_id' => $transactionId,
+        'return_url' => rtrim(getenv('AGENTOS_BASE_URL') ?: '', '/') . '/payment.php?transaction_id=' . rawurlencode((string) $transactionId),
+        'traceId' => $context['traceId']
+    ];
+
+    if ($provider !== 'manual' && getenv('AGENTOS_' . strtoupper($provider) . '_ENABLED') !== '1') {
+        $result['code'] = 'PROVIDER_DEFERRED';
+        $result['message'] = 'Payment provider is not enabled in this fallback deployment.';
+    }
+    agentos_json($result, 202);
+} catch (PDOException $error) {
+    if ((string) $error->getCode() === '23000' || str_contains(strtolower($error->getMessage()), 'unique')) {
+        agentos_json(['success' => false, 'code' => 'IDEMPOTENCY_REPLAY', 'message' => 'This request was already submitted.'], 409);
+    }
+    agentos_safe_exception($error);
 }

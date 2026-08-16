@@ -1,0 +1,10 @@
+Options -MultiViews
+RewriteEngine On
+
+# Preserve real files and directories, including the hardened legacy payment
+# and webhook entrypoints. Everything else is handled by route.php.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^(?:api|analytics|ask|audit|batch|billing|cart|channels|checkout|config|couriers|diagnostics|financial|firewall|hotspot|mesh|nodes|notify|orders|plans|product|products|providers|sessions|shop|skills|status|system|tasks|tool|tools|user|users|vouchers|webhooks|workflows|voucher)(?:/.*)?$ route.php [QSA,L]

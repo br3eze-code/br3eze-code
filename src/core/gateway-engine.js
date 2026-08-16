@@ -27,6 +27,14 @@ import v1Router from '../api/routes/v1.js';
 import v2Router from '../api/routes/v2.js';
 import v3Router from '../api/routes/v3.js';
 import { buildCapabilityManifest } from './capability-manifest.js';
+import { getUserTask, listUserTasks } from './user-task-service.js';
+import { getTaskRegistry } from './taskRegistry.js';
+import { validateNextActionProposal } from './next-action-planner.js';
+import { recordProactiveDecision } from './proactive-policy.js';
+import { ProactiveTelemetry } from './proactive-telemetry.js';
+import { buildProposalManifest } from './channel-action-manifest.js';
+import { DataAnalystRegistry } from './data-analyst.js';
+import { normalizeBotContext } from './bot.ai.js';
 
 // A2A is an optional capability. Deployments that provide the plugin can
 // load it without changing the core gateway; its absence is not a startup error.
@@ -75,6 +83,8 @@ class Gateway extends EventEmitter {
     this.ai.database = this.services.database || null;
     this.ai.db = this.ai.database;
     this.ecocashRouterPromise = this._createEcoCashWebhookRouter();
+    this.proactiveTelemetry = this.services.proactiveTelemetry || new ProactiveTelemetry();
+    this.dataAnalysts = this.services.dataAnalysts || new DataAnalystRegistry();
     this.channelManager = new ChannelManager(this.ai);
 
     // Relay special events from ChannelManager to system
@@ -148,6 +158,17 @@ class Gateway extends EventEmitter {
       verifySignature: this.services.verifyEcoCashSignature || null,
       queue: this.services.webhookQueue || null,
       logger,
+    });
+  }
+
+  _recordProposalDecision(task, decision, event) {
+    const registry = getTaskRegistry();
+    const history = Array.isArray(task.proposalDecisions) ? task.proposalDecisions : [];
+    const duplicate = history.find((entry) => entry.proposalId === event.proposalId && entry.decision === decision);
+    if (duplicate) return task;
+    return registry.update(task.taskId, {
+      proposalDecisions: [...history, { ...event, decision }].slice(-20),
+      lastProposalDecision: { ...event, decision },
     });
   }
 
@@ -311,6 +332,110 @@ class Gateway extends EventEmitter {
           websocket: req.headers.upgrade === 'websocket',
         },
       }));
+    });
+
+    // ── Next-action proposals ─────────────────────────────────────────────────
+    // Proposal routes require a verified Firebase identity. A shared gateway
+    // secret authenticates the process, but cannot establish a user/tenant owner.
+    const requireProposalIdentity = (req, res) => {
+      if (!req.firebaseUser?.uid) {
+        res.status(401).json({ error: 'Firebase identity required for proposal access' });
+        return false;
+      }
+      return true;
+    };
+
+    const proposalContext = (req) => ({
+      userId: req.firebaseUser.uid,
+      role: req.firebaseUser.role || req.firebaseUser.customClaims?.role || null,
+      tenantId: req.firebaseUser.tenantId || req.firebaseUser.customClaims?.tenantId || null,
+      domainId: req.firebaseUser.domainId || req.firebaseUser.customClaims?.domainId || null,
+      siteId: req.firebaseUser.siteId || req.firebaseUser.customClaims?.siteId || null,
+      status: req.firebaseUser.status || req.firebaseUser.customClaims?.status || null,
+      authorizedCapabilities: req.firebaseUser.authorizedCapabilities || req.firebaseUser.customClaims?.authorizedCapabilities || [],
+      proactiveOptOut: req.firebaseUser.proactiveOptOut === true || req.firebaseUser.customClaims?.proactiveOptOut === true,
+      channel: req.headers['x-agent-channel'] || 'rest',
+    });
+
+    this.app.post('/api/v1/analysis/:domain', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = normalizeBotContext({
+          ...(req.body?.context || {}),
+          ...proposalContext(req),
+          domain: req.params.domain,
+          message: req.body?.message,
+          userDoc: req.firebaseUser,
+        }, { contextType: 'analysis' });
+        const analysis = this.dataAnalysts.analyze(req.params.domain, req.body?.data || req.body?.input || {}, context);
+        res.json({ ok: true, analysis });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'ANALYSIS_FAILED' });
+      }
+    });
+
+    this.app.get('/api/v1/tasks/:taskId/proposals', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = proposalContext(req);
+        const task = getUserTask(req.params.taskId, context);
+        const proposal = task.nextActionProposal;
+        if (!proposal) return res.status(404).json({ error: 'No next-action proposal for task' });
+        const validation = validateNextActionProposal(proposal, { task, context });
+        if (!validation.valid) return res.status(409).json({ error: 'Proposal is no longer valid', validationErrors: validation.errors });
+        res.json({ ok: true, taskId: task.taskId, proposal, actions: buildProposalManifest(proposal) });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'PROPOSAL_READ_FAILED' });
+      }
+    });
+
+    this.app.post('/api/v1/proposals/:proposalId/decide', (req, res) => {
+      if (!requireProposalIdentity(req, res)) return;
+      try {
+        const context = proposalContext(req);
+        const decision = recordProactiveDecision({
+          proposalId: req.params.proposalId,
+          decision: req.body?.decision,
+          userId: context.userId,
+          channel: context.channel,
+        });
+        const task = (req.body?.taskId
+          ? getUserTask(req.body.taskId, context)
+          : listUserTasks(context).find((candidateTask) => candidateTask.nextActionProposal?.proposalId === req.params.proposalId));
+        if (!task) return res.status(404).json({ error: 'Proposal not found for authorized task' });
+        const proposal = task.nextActionProposal;
+        if (!proposal || proposal.proposalId !== req.params.proposalId) {
+          return res.status(404).json({ error: 'Proposal not found for task' });
+        }
+        const validation = validateNextActionProposal(proposal, { task, context });
+        if (!validation.valid) return res.status(409).json({ error: 'Proposal is no longer valid', validationErrors: validation.errors });
+        const candidate = proposal.candidates?.[0];
+        if (decision.decision === 'approve' && !candidate?.requiresApproval) {
+          return res.status(400).json({ error: 'Approval is not required for this proposal' });
+        }
+        const eventType = {
+          continue: 'proposal_accepted',
+          clarify: 'proposal_clarified',
+          approve: 'proposal_approved',
+          snooze: 'proposal_snoozed',
+          dismiss: 'proposal_dismissed',
+        }[decision.decision];
+        const event = this.proactiveTelemetry.record({
+          type: eventType,
+          proposalId: proposal.proposalId,
+          taskId: task.taskId,
+          userId: context.userId,
+          channel: context.channel,
+          actionId: candidate?.actionId || null,
+          confidence: candidate?.confidence,
+          risk: candidate?.risk,
+          safe: true,
+        });
+        const updatedTask = this._recordProposalDecision(task, decision.decision, event);
+        res.json({ ok: true, decision: decision.decision, event, task: updatedTask, proposal: updatedTask.nextActionProposal });
+      } catch (error) {
+        res.status(error.status || 500).json({ error: error.message, code: error.code || 'PROPOSAL_DECISION_FAILED' });
+      }
     });
 
     // ── SSE streaming /ask ────────────────────────────────────────────────────

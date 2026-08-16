@@ -1,4 +1,7 @@
 import { describe, expect, test, jest } from '@jest/globals';
+import os from 'node:os';
+import path from 'node:path';
+import fs from 'node:fs';
 import { PaymentGateway } from '../src/payments/payment-gateway.js';
 import {
   normalizePaymentRequest,
@@ -18,7 +21,11 @@ describe('payment guards', () => {
   });
 
   test('deduplicates provider create requests by reference', async () => {
-    const gateway = new PaymentGateway({ defaultCurrency: 'USD' });
+    const testState = fs.mkdtempSync(path.join(os.tmpdir(), 'agentos-payment-test-'));
+    const gateway = new PaymentGateway({
+      defaultCurrency: 'USD',
+      idempotencyOptions: { dbPath: path.join(testState, 'payment-ledger.sqlite') }
+    });
     const provider = { createPayment: jest.fn().mockResolvedValue({ success: true, status: 'succeeded', transactionId: 'tx-1' }) };
     gateway.providers.set('test', provider);
     const first = await gateway.createPayment('test', { amount: 10, reference: 'order-1' });

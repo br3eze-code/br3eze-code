@@ -453,6 +453,6 @@ fi
 
 echo
 echo "Next:"
-echo "  ./scripts/run-agentos-podman.sh launch"
-echo "  ./scripts/run-agentos-podman.sh launch setup"
+echo "  ./scripts/run-agent-podman.sh launch"
+echo "  ./scripts/run-agent-podman.sh launch setup"
 echo " agentos --container $AGENT_CONTAINER_NAME dashboard --no-open"

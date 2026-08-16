@@ -1,12 +1,13 @@
 <?php
-header('Content-Type: application/json');
+require_once __DIR__ . '/agentos_fallback.php';
 
 require 'vendor/autoload.php';
 require_once 'database_config.php'; // Provides $pdo
 require_once 'mikrotik_functions.php'; // Provides MikroTik functions
 
 // --- Main API Router ---
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
+$action = (string) agentos_input('action', '');
+$context = agentos_context(true);
 
 try {
     switch ($action) {
@@ -32,9 +33,8 @@ try {
         default:
             throw new Exception('Invalid action specified.');
     }
-} catch (Exception $e) {
-    // Catch any uncaught exceptions from the handlers and return a generic error
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+} catch (Throwable $e) {
+    agentos_safe_exception($e);
 }
 
 // --- ACTION HANDLER FUNCTIONS ---
@@ -64,10 +64,12 @@ function handle_check_user() {
  */
 function handle_register() {
     global $pdo;
-    $reg_username = trim($_POST['reg_username'] ?? '');
+    global $context;
+    agentos_require_mutation_approval();
+    $reg_username = $context['userId'];
     $reg_password = $_POST['reg_password'] ?? '';
     $reg_email = filter_var(trim($_POST['reg_email'] ?? ''), FILTER_SANITIZE_EMAIL);
-       $reg_fullname = trim($_POST['reg_fullname'] ?? '');
+    $reg_fullname = trim($_POST['reg_fullname'] ?? '');
     $reg_phone = trim($_POST['reg_phone'] ?? '');
 
     if (empty($reg_username) || empty($reg_password) || empty($reg_email)) {
@@ -87,8 +89,8 @@ function handle_register() {
     // If MikroTik creation was successful, add the user to the local database
     try {
         $password_hash = password_hash($reg_password, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("INSERT INTO users (username, password, email, fullname, phone) VALUES (?, ?, ?)");
-        $stmt->execute([$reg_username, $password_hash, $reg_email]);
+        $stmt = $pdo->prepare("INSERT INTO users (username, password, email, fullname, phone) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$reg_username, $password_hash, $reg_email, $reg_fullname, $reg_phone]);
 
         echo json_encode(['success' => true, 
         'message' => 'Registration successful! You can now log in.',
@@ -111,11 +113,15 @@ function handle_register() {
  */
 function handle_create_payment_session() {
     global $pdo;
-    $username = trim($_POST['username'] ?? '');
-    $product_id = intval($_POST['product_id'] ?? 0);
+    global $context;
+    agentos_require_mutation_approval();
+    $username = $context['userId'];
+    $product_id = (int) agentos_input('product_id', 0);
+    $provider = agentos_provider((string) agentos_input('provider', 'stripe'));
+    $idempotencyKey = agentos_idempotency_key();
 
-    if (empty($username) || empty($product_id)) {
-        throw new Exception("Username and Product ID are required.");
+    if ($product_id <= 0) {
+        throw new Exception("Product ID is required.");
     }
 
     // 1. Fetch Product Details from DB
@@ -126,31 +132,37 @@ function handle_create_payment_session() {
     if (!$product) {
         throw new Exception("Invalid product selected.");
     }
-    if (empty($product['price_id'])) {
+    if ($provider === 'stripe' && empty($product['price_id'])) {
         throw new Exception("Product is not configured for Stripe payments.");
     }
 
     // 2. Create a 'pending' transaction record
     $trans_stmt = $pdo->prepare(
-        "INSERT INTO transactions (username, product_id, amount_cents, payment_method, status) VALUES (?, ?, ?, 'stripe', 'pending')"
+        "INSERT INTO transactions (username, product_id, amount_cents, payment_method, status, idempotency_key) VALUES (?, ?, ?, ?, 'pending', ?)"
     );
-    $trans_stmt->execute([$username, $product_id, $product['price_cents']]);
+    $trans_stmt->execute([$username, $product_id, $product['price_cents'], $provider, $idempotencyKey]);
     $transaction_id = $pdo->lastInsertId();
 
     // 3. Create the Stripe Session
-    \Stripe\Stripe::setApiKey(STRIPE_SECRET_KEY);
-    $checkout_session = \Price\Checkout\Session::create([
+    if ($provider !== 'stripe') {
+        throw new Exception('Only the configured Stripe checkout adapter is available in this PHP fallback.');
+    }
+    \Stripe\Stripe::setApiKey(getenv('STRIPE_SECRET_KEY') ?: '');
+    $checkout_session = \Stripe\Checkout\Session::create([
         'payment_method_types' => ['card'],
         'line_items' => [[
             'price' => $product['price_id'],
             'quantity' => 1,
         ]],
         'mode' => 'payment',
-        'success_url' => 'http://localhost/my-hotspot-project/payment_success.php?session_id={CHECKOUT_SESSION_ID}',
-        'cancel_url' => 'http://localhost/my-hotspot-project/login.html',
-        'client_reference_id' => $username, // Links payment to the Hotspot user
+        'success_url' => rtrim(getenv('AGENTOS_BASE_URL') ?: '', '/') . '/payment_success.php?session_id={CHECKOUT_SESSION_ID}',
+        'cancel_url' => rtrim(getenv('AGENTOS_BASE_URL') ?: '', '/') . '/login.html',
+        'client_reference_id' => $username, // Authenticated AgentOS identity, not request-body input
         'metadata' => [
-            'local_transaction_id' => $transaction_id // Strong link to our DB transaction
+            'local_transaction_id' => $transaction_id,
+            'tenant_id' => $context['tenantId'],
+            'site_id' => $context['siteId'],
+            'idempotency_key' => $idempotencyKey
         ]
     ]);
 

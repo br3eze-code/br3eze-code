@@ -1,6 +1,6 @@
 import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
-import { buildExecutionContext } from './execution-context.js';
+import { normalizeBotContext, assertBotContext } from './bot.ai.js';
 import { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw } from './printer.js';
 
 import { createRequire } from 'module';
@@ -218,7 +218,7 @@ class AskEngine {
     }
 
     _context(context = {}) {
-        return context?.uiPolicy ? context : buildExecutionContext(context);
+        return context?.contextType && context?.privacy ? context : normalizeBotContext(context);
     }
 
     _canMutate(context = {}, action = 'operation') {
@@ -227,6 +227,11 @@ class AskEngine {
         if (ctx.status !== 'active') return { ok: false, reason: 'account_not_active' };
         if (!elevated) return { ok: false, reason: 'elevated_role_required' };
         if (!ctx.approval?.approved && !ctx.approvalGranted) return { ok: false, reason: `approval_required:${action}` };
+        try {
+            assertBotContext(ctx, { mutation: true });
+        } catch (error) {
+            return { ok: false, reason: error.code || `context_rejected:${action}` };
+        }
         return { ok: true };
     }
 
@@ -625,7 +630,7 @@ class AskEngine {
 
         // ── Hotspot user write operations (Tier-2 fast path) ──────────────────
         // Patterns: "disable user John", "disable John", "block user John"
-        const disableMatch = lower.match(/(?:disable|suspend|block)\s+(?:user\s+)?([\w@.\-]+)/);
+        const disableMatch = lower.match(/(?:disable|suspend|block)\s+(?:user\s+)?([\w@.-]+)/);
         if (disableMatch && this.mikrotik) {
             const uname = disableMatch[1];
             return async () => {
@@ -637,7 +642,7 @@ class AskEngine {
         }
 
         // Patterns: "enable user John", "unblock user John", "restore John"
-        const enableMatch = lower.match(/(?:enable|unblock|restore|reactivate)\s+(?:user\s+)?([\w@.\-]+)/);
+        const enableMatch = lower.match(/(?:enable|unblock|restore|reactivate)\s+(?:user\s+)?([\w@.-]+)/);
         if (enableMatch && this.mikrotik) {
             const uname = enableMatch[1];
             return async () => {
@@ -649,7 +654,7 @@ class AskEngine {
         }
 
         // Patterns: "remove user John", "delete user John", "delete John"
-        const removeMatch = lower.match(/(?:remove|delete)\s+(?:user\s+)?([\w@.\-]+)/);
+        const removeMatch = lower.match(/(?:remove|delete)\s+(?:user\s+)?([\w@.-]+)/);
         if (removeMatch && this.mikrotik) {
             const uname = removeMatch[1];
             return async () => {

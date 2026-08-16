@@ -47,6 +47,29 @@ function ensureUnixPath(binPath) {
   console.log(`[AgentOS] PATH configured in ${rcFile}; run: source ${rcFile}`);
 }
 
+function repairCordovaBrowser() {
+  const root = process.env.INIT_CWD || process.cwd();
+  const apiPath = path.join(root, 'node_modules', 'cordova-browser', 'bin', 'template', 'cordova', 'Api.js');
+  const checkReqsPath = path.join(root, 'node_modules', 'cordova-browser', 'bin', 'lib', 'check_reqs.js');
+  if (!fs.existsSync(apiPath) || !fs.existsSync(checkReqsPath)) return;
+  const original = fs.readFileSync(apiPath, 'utf8');
+  const repaired = original.replaceAll("require('./lib/check_reqs')", "require('../../lib/check_reqs')");
+  if (repaired !== original) {
+    fs.writeFileSync(apiPath, repaired);
+    console.log('[AgentOS] Repaired cordova-browser template check_reqs path.');
+  }
+  const templateCordovaDir = path.dirname(apiPath);
+  const packagePath = path.join(templateCordovaDir, 'package.json');
+  if (!fs.existsSync(packagePath)) {
+    fs.writeFileSync(packagePath, JSON.stringify({ type: 'commonjs' }, null, 2) + '\\n');
+    console.log('[AgentOS] Added CommonJS boundary for cordova-browser platform API.');
+  }
+  const platformWwwDir = path.join(root, 'node_modules', 'cordova-browser', 'bin', 'template', 'platform_www');
+  fs.mkdirSync(platformWwwDir, { recursive: true });
+  const markerPath = path.join(platformWwwDir, '.gitkeep');
+  if (!fs.existsSync(markerPath)) fs.writeFileSync(markerPath, '');
+}
+
 function ensureWindowsPath(binPath) {
   const current = process.env.PATH || '';
   if (current.toLowerCase().split(';').includes(binPath.toLowerCase())) return;
@@ -77,6 +100,7 @@ try {
       else ensureUnixPath(binPath);
     }
   }
+  repairCordovaBrowser();
   console.log('[AgentOS] Post-install complete. Run `agentos onboard` or `agentos login`.');
 } catch (error) {
   console.warn(`[AgentOS] Post-install setup skipped: ${error.message}`);

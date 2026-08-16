@@ -1,6 +1,16 @@
 import { BaseSkill } from '../base.js';
 import * as shop from '../../core/shop.js';
 import { getCourierGateway } from '../../core/courier-gateway.js';
+import VisionDomain from '../../domains/vision/index.js';
+import { createActionWbs, summarizeActionWbs } from '../../core/action-wbs.js';
+
+const visionDomain = new VisionDomain();
+const scopeOf = (ctx = {}) => ctx.scope || {
+  tenantId: ctx.tenantId || null,
+  domain: ctx.domain || null,
+  siteId: ctx.siteId || null,
+};
+const isLinuxContext = (ctx = {}) => ['linux', 'linux-cli', 'linux-desktop'].includes(String(ctx.channel || ctx.platform || '').toLowerCase()) || String(ctx.domain || '').toLowerCase() === 'linux';
 
 class ShopSkill extends BaseSkill {
   static id = 'shop';
@@ -170,6 +180,15 @@ class ShopSkill extends BaseSkill {
           properties: { productRef: { type: 'string' }, limit: { type: 'number', default: 3 } },
           required: ['productRef']
         }
+      },
+      'shop.recommend_products': {
+        risk: 'low',
+        description: 'Recommend authorized products; Linux contexts use the vision domain ranker and return a WBS user loop',
+        parameters: {
+          type: 'object',
+          properties: { productRef: { type: 'string' }, limit: { type: 'number', default: 3 }, preference: { type: 'string' } },
+          required: ['productRef']
+        }
       }
     };
   }
@@ -178,7 +197,7 @@ class ShopSkill extends BaseSkill {
     args = args || {};
     switch (toolName) {
       case 'shop.list_products': {
-        const items = await shop.listProducts({ category: args.category, search: args.search, scope: ctx?.scope });
+        const items = await shop.listProducts({ category: args.category, search: args.search, scope: scopeOf(ctx) });
         return items.map((p) => ({ ...p, url: shop.productUrl(p.id) }));
       }
       case 'shop.list_payment_methods': {
@@ -203,23 +222,23 @@ class ShopSkill extends BaseSkill {
         };
       }
       case 'shop.get_product': {
-        const p = await shop.getProduct(args.productRef, ctx?.scope);
+        const p = await shop.getProduct(args.productRef, scopeOf(ctx));
         return p ? { ...p, url: shop.productUrl(p.id) } : p;
       }
       case 'shop.view_cart':
-        return shop.getCart(args.platform, args.channelId, ctx?.scope);
+        return shop.getCart(args.platform, args.channelId, scopeOf(ctx));
       case 'shop.add_to_cart':
-        return shop.addToCart(args.platform, args.channelId, args.productRef, { size: args.size, qty: args.qty || 1, scope: ctx?.scope });
+        return shop.addToCart(args.platform, args.channelId, args.productRef, { size: args.size, qty: args.qty || 1, scope: scopeOf(ctx) });
       case 'shop.remove_from_cart':
-        return shop.removeFromCart(args.platform, args.channelId, args.keyOrProductId, ctx?.scope);
+        return shop.removeFromCart(args.platform, args.channelId, args.keyOrProductId, scopeOf(ctx));
       case 'shop.clear_cart':
-        return shop.clearCart(args.platform, args.channelId, ctx?.scope);
+        return shop.clearCart(args.platform, args.channelId, scopeOf(ctx));
       case 'shop.checkout': {
         // Prefer the authenticated caller's uid over any client-supplied uid —
         // a chat user must not be able to check out "as" someone else's balance.
         const uid = ctx?.userId || args.uid;
         this.logger.warn(`SHOP CHECKOUT ${args.platform}:${args.channelId} uid=${uid}`);
-        const order = await shop.checkout(args.platform, args.channelId, { uid, address: args.address, payMethod: args.payMethod, scope: ctx?.scope });
+        const order = await shop.checkout(args.platform, args.channelId, { uid, address: args.address, payMethod: args.payMethod, scope: scopeOf(ctx) });
         return { ...order, url: shop.orderUrl(order.orderId) };
       }
       case 'shop.create_shipment':
@@ -236,10 +255,37 @@ class ShopSkill extends BaseSkill {
       case 'shop.list_reviews':
         return shop.getReviews(args.productId, args.limit || 5);
       case 'shop.related_products': {
-        const p = await shop.getProduct(args.productRef, ctx?.scope);
+        const p = await shop.getProduct(args.productRef, scopeOf(ctx));
         if (!p) throw new Error(`Product "${args.productRef}" not found.`);
-        const items = await shop.relatedProducts(p, args.limit || 3, ctx?.scope);
+        const items = await shop.relatedProducts(p, args.limit || 3, scopeOf(ctx));
         return items.map((r) => ({ ...r, url: shop.productUrl(r.id) }));
+      }
+      case 'shop.recommend_products': {
+        const scope = scopeOf(ctx);
+        const seedProduct = await shop.getProduct(args.productRef, scope);
+        if (!seedProduct) throw new Error(`Product "${args.productRef}" not found.`);
+        const candidates = await shop.relatedProducts(seedProduct, args.limit || 3, scope);
+        const wbs = createActionWbs('assist.next_action', {
+          context: { ...ctx, userId: ctx?.userId, domainId: scope.domain, tenantId: scope.tenantId, siteId: scope.siteId },
+          input: { action: 'shop.recommend_products' }
+        });
+        const result = isLinuxContext(ctx)
+          ? await visionDomain.execute({
+            tool: 'recommendProducts',
+            params: { products: candidates, seedProduct, limit: args.limit, preference: args.preference },
+            ...ctx
+          })
+          : { success: true, products: candidates, basis: 'same category' };
+        const products = (result.products || []).map((product) => ({ ...product, url: product.url || shop.productUrl(product.id) }));
+        return {
+          ...result,
+          products,
+          seedProduct: { id: seedProduct.id, name: seedProduct.name },
+          wbs,
+          wbsSummary: summarizeActionWbs(wbs),
+          nextAction: wbs.find((step) => step.status === 'running') || wbs[0] || null,
+          scope,
+        };
       }
       default:
         throw new Error(`Unknown tool ${toolName}`);
