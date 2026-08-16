@@ -18,12 +18,12 @@ const AICore = {
 
 exports.request = payload =>
   new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AiCorePlugin', 'request', [payload]);
+    exec(resolve, reject, 'AICorePlugin', 'request', [payload]);
   });
 
 exports.capabilities = () =>
   new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AiCorePlugin', 'capabilities', []);
+    exec(resolve, reject, 'AICorePlugin', 'capabilities', []);
   });
 
 // Polyfill window.ai for Web AI API compatibility

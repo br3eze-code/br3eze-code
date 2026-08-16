@@ -129,13 +129,15 @@
 
             <!-- NETWORK TOOLS -->
         <plugin name="cordova-plugin-network-tools" spec="file:custom-plugins/cordova-plugin-network-tools" />
+        <plugin name="cordova-plugin-aicore" spec="file:custom-plugins/cordova-plugin-aicore" />
+        <plugin name="cordova-plugin-wifi-billing-agent" spec="file:custom-plugins/cordova-plugin-wifi-billing-agent" />
         <plugin name="community-cordova-plugin-wifi-wizard" spec="^3.4.0" />
     <plugin name="cordova-plugin-oauth" />
     <plugin name="cordova-plugin-contacts" />
   <!-- CORE PLUGINS -->
         <plugin name="cordova-plugin-device" spec="^3.0.0" />
         <plugin name="cordova-plugin-network-information" spec="^3.0.0" />
-        <plugin name="cordova-plugin-firebasex" spec="^19.1.0" />
+        <plugin name="cordova-plugin-firebasex" spec="^20.0.2" />
         <plugin name="cordova-plugin-local-notification" spec="^1.2.3" />
         <plugin name="cordova-plugin-vibration" spec="^3.1.1" />
         <plugin name="cordova-plugin-screen-orientation" spec="^3.0.4" />
@@ -145,11 +147,4 @@
         <plugin name="cordova-plugin-android-permissions" spec="^1.1.5" />
         <plugin name="cordova-plugin-bluetooth-serial" spec="^0.4.7" />
 
-    <feature name="AICorePlugin">
-        <param name="android-package" value="com.powerconnect.www.AICorePlugin" />
-    </feature>
-
-    <feature name="WiFiBillingAgent">
-        <param name="android-package" value="com.wifibilling.agent.WiFiBillingAgentPlugin" />
-    </feature>
 </widget>

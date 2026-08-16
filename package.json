@@ -224,7 +224,7 @@
     "cordova-plugin-network-tools": "file:custom-plugins/cordova-plugin-network-tools",
     "cordova-plugin-screen-orientation": "^3.0.4",
     "cordova-plugin-vibration": "^3.1.1",
-    "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-aicore/cordova-plugin-wifi-billing-agent",
+    "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-wifi-billing-agent",
     "cordova-sqlite-storage": "^7.0.0",
     "electron": "^43.4.0",
     "electron-builder": "^26.15.3",
@@ -259,7 +259,9 @@
       "cordova-plugin-screen-orientation": {},
       "cordova-plugin-camera": {},
       "cordova-plugin-inappbrowser": {},
-      "cordova-sqlite-storage": {}
+      "cordova-sqlite-storage": {},
+      "cordova-plugin-network-tools": {},
+      "cordova-plugin-bluetooth-serial": {}
     }
   },
   "optionalDependencies": {

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-wifi-billing-agent" version="4.0.0">
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        id="cordova-plugin-wifi-billing-agent" version="4.0.0">
 
     <name>WiFi Billing Agent</name>
     <description>Complete WiFi billing system with multi-agent architecture, gossip protocols, and AI orchestration</description>
@@ -248,4 +250,4 @@
     <!-- Dependencies -->
     <dependency id="cordova-plugin-device" version="^2.0.0" />
     <dependency id="cordova-plugin-network-information" version="^3.0.0" />
-</plugin>
+</plugin>
