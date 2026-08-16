@@ -235,7 +235,7 @@ class SkillRegistry extends EventEmitter {
       if (skill.manifest.tools) {
         for (const tool of skill.manifest.tools) {
           definitions.push({
-            name: `${skillName}.${tool.name}`,
+            name: tool.name.includes('.') ? tool.name : `${skillName}.${tool.name}`,
             description: tool.description,
             parameters: tool.parameters,
             returns: tool.returns

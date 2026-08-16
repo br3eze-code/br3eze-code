@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import EventEmitter from 'events';
 import SkillRegistry from './SkillRegistry.js';
+import AgentToolbox from './agent-toolbox.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
 import LLMCoordinator from './llm/LLMCoordinator.js';
@@ -36,6 +37,7 @@ class AgentOS extends EventEmitter {
 
     // Core components
     this.skills = new SkillRegistry(this.config);
+    this.toolbox = new AgentToolbox(this.config, this.skills);
     this.channels = new ChannelManager(this);
     // All channel and skill instances share this canonical server inventory.
     this.servers = ServerRegistry;
@@ -368,8 +370,8 @@ Be concise and helpful.
 }
 
   async executeTool(toolName, params, context) {
-  return this.skills.executeTool(toolName, params, context);
-}
+  return this.toolbox.execute(toolName, params, context);
+  }
 
   // Channel management
   async sendMessage(channel, userId, message) {
