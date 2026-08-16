@@ -178,7 +178,7 @@ class ShopSkill extends BaseSkill {
     args = args || {};
     switch (toolName) {
       case 'shop.list_products': {
-        const items = await shop.listProducts({ category: args.category, search: args.search });
+        const items = await shop.listProducts({ category: args.category, search: args.search, scope: ctx?.scope });
         return items.map((p) => ({ ...p, url: shop.productUrl(p.id) }));
       }
       case 'shop.list_payment_methods': {
@@ -203,23 +203,23 @@ class ShopSkill extends BaseSkill {
         };
       }
       case 'shop.get_product': {
-        const p = await shop.getProduct(args.productRef);
+        const p = await shop.getProduct(args.productRef, ctx?.scope);
         return p ? { ...p, url: shop.productUrl(p.id) } : p;
       }
       case 'shop.view_cart':
-        return shop.getCart(args.platform, args.channelId);
+        return shop.getCart(args.platform, args.channelId, ctx?.scope);
       case 'shop.add_to_cart':
-        return shop.addToCart(args.platform, args.channelId, args.productRef, { size: args.size, qty: args.qty || 1 });
+        return shop.addToCart(args.platform, args.channelId, args.productRef, { size: args.size, qty: args.qty || 1, scope: ctx?.scope });
       case 'shop.remove_from_cart':
-        return shop.removeFromCart(args.platform, args.channelId, args.keyOrProductId);
+        return shop.removeFromCart(args.platform, args.channelId, args.keyOrProductId, ctx?.scope);
       case 'shop.clear_cart':
-        return shop.clearCart(args.platform, args.channelId);
+        return shop.clearCart(args.platform, args.channelId, ctx?.scope);
       case 'shop.checkout': {
         // Prefer the authenticated caller's uid over any client-supplied uid —
         // a chat user must not be able to check out "as" someone else's balance.
         const uid = ctx?.userId || args.uid;
         this.logger.warn(`SHOP CHECKOUT ${args.platform}:${args.channelId} uid=${uid}`);
-        const order = await shop.checkout(args.platform, args.channelId, { uid, address: args.address, payMethod: args.payMethod });
+        const order = await shop.checkout(args.platform, args.channelId, { uid, address: args.address, payMethod: args.payMethod, scope: ctx?.scope });
         return { ...order, url: shop.orderUrl(order.orderId) };
       }
       case 'shop.create_shipment':
@@ -236,9 +236,9 @@ class ShopSkill extends BaseSkill {
       case 'shop.list_reviews':
         return shop.getReviews(args.productId, args.limit || 5);
       case 'shop.related_products': {
-        const p = await shop.getProduct(args.productRef);
+        const p = await shop.getProduct(args.productRef, ctx?.scope);
         if (!p) throw new Error(`Product "${args.productRef}" not found.`);
-        const items = await shop.relatedProducts(p, args.limit || 3);
+        const items = await shop.relatedProducts(p, args.limit || 3, ctx?.scope);
         return items.map((r) => ({ ...r, url: shop.productUrl(r.id) }));
       }
       default:

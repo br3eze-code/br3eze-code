@@ -11,7 +11,7 @@
     },
     "operator": {
       "label": "Network Operator",
-      "tools": ["mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
+      "tools": ["network.read","network.write","surveillance.read","surveillance.write","fleet.read","fleet.write","identity.manage","commerce.read","commerce.write","system.read","mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
       "routers": ["*"],
       "requireApproval": ["system.reboot","mikrotik.firewall.*","mikrotik.ip.route.*"],
       "limits": {"voucher.create":{"maxDuration":"30day"}},
@@ -20,7 +20,7 @@
     },
     "reseller": {
       "label": "Reseller",
-      "tools": ["voucher.create","voucher.list","voucher.revoke","users.active","agentos.voucher.create"],
+      "tools": ["commerce.read","commerce.write","voucher.create","voucher.list","voucher.revoke","users.active","agentos.voucher.create"],
       "routers": [],
       "requireApproval": [],
       "limits": {"voucher.create":{"maxDuration":"7day","maxBatch":50}},
@@ -29,7 +29,7 @@
     },
     "helpdesk": {
       "label": "Help Desk",
-      "tools": ["users.active","user.kick","system.stats","voucher.list"],
+      "tools": ["identity.manage","system.read","commerce.read","users.active","user.kick","system.stats","voucher.list"],
       "routers": [],
       "requireApproval": ["user.kick"],
       "limits": {},
@@ -38,7 +38,7 @@
     },
     "viewer": {
       "label": "Read-Only Viewer",
-      "tools": ["system.stats","users.active","voucher.list"],
+      "tools": ["system.read","identity.manage","commerce.read","system.stats","users.active","voucher.list"],
       "routers": [],
       "requireApproval": ["*"],
       "limits": {},
@@ -74,7 +74,7 @@
     },
     "user": {
       "label": "End User",
-      "tools": ["agentos.voucher.create","agentos.channels.status","system.stats"],
+      "tools": ["commerce.write","identity.manage","system.read","agentos.voucher.create","agentos.channels.status","system.stats"],
       "routers": [],
       "requireApproval": [],
       "limits": {"agentos.voucher.create":{"maxDuration":"1day","maxBatch":1}},

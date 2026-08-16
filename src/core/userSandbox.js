@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { logger } from './logger.js';
+import { anyCapabilityMatches } from './capability-policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +59,10 @@ function anyMatch(patterns, toolName) {
   return patterns.some(p => toolMatches(p, toolName));
 }
 
+function policyMatches(patterns, toolName) {
+  return anyMatch(patterns, toolName) || anyCapabilityMatches(patterns, toolName);
+}
+
 // ── role resolution ───────────────────────────────────────────────────────
 function getRole(roleName) {
   const { roles } = getRoles();
@@ -87,9 +92,9 @@ class SandboxInterceptor {
     this.routerId = routerId;
     this.db = db;
     this.isSandbox = role.sandbox === true;
-    this.isReadOnly = !anyMatch(role.tools, 'voucher.create') &&
-      !anyMatch(role.tools, 'user.kick') &&
-      !anyMatch(role.tools, 'system.reboot');
+    this.isReadOnly = !policyMatches(role.tools, 'voucher.create') &&
+      !policyMatches(role.tools, 'user.kick') &&
+      !policyMatches(role.tools, 'system.reboot');
     this.log = [];
   }
 
@@ -97,14 +102,14 @@ class SandboxInterceptor {
   authorize(toolName) {
     const { tools, requireApproval } = this.role;
 
-    if (!anyMatch(tools, toolName)) {
+    if (!policyMatches(tools, toolName)) {
       throw new AuthError(
         `Role '${this.role.label || 'unknown'}' cannot call '${toolName}'`,
         'TOOL_NOT_ALLOWED'
       );
     }
     if (requireApproval.length > 0 && requireApproval[0] !== '' &&
-        anyMatch(requireApproval, toolName)) {
+        policyMatches(requireApproval, toolName)) {
       throw new AuthError(
         `'${toolName}' requires approval for role '${this.role.label}'`,
         'APPROVAL_REQUIRED'
@@ -239,13 +244,13 @@ class UserSandbox extends EventEmitter {
 
   async canUse(userId, toolName) {
     const role = await this.getRole(userId);
-    return anyMatch(role.tools, toolName);
+    return policyMatches(role.tools, toolName);
   }
 
   async needsApproval(userId, toolName) {
     const role = await this.getRole(userId);
     const { requireApproval = [] } = role;
-    return requireApproval.length > 0 && anyMatch(requireApproval, toolName);
+    return requireApproval.length > 0 && policyMatches(requireApproval, toolName);
   }
 
   // ── Execution context (smartcomputer-ai pattern) ───────────────────────

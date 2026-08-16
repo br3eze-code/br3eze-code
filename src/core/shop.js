@@ -29,13 +29,26 @@ async function _fs() {
     return { db, fs: db.db };
 }
 
-function cartKey(platform, channelId) { return `${platform}:${channelId}`; }
+function normalizeScope(scope = {}) {
+    return { tenantId: scope.tenantId || null, domain: scope.domain || null, siteId: scope.siteId || null };
+}
 
-async function listProducts({ category, search } = {}) {
+function scopeMatches(record, scope = {}) {
+    const requested = normalizeScope(scope);
+    return ['tenantId', 'domain', 'siteId'].every((key) => !requested[key] || !record[key] || record[key] === requested[key]);
+}
+
+function cartKey(platform, channelId, scope = {}) {
+    const { tenantId, domain, siteId } = normalizeScope(scope);
+    const suffix = [tenantId, domain, siteId].filter(Boolean).join(':');
+    return `${platform}:${channelId}${suffix ? `:${suffix}` : ''}`;
+}
+
+async function listProducts({ category, search, scope = {} } = {}) {
     const { fs } = await _fs();
     let q = fs.collection('products').where('active', '==', true);
     const snap = await q.get();
-    let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    let items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => scopeMatches(p, scope));
     if (category && category !== 'all') items = items.filter((p) => p.category === category);
     if (search) {
         const s = String(search).toLowerCase();
@@ -44,61 +57,64 @@ async function listProducts({ category, search } = {}) {
     return items;
 }
 
-async function relatedProducts(product, limit = 3) {
-    const items = await listProducts({ category: product.category });
+async function relatedProducts(product, limit = 3, scope = {}) {
+    const items = await listProducts({ category: product.category, scope });
     return items.filter((p) => p.id !== product.id).slice(0, limit);
 }
 
-async function getProduct(idOrName) {
+async function getProduct(idOrName, scope = {}) {
     const { fs } = await _fs();
     const byId = await fs.collection('products').doc(String(idOrName)).get();
-    if (byId.exists) return { id: byId.id, ...byId.data() };
+    if (byId.exists) {
+        const product = { id: byId.id, ...byId.data() };
+        return scopeMatches(product, scope) ? product : null;
+    }
     // fall back to a case-insensitive name/slug match
-    const all = await listProducts();
+    const all = await listProducts({ scope });
     const s = String(idOrName).toLowerCase();
     return all.find((p) => p.id.toLowerCase() === s || p.name.toLowerCase() === s || p.name.toLowerCase().includes(s)) || null;
 }
 
-async function getCart(platform, channelId) {
+async function getCart(platform, channelId, scope = {}) {
     const { fs } = await _fs();
-    const doc = await fs.collection('carts').doc(cartKey(platform, channelId)).get();
+    const doc = await fs.collection('carts').doc(cartKey(platform, channelId, scope)).get();
     return doc.exists ? (doc.data().items || []) : [];
 }
 
-async function _saveCart(platform, channelId, items) {
+async function _saveCart(platform, channelId, items, scope = {}) {
     const { fs } = await _fs();
-    await fs.collection('carts').doc(cartKey(platform, channelId)).set({ items, updatedAt: new Date().toISOString() });
+    await fs.collection('carts').doc(cartKey(platform, channelId, scope)).set({ ...normalizeScope(scope), items, updatedAt: new Date().toISOString() });
 }
 
 function subtotal(items) { return items.reduce((s, i) => s + i.price * i.qty, 0); }
 
-async function addToCart(platform, channelId, productRef, { size = null, qty = 1 } = {}) {
-    const p = await getProduct(productRef);
+async function addToCart(platform, channelId, productRef, { size = null, qty = 1, scope = {} } = {}) {
+    const p = await getProduct(productRef, scope);
     if (!p) throw new Error(`Product "${productRef}" not found. Send "shop" to see the catalog.`);
     if ((p.stock || 0) < 1) throw new Error(`${p.name} is sold out.`);
     if (Array.isArray(p.sizes) && p.sizes.length && !size) {
         // pick nothing — caller must supply a size
         throw new Error(`${p.name} needs a size (${p.sizes.join(', ')}). e.g. "buy ${p.id} M".`);
     }
-    const items = await getCart(platform, channelId);
+    const items = await getCart(platform, channelId, scope);
     const key = p.id + (size ? '|' + size : '');
     const existing = items.find((i) => i.key === key);
     const have = existing ? existing.qty : 0;
     if (have + qty > (p.stock || 0)) throw new Error(`Only ${p.stock} of ${p.name} in stock.`);
     if (existing) existing.qty += qty;
     else items.push({ key, productId: p.id, name: p.name, price: Number(p.price), size, qty, category: p.category });
-    await _saveCart(platform, channelId, items);
+    await _saveCart(platform, channelId, items, scope);
     return { product: p, size, cart: items };
 }
 
-async function removeFromCart(platform, channelId, keyOrProductId) {
-    let items = await getCart(platform, channelId);
+async function removeFromCart(platform, channelId, keyOrProductId, scope = {}) {
+    let items = await getCart(platform, channelId, scope);
     items = items.filter((i) => i.key !== keyOrProductId && i.productId !== keyOrProductId);
-    await _saveCart(platform, channelId, items);
+    await _saveCart(platform, channelId, items, scope);
     return items;
 }
 
-async function clearCart(platform, channelId) { await _saveCart(platform, channelId, []); }
+async function clearCart(platform, channelId, scope = {}) { await _saveCart(platform, channelId, [], scope); }
 
 async function getOrder(orderId) {
     const { fs } = await _fs();
@@ -206,9 +222,9 @@ function getPaymentMethods({ country = null, device = 'unknown', uid = null, con
  * invoice. `uid` links the sale to a Power Connect account (for balance pay and
  * order history); omit for a guest cash-on-delivery sale.
  */
-async function checkout(platform, channelId, { uid = null, address = {}, payMethod = 'cod' } = {}) {
+async function checkout(platform, channelId, { uid = null, address = {}, payMethod = 'cod', scope = {} } = {}) {
     const { fs } = await _fs();
-    const items = await getCart(platform, channelId);
+    const items = await getCart(platform, channelId, scope);
     if (!items.length) throw new Error('Your cart is empty. Add something with "buy <product>".');
 
     const sub = subtotal(items);
@@ -244,13 +260,13 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
 
         const status = SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment';
         tx.set(orderRef, {
-            userId: uid || null, channel: platform, channelId: String(channelId),
+            userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope),
             items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod,
             shippingAddress: address, billingAddress: address,
             invoiceId: invoiceRef.id, invoiceNumber: number, createdAt: new Date().toISOString(),
         });
         tx.set(invoiceRef, {
-            userId: uid || null, orderId: orderRef.id, number,
+            userId: uid || null, orderId: orderRef.id, ...normalizeScope(scope), number,
             lineItems: items.map((i) => ({ description: `${i.name}${i.size ? ' (' + i.size + ')' : ''}`, qty: i.qty, unitPrice: i.price, amount: +(i.price * i.qty).toFixed(2) })),
             subtotal: sub, shipping, total, currency: 'USD',
             billingAddress: address, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'unpaid',
@@ -258,7 +274,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
         });
     });
 
-    await clearCart(platform, channelId);
+    await clearCart(platform, channelId, scope);
     logger.info(`[Shop] Sale closed via ${platform}: order ${orderRef.id} (${number}), $${total}, ${payMethod}`);
 
     const order = { orderId: orderRef.id, invoiceNumber: number, subtotal: sub, shipping, total, payMethod, items, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment', platform, channelId, uid };
@@ -270,4 +286,4 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     return order;
 }
 
-export { SHIPPING_FLAT, cartKey, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, getPaymentMethods, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews };
+export { SHIPPING_FLAT, cartKey, normalizeScope, scopeMatches, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, getPaymentMethods, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews };
