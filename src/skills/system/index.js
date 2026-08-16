@@ -40,6 +40,9 @@ class SystemDriver extends BaseDriver {
           type: 'object',
           properties: {
             hours: { type: 'number', default: 24, maximum: 168 },
+            limit: { type: 'number', default: 50, maximum: 200 },
+            domain: { type: 'string' },
+            siteId: { type: 'string' },
             status: { type: 'string', enum: ['SUCCESS', 'DENIED', 'ERROR'] }
           }
         }
@@ -70,11 +73,34 @@ class SystemDriver extends BaseDriver {
       case 'system.doctor':
         return this._doctor(ctx.registry)
 
-      case 'system.audit':
+      case 'system.audit': {
+        const allowedDomains = Array.isArray(ctx.allowedDomains)
+          ? ctx.allowedDomains.map(String)
+          : Array.isArray(ctx.domains)
+            ? ctx.domains.map(String)
+            : null;
+        const allowedSiteIds = Array.isArray(ctx.authorizedSiteIds)
+          ? ctx.authorizedSiteIds.map(String)
+          : null;
+        const requestedDomain = args.domain ? String(args.domain) : null;
+        const requestedSiteId = args.siteId ? String(args.siteId) : null;
+
+        if (requestedDomain && allowedDomains && !allowedDomains.includes('*') && !allowedDomains.includes(requestedDomain)) {
+          throw new Error('Audit domain is outside the caller scope');
+        }
+        if (requestedSiteId && allowedSiteIds && !allowedSiteIds.includes(requestedSiteId)) {
+          throw new Error('Audit site is outside the caller scope');
+        }
+
         return ctx.db.getAuditLog({
-          hours: args.hours || 24,
-          userId: ctx.userId
+          limit: Math.min(Number(args.limit) || 50, 200),
+          hours: Math.min(Number(args.hours) || 24, 168),
+          userId: ctx.userId,
+          tenantId: ctx.tenantId || null,
+          domain: requestedDomain,
+          siteId: requestedSiteId
         })
+      }
 
       case 'system.help':
         return this._help(ctx.auth, ctx.registry, ctx.userId)

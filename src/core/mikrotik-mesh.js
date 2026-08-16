@@ -41,6 +41,10 @@ export class MikroTikMeshRegistry extends EventEmitter {
       password: site.password,
       timeout: site.timeout || 10000,
       tls: site.tls !== false,
+      tenantId: site.tenantId || null,
+      siteId: id,
+      stateId: id,
+      domain: site.domain || 'network',
     };
     this.sites.set(id, {
       id,
