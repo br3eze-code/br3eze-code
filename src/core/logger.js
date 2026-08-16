@@ -1,13 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import winston from 'winston';
-import path from 'path';
-import fs from 'fs';
-import { AsyncLocalStorage } from 'async_hooks';
+import path from 'node:path';
+import fs from 'node:fs';
+import dgram from 'node:dgram';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { A } from './constants.js';
-import util from 'util';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import util from 'node:util';
 
 
 /**
@@ -74,7 +72,7 @@ const consoleFormat = printf(({ level, message, timestamp, service, stack, corre
         .split('\n').map(line => `    ${A.DIM}${line}${A.RESET}`).join('\n');
     }
   }
-  
+
   let stackTrace = '';
   if (stack) {
     stackTrace = '\n' + stack.split('\n').slice(1).map(l => `    ${A.ERROR}${l.trim()}${A.RESET}`).join('\n');
@@ -82,11 +80,11 @@ const consoleFormat = printf(({ level, message, timestamp, service, stack, corre
 
   const timeStr = `${A.DIM}${timestamp}${A.RESET}`;
   const svcStr = `${A.PRIMARY}${service || 'agentos'}${A.RESET}`;
-  
+
   // High-fidelity level markers
   let levelStr = level;
   const cleanLevel = level.replace(/\u001b\[[0-9;]*m/g, ''); // Remove color codes for matching
-  
+
   if (cleanLevel === 'info') levelStr = `${A.INFO}ℹ${A.RESET}`;
   else if (cleanLevel === 'success') levelStr = `${A.SUCCESS}✔${A.RESET}`;
   else if (cleanLevel === 'error') levelStr = `${A.ERROR}✘${A.RESET}`;
@@ -139,8 +137,9 @@ const logger = winston.createLogger({
         super(opts);
         this.port = opts.port || 5001;
         this.host = opts.host || '127.0.0.1';
-        this.client = require('dgram').createSocket('udp4');
+        this.client = dgram.createSocket('udp4');
         this.client.unref();
+
       }
       log(info, callback) {
         setImmediate(() => this.emit('logged', info));
@@ -177,4 +176,3 @@ logger.fatal = logger.fatal.bind(logger);
 logger.trace = logger.trace.bind(logger);
 
 export { logger, correlationIdMiddleware, asyncLocalStorage };
-
