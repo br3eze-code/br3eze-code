@@ -1,7 +1,7 @@
 import { logger } from './logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import DhlProvider from './couriers/dhl-provider.js';
+import PargoProvider from './couriers/pargo-provider.js';
+import CourierGuyProvider from './couriers/courier-guy-provider.js';
 
 /**
  * Pluggable courier/delivery gateway — mirrors src/payments/payment-gateway.js's
@@ -40,9 +40,6 @@ class CourierGateway {
     }
 
     _initProviders() {
-        const DhlProvider = require('./couriers/dhl-provider').default;
-        const PargoProvider = require('./couriers/pargo-provider').default;
-        const CourierGuyProvider = require('./couriers/courier-guy-provider').default;
         this.providers.set('dhl', new DhlProvider(this.config));
         this.providers.set('pargo', new PargoProvider(this.config));
         this.providers.set('courier_guy', new CourierGuyProvider(this.config));

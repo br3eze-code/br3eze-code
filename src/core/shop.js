@@ -116,10 +116,12 @@ async function removeFromCart(platform, channelId, keyOrProductId, scope = {}) {
 
 async function clearCart(platform, channelId, scope = {}) { await _saveCart(platform, channelId, [], scope); }
 
-async function getOrder(orderId) {
+async function getOrder(orderId, scope = {}) {
     const { fs } = await _fs();
     const doc = await fs.collection('orders').doc(String(orderId)).get();
-    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    if (!doc.exists) return null;
+    const order = { id: doc.id, ...doc.data() };
+    return Object.keys(normalizeScope(scope)).some((key) => scope[key]) && !scopeMatches(order, scope) ? null : order;
 }
 
 async function getOrdersByUser(uid) {
@@ -174,8 +176,8 @@ async function getReviews(productId, limit = 5) {
 }
 
 /** Books a real shipment with a courier provider (see src/core/courier-gateway.js) and records it on the order. */
-async function createShipment(orderId, providerId) {
-    const order = await getOrder(orderId);
+async function createShipment(orderId, providerId, scope = {}) {
+    const order = await getOrder(orderId, scope);
     if (!order) throw new Error(`Order ${orderId} not found.`);
     const shipment = await getCourierGateway().createShipment(providerId, order);
     const { fs } = await _fs();
@@ -186,8 +188,8 @@ async function createShipment(orderId, providerId) {
 }
 
 /** Pulls live tracking status for an order's already-created shipment. */
-async function trackShipment(orderId) {
-    const order = await getOrder(orderId);
+async function trackShipment(orderId, scope = {}) {
+    const order = await getOrder(orderId, scope);
     if (!order) throw new Error(`Order ${orderId} not found.`);
     if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
     return getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId);

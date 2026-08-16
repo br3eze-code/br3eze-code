@@ -11,6 +11,10 @@ const scopeOf = (ctx = {}) => ctx.scope || {
   siteId: ctx.siteId || null,
 };
 const isLinuxContext = (ctx = {}) => ['linux', 'linux-cli', 'linux-desktop'].includes(String(ctx.channel || ctx.platform || '').toLowerCase()) || String(ctx.domain || '').toLowerCase() === 'linux';
+const isShipmentOperator = (ctx = {}) => {
+  const roles = new Set([...(ctx.roles || []), ctx.role].filter(Boolean).map((role) => String(role).toLowerCase()));
+  return ['admin', 'owner', 'operator', 'fulfillment', 'logistics'].some((role) => roles.has(role));
+};
 
 class ShopSkill extends BaseSkill {
   static id = 'shop';
@@ -242,9 +246,11 @@ class ShopSkill extends BaseSkill {
         return { ...order, url: shop.orderUrl(order.orderId) };
       }
       case 'shop.create_shipment':
-        return shop.createShipment(args.orderId, args.provider);
+        if (!ctx?.userId) throw new Error('Link your account before managing shipments.');
+        if (!isShipmentOperator(ctx)) throw new Error('Shipment creation requires an authorized logistics role.');
+        return shop.createShipment(args.orderId, args.provider, scopeOf(ctx));
       case 'shop.track_shipment':
-        return shop.trackShipment(args.orderId);
+        return shop.trackShipment(args.orderId, scopeOf(ctx));
       case 'shop.list_couriers': {
         return getCourierGateway().getAvailableProviders();
       }
