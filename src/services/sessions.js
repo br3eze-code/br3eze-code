@@ -6,10 +6,12 @@ class SessionService {
         this.mikrotik = mikrotik;
         this.events = events;
         this.active = new Map();
+        this.monitorTimer = null;
     }
 
-    async monitor() {
-        setInterval(async () => {
+    monitor() {
+        if (this.monitorTimer) return this;
+        this.monitorTimer = setInterval(async () => {
             const users = await this.mikrotik.getActiveUsers();
 
             users.forEach(u => {
@@ -29,6 +31,14 @@ class SessionService {
             });
 
         }, 5000);
+        this.monitorTimer.unref?.();
+        return this;
+    }
+
+    stopMonitoring() {
+        if (this.monitorTimer) clearInterval(this.monitorTimer);
+        this.monitorTimer = null;
+        return this;
     }
 }
 

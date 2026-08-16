@@ -6,11 +6,13 @@ import mikrotik from '../agents/mikrotik.agent.js';
 class MonitorAgent {
     constructor() {
         this.active = new Set();
+        this.interval = null;
         this.start();
     }
 
-    async start() {
-        setInterval(async () => {
+    start() {
+        if (this.interval) return this;
+        this.interval = setInterval(async () => {
             const users = await mikrotik.getActiveUsers();
 
             const current = new Set(users.map(u => u.user));
@@ -32,6 +34,15 @@ class MonitorAgent {
             this.active = current;
 
         }, 5000);
+        // Monitoring must not prevent a clean CLI/test process shutdown.
+        this.interval.unref?.();
+        return this;
+    }
+
+    stop() {
+        if (this.interval) clearInterval(this.interval);
+        this.interval = null;
+        return this;
     }
 }
 

@@ -30,7 +30,7 @@
     "build:ios": "cordova build ios",
     "db:migrate": "node scripts/migrate-vouchers.js",
     "build:check": "node scripts/check-syntax.mjs",
-    "postinstall": "node scripts/postinstall.js",
+    "postinstall": "node scripts/agentos-postinstall.mjs",
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist"
   },
@@ -48,6 +48,10 @@
     "desktop/",
     "agentos.mjs",
     "main.js",
+    "scripts/installer-init.mjs",
+    "scripts/agentos-postinstall.mjs",
+    "install.sh",
+    "install.ps1",
     "README.md",
     "LICENSE"
   ],
