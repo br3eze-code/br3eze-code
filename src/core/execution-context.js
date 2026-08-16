@@ -1,5 +1,6 @@
 import { buildChannelUiPolicy } from './channel-ui-policy.js';
 import { summarizeActionWbs, formatWbsForPrompt } from './action-wbs.js';
+import { normalizeDeviceInfo } from './device-context.js';
 
 const CHANNEL_ID_FIELDS = {
   telegram: ['from.id', 'chat.id', 'user.id'],
@@ -90,7 +91,8 @@ export function buildExecutionContext(input = {}) {
   const address = locationPermission ? (input.address ?? userDoc.address ?? null) : null;
   const timezone = firstValue(input.timezone, userDoc.timezone, config.timezone, process.env.TZ, 'UTC');
   const country = firstValue(input.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, null);
-  const device = firstValue(input.device, input.deviceModel, userDoc.deviceModel, 'unknown');
+  const device = firstValue(input.deviceModel, userDoc.deviceModel, 'unknown');
+  const deviceInfo = normalizeDeviceInfo(input, userDoc);
   const scopes = input.scopes || userDoc.scopes || {};
   const tenantId = asString(firstValue(input.tenantId, input.tenant, userDoc.tenantId, scopes.tenantId));
   const siteId = asString(firstValue(input.siteId, userDoc.siteId, scopes.siteId));
@@ -147,6 +149,7 @@ export function buildExecutionContext(input = {}) {
     timezone: String(timezone),
     device: String(device),
     deviceModel: String(device),
+    deviceInfo,
     locationPermission,
     location,
     address,
@@ -161,4 +164,4 @@ export function withExecutionContext(context, patch = {}) {
   return buildExecutionContext({ ...context, ...patch, userDoc: patch.userDoc || context?.userDoc });
 }
 
-export default { buildExecutionContext, withExecutionContext, getChannelIdentifier, normalizeProviderIdentities };
+export default { buildExecutionContext, withExecutionContext, getChannelIdentifier, normalizeProviderIdentities, normalizeDeviceInfo };

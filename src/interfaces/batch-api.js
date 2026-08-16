@@ -18,24 +18,30 @@ function createBatchRouter({ agent, authorize } = {}) {
         return res.status(400).json({ error: `items must contain 1-${MAX_BATCH_ITEMS} operations` });
       }
 
+      const requestedContext = body.context && typeof body.context === 'object' ? body.context : {};
       const context = normalizeIotContext({
+        ...requestedContext,
         ...authContext,
-        ...body.context,
         userId: authContext.userId || authContext.uid,
         tenantId: authContext.tenantId,
+        domain: authContext.domain,
+        contextLevel: authContext.contextLevel || requestedContext.contextLevel,
         allowedDomains: authContext.allowedDomains,
         authorizedSiteIds: authContext.authorizedSiteIds,
         authorizedDeviceIds: authContext.authorizedDeviceIds,
         capabilities: authContext.capabilities,
+        locationPermission: authContext.locationPermission,
+        nearby: authContext.nearby && requestedContext.nearby === true,
         requestId: req.get('x-request-id') || undefined,
-        readOnly: body.readOnly !== false
+        readOnly: authContext.readOnly !== false && body.readOnly !== false
       });
       const seen = new Set();
+      const batchKey = String(req.get('idempotency-key') || body.idempotencyKey || context.requestId || 'batch');
       const results = [];
 
       for (let index = 0; index < items.length; index += 1) {
         const item = items[index] || {};
-        const key = String(item.idempotencyKey || `${context.requestId || 'batch'}:${index}`);
+        const key = String(item.idempotencyKey || `${batchKey}:${index}`);
         if (seen.has(key)) {
           results.push({ index, idempotencyKey: key, status: 'duplicate' });
           continue;
