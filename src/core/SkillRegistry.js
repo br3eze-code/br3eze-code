@@ -1,15 +1,12 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { pathToFileURL } from 'url';
-import EventEmitter from 'events';
+import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import EventEmitter from 'node:events';
 import { logger } from './logger.js';
 import yaml from 'js-yaml';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
 // src/core/SkillRegistry.js
-const fss  = require('fs');            // sync checks
 
 class SkillRegistry extends EventEmitter {
   constructor(config) {
@@ -54,12 +51,12 @@ class SkillRegistry extends EventEmitter {
       const jsonManifest  = path.join(skillPath, 'skill.json');
       const jsonManifest2 = path.join(skillPath, 'manifest.json');
 
-      if (fss.existsSync(yamlManifest) || fss.existsSync(yamlManifest2)) {
+      if (fsSync.existsSync(yamlManifest) || fsSync.existsSync(yamlManifest2)) {
         console.log(`[SkillRegistry] Found YAML manifest for ${path.basename(skillPath)}`);
-        const file = fss.existsSync(yamlManifest) ? yamlManifest : yamlManifest2;
+        const file = fsSync.existsSync(yamlManifest) ? yamlManifest : yamlManifest2;
         manifest = yaml.load(await fs.readFile(file, 'utf8'));
-      } else if (fss.existsSync(jsonManifest) || fss.existsSync(jsonManifest2)) {
-        const file = fss.existsSync(jsonManifest) ? jsonManifest : jsonManifest2;
+      } else if (fsSync.existsSync(jsonManifest) || fsSync.existsSync(jsonManifest2)) {
+        const file = fsSync.existsSync(jsonManifest) ? jsonManifest : jsonManifest2;
         console.log(`[SkillRegistry] Found JSON manifest for ${path.basename(skillPath)}`);
         manifest = JSON.parse(await fs.readFile(file, 'utf8'));
       } else {
@@ -78,7 +75,7 @@ class SkillRegistry extends EventEmitter {
       const implPath = path.join(skillPath, entry);
 
       let impl;
-      if (fss.existsSync(implPath)) {
+      if (fsSync.existsSync(implPath)) {
         const fileUrl = pathToFileURL(path.resolve(implPath)).href;
         const mod = await import(fileUrl);
         impl = mod.default || mod;
