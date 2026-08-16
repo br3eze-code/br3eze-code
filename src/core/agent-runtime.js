@@ -1,5 +1,6 @@
 import { Logger } from '../utils/logger.js';
 import { ToolNotFoundError, SkillDisabledError } from './tool-registry.js';
+import { buildExecutionContext } from './execution-context.js';
 
 /**
  * Agent Runtime
@@ -139,11 +140,11 @@ class AgentRuntime {
    * Execute multiple tool calls
    */
   async executeTools(toolCalls, frame) {
-    const ctx = {
-      sender:    frame.sender,
-      channel:   frame.channel,
-      sessionId: this.sessionManager.getSessionId(frame)
-    };
+    const ctx = buildExecutionContext({
+      ...frame,
+      sessionId: this.sessionManager.getSessionId(frame),
+      message: frame.message || frame.msg || frame
+    });
     const results = [];
     
     for (const call of toolCalls) {
