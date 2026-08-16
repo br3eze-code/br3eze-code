@@ -97,10 +97,47 @@ class CctvSkill extends BaseSkill {
     return normalized;
   }
 
+  async _authorizeMultiStream(ctx, request) {
+    const identity = ctx?.userId || ctx?._uid;
+    if (!identity) return { allowed: false, code: 'AUTHENTICATION_REQUIRED', reason: 'An authenticated user is required for multi-channel streaming' };
+
+    if (typeof ctx.authorize === 'function') {
+      try {
+        const decision = await ctx.authorize('cctv.stream.multi', request);
+        if (decision === true || decision?.allowed === true) return { allowed: true, source: 'authorize' };
+        return { allowed: false, code: 'FORBIDDEN', reason: decision?.reason || 'Streaming permission was denied' };
+      } catch (error) {
+        this.logger?.warn?.('CCTV multi-stream authorization failed', { user: identity, error: error.message });
+        return { allowed: false, code: 'FORBIDDEN', reason: 'Streaming authorization could not be verified' };
+      }
+    }
+
+    const grants = [
+      ...(Array.isArray(ctx.permissions) ? ctx.permissions : []),
+      ...(Array.isArray(ctx.scopes) ? ctx.scopes : []),
+      ...(Array.isArray(ctx.authorizedTools) ? ctx.authorizedTools : []),
+      ...(Array.isArray(ctx.cctvAccess) ? ctx.cctvAccess : []),
+    ].map(String);
+    const allowed = ctx.cctvAccess === true || grants.some((grant) => [
+      '*', 'cctv:*', 'cctv.stream', 'cctv.stream.multi', 'cctv:stream', 'cctv:stream:multi'
+    ].includes(grant));
+    if (allowed) return { allowed: true, source: 'grant' };
+    return { allowed: false, code: 'FORBIDDEN', reason: 'cctv.stream.multi permission is required' };
+  }
+
   async _multiStream(provider, device, args, ctx) {
+    const requested = this._requestedChannels(args.channels);
+    const authorization = await this._authorizeMultiStream(ctx, {
+      device,
+      provider,
+      channels: requested,
+      requestedChannelCount: requested?.length || null,
+      subtype: args.subtype,
+    });
+    if (!authorization.allowed) return { authorizationRequired: true, ...authorization, device, provider };
+
     const { definition, skill } = this._adapter(provider);
     const available = await this._channels(provider, device, ctx);
-    const requested = this._requestedChannels(args.channels);
     const selected = (requested ? available.filter((row) => requested.includes(row.channel)) : available.filter((row) => row.enabled));
     if (requested && selected.length !== requested.length) {
       const found = new Set(selected.map((row) => row.channel));
