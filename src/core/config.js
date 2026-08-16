@@ -1,10 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import yaml from 'js-yaml';
 import 'dotenv/config';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 
 const BRAND = {
@@ -62,7 +61,7 @@ const DEFAULT_CONFIG = {
         port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
         host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',
         token: process.env.AGENTOS_GATEWAY_TOKEN
-            || require('crypto').randomBytes(32).toString('hex')
+            || crypto.randomBytes(32).toString('hex')
     },
     OAUTH: {
         GITHUB: {
@@ -217,7 +216,6 @@ function loadConfig() {
     for (const yamlPath of yamlPaths) {
         if (fs.existsSync(yamlPath)) {
             try {
-                const yaml = require('js-yaml');
                 const content = fs.readFileSync(yamlPath, 'utf8');
                 const loaded = yaml.load(content);
 
