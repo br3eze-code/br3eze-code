@@ -1,5 +1,6 @@
 import eventBus from '../core/eventBus.js';
-import mikrotik from './mikrotik.agent';
+
+import mikrotik from '../agents/mikrotik.agent.js';
 
 
 class MonitorAgent {
