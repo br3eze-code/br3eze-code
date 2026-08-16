@@ -1,0 +1,1001 @@
+{
+  "generatedAt": "2026-08-16T16:19:56.371Z",
+  "surfaces": [
+    {
+      "surface": "root-lockfile",
+      "file": ".security-review/multi-manifest/raw/root/npm-audit.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 16,
+      "low": 0,
+      "total": 16
+    },
+    {
+      "surface": "cordova-sqlite-lockfile",
+      "file": ".security-review/multi-manifest/raw/cordova-sqlite-storage/npm-audit.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:custom-plugins_cordova-plugin-aicore",
+      "file": ".security-review/multi-manifest/raw/lockless/custom-plugins_cordova-plugin-aicore.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:custom-plugins_cordova-plugin-network-tools",
+      "file": ".security-review/multi-manifest/raw/lockless/custom-plugins_cordova-plugin-network-tools.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:custom-plugins_cordova-plugin-wifi-billing-agent",
+      "file": ".security-review/multi-manifest/raw/lockless/custom-plugins_cordova-plugin-wifi-billing-agent.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:extentions_vscode",
+      "file": ".security-review/multi-manifest/raw/lockless/extentions_vscode.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:extentions_vscode_src",
+      "file": ".security-review/multi-manifest/raw/lockless/extentions_vscode_src.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:platforms_browser_cordova",
+      "file": ".security-review/multi-manifest/raw/lockless/platforms_browser_cordova.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_community-cordova-plugin-wifi-wizard.json",
+      "critical": 40,
+      "high": 26,
+      "moderate": 15,
+      "low": 5,
+      "total": 86
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-aicore",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-aicore.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-android-permissions",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-android-permissions.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-bluetooth-serial",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-bluetooth-serial.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-camera",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-camera.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-contacts.json",
+      "critical": 0,
+      "high": 3,
+      "moderate": 0,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts_tests",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-contacts_tests.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-device",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-device.json",
+      "critical": 0,
+      "high": 6,
+      "moderate": 0,
+      "low": 2,
+      "total": 8
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-device_src_electron",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-device_src_electron.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-analytics",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-analytics.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 2,
+      "low": 0,
+      "total": 2
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-auth",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-auth.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-config",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-config.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-core",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-core.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-crashlytics",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-crashlytics.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 2,
+      "low": 0,
+      "total": 2
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-firestore",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-firestore.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-functions",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-functions.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-inappmessaging",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-inappmessaging.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-messaging",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-messaging.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 3,
+      "low": 0,
+      "total": 3
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex-performance",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex-performance.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-firebasex",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-firebasex.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 10,
+      "low": 0,
+      "total": 10
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-inappbrowser",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-inappbrowser.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-local-notification",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-local-notification.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-network-information",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-network-information.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-network-tools",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-network-tools.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-oauth",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-oauth.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-screen-orientation",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-screen-orientation.json",
+      "critical": 0,
+      "high": 6,
+      "moderate": 0,
+      "low": 2,
+      "total": 8
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-vibration",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-vibration.json",
+      "critical": 0,
+      "high": 5,
+      "moderate": 3,
+      "low": 2,
+      "total": 10
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-vibration_tests",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-vibration_tests.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-wifi-billing-agent",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-plugin-wifi-billing-agent.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-sqlite-storage",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-sqlite-storage.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_cordova-sqlite-storage_spec",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_cordova-sqlite-storage_spec.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:plugins_es6-promise-plugin",
+      "file": ".security-review/multi-manifest/raw/lockless/plugins_es6-promise-plugin.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 4,
+      "total": 4
+    },
+    {
+      "surface": "lockless:server",
+      "file": ".security-review/multi-manifest/raw/lockless/server.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 9,
+      "low": 0,
+      "total": 9
+    },
+    {
+      "surface": "lockless:src_runtime",
+      "file": ".security-review/multi-manifest/raw/lockless/src_runtime.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    },
+    {
+      "surface": "lockless:tools",
+      "file": ".security-review/multi-manifest/raw/lockless/tools.json",
+      "critical": 0,
+      "high": 0,
+      "moderate": 0,
+      "low": 0,
+      "total": 0
+    }
+  ],
+  "totals": {
+    "critical": 40,
+    "high": 46,
+    "moderate": 75,
+    "low": 15,
+    "total": 176
+  },
+  "criticalHighDetails": [
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "babel-traverse",
+      "severity": "critical",
+      "title": "Babel vulnerable to arbitrary code execution when compiling specifically crafted malicious code",
+      "url": "https://github.com/advisories/GHSA-67hx-6x53-jw92",
+      "range": "<7.23.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "ReDoS in brace-expansion",
+      "url": "https://github.com/advisories/GHSA-832h-xg76-4gv6",
+      "range": "<1.1.7"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "range": "<1.1.16"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "range": "<1.1.17"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "brace-expansion",
+      "severity": "high",
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "range": "<1.1.18"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "deep-extend",
+      "severity": "critical",
+      "title": "Prototype Pollution in deep-extend",
+      "url": "https://github.com/advisories/GHSA-hr2v-3952-633q",
+      "range": "<0.5.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "form-data",
+      "severity": "critical",
+      "title": "form-data uses unsafe random function in form-data for choosing boundary",
+      "url": "https://github.com/advisories/GHSA-fjxv-7rqg-78g4",
+      "range": "<2.5.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "form-data",
+      "severity": "high",
+      "title": "form-data: CRLF injection in form-data via unescaped multipart field names and filenames",
+      "url": "https://github.com/advisories/GHSA-hmw2-7cc7-3qxx",
+      "range": "<2.5.6"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "fstream",
+      "severity": "high",
+      "title": "Arbitrary File Overwrite in fstream",
+      "url": "https://github.com/advisories/GHSA-xf7w-r453-m56c",
+      "range": "<1.0.12"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "hawk",
+      "severity": "high",
+      "title": "Regular Expression Denial of Service in hawk",
+      "url": "https://github.com/advisories/GHSA-jcpv-g9rr-qxrc",
+      "range": "<3.1.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "hawk",
+      "severity": "high",
+      "title": "Uncontrolled Resource Consumption in Hawk",
+      "url": "https://github.com/advisories/GHSA-44pw-h2cw-w3vq",
+      "range": "<9.0.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "hoek",
+      "severity": "high",
+      "title": "hoek subject to prototype pollution via the clone function.",
+      "url": "https://github.com/advisories/GHSA-c429-5p7v-vgjp",
+      "range": "<=6.1.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "hoek",
+      "severity": "high",
+      "title": "Prototype Pollution in hoek",
+      "url": "https://github.com/advisories/GHSA-jp4x-w63m-7wgm",
+      "range": "<4.2.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "ini",
+      "severity": "high",
+      "title": "ini before 1.3.6 vulnerable to Prototype Pollution via ini.parse",
+      "url": "https://github.com/advisories/GHSA-qqgx-2p2h-9c37",
+      "range": "<1.3.6"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "json-schema",
+      "severity": "critical",
+      "title": "json-schema is vulnerable to Prototype Pollution",
+      "url": "https://github.com/advisories/GHSA-896r-f27r-55mw",
+      "range": "<0.4.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "lodash",
+      "severity": "high",
+      "title": "Command Injection in lodash",
+      "url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+      "range": "<4.17.21"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "lodash",
+      "severity": "high",
+      "title": "Prototype Pollution in lodash",
+      "url": "https://github.com/advisories/GHSA-4xc9-xhrj-v574",
+      "range": "<4.17.11"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "lodash",
+      "severity": "critical",
+      "title": "Prototype Pollution in lodash",
+      "url": "https://github.com/advisories/GHSA-jf85-cpcp-j695",
+      "range": "<4.17.12"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "lodash",
+      "severity": "high",
+      "title": "Prototype Pollution in lodash",
+      "url": "https://github.com/advisories/GHSA-p6mc-m468-83gw",
+      "range": ">=3.7.0 <4.17.19"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "mime",
+      "severity": "high",
+      "title": "mime Regular Expression Denial of Service when MIME lookup performed on untrusted user input",
+      "url": "https://github.com/advisories/GHSA-wrvr-8mpx-r7pp",
+      "range": "<1.4.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "Regular Expression Denial of Service in minimatch",
+      "url": "https://github.com/advisories/GHSA-hxm2-r34f-qmc5",
+      "range": "<3.0.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch ReDoS vulnerability",
+      "url": "https://github.com/advisories/GHSA-f8q6-p94x-37v3",
+      "range": "<3.0.5"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+      "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "range": "<3.1.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+      "url": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "range": "<3.1.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+      "url": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "range": "<3.1.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "minimist",
+      "severity": "critical",
+      "title": "Prototype Pollution in minimist",
+      "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+      "range": "<0.2.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "node-uuid",
+      "severity": "high",
+      "title": "Insecure Entropy Source - Math.random() in node-uuid",
+      "url": "https://github.com/advisories/GHSA-265q-28rp-chq5",
+      "range": "<1.4.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "npm",
+      "severity": "high",
+      "title": "Incorrect Permission Assignment for Critical Resource in NPM",
+      "url": "https://github.com/advisories/GHSA-ph34-pc88-72gc",
+      "range": "<5.7.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "npm",
+      "severity": "high",
+      "title": "npm Vulnerable to Global node_modules Binary Overwrite",
+      "url": "https://github.com/advisories/GHSA-4328-8hgf-7wjr",
+      "range": "<6.13.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "npm",
+      "severity": "high",
+      "title": "npm symlink reference outside of node_modules",
+      "url": "https://github.com/advisories/GHSA-x8qc-rrcw-4r46",
+      "range": "<6.13.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "npm",
+      "severity": "high",
+      "title": "Arbitrary File Write in npm",
+      "url": "https://github.com/advisories/GHSA-m6cx-g6qm-p2cx",
+      "range": "<6.13.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "npm-user-validate",
+      "severity": "high",
+      "title": "Regular expression denial of service in npm-user-validate",
+      "url": "https://github.com/advisories/GHSA-pw54-mh39-w3hc",
+      "range": "<1.0.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "plist",
+      "severity": "critical",
+      "title": "Prototype pollution in Plist before 3.0.5 can cause denial of service",
+      "url": "https://github.com/advisories/GHSA-4cpg-3vgw-4877",
+      "range": "<3.0.5"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "qs",
+      "severity": "high",
+      "title": "Prototype Pollution Protection Bypass in qs",
+      "url": "https://github.com/advisories/GHSA-gqgv-6jq5-jjj9",
+      "range": ">=6.2.0 <6.2.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "qs",
+      "severity": "high",
+      "title": "Prototype Pollution Protection Bypass in qs",
+      "url": "https://github.com/advisories/GHSA-gqgv-6jq5-jjj9",
+      "range": "<6.0.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "qs",
+      "severity": "high",
+      "title": "qs vulnerable to Prototype Pollution",
+      "url": "https://github.com/advisories/GHSA-hrpp-h998-j3pp",
+      "range": "<6.2.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "semver",
+      "severity": "high",
+      "title": "semver vulnerable to Regular Expression Denial of Service",
+      "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw",
+      "range": ">=2.0.0-alpha <5.7.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "shell-quote",
+      "severity": "critical",
+      "title": "Potential Command Injection in shell-quote",
+      "url": "https://github.com/advisories/GHSA-qg8p-v9q4-gh34",
+      "range": "<1.6.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "shell-quote",
+      "severity": "high",
+      "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+      "url": "https://github.com/advisories/GHSA-395f-4hp3-45gv",
+      "range": "<=1.8.4"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "shelljs",
+      "severity": "high",
+      "title": "Improper Privilege Management in shelljs",
+      "url": "https://github.com/advisories/GHSA-4rq4-32rv-6wp6",
+      "range": "<0.8.5"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "sshpk",
+      "severity": "high",
+      "title": "Regular Expression Denial of Service in sshpk",
+      "url": "https://github.com/advisories/GHSA-2m39-62fm-q8r3",
+      "range": "<1.13.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Arbitrary File Creation/Overwrite due to insufficient absolute path sanitization",
+      "url": "https://github.com/advisories/GHSA-3jfq-g458-7qm9",
+      "range": "<3.2.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Symlink Arbitrary File Overwrite in tar",
+      "url": "https://github.com/advisories/GHSA-gfjr-3jmm-4g9v",
+      "range": "<2.0.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Arbitrary File Creation/Overwrite on Windows via insufficient relative path sanitization",
+      "url": "https://github.com/advisories/GHSA-5955-9wpr-37jh",
+      "range": "<4.4.18"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Arbitrary File Overwrite in tar",
+      "url": "https://github.com/advisories/GHSA-j44m-qm6p-hp7m",
+      "range": "<2.2.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+      "url": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "range": "<7.5.7"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+      "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "range": "<=7.5.2"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+      "url": "https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "range": "<7.5.8"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+      "url": "https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "range": "<=7.5.9"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+      "url": "https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "range": "<=7.5.10"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+      "url": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "range": "<=7.5.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "critical",
+      "title": "node-tar: Decompression/parse DoS via unlimited input",
+      "url": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "range": "<=7.5.18"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tar",
+      "severity": "high",
+      "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+      "url": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "range": "<=7.5.17"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "tough-cookie",
+      "severity": "high",
+      "title": "Regular Expression Denial of Service in tough-cookie",
+      "url": "https://github.com/advisories/GHSA-g7q5-pjjr-gqvp",
+      "range": "<2.3.3"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "underscore",
+      "severity": "critical",
+      "title": "Arbitrary Code Execution in underscore",
+      "url": "https://github.com/advisories/GHSA-cf4h-3jhx-xvhq",
+      "range": ">=1.3.2 <1.12.1"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "underscore",
+      "severity": "high",
+      "title": "Underscore has unlimited recursion in _.flatten and _.isEqual, potential for DoS attack",
+      "url": "https://github.com/advisories/GHSA-qpx9-hpmf-5gmw",
+      "range": "<=1.13.7"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "critical",
+      "title": "xmldom allows multiple root nodes in a DOM",
+      "url": "https://github.com/advisories/GHSA-crh6-fp67-6883",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "high",
+      "title": "xmldom: XML injection via unsafe CDATA serialization allows attacker-controlled markup insertion",
+      "url": "https://github.com/advisories/GHSA-wh4c-j3r5-mjhp",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "high",
+      "title": "xmldom: Uncontrolled recursion in XML serialization leads to DoS",
+      "url": "https://github.com/advisories/GHSA-2v35-w6hq-6mfw",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "high",
+      "title": "xmldom has XML injection through unvalidated DocumentType serialization",
+      "url": "https://github.com/advisories/GHSA-f6ww-3ggp-fr8h",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "high",
+      "title": "xmldom has XML node injection through unvalidated processing instruction serialization",
+      "url": "https://github.com/advisories/GHSA-x6wf-f3px-wcqx",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_community-cordova-plugin-wifi-wizard",
+      "package": "xmldom",
+      "severity": "high",
+      "title": "xmldom has XML node injection through unvalidated comment serialization",
+      "url": "https://github.com/advisories/GHSA-j759-j44w-7fr8",
+      "range": "<=0.6.0"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts",
+      "package": "lodash",
+      "severity": "high",
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
+      "range": ">=4.0.0 <=4.17.23"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+      "url": "https://github.com/advisories/GHSA-3ppc-4f35-3m26",
+      "range": "<3.1.3"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+      "url": "https://github.com/advisories/GHSA-7r86-cg39-jmmj",
+      "range": "<3.1.3"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-contacts",
+      "package": "minimatch",
+      "severity": "high",
+      "title": "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+      "url": "https://github.com/advisories/GHSA-23c5-xmqv-rm74",
+      "range": "<3.1.4"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-device",
+      "package": "flatted",
+      "severity": "high",
+      "title": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+      "url": "https://github.com/advisories/GHSA-25h7-pfq9-p65f",
+      "range": "<3.4.0"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-device",
+      "package": "flatted",
+      "severity": "high",
+      "title": "Prototype Pollution via parse() in NodeJS flatted",
+      "url": "https://github.com/advisories/GHSA-rf6f-7fwh-wjgh",
+      "range": "<=3.4.1"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-device",
+      "package": "tmp",
+      "severity": "high",
+      "title": "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape",
+      "url": "https://github.com/advisories/GHSA-ph9p-34f9-6g65",
+      "range": "<0.2.6"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-screen-orientation",
+      "package": "flatted",
+      "severity": "high",
+      "title": "flatted vulnerable to unbounded recursion DoS in parse() revive phase",
+      "url": "https://github.com/advisories/GHSA-25h7-pfq9-p65f",
+      "range": "<3.4.0"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-screen-orientation",
+      "package": "flatted",
+      "severity": "high",
+      "title": "Prototype Pollution via parse() in NodeJS flatted",
+      "url": "https://github.com/advisories/GHSA-rf6f-7fwh-wjgh",
+      "range": "<=3.4.1"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-screen-orientation",
+      "package": "tmp",
+      "severity": "high",
+      "title": "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape",
+      "url": "https://github.com/advisories/GHSA-ph9p-34f9-6g65",
+      "range": "<0.2.6"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-vibration",
+      "package": "cross-spawn",
+      "severity": "high",
+      "title": "Regular Expression Denial of Service (ReDoS) in cross-spawn",
+      "url": "https://github.com/advisories/GHSA-3xgq-45jj-v275",
+      "range": "<6.0.6"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-vibration",
+      "package": "semver",
+      "severity": "high",
+      "title": "semver vulnerable to Regular Expression Denial of Service",
+      "url": "https://github.com/advisories/GHSA-c2qf-rxjj-qqgw",
+      "range": ">=2.0.0-alpha <5.7.2"
+    },
+    {
+      "surface": "lockless:plugins_cordova-plugin-vibration",
+      "package": "tmp",
+      "severity": "high",
+      "title": "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape",
+      "url": "https://github.com/advisories/GHSA-ph9p-34f9-6g65",
+      "range": "<0.2.6"
+    }
+  ]
+}

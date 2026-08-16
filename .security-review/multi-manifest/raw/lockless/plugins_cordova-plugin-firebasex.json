@@ -1,0 +1,191 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "cordova-plugin-firebasex-analytics": {
+      "name": "cordova-plugin-firebasex-analytics",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "xcode"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-analytics"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-config": {
+      "name": "cordova-plugin-firebasex-config",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-config"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-core": {
+      "name": "cordova-plugin-firebasex-core",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "xcode"
+      ],
+      "effects": [
+        "cordova-plugin-firebasex-config",
+        "cordova-plugin-firebasex-firestore",
+        "cordova-plugin-firebasex-functions",
+        "cordova-plugin-firebasex-inappmessaging",
+        "cordova-plugin-firebasex-messaging"
+      ],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-core"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-crashlytics": {
+      "name": "cordova-plugin-firebasex-crashlytics",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "xcode"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-crashlytics"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-firestore": {
+      "name": "cordova-plugin-firebasex-firestore",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-firestore"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-functions": {
+      "name": "cordova-plugin-firebasex-functions",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-functions"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-inappmessaging": {
+      "name": "cordova-plugin-firebasex-inappmessaging",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-inappmessaging"
+      ],
+      "fixAvailable": false
+    },
+    "cordova-plugin-firebasex-messaging": {
+      "name": "cordova-plugin-firebasex-messaging",
+      "severity": "moderate",
+      "isDirect": true,
+      "via": [
+        "cordova-plugin-firebasex-core"
+      ],
+      "effects": [],
+      "range": "*",
+      "nodes": [
+        "node_modules/cordova-plugin-firebasex-messaging"
+      ],
+      "fixAvailable": false
+    },
+    "uuid": {
+      "name": "uuid",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1119441,
+          "name": "uuid",
+          "dependency": "uuid",
+          "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "severity": "moderate",
+          "cwe": [
+            "CWE-787",
+            "CWE-1285"
+          ],
+          "cvss": {
+            "score": 7.5,
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+          },
+          "range": "<11.1.1"
+        }
+      ],
+      "effects": [
+        "xcode"
+      ],
+      "range": "<11.1.1",
+      "nodes": [
+        "node_modules/uuid"
+      ],
+      "fixAvailable": false
+    },
+    "xcode": {
+      "name": "xcode",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        "uuid"
+      ],
+      "effects": [
+        "cordova-plugin-firebasex-analytics",
+        "cordova-plugin-firebasex-core",
+        "cordova-plugin-firebasex-crashlytics"
+      ],
+      "range": ">=0.9.2",
+      "nodes": [
+        "node_modules/xcode"
+      ],
+      "fixAvailable": false
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 10,
+      "high": 0,
+      "critical": 0,
+      "total": 10
+    },
+    "dependencies": {
+      "prod": 24,
+      "dev": 0,
+      "optional": 0,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 23
+    }
+  }
+}
