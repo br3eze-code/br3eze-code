@@ -1,11 +1,9 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { intro, outro, spinner, note, log } from '@clack/prompts';
 import { getDatabase } from '../../core/database.js';
 import { costTracker } from '../../core/cost-tracker.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 // ==========================================
 // AGENTOS STATUS COMMAND

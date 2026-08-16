@@ -1,7 +1,11 @@
 import chalk from 'chalk';
+import { getManager } from '../../core/mikrotik.js';
+import { getUserSandbox } from '../../core/userSandbox.js';
+import { getDatabase } from '../../core/database.js';
+import rolesPolicy from '../../policies/roles.json' with { type: 'json' };
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+const { roles } = rolesPolicy;
+import { _internal as loginInternal } from './login.js';
 
 /**
  * agentos users — manage both MikroTik hotspot users AND AgentOS platform users
@@ -41,7 +45,6 @@ export default (program) => {
       const s = spinner();
       s.start('Fetching active sessions...');
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         const users = await mikrotik.executeTool(
           options.all ? 'mikrotik.hotspot.user.getAll' : 'users.active', {}, {}
@@ -68,7 +71,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Disconnecting ${name}...`);
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         await mikrotik.executeTool('user.kick', { target: name }, {});
         s.stop('Disconnected');
@@ -91,7 +93,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Creating ${name}...`);
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         const password = options.password || Math.random().toString(36).slice(2, 10);
         await mikrotik.executeTool('mikrotik.hotspot.user.add', { name, password, profile: options.profile }, {});
@@ -118,7 +119,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Removing ${name}...`);
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         await mikrotik.executeTool('mikrotik.hotspot.user.remove', { name }, {});
         s.stop('Removed');
@@ -139,7 +139,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Fetching ${name}...`);
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         const stats = await mikrotik.executeTool('system.stats', { user: name }, {});
         s.stop('Done');
@@ -166,7 +165,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Transferring ${name} → ${routerId}...`);
       try {
-        const { getManager } = require('../../core/mikrotik');
         const mikrotik = getManager();
         await mikrotik.executeTool('mikrotik.user.transfer', { name, targetRouter: routerId }, {});
         s.stop('Transferred');
@@ -195,8 +193,6 @@ export default (program) => {
       const s = options.json ? null : spinner();
       if (s) s.start('Loading...');
       try {
-        const { getUserSandbox } = require('../../core/userSandbox');
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const userList = await sandbox.listUsers({ role: options.role, limit: parseInt(options.limit) });
@@ -205,7 +201,6 @@ export default (program) => {
         if (options.json) { console.log(JSON.stringify(userList, null, 2)); return; }
 
         if (!userList.length) { log.warn('No users found'); outro(''); return; }
-        const { roles } = require('../../policies/roles.json');
         userList.forEach(u => {
           const roleLabel = roles[u.role]?.label || u.role || 'user';
           const sandboxFlag = roles[u.role]?.sandbox ? chalk.yellow(' [sandbox]') : '';
@@ -228,8 +223,6 @@ export default (program) => {
       const s = spinner();
       s.start('Loading...');
       try {
-        const { getUserSandbox } = require('../../core/userSandbox');
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const user = await sandbox.getUser(uid);
@@ -264,8 +257,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Setting ${uid} → ${role}...`);
       try {
-        const { getUserSandbox } = require('../../core/userSandbox');
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const operatorId = global.AGENTOS?.WHOAMI?.login || 'cli-operator';
@@ -288,8 +279,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Enabling sandbox for ${uid}...`);
       try {
-        const { getUserSandbox } = require('../../core/userSandbox');
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const operatorId = global.AGENTOS?.WHOAMI?.login || 'cli-operator';
@@ -317,7 +306,6 @@ export default (program) => {
       const s = spinner();
       s.start(`Deleting ${uid}...`);
       try {
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         if (db && typeof db.deleteUser === 'function') {
           await db.deleteUser(uid);
@@ -340,8 +328,7 @@ export default (program) => {
     .option('--json', 'Print as JSON')
     .action(async (options) => {
       const { intro, outro, note } = await import('@clack/prompts');
-      const { roles } = require('../../policies/roles.json');
-
+      
       if (options.json) { console.log(JSON.stringify(roles, null, 2)); return; }
 
       intro(chalk.cyan('🎭  Available Roles'));
@@ -362,13 +349,11 @@ export default (program) => {
     .description('Show the current CLI operator role and permissions')
     .action(async () => {
       const { intro, outro, note } = await import('@clack/prompts');
-      const { readCredentials } = require('./login.js')._internal;
+      const { readCredentials } = loginInternal;
       intro(chalk.cyan('👤  CLI Operator Identity'));
       const creds = readCredentials();
       const login = creds?.login || 'anonymous';
       try {
-        const { getUserSandbox } = require('../../core/userSandbox');
-        const { getDatabase } = require('../../core/database');
         const db = await getDatabase().catch(() => null);
         const sandbox = getUserSandbox({ db });
         const role = await sandbox.getRole(login);

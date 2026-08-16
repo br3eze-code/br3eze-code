@@ -1,6 +1,6 @@
-import path from 'path';
-import fs from 'fs';
-import crypto from 'crypto';
+import path from 'node:path';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { onboardFleet, onboardRouter } from '../../core/onboard.js';
@@ -9,6 +9,7 @@ import { testMikroTikConnection } from '../../core/mikrotik.js';
 import { logger } from '../../core/logger.js';
 import winston from 'winston';
 import LLMCoordinator from '../../core/llm/LLMCoordinator.js';
+import { BaseProvider } from '../../core/llm/providers/BaseProvider.js';
 import { AnthropicProvider } from '../../core/llm/providers/AnthropicProvider.js';
 import { OpenAIProvider } from '../../core/llm/providers/OpenAIProvider.js';
 import { GeminiProvider } from '../../core/llm/providers/GeminiProvider.js';
@@ -92,7 +93,6 @@ const DOMAIN_CATALOGUE = {
 
 // ── MikroTik adapter ────────────────────────────────────────────────────────────
 async function collectMikroTikConfig(existing = {}) {
-  const { testMikroTikConnection } = require('../../core/mikrotik');
   note(chalk.gray('Configure one or more RouterOS API endpoints.'), chalk.cyan('📡 MikroTik Routers'));
 
   const routers = {};
@@ -453,10 +453,9 @@ export default (program) => {
         process.exit(1);
       }
       const { BRAND, CONFIG_PATH } = global.AGENTOS;
-      const { logger } = require('../../core/logger');
 
       // Silence console logs during onboarding
-      logger.transports.forEach(t => { if (t instanceof require('winston').transports.Console) t.silent = true; });
+      logger.transports.forEach(t => { if (t instanceof winston.transports.Console) t.silent = true; });
 
       intro(chalk.bgCyan.black.bold(` 🚀 ${BRAND.name} Setup — v${BRAND.version} `));
 
@@ -657,7 +656,6 @@ export default (program) => {
       // ── Step 4: AI Provider ───────────────────────────────────────────────
       note(chalk.gray('Pick the AI brain powering your agents.'), chalk.magentaBright.bold('🧠 Step 4 — AI Provider'));
       // Load all providers via LLMCoordinator to ensure they are registered
-      const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
       new LLMCoordinator('none'); // Force-load all providers
 
       const registry = BaseProvider.getRegistry();
@@ -726,19 +724,19 @@ export default (program) => {
         s.start(`Validating ${aiProvider} key…`);
         try {
           let prov;
-          if (aiProvider === 'anthropic') { const { AnthropicProvider } = require('../../core/llm/providers/AnthropicProvider'); prov = new AnthropicProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openai') { const { OpenAIProvider } = require('../../core/llm/providers/OpenAIProvider'); prov = new OpenAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemini') { const { GeminiProvider } = require('../../core/llm/providers/GeminiProvider'); prov = new GeminiProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'gemma') { const { GemmaProvider } = require('../../core/llm/providers/GemmaProvider'); prov = new GemmaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'llama') { const { LlamaProvider } = require('../../core/llm/providers/LlamaProvider'); prov = new LlamaProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'together') { const { TogetherAIProvider } = require('../../core/llm/providers/TogetherAIProvider'); prov = new TogetherAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'deepseek') { const { DeepSeekProvider } = require('../../core/llm/providers/DeepSeekProvider'); prov = new DeepSeekProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'groq') { const { GroqProvider } = require('../../core/llm/providers/GroqProvider'); prov = new GroqProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'openrouter') { const { OpenRouterProvider } = require('../../core/llm/providers/OpenRouterProvider'); prov = new OpenRouterProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'moonshot') { const { MoonshotProvider } = require('../../core/llm/providers/MoonshotProvider'); prov = new MoonshotProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'minimax') { const { MiniMaxProvider } = require('../../core/llm/providers/MiniMaxProvider'); prov = new MiniMaxProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'xai') { const { XAIProvider } = require('../../core/llm/providers/XAIProvider'); prov = new XAIProvider({ apiKey: aiKey }); }
-          else if (aiProvider === 'ollama') { const { OllamaProvider } = require('../../core/llm/providers/OllamaProvider'); prov = new OllamaProvider({ apiKey: aiKey }); }
+          if (aiProvider === 'anthropic') prov = new AnthropicProvider({ apiKey: aiKey });
+          else if (aiProvider === 'openai') prov = new OpenAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'gemini') prov = new GeminiProvider({ apiKey: aiKey });
+          else if (aiProvider === 'gemma') prov = new GemmaProvider({ apiKey: aiKey });
+          else if (aiProvider === 'llama') prov = new LlamaProvider({ apiKey: aiKey });
+          else if (aiProvider === 'together') prov = new TogetherAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'deepseek') prov = new DeepSeekProvider({ apiKey: aiKey });
+          else if (aiProvider === 'groq') prov = new GroqProvider({ apiKey: aiKey });
+          else if (aiProvider === 'openrouter') prov = new OpenRouterProvider({ apiKey: aiKey });
+          else if (aiProvider === 'moonshot') prov = new MoonshotProvider({ apiKey: aiKey });
+          else if (aiProvider === 'minimax') prov = new MiniMaxProvider({ apiKey: aiKey });
+          else if (aiProvider === 'xai') prov = new XAIProvider({ apiKey: aiKey });
+          else if (aiProvider === 'ollama') prov = new OllamaProvider({ apiKey: aiKey });
 
           if (prov) {
             const r = await prov.validateKey();
