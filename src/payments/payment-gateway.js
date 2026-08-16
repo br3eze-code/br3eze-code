@@ -69,6 +69,8 @@ class PaymentGateway {
   initializeProviders() {
     // Initialize all available payment providers
     if (this.config.stripeSecretKey) {
+      // Provider classes are declared below the gateway for legacy module layout.
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('stripe', new StripeProvider(this.config));
     }
     // PesaPay (Zimbabwe All-in-One)
@@ -76,18 +78,23 @@ class PaymentGateway {
       this.providers.set('pesapay', new PesaPayProvider(this.config));
     }
     if (this.config.ecocashMerchantCode) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('ecocash', new EcoCashProvider(this.config));
     }
     if (this.config.netoneApiKey) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('netone', new NetOneProvider(this.config));
     }
     if (this.config.paynowIntegrationId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('paynow', new PayNowProvider(this.config));
     }
     if (this.config.applePayMerchantId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('apple_pay', new ApplePayProvider(this.config));
     }
     if (this.config.googlePayMerchantId) {
+      // eslint-disable-next-line no-use-before-define
       this.providers.set('google_pay', new GooglePayProvider(this.config));
     }
   }
