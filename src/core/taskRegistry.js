@@ -1,59 +1,114 @@
 import { v4 as uuidv4 } from 'uuid';
 import EventEmitter from 'events';
+import {
+    createActionWbs,
+    updateActionWbs,
+    completeActionWbsStep,
+    summarizeActionWbs
+} from './action-wbs.js';
 
 /**
- * TaskRegistry — in-memory sub-agent task lifecycle management
+ * TaskRegistry — in-memory sub-agent task lifecycle management.
  */
-
-
-// ── Task Status enum ──────────────────────────────────────────────────────────
-
 const TaskStatus = Object.freeze({
-    CREATED:   'created',
-    RUNNING:   'running',
+    CREATED: 'created',
+    RUNNING: 'running',
     COMPLETED: 'completed',
-    FAILED:    'failed',
-    STOPPED:   'stopped'
+    FAILED: 'failed',
+    STOPPED: 'stopped'
 });
-
-// ── TaskRegistry ──────────────────────────────────────────────────────────────
 
 class TaskRegistry extends EventEmitter {
     constructor() {
         super();
-        /** @type {Map<string, object>} */
-        this.tasks   = new Map();
+        this.tasks = new Map();
         this.counter = 0;
     }
 
-    // ── CRUD ──────────────────────────────────────────────────────────────────
-
-    create(prompt, { description = null, teamId = null } = {}) {
+    create(prompt, {
+        description = null,
+        teamId = null,
+        action = null,
+        owner = null,
+        context = {},
+        wbs = null,
+        input = {}
+    } = {}) {
         const taskId = uuidv4();
-        const now    = Date.now();
-        const task   = {
+        const now = Date.now();
+        const taskWbs = wbs || createActionWbs(action || 'assist.task', {
+            context,
+            input: { text: prompt, action, ...input }
+        });
+        const task = {
             taskId,
             prompt,
             description,
-            status:    TaskStatus.CREATED,
+            status: TaskStatus.CREATED,
             createdAt: now,
             updatedAt: now,
-            messages:  [],
-            output:    '',
-            teamId
+            messages: [],
+            output: '',
+            teamId,
+            action,
+            owner: owner ? {
+                userId: owner.userId || null,
+                platformId: owner.platformId || null
+            } : null,
+            scope: {
+                tenantId: context.tenantId || null,
+                domainId: context.domainId || null,
+                siteId: context.siteId || null,
+                userId: context.userId || owner?.userId || null,
+                channel: context.channel || null
+            },
+            wbs: taskWbs,
+            wbsSummary: summarizeActionWbs(taskWbs)
         };
         this.tasks.set(taskId, task);
         this.counter++;
         this.emit('task:created', task);
         return task;
     }
+
     get(taskId) {
         return this.tasks.get(taskId) || null;
     }
-    list(statusFilter = null) {
-        const all = Array.from(this.tasks.values());
-        return statusFilter ? all.filter(t => t.status === statusFilter) : all;
+
+    list(statusFilter = null, scope = {}) {
+        return Array.from(this.tasks.values()).filter((task) => {
+            if (statusFilter && task.status !== statusFilter) return false;
+            for (const key of ['tenantId', 'domainId', 'siteId', 'userId']) {
+                if (scope[key] && task.scope?.[key] !== scope[key]) return false;
+            }
+            return true;
+        });
     }
+
+    listForUser(userId, scope = {}) {
+        return this.list(null, { ...scope, userId });
+    }
+
+    updateWbs(taskId, stepId, patch = {}) {
+        const task = this.tasks.get(taskId);
+        if (!task) return null;
+        task.wbs = updateActionWbs(task.wbs, stepId, patch);
+        task.wbsSummary = summarizeActionWbs(task.wbs);
+        task.updatedAt = Date.now();
+        this.emit('task:wbs-updated', task);
+        return task;
+    }
+
+    completeWbsStep(taskId, stepId, result = null) {
+        const task = this.tasks.get(taskId);
+        if (!task) return null;
+        task.wbs = completeActionWbsStep(task.wbs, stepId, result);
+        task.wbsSummary = summarizeActionWbs(task.wbs);
+        task.updatedAt = Date.now();
+        this.emit('task:wbs-updated', task);
+        return task;
+    }
+
     update(taskId, patch) {
         const task = this.tasks.get(taskId);
         if (!task) return null;
@@ -61,6 +116,7 @@ class TaskRegistry extends EventEmitter {
         this.emit('task:updated', task);
         return task;
     }
+
     appendOutput(taskId, role, content) {
         const task = this.tasks.get(taskId);
         if (!task) return;
@@ -72,9 +128,15 @@ class TaskRegistry extends EventEmitter {
     setStatus(taskId, status, reason = null) {
         const task = this.tasks.get(taskId);
         if (!task) return;
-        task.status    = status;
+        task.status = status;
         task.updatedAt = Date.now();
-        if (reason) task.messages.push({ role: 'system', content: `Status → ${status}: ${reason}`, timestamp: Date.now() });
+        if (reason) {
+            task.messages.push({
+                role: 'system',
+                content: `Status → ${status}: ${reason}`,
+                timestamp: Date.now()
+            });
+        }
         this.emit(`task:${status}`, task);
     }
 
@@ -85,16 +147,14 @@ class TaskRegistry extends EventEmitter {
     assignTeam(taskId, teamId) {
         this.update(taskId, { teamId });
     }
-  
+
     summary() {
         const counts = {};
-        for (const s of Object.values(TaskStatus)) counts[s] = 0;
-        for (const t of this.tasks.values()) counts[t.status]++;
+        for (const status of Object.values(TaskStatus)) counts[status] = 0;
+        for (const task of this.tasks.values()) counts[task.status]++;
         return { total: this.tasks.size, ...counts };
     }
 }
-
-// ── Singleton ─────────────────────────────────────────────────────────────────
 
 let _instance = null;
 function getTaskRegistry() {

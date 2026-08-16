@@ -1,5 +1,6 @@
-import { promises as fs } from 'fs';
 import path from 'path';
+import fs from 'fs/promises';
+import { logger } from '../../src/core/logger.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);

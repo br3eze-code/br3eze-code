@@ -14,6 +14,7 @@ import { IdentityLinkingService } from '../../services/identity-linking.js';
 import { formatStartText, telegramStartKeyboard, listAvailableDomains } from '../domain-menu.js';
 import { buildExecutionContext } from '../execution-context.js';
 import { buildActionManifest, actionCallback, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
+import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 import { acquireBotLock, releaseBotLock, LOCK_FILE } from '../../utils/bot-lock.js';
 
 import { createRequire } from 'module';
@@ -496,6 +497,7 @@ class TelegramChannel extends BaseChannel {
         this.bot.onText(/\/start(?:\s+(\S+))?/, this._rl(this._handleStart.bind(this)));
         this.bot.onText(/\/dashboard/, this._rl(this._handleDashboard.bind(this)));
         this.bot.onText(/\/users/, this._rl(this._handleUsers.bind(this), 'admin'));
+        this.bot.onText(/\/user(?:\s+(.+))?/, this._rl(this._handleUser.bind(this)));
         this.bot.onText(/\/stats/, this._rl(this._handleStats.bind(this), 'admin'));
         this.bot.onText(/\/voucher(?:\s+(\w+))?/, this._rl(this._handleVoucher.bind(this), 'admin'));
         this.bot.onText(/\/kick\s+(\S+)/, this._rl(this._handleKick.bind(this), 'admin'));
@@ -626,6 +628,34 @@ class TelegramChannel extends BaseChannel {
 
     async _handleDashboard(msg, opts = {}) {
         await this._sendDashboard(msg, opts);
+    }
+
+    async _handleUser(msg, match) {
+        const argument = match?.[1]?.trim() || ''
+        const context = await this._buildUiContext(msg, msg.chat.id)
+        try {
+            if (!argument || argument === 'list') {
+                const tasks = listUserTasks(context)
+                const lines = tasks.slice(-10).reverse().map((task) => `${task.status === 'running' ? '🏃' : task.status === 'completed' ? '✅' : task.status === 'failed' ? '❌' : '🕐'} ${task.taskId.slice(0, 8)} ${task.action || 'task'} — ${task.wbsSummary?.progress || 0}%`)
+                return this.bot.sendMessage(msg.chat.id, lines.length ? `📋 *My tasks*\\n\\n${lines.join('\\n')}` : '📋 No tasks found.', { parse_mode: 'Markdown' })
+            }
+            const [command, taskId, stepId, ...rest] = argument.split(/\s+/)
+            if (command === 'show' && taskId) {
+                const task = getUserTask(taskId, context)
+                return this.bot.sendMessage(msg.chat.id, `📋 *Task ${task.taskId.slice(0, 8)}*\\nStatus: *${task.status}*\\nAction: ${task.action || 'task'}\\nWBS: ${task.wbsSummary?.progress || 0}%\\n\\n${task.wbs.map((step) => `${step.status === 'completed' ? '✅' : step.status === 'running' ? '🏃' : '▫️'} ${step.order}. ${step.title}`).join('\\n')}`, { parse_mode: 'Markdown' })
+            }
+            if (command === 'stop' && taskId) {
+                const task = stopUserTask(taskId, context)
+                return this.bot.sendMessage(msg.chat.id, `⛔ Task ${task.taskId.slice(0, 8)} stopped.`, { parse_mode: 'Markdown' })
+            }
+            if (command === 'step' && taskId && stepId) {
+                const task = updateUserTaskStep(taskId, stepId, { status: rest[0] || 'completed', result: rest.slice(1).join(' ') }, context)
+                return this.bot.sendMessage(msg.chat.id, `✅ WBS step updated. Progress: ${task.wbsSummary.progress}%`)
+            }
+            return this.bot.sendMessage(msg.chat.id, 'Usage: `/user list`, `/user show <taskId>`, `/user stop <taskId>`, or `/user step <taskId> <stepId> [status] [result]`', { parse_mode: 'Markdown' })
+        } catch (error) {
+            return this.bot.sendMessage(msg.chat.id, `❌ ${error.message}`)
+        }
     }
 
     async _handleUsers(msg, opts = {}) {

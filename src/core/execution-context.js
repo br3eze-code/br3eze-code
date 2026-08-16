@@ -1,4 +1,5 @@
 import { buildChannelUiPolicy } from './channel-ui-policy.js';
+import { summarizeActionWbs, formatWbsForPrompt } from './action-wbs.js';
 
 const CHANNEL_ID_FIELDS = {
   telegram: ['from.id', 'chat.id', 'user.id'],
@@ -71,29 +72,31 @@ export function buildExecutionContext(input = {}) {
     userDoc.id,
     platformId,
   ));
-  const roles = normalizeRoles(input.roles, input.role, message.roles, message.role, userDoc.roles, userDoc.role);
+  const roles = normalizeRoles(input.roles, input.role, userDoc.roles, userDoc.role);
   const config = input.config || {};
-  const location = input.location ?? message.location ?? userDoc.location ?? null;
-  const address = input.address ?? message.address ?? userDoc.address ?? null;
-  const timezone = firstValue(input.timezone, message.timezone, userDoc.timezone, config.timezone, process.env.TZ, 'UTC');
-  const country = firstValue(input.country, message.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, null);
-  const device = firstValue(input.device, input.deviceModel, message.device, message.deviceModel, userDoc.deviceModel, 'unknown');
-  const scopes = input.scopes || message.scopes || userDoc.scopes || {};
-  const tenantId = asString(firstValue(input.tenantId, input.tenant, message.tenantId, userDoc.tenantId, scopes.tenantId));
-  const siteId = asString(firstValue(input.siteId, message.siteId, userDoc.siteId, scopes.siteId));
-  const domain = String(firstValue(input.domain, message.domain, userDoc.domain, scopes.domain, config.domain, 'general'));
-  const status = String(firstValue(input.status, message.status, userDoc.status, 'active')).toLowerCase();
-  const influenceTier = String(firstValue(input.influenceTier, message.influenceTier, userDoc.influenceTier, 'standard')).toLowerCase();
-  const consent = input.consent || message.consent || userDoc.consent || {};
-  const oauth = input.oauth || message.oauth || null;
-  const approval = input.approval || message.approval || null;
-  const approvalGranted = Boolean(input.approvalGranted || message.approvalGranted);
-  const research = input.research || message.research || null;
+  const location = input.location ?? userDoc.location ?? null;
+  const address = input.address ?? userDoc.address ?? null;
+  const timezone = firstValue(input.timezone, userDoc.timezone, config.timezone, process.env.TZ, 'UTC');
+  const country = firstValue(input.country, userDoc.country, config.country, process.env.AGENTOS_DEFAULT_COUNTRY, null);
+  const device = firstValue(input.device, input.deviceModel, userDoc.deviceModel, 'unknown');
+  const scopes = input.scopes || userDoc.scopes || {};
+  const tenantId = asString(firstValue(input.tenantId, input.tenant, userDoc.tenantId, scopes.tenantId));
+  const siteId = asString(firstValue(input.siteId, userDoc.siteId, scopes.siteId));
+  const domain = String(firstValue(input.domain, userDoc.domain, scopes.domain, config.domain, 'general'));
+  const status = String(firstValue(userDoc.status, input.status, 'active')).toLowerCase();
+  const influenceTier = String(firstValue(input.influenceTier, userDoc.influenceTier, 'standard')).toLowerCase();
+  const consent = input.consent || userDoc.consent || {};
+  const oauth = input.oauth || null;
+  const approval = input.approval || null;
+  const approvalGranted = Boolean(input.approvalGranted);
+  const research = input.research || null;
   const allowedDomains = Array.isArray(input.allowedDomains) ? input.allowedDomains : (Array.isArray(userDoc.allowedDomains) ? userDoc.allowedDomains : []);
   const authorizedSiteIds = Array.isArray(input.authorizedSiteIds) ? input.authorizedSiteIds : (Array.isArray(userDoc.authorizedSiteIds) ? userDoc.authorizedSiteIds : []);
   const authorizedCapabilities = Array.isArray(input.authorizedCapabilities)
     ? input.authorizedCapabilities
     : (Array.isArray(userDoc.authorizedCapabilities) ? userDoc.authorizedCapabilities : []);
+  const wbs = Array.isArray(input.wbs) ? input.wbs : [];
+  const wbsSummary = input.wbsSummary || summarizeActionWbs(wbs);
 
   return {
     userId: canonicalUserId,
@@ -120,11 +123,15 @@ export function buildExecutionContext(input = {}) {
     approval,
     approvalGranted,
     research,
+    wbs,
+    wbsSummary,
+    wbsPrompt: formatWbsForPrompt(wbs, wbsSummary),
     scopes: { tenantId, siteId, domain, allowedDomains, authorizedSiteIds },
     allowedDomains,
     authorizedSiteIds,
     authorizedCapabilities,
-    uiPolicy: buildChannelUiPolicy({ channel, roles, role: roles[0], status, influenceTier, practiceMode: input.practiceMode || message.practiceMode || userDoc.practiceMode, channelCapabilities: input.channelCapabilities, authorizedCapabilities }),
+    uiPolicy: buildChannelUiPolicy({ channel, roles, role: roles[0], status, influenceTier, practiceMode: input.practiceMode || userDoc.practiceMode, channelCapabilities: input.channelCapabilities, authorizedCapabilities }),
+
     country: country == null ? null : String(country),
     timezone: String(timezone),
     device: String(device),
@@ -132,7 +139,7 @@ export function buildExecutionContext(input = {}) {
     location,
     address,
     userDoc,
-    auth: input.auth || message.auth || null,
+    auth: input.auth || null,
     paymentConfig: input.paymentConfig || config.payment || {},
     source: input.source || 'channel',
   };

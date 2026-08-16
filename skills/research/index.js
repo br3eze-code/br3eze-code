@@ -3,7 +3,7 @@ import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
 import pdf from 'pdf-parse';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { BaseSkill } from '../base.js';
 
 import { createRequire } from 'module';

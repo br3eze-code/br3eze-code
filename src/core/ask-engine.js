@@ -755,10 +755,13 @@ class AskEngine {
             status: context.status,
             uiPolicy: context.uiPolicy,
             research: context.research || null,
+            wbsSummary: context.wbsSummary || null,
+            wbs: context.wbs || [],
             oauthProviders: Object.keys(context.oauth?.providers || context.oauth || {}),
         };
+        const contextText = `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}\n\n${context.wbsPrompt || 'WBS progress: 0% (0/0 complete)\nNo WBS steps defined.'}`;
         const messages = [
-            { role: 'system', content: `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}`, blocks: [{ type: 'text', text: `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}` }] },
+            { role: 'system', content: contextText, blocks: [{ type: 'text', text: contextText }] },
             { role: 'user', content: input, blocks: [{ type: 'text', text: input }] }
         ];
         const toolTrace = [];

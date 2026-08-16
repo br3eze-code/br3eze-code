@@ -6,6 +6,7 @@ import { BaseChannel } from './BaseChannel.js';
 import { formatStartText, listAvailableDomains } from '../domain-menu.js';
 import { buildExecutionContext } from '../execution-context.js';
 import { buildActionManifest, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
+import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -594,6 +595,7 @@ class WhatsAppChannel extends BaseChannel {
     this.handlers.set("dashboard", this._handleDashboard);
     this.handlers.set("voucher", this._handleVoucher);
     this.handlers.set("users", this._handleUsers);
+    this.handlers.set("user", this._handleUser);
     this.handlers.set("stats", this._handleStats);
     this.handlers.set("kick", this._handleKick);
     this.handlers.set("reboot", this._handleReboot);
@@ -970,6 +972,34 @@ class WhatsAppChannel extends BaseChannel {
     } catch (err) {
       logger.error("WhatsAppChannel Dashboard error:", err);
       await this.send(jid, `❌ Dashboard error: ${err.message}`);
+    }
+  }
+
+  async _handleUser(jid, msg, match) {
+    const argument = (typeof match === 'string' ? match : match?.[1] || msg?.text?.replace(/^\/user\s*/i, '') || '').trim()
+    const context = await this._buildUiContext(msg, jid)
+    try {
+      if (!argument || argument === 'list') {
+        const tasks = listUserTasks(context)
+        const lines = tasks.slice(-10).reverse().map((task) => `${task.status === 'running' ? '🏃' : task.status === 'completed' ? '✅' : task.status === 'failed' ? '❌' : '🕐'} ${task.taskId.slice(0, 8)} ${task.action || 'task'} — ${task.wbsSummary?.progress || 0}%`)
+        return this.send(jid, lines.length ? `📋 *My tasks*\\n\\n${lines.join('\\n')}` : '📋 No tasks found.')
+      }
+      const [command, taskId, stepId, ...rest] = argument.split(/\\s+/)
+      if (command === 'show' && taskId) {
+        const task = getUserTask(taskId, context)
+        return this.send(jid, `📋 *Task ${task.taskId.slice(0, 8)}*\\nStatus: *${task.status}*\\nAction: ${task.action || 'task'}\\nWBS: ${task.wbsSummary?.progress || 0}%\\n\\n${task.wbs.map((step) => `${step.status === 'completed' ? '✅' : step.status === 'running' ? '🏃' : '▫️'} ${step.order}. ${step.title}`).join('\\n')}`)
+      }
+      if (command === 'stop' && taskId) {
+        const task = stopUserTask(taskId, context)
+        return this.send(jid, `⛔ Task ${task.taskId.slice(0, 8)} stopped.`)
+      }
+      if (command === 'step' && taskId && stepId) {
+        const task = updateUserTaskStep(taskId, stepId, { status: rest[0] || 'completed', result: rest.slice(1).join(' ') }, context)
+        return this.send(jid, `✅ WBS step updated. Progress: ${task.wbsSummary.progress}%`)
+      }
+      return this.send(jid, 'Usage: /user list, /user show <taskId>, /user stop <taskId>, or /user step <taskId> <stepId> [status] [result]')
+    } catch (error) {
+      return this.send(jid, `❌ ${error.message}`)
     }
   }
 

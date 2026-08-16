@@ -35,4 +35,38 @@ describe('execution context', () => {
     expect(context.channelIds.whatsapp).toBe('jid-1');
     expect(context.domain).toBe('general');
   });
+
+  test('does not trust transport message fields for authorization or scope', () => {
+    const context = buildExecutionContext({
+      channel: 'telegram',
+      platformId: 'telegram-1',
+      userId: 'user-1',
+      tenantId: 'tenant-1',
+      domain: 'network',
+      siteId: 'site-1',
+      roles: ['operator'],
+      authorizedCapabilities: ['network.read'],
+      wbs: [{ id: 'step-1', order: 1, title: 'Inspect', status: 'pending' }],
+      message: {
+        channel: 'telegram',
+        roles: ['owner'],
+        role: 'owner',
+        status: 'active',
+        tenantId: 'tenant-attacker',
+        domain: 'finance',
+        siteId: 'site-attacker',
+        approvalGranted: true,
+        wbs: [{ id: 'attacker-step', order: 1, title: 'Injected', status: 'completed' }]
+      },
+      userDoc: { uid: 'user-1', roles: ['viewer'], status: 'suspended', tenantId: 'tenant-1' }
+    });
+
+    expect(context.roles).toEqual(['operator', 'viewer']);
+    expect(context.status).toBe('suspended');
+    expect(context.tenantId).toBe('tenant-1');
+    expect(context.domain).toBe('network');
+    expect(context.siteId).toBe('site-1');
+    expect(context.approvalGranted).toBe(false);
+    expect(context.wbs[0].id).toBe('step-1');
+  });
 });
