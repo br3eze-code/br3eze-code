@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>One User, One Synchronized Lifecycle Projection</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;padding:56px 64px 0}
+.eyebrow{color:#56d6c9;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}
+.title{font-size:39px;line-height:1.1;margin-top:18px;letter-spacing:-.7px}
+.dek{font-size:19px;color:#b7c5d6;max-width:820px;line-height:1.4;margin-top:12px}
+.rail{display:flex;align-items:flex-start;justify-content:space-between;margin-top:64px;position:relative}
+.rail:before{content:"";position:absolute;left:72px;right:72px;top:24px;height:2px;background:#245464}
+.step{width:184px;position:relative;text-align:center}
+.dot{width:22px;height:22px;border:3px solid #56d6c9;background:#0b1220;margin:0 auto 18px}
+.step:last-child .dot{border-color:#e7ad57}
+.num{color:#56d6c9;font-size:13px;letter-spacing:2px;font-weight:700}
+.step:last-child .num{color:#e7ad57}
+.label{font-size:19px;font-weight:700;margin-top:8px}
+.detail{font-size:14px;color:#8fa4b8;line-height:1.35;margin-top:8px}
+.projection{margin:56px auto 0;width:780px;min-height:112px;border:1px solid #2b6670;padding:18px 22px;background:#0f2430;display:flex;align-items:center;justify-content:space-between}
+.projection strong{font-size:22px;color:#dffcf8}
+.projection span{font-size:16px;color:#9bc5c8;max-width:440px;line-height:1.4}
+.foot{border-top:1px solid #22354a;margin-top:34px;padding-top:14px;font-size:15px;color:#7f93aa;letter-spacing:.2px}
+.accent{color:#e7ad57}
+</style>
+</head>
+<body>
+<div class="slide-container">
+<div class="eyebrow">01 / LIFECYCLE MODEL</div>
+<div class="title">One User, One Synchronized Lifecycle Projection</div>
+<div class="dek">Every important transition updates the user-keyed graph after durable persistence succeeds; the graph is a scoped projection, not a global activity feed.</div>
+<div class="rail">
+<div class="step"><div class="dot"></div><div class="num">01</div><div class="label">Onboard</div><div class="detail">Create user node<br/>assign initial scope</div></div>
+<div class="step"><div class="dot"></div><div class="num">02</div><div class="label">Link identity</div><div class="detail">Telegram / WhatsApp<br/>channel identity</div></div>
+<div class="step"><div class="dot"></div><div class="num">03</div><div class="label">Redeem voucher</div><div class="detail">Record entitlement<br/>and scope metadata</div></div>
+<div class="step"><div class="dot"></div><div class="num">04</div><div class="label">Restrict</div><div class="detail">Suspension or ban<br/>after enforcement</div></div>
+<div class="step"><div class="dot"></div><div class="num">05</div><div class="label">Offboard</div><div class="detail">Revoke access<br/>retain auditable history</div></div>
+</div>
+<div class="projection"><strong>uid → lifecycle graph</strong><span>Each event carries <span class="accent">tenantId · domain · siteId</span>. Secrets, tokens, and unrelated users’ activity are excluded from the projection.</span></div>
+<div class="foot">Invariant: <b>state transition first, graph synchronization second, scoped audit visibility always.</b></div>
+</div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { logger } from './logger.js';
 import { costTracker } from './cost-tracker.js';
+import { buildExecutionContext } from './execution-context.js';
 import { listAvailableInterfaces, testPrinterConnection, getPrinterStatus, printRaw } from './printer.js';
 
 import { createRequire } from 'module';
@@ -216,6 +217,26 @@ class AskEngine {
         this._skillToolMap = null;
     }
 
+    _context(context = {}) {
+        return context?.uiPolicy ? context : buildExecutionContext(context);
+    }
+
+    _canMutate(context = {}, action = 'operation') {
+        const ctx = this._context(context);
+        const elevated = ['owner', 'admin', 'operator'].includes(ctx.role) || ctx.roles?.some((role) => ['owner', 'admin', 'operator'].includes(role));
+        if (ctx.status !== 'active') return { ok: false, reason: 'account_not_active' };
+        if (!elevated) return { ok: false, reason: 'elevated_role_required' };
+        if (!ctx.approval?.approved && !ctx.approvalGranted) return { ok: false, reason: `approval_required:${action}` };
+        return { ok: true };
+    }
+
+    _broadcastState(context, state) {
+        const ctx = this._context(context);
+        if (global.gateway?.broadcastToContext) {
+            global.gateway.broadcastToContext(ctx, { type: 'ai.state', state });
+        }
+    }
+
     /**
      * Generic bridge to *any* skill, instead of hand-writing a "manage_X" function +
      * dispatch block per domain (the pattern above this comment — doesn't scale, and
@@ -339,9 +360,27 @@ class AskEngine {
         return skill ? Object.keys(skill.workspace.dahua_devices || {}) : [];
     }
 
+    async _runDeepSearch(input, context) {
+        const ctx = this._context(context)
+        if (!ctx.uiPolicy?.actions?.includes('research.deep_search')) {
+            return { tier: 2, type: 'error', result: 'Research access is not available for this scoped account.' }
+        }
+        const query = String(input || '').replace(/^\s*(deep\s+search|research)\s*:??\s*/i, '').trim()
+        if (!query) return { tier: 2, type: 'error', result: 'Provide a research question after “deep search”.' }
+        const registry = await this._skillRegistry()
+        if (!registry) return { tier: 2, type: 'error', result: 'Research skill is not available.' }
+        const result = await registry.execute('research', 'research.deep_search', { query }, ctx)
+        return { tier: 2, type: 'tool', result }
+    }
+
     // ── Public: run() — returns { tier, type, result, [data], [turns], [sessionId] }
 
     async run(input, context = {}) {
+        context = this._context(context);
+        if (/^\s*(deep\s+search|research)\b/i.test(String(input || ''))) {
+            try { return await this._runDeepSearch(input, context) }
+            catch (e) { logger.error(`Deep search failed: ${e.message}`); return { tier: 2, type: 'error', result: e.message } }
+        }
         // Tier 1 — direct keyword → tool
         const tier1 = this._matchTool(input);
         if (tier1 && this.mikrotik) {
@@ -373,12 +412,12 @@ class AskEngine {
 
         try {
             // Broadcast thinking state to WebSocket clients if gateway is available
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
+            this._broadcastState(context, 'thinking');
             const res = await this._runAI(input, context);
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             return res;
         } catch (e) {
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             logger.error(`AI reasoning failed: ${e.message}`);
             return { tier: 3, type: 'error', result: e.message };
         }
@@ -387,6 +426,7 @@ class AskEngine {
     // ── Public: stream() — async generator of typed SSE events
 
     async *stream(input, context = {}) {
+        context = this._context(context);
         yield { type: 'message_start', input, ts: Date.now() };
 
         const tier1 = this._matchTool(input);
@@ -424,15 +464,15 @@ class AskEngine {
         }
 
         yield { type: 'ai_thinking' };
-        if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'thinking' });
+        this._broadcastState(context, 'thinking');
         try {
             const res = await this._runAI(input, context);
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             yield { type: 'message_delta', text: res.result };
             if (res.data) yield { type: 'tool_trace', trace: res.data };
             yield { type: 'message_stop', tier: 3, stop_reason: 'completed', turns: res.turns };
         } catch (e) {
-            if (global.gateway) global.gateway.broadcast({ type: 'ai.state', state: 'idle' });
+            this._broadcastState(context, 'idle');
             yield { type: 'error', message: e.message };
             yield { type: 'message_stop', tier: 3, stop_reason: 'error' };
         }
@@ -705,7 +745,22 @@ class AskEngine {
     // ── Tier-3: Gemini ReAct loop ─────────────────────────────────────────────
 
     async _runAI(input, context = {}) {
-        const messages = [{ role: 'user', content: input, blocks: [{ type: 'text', text: input }] }];
+        context = this._context(context);
+        const safeContext = {
+            userId: context.userId,
+            tenantId: context.tenantId,
+            domain: context.domain,
+            siteId: context.siteId,
+            roles: context.roles,
+            status: context.status,
+            uiPolicy: context.uiPolicy,
+            research: context.research || null,
+            oauthProviders: Object.keys(context.oauth?.providers || context.oauth || {}),
+        };
+        const messages = [
+            { role: 'system', content: `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}`, blocks: [{ type: 'text', text: `Authorized execution context (do not infer beyond this): ${JSON.stringify(safeContext)}` }] },
+            { role: 'user', content: input, blocks: [{ type: 'text', text: input }] }
+        ];
         const toolTrace = [];
         let turns = 0;
         const MAX_TURNS = 5;
@@ -788,18 +843,24 @@ class AskEngine {
             if (!uname) return { error: 'username is required' };
 
             if (action === 'disable') {
+                const authz = this._canMutate(context, 'hotspot.disable');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.disableHotspotUser(uname);
                 return r.action === 'disabled'
                     ? { status: 'ok', message: `User '${uname}' disabled and session terminated.` }
                     : { status: 'skipped', ...r };
             }
             if (action === 'enable') {
+                const authz = this._canMutate(context, 'hotspot.enable');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.enableHotspotUser(uname);
                 return r.action === 'enabled'
                     ? { status: 'ok', message: `User '${uname}' re-enabled.` }
                     : { status: 'skipped', ...r };
             }
             if (action === 'remove') {
+                const authz = this._canMutate(context, 'hotspot.remove');
+                if (!authz.ok) return { status: 'approval_required', reason: authz.reason };
                 const r = await this.mikrotik.removeHotspotUser(uname);
                 return r.action === 'removed'
                     ? { status: 'ok', message: `User '${uname}' permanently removed.` }

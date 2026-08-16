@@ -1,0 +1,142 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<title>AgentOS Platform HQ — Partner and Admin Control Architecture</title>
+<style>
+          @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+          :root { --navy:#0f172a; --blue:#2563eb; --teal:#0f766e; --amber:#d97706; --ink:#1e293b; --muted:#64748b; --line:#cbd5e1; --wash:#f8fafc; }
+          * { box-sizing:border-box; }
+          body { margin:0; font-family: Inter, Arial, sans-serif; color:var(--ink); background:white; }
+          .cover { min-height:250mm; display:flex; flex-direction:column; justify-content:space-between; padding:18mm; background:linear-gradient(135deg,#0f172a 0%,#172554 55%,#0f766e 100%); color:white; page-break-after:always; }
+          .eyebrow { text-transform:uppercase; letter-spacing:.16em; font-size:10px; color:#93c5fd; font-weight:700; }
+          h1 { font-size:38px; line-height:1.05; max-width:170mm; margin:22mm 0 8mm; }
+          .subtitle { font-size:17px; line-height:1.45; max-width:145mm; color:#dbeafe; }
+          .cover-footer { display:flex; justify-content:space-between; border-top:1px solid rgba(255,255,255,.3); padding-top:5mm; font-size:10px; color:#cbd5e1; }
+          h2 { color:var(--navy); font-size:23px; margin:0 0 5mm; }
+          h3 { color:var(--navy); font-size:15px; margin:0 0 3mm; }
+          p { font-size:10.5px; line-height:1.55; margin:0 0 4mm; }
+          .section { page-break-inside:avoid; margin-bottom:9mm; }
+          .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:5mm; }
+          .capability { min-height:42mm; border-top:4px solid var(--blue); background:var(--wash); padding:5mm; }
+          .capability.teal { border-top-color:var(--teal); }
+          .capability.amber { border-top-color:var(--amber); }
+          .label { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
+          ul { margin:3mm 0 0 5mm; padding:0; font-size:10px; line-height:1.6; }
+          .partner-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:4mm; }
+          .partner { border:1px solid var(--line); padding:4mm; display:grid; grid-template-columns:1fr auto; gap:2mm 4mm; }
+          .partner strong { color:var(--navy); }
+          .partner .value { color:var(--teal); font-weight:800; text-align:right; }
+          .partner .meta { color:var(--muted); font-size:9px; }
+          .control { display:grid; grid-template-columns:repeat(3,1fr); gap:3mm; }
+          .control div { border-left:3px solid var(--blue); background:#eff6ff; padding:3mm 4mm; font-size:10px; }
+          .flow { margin-top:4mm; border:1px solid var(--line); padding:5mm; background:linear-gradient(90deg,#eff6ff,#f0fdfa); }
+          .flow-row { display:flex; align-items:center; gap:4mm; margin:3mm 0; }
+          .node { padding:3mm 4mm; background:white; border:1px solid var(--line); font-weight:700; font-size:10px; min-width:37mm; text-align:center; }
+          .arrow { color:var(--blue); font-size:18px; font-weight:800; }
+          .note { border-left:4px solid var(--amber); background:#fffbeb; padding:4mm; font-size:9.5px; line-height:1.5; }
+          .footer { border-top:1px solid var(--line); margin-top:8mm; padding-top:3mm; color:var(--muted); font-size:8.5px; }
+        </style>
+</head>
+<body>
+<section class="cover"><div>
+<div class="eyebrow">AgentOS Platform HQ</div>
+<h1>AgentOS Platform HQ — Partner and Admin Control Architecture</h1>
+<div class="subtitle">A domain-agnostic control plane for AI operations, partner-led commerce, managed connectivity, CCTV, and hardware distribution.</div>
+</div>
+<div class="cover-footer">
+<span>br3eze.africa</span><span>Architecture brief · conceptual model</span>
+</div></section><main><section class="section"><h2>1. Platform capabilities</h2>
+<p>AgentOS concentrates the shared platform capabilities while keeping partner operations tenant-scoped. The platform owns the control plane, policy, settlement, and audit boundaries.</p>
+<div class="grid3">
+<div class="capability blue">
+<div class="label">Shared capability</div>
+<h3>AI Core</h3>
+<p><strong>Provider:</strong>Gemini</p>
+<ul>
+<li>NeuralCube</li>
+<li>Q-NAP</li>
+<li>Sentinel</li>
+</ul>
+</div>
+<div class="capability teal">
+<div class="label">Shared capability</div>
+<h3>Billing</h3>
+<ul>
+<li>Platform billing</li>
+<li>Partner ledgers</li>
+<li>Revenue share</li>
+</ul>
+</div>
+<div class="capability amber">
+<div class="label">Shared capability</div>
+<h3>Hardware and Inventory</h3>
+<ul>
+<li>Bulk-buy MikroTik</li>
+<li>Dahua OEM</li>
+<li>LTE SIMs</li>
+</ul>
+</div>
+</div></section><section class="section"><h2>2. White-label partner layer</h2>
+<p>Each partner is an isolated tenant with its own regional operating footprint, sites, commercial ledger, and customer relationships. The values below are illustrative planning figures from the supplied architecture.</p>
+<div class="partner-grid">
+<div class="partner">
+<strong>Partner A</strong><span class="value">KES 450K</span><span class="meta">Nairobi · 50 sites</span><span class="meta">Illustrative monthly value</span>
+</div>
+<div class="partner">
+<strong>Partner B</strong><span class="value">KES 210K</span><span class="meta">Kisumu · 23 sites</span><span class="meta">Illustrative monthly value</span>
+</div>
+<div class="partner">
+<strong>Partner C</strong><span class="value">UGX 180M</span><span class="meta">Kampala · 12 sites</span><span class="meta">Illustrative monthly value</span>
+</div>
+<div class="partner">
+<strong>Partner D</strong><span class="value">NGN 5M</span><span class="meta">Lagos · 8 sites</span><span class="meta">Illustrative monthly value</span>
+</div>
+</div></section><section class="section"><h2>3. AgentOS control plane</h2>
+<div class="control">
+<div>
+<strong>Tenant registry</strong><br><span class="meta">Owner: AgentOS</span>
+</div>
+<div>
+<strong>Tiered RBAC</strong><br><span class="meta">Owner: AgentOS</span>
+</div>
+<div>
+<strong>Partner bot lifecycle</strong><br><span class="meta">Owner: AgentOS</span>
+</div>
+<div>
+<strong>Payment and escrow settlement</strong><br><span class="meta">Owner: AgentOS</span>
+</div>
+<div>
+<strong>Audit and reconciliation</strong><br><span class="meta">Owner: AgentOS</span>
+</div>
+</div></section><section class="section"><h2>4. Value and data flows</h2>
+<div class="flow">
+<div class="flow-row">
+<div class="node">platform</div>
+<div class="arrow">→</div>
+<div class="node">partnerLayer</div>
+<div>Scoped capabilities, billing, hardware and AI operations</div>
+</div>
+<div class="flow-row">
+<div class="node">partnerLayer</div>
+<div class="arrow">→</div>
+<div class="node">customerLayer</div>
+<div>White-label connectivity, CCTV and support</div>
+</div>
+<div class="flow-row">
+<div class="node">customerLayer</div>
+<div class="arrow">→</div>
+<div class="node">partnerLayer</div>
+<div>Payments, service requests and telemetry</div>
+</div>
+<div class="flow-row">
+<div class="node">partnerLayer</div>
+<div class="arrow">→</div>
+<div class="node">platform</div>
+<div>Usage, settlements, inventory and audit events</div>
+</div>
+</div></section><section class="section"><h2>5. Operating boundary</h2>
+<div class="note">
+<strong>AgentOS owns the runtime and policy.</strong> Partners operate inside their assigned tenant scope. Admins manage partner lifecycle, roles, approved plans, payment credentials, settlement, regional scope, and auditability. End customers receive the partner-facing services without receiving platform control-plane access.</div></section><div class="footer">Partner figures are illustrative planning values supplied by the platform owner; they are not audited financial results.</div></main>
+</body>
+</html>

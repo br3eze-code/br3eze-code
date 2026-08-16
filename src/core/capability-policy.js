@@ -8,8 +8,11 @@
  */
 
 const CAPABILITY_PATTERNS = Object.freeze({
+  'research.read': ['research.deep_search', 'research.search', 'research.*'],
+  'assistant.use': ['assist.task', 'assistant.*', 'game.start', 'practice.explain', 'practice.simulate'],
+  'device.discovery': ['device.nearby.discover', 'device.discover', 'device.list', 'device.info'],
   'network.read': ['network.read', 'network.*', 'mikrotik.ping', 'mikrotik.users', 'mikrotik.system.stats', 'mikrotik.json'],
-  'network.write': ['network.write', 'network.firewall.*', 'network.ip.routes', 'mikrotik.user.*', 'mikrotik.firewall.*', 'mikrotik.system.reboot', 'mikrotik.system.reset'],
+  'network.write': ['network.write', 'network.firewall.*', 'network.ip.routes', 'network.user.kick', 'network.user.disable', 'mikrotik.user.*', 'mikrotik.firewall.*', 'mikrotik.system.reboot', 'mikrotik.system.reset'],
   'surveillance.read': ['cctv.stream', 'cctv.stream.credentials', 'cctv.stream.multi', 'device.channels', 'device.discover', 'device.health', 'device.info', 'device.list', 'dahua.device.*', 'dahua.events.*', 'dahua.scene.describe', 'dahua.snapshot.get', 'dahua.stream.url'],
   'surveillance.write': ['device.command', 'dahua.ptz.*', 'dahua.system.reboot'],
   'fleet.read': ['fleet.read', 'starlink.*', 'device.health', 'device.info', 'device.list'],

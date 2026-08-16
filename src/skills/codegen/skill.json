@@ -1,7 +1,8 @@
 {
   "name": "codegen",
-  "version": "1.0.0",
-  "description": "Generate code from natural language using the configured AI provider",
+    "version": "2.0.0",
+  "description": "Generate supervised provider-neutral code for IoT, network, and API targets using authorized context",
+
   "entry": "index.js",
   "parameters": {
     "prompt": {
@@ -21,7 +22,35 @@
       "required": false,
       "description": "Framework or library context (e.g. express, react, fastapi)"
     },
+        "target": {
+      "type": "string",
+      "required": false,
+      "description": "Generation target",
+      "enum": ["routeros", "fastapi", "python", "node"]
+    },
+    "provider": {
+      "type": "string",
+      "required": false,
+      "description": "Optional provider adapter such as mikrotik, starlink, or generic-api"
+    },
+    "contextLevel": {
+      "type": "string",
+      "required": false,
+      "description": "Maximum authorized context level",
+      "enum": ["tenant", "domain", "site", "device", "session"]
+    },
+    "siteId": {
+      "type": "string",
+      "required": false,
+      "description": "Authorized site target"
+    },
+    "deviceId": {
+      "type": "string",
+      "required": false,
+      "description": "Authorized device target"
+    },
     "outputFile": {
+
       "type": "string",
       "required": false,
       "description": "Optional file path to write the generated code to"
@@ -37,5 +66,6 @@
       "params": { "prompt": "POST /upload endpoint with file validation", "language": "python", "framework": "fastapi" }
     }
   ],
-  "tags": ["developer", "ai", "codegen"]
+    "tags": ["developer", "ai", "codegen", "iot", "network", "fastapi", "routeros"]
+
 }

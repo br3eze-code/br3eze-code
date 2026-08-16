@@ -5,6 +5,7 @@ import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
 import { formatStartText, listAvailableDomains } from '../domain-menu.js';
 import { buildExecutionContext } from '../execution-context.js';
+import { buildActionManifest, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -449,6 +450,7 @@ class WhatsAppChannel extends BaseChannel {
           if (now - time > 300000) this.messageCache.delete(id);
         }
       }, 60000);
+      this.cacheCleanup.unref?.();
     } catch (error) {
       this.errorCount++;
       logger.error("WhatsApp initialization error:", error);
@@ -814,6 +816,43 @@ class WhatsAppChannel extends BaseChannel {
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
+  async _buildUiContext(msg, jid) {
+    let userDoc = msg?.userDoc || null
+    if (!userDoc) {
+      try {
+        const { getDatabase } = require('../database')
+        userDoc = await (await getDatabase()).getUser(msg?._uid || jid)
+      } catch (error) {
+        logger.debug(`WhatsApp UI context lookup failed: ${error.message}`)
+      }
+    }
+    return buildExecutionContext({ message: msg, userId: msg?._uid || userDoc?.uid || jid, platformId: jid, channel: 'whatsapp', userDoc, config: this.config })
+  }
+
+  async _sendUiActions(jid, msg) {
+    const context = await this._buildUiContext(msg, jid)
+    const actions = buildActionManifest(context)
+    if (!actions.length) return
+    const buttons = actions.map(({ action, label }) => ({ id: `ui:${encodeURIComponent(action)}`, label }))
+    return this.sendButtons(jid, { title: context.uiPolicy.restricted ? 'Available account actions' : 'Available actions for your role and scope', buttons, resultAction: 'ui_actions' })
+  }
+
+  async _executeUiAction(jid, msg, action, query = '') {
+    const context = await this._buildUiContext(msg, jid)
+    if (!context.uiPolicy.actions.includes(action)) return this.send(jid, '❌ This action is not available for your current role or status.')
+    if (action === 'research.deep_search' && !String(query).trim()) {
+      this.pendingInputs.set(jid, { action: 'ui:research.deep_search' })
+      return this.send(jid, '🔎 Send the research question to search. Your tenant, site, domain, and identity scope will be retained.')
+    }
+          const text = actionPrompt(action, query)
+
+    if (this.agent?.processInteraction) {
+      const result = await this.agent.processInteraction({ text }, { ...context, userDoc: msg?.userDoc })
+      return this.send(jid, result?.result?.text || result?.text || result?.message || 'Request completed.')
+    }
+    return this.send(jid, `Use */ask ${text}* to continue.`)
+  }
+
   async _handleStart(jid, msg) {
     const pushName = msg.pushName || "there";
     const config = this.config.domains || {};
@@ -826,6 +865,7 @@ class WhatsAppChannel extends BaseChannel {
       { id: "process:start", label: "🔄 Refresh menu" },
     ];
     if (buttons.length) await this.sendButtons(jid, { title: "Choose a domain or action", buttons, resultAction: "start_menu" });
+    await this._sendUiActions(jid, msg)
   }
 
   async _handleDomain(jid, msg, domainId) {
@@ -1786,7 +1826,14 @@ class WhatsAppChannel extends BaseChannel {
     // Resolve the canonical user identity once for all branches
     const uid = msg._uid || jid;
 
-    if (action === "ussd_menu") {
+    if (action?.startsWith('ui:')) {
+      const uiAction = parseActionCallback(action)
+      if (!uiAction) return this.send(jid, '❌ Invalid action.')
+      if (uiAction === 'research.deep_search') {
+        return this._executeUiAction(jid, msg, uiAction, text)
+      }
+      return this._executeUiAction(jid, msg, uiAction)
+    } else if (action === "ussd_menu") {
       const choice = text.trim();
       switch (choice) {
         case "0":

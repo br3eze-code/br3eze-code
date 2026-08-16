@@ -16,7 +16,10 @@ import { DahuaNotifier } from './dahua-notifier.js';
 import crypto from 'crypto';
 import QRCode from 'qrcode';
 import { verifyFirebaseIdToken } from './firebase-auth.js';
-import { DEFAULT_PLANS } from './database.js';
+import { DEFAULT_PLANS, getDatabase } from './database.js';
+import { EcoCashProvider } from '../payments/payment-gateway.js';
+import EcoCashEscrow from '../services/partner/ecocash-escrow.mjs';
+import createEcoCashWebhookRouter from '../gateway/ecocash-webhook.mjs';
 import * as dateUtils from '../utils/date.js';
 import { PrintBroker } from './print-broker.js';
 import shopRouter from '../api/routes/shop.js';
@@ -62,7 +65,15 @@ class Gateway extends EventEmitter {
 
     this.app = express();
     this.server = null;
+    this.services = config.services || {};
     this.ai = new AICoordinator(this.config);
+    // Channel adapters receive the coordinator as their agent context. Attach the
+    // explicitly injected service container here so Telegram, partner bots, RBAC,
+    // and database-backed flows use the same dependencies as the gateway routes.
+    this.ai.services = this.services;
+    this.ai.database = this.services.database || null;
+    this.ai.db = this.ai.database;
+    this.ecocashRouterPromise = this._createEcoCashWebhookRouter();
     this.channelManager = new ChannelManager(this.ai);
 
     // Relay special events from ChannelManager to system
@@ -106,11 +117,58 @@ class Gateway extends EventEmitter {
     }
   }
 
+  async _createEcoCashWebhookRouter() {
+    const db = this.services.database || await getDatabase();
+    // Publish the resolved database to the shared injected service context before
+    // channel registration. This avoids partner bots observing a false "database
+    // unavailable" state during startup.
+    this.services.database = db;
+    this.ai.database = db;
+    this.ai.db = db;
+    const paymentConfig = {
+      ...(this.config.payments || {}),
+      ...(this.config.ecocash || {}),
+      ...this.config,
+    };
+    const ecocash = this.services.ecocash || new EcoCashProvider(paymentConfig);
+    const escrow = this.services.ecocashEscrow || new EcoCashEscrow({
+      db,
+      ecocash,
+      walletCredit: this.services.walletCredit || null,
+      now: this.services.now || (() => new Date()),
+    });
+    this.ecocash = ecocash;
+    this.ecocashEscrow = escrow;
+    return createEcoCashWebhookRouter({
+      db,
+      ecocash,
+      releaseEscrow: this.services.releaseEscrow || ((escrowId) => escrow.verifyAndRelease(escrowId)),
+      notifyPartner: this.services.notifyPartner || null,
+      verifySignature: this.services.verifyEcoCashSignature || null,
+      queue: this.services.webhookQueue || null,
+      logger,
+    });
+  }
+
   _setupExpress() {
     this.app.use(security.getSecurityMiddleware());
     this.app.use(compression());
     this.app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') || '*' }));
     this.app.use(express.json({ limit: '10kb' }));
+
+    // EcoCash settlement is mounted through an injected, idempotent router.
+    // Lazy delegation keeps gateway construction synchronous while database and
+    // provider dependencies finish initializing in the background.
+    this.app.use(async (req, res, next) => {
+      if (req.path !== '/webhooks/ecocash') return next();
+      try {
+        const router = await this.ecocashRouterPromise;
+        return router(req, res, next);
+      } catch (error) {
+        logger.error('[Gateway] EcoCash webhook initialization failed:', error);
+        return res.status(503).json({ error: 'EcoCash webhook unavailable' });
+      }
+    });
 
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000,
@@ -622,6 +680,11 @@ class Gateway extends EventEmitter {
 
   async start() {
     logger.info('Starting AgentOS Gateway services...');
+
+    // Resolve payment/database dependencies before registering channels. Partner
+    // Telegram bots and escrow-backed handlers must never start against a partial
+    // dependency container.
+    await this.ecocashRouterPromise;
 
     // Resource monitoring log
     const { rss, heapUsed } = process.memoryUsage();

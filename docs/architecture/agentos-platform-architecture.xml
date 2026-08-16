@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<agentosArchitecture version="1.0" status="conceptual">
+  <metadata>
+    <title>AgentOS Platform HQ — Partner and Admin Control Architecture</title>
+    <owner>br3eze.africa</owner>
+    <note>Partner figures are illustrative planning values supplied by the platform owner; they are not audited financial results.</note>
+  </metadata>
+  <platform name="AgentOS Platform HQ" owner="br3eze.africa">
+    <capability id="ai-core" name="AI Core" color="#2563EB">
+      <provider>Gemini</provider>
+      <component>NeuralCube</component>
+      <component>Q-NAP</component>
+      <component>Sentinel</component>
+    </capability>
+    <capability id="billing" name="Billing" color="#0F766E">
+      <component>Platform billing</component>
+      <component>Partner ledgers</component>
+      <component>Revenue share</component>
+    </capability>
+    <capability id="hardware" name="Hardware and Inventory" color="#D97706">
+      <component>Bulk-buy MikroTik</component>
+      <component>Dahua OEM</component>
+      <component>LTE SIMs</component>
+    </capability>
+  </platform>
+  <partnerLayer name="Partner Layer" description="White-label, tenant-scoped operators">
+    <partner id="partner-a" name="Partner A" region="Nairobi" sites="50" monthlyValue="KES 450K" />
+    <partner id="partner-b" name="Partner B" region="Kisumu" sites="23" monthlyValue="KES 210K" />
+    <partner id="partner-c" name="Partner C" region="Kampala" sites="12" monthlyValue="UGX 180M" />
+    <partner id="partner-d" name="Partner D" region="Lagos" sites="8" monthlyValue="NGN 5M" />
+  </partnerLayer>
+  <customerLayer name="End Customers">
+    <customerType>WiFi users</customerType>
+    <customerType>Camera owners</customerType>
+    <customerType>Managed network customers</customerType>
+  </customerLayer>
+  <controlPlane>
+    <service name="Tenant registry" owner="AgentOS" />
+    <service name="Tiered RBAC" owner="AgentOS" />
+    <service name="Partner bot lifecycle" owner="AgentOS" />
+    <service name="Payment and escrow settlement" owner="AgentOS" />
+    <service name="Audit and reconciliation" owner="AgentOS" />
+  </controlPlane>
+  <flows>
+    <flow from="platform" to="partnerLayer" label="Scoped capabilities, billing, hardware and AI operations" />
+    <flow from="partnerLayer" to="customerLayer" label="White-label connectivity, CCTV and support" />
+    <flow from="customerLayer" to="partnerLayer" label="Payments, service requests and telemetry" />
+    <flow from="partnerLayer" to="platform" label="Usage, settlements, inventory and audit events" />
+  </flows>
+</agentosArchitecture>
+

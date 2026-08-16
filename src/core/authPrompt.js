@@ -13,8 +13,14 @@ import { DEFAULT_LOGIN_DOMAIN } from './config.js';
  * ─────────────────────────────────────────────────────────────────
  */
 
-function getLoginUrl() {
-  return `https://${DEFAULT_LOGIN_DOMAIN}/login`;
+function getLoginUrl(state = '') {
+  const suffix = state ? `?state=${encodeURIComponent(String(state).slice(0, 240))}` : '';
+  return `https://${DEFAULT_LOGIN_DOMAIN}/login${suffix}`;
+}
+
+function getLinkUrl(state = '') {
+  const suffix = state ? `?state=${encodeURIComponent(String(state).slice(0, 240))}` : '';
+  return `https://${DEFAULT_LOGIN_DOMAIN}/link${suffix}`;
 }
 
 /**
@@ -50,4 +56,11 @@ function getAuthPrompt(channel = 'generic') {
   }
 }
 
-export { getAuthPrompt, getLoginUrl };
+function getLinkPrompt(channel = 'generic', state = '') {
+  const url = getLinkUrl(state);
+  if (channel === 'sms' || channel === 'ussd') return `Link your account at ${url}`;
+  if (channel === 'email') return `<p>Link this channel to your AgentOS account: <a href="${url}">continue</a>.</p>`;
+  return `To link this channel, open:\n${url}\n\nNever send passwords or one-time codes in chat.`;
+}
+
+export { getAuthPrompt, getLoginUrl, getLinkPrompt, getLinkUrl };

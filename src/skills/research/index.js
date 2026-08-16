@@ -45,6 +45,20 @@ class ResearchSkill extends BaseSkill {
           required: ['query']
         }
       },
+      'research.deep_search': {
+        risk: 'low',
+        description: 'Search the web and fetch primary source excerpts within the caller scope',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+            focus: { type: 'string', enum: ['academic', 'news', 'general'], default: 'general' },
+            max_results: { type: 'number', default: 5 },
+            fetch_results: { type: 'number', default: 3 }
+          },
+          required: ['query']
+        }
+      },
       'research.fetch': {
         risk: 'low',
         description: 'Fetch + extract text from URL or PDF',
@@ -129,6 +143,32 @@ class ResearchSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     try {
       switch (toolName) {
+        case 'research.deep_search': {
+          const query = String(args.query || '').trim()
+          if (!query) throw new Error('query is required')
+          const maxResults = Math.min(Math.max(Number(args.max_results) || 5, 1), 10)
+          const fetchResults = Math.min(Math.max(Number(args.fetch_results) || 3, 0), maxResults)
+          this.logger.info(`RESEARCH DEEP_SEARCH ${args.focus || 'general'}: ${query}`, {
+            user: ctx.userId, tenantId: ctx.tenantId, siteId: ctx.siteId, domain: ctx.domain, channel: ctx.channel,
+          })
+          const search = await this.execute('research.search', {
+            query, focus: args.focus || 'general', max_results: maxResults,
+          }, ctx)
+          const sources = []
+          for (const result of search.results.slice(0, fetchResults)) {
+            try {
+              sources.push(await this._fetchText(result.url))
+            } catch (error) {
+              this.logger.warn(`Deep search fetch failed for ${result.url}: ${error.message}`)
+            }
+          }
+          return {
+            query, focus: args.focus || 'general', results: search.results,
+            sources: sources.map(({ title, url, text, fetched_at }) => ({ title, url, fetched_at, excerpt: text.slice(0, 2000) })),
+            scope: { userId: ctx.userId, tenantId: ctx.tenantId || null, siteId: ctx.siteId || null, domain: ctx.domain || 'general' },
+          }
+        }
+
         case 'research.search':
           this.logger.info(`RESEARCH SEARCH ${args.focus}: ${args.query}`, { user: ctx.userId })
           // Use browser.search tool if available, else fallback to DuckDuckGo

@@ -11,7 +11,7 @@
     },
     "operator": {
       "label": "Network Operator",
-      "tools": ["network.read","network.write","surveillance.read","surveillance.write","fleet.read","fleet.write","identity.manage","commerce.read","commerce.write","system.read","mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
+      "tools": ["network.read","network.write","surveillance.read","surveillance.write","fleet.read","fleet.write","device.discovery","research.read","assistant.use","identity.manage","commerce.read","commerce.write","system.read","mikrotik.*","dahua.*","agentos.*","users.active","user.kick","voucher.*","system.stats"],
       "routers": ["*"],
       "requireApproval": ["system.reboot","mikrotik.firewall.*","mikrotik.ip.route.*"],
       "limits": {"voucher.create":{"maxDuration":"30day"}},
@@ -56,7 +56,7 @@
     },
     "researcher": {
       "label": "Research Agent",
-      "tools": ["research.*","language.*"],
+      "tools": ["research.*","research.read","assistant.use","language.*"],
       "routers": [],
       "requireApproval": ["research.synthesize","research.zotero.sync"],
       "limits": {},
@@ -74,7 +74,7 @@
     },
     "user": {
       "label": "End User",
-      "tools": ["commerce.write","identity.manage","system.read","agentos.voucher.create","agentos.channels.status","system.stats"],
+      "tools": ["commerce.write","research.read","assistant.use","identity.manage","system.read","agentos.voucher.create","agentos.channels.status","system.stats"],
       "routers": [],
       "requireApproval": [],
       "limits": {"agentos.voucher.create":{"maxDuration":"1day","maxBatch":1}},

@@ -1,6 +1,7 @@
 import express from 'express';
 import config from '../core/config.js';
 import mikrotik from '../agents/mikrotik.agent.js';
+import { createBatchRouter } from './batch-api.js';
 
 // src/interfaces/api.js
 const router = express.Router();
@@ -133,6 +134,11 @@ const legacyApp = app;
 
 export { legacyApp };
 export default (agent) => {
+
+    router.use(createBatchRouter({
+        agent,
+        authorize: async (req) => req.authContext || req.user || null
+    }));
 
     router.post('/execute', async (req, res) => {
         try {

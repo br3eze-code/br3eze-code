@@ -31,19 +31,21 @@ class SessionManager {
     const context = frame.context || {};
     const channel = this._safeSegment(frame.channel || context.channel || 'unknown');
     const sender = this._safeSegment(frame.sender || context.platformId || context.userId || 'anonymous');
+    const tenant = this._safeSegment(frame.tenantId || context.tenantId || context.scopes?.tenantId || 'public');
+    const domain = this._safeSegment(frame.domain || context.domain || context.scopes?.domain || 'general');
+    const site = this._safeSegment(frame.siteId || context.siteId || context.scopes?.siteId || 'all-sites');
     const conversation = this._safeSegment(
       frame.conversationId || context.conversationId || frame.threadId || 'main'
     );
 
-    // Isolated mode keeps direct conversations private to the sender while
-    // preserving separate histories for different channels/conversations.
-    if (this.mode === 'isolated' && (frame.isDM || context.isDM)) {
-      return path.join(agentId, channel, sender, conversation);
+    // Per-user context is the safe default for every channel. A shared room
+    // identifier must not merge private history, role-aware UI, OAuth context,
+    // or tool state between participants.
+    const userScoped = path.join(agentId, tenant, domain, site, channel, sender, conversation);
+    if (this.mode === 'shared' && (frame.allowSharedContext || context.allowSharedContext)) {
+      return path.join(agentId, tenant, domain, site, channel, conversation);
     }
-
-    // Channel sessions are shared by participants in the same room/thread,
-    // but never accidentally shared across channels or conversations.
-    return path.join(agentId, channel, conversation);
+    return userScoped;
   }
 
   _safeSegment(value) {

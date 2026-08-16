@@ -82,17 +82,29 @@ describe('SessionManager — getSessionId', () => {
         expect(id).not.toMatch(/[@!#]/);
     });
 
-    test('isolated + not DM → shared path (agentId/main)', () => {
+    test('isolated mode keeps non-DM users separate', () => {
         const id = sm.getSessionId({ agentId: 'bot', isDM: false, sender: 'user123' });
-        expect(id).not.toContain('user123');
+        expect(id).toContain('user123');
         expect(id).toContain('main');
     });
 
-    test('shared mode → always returns shared path', () => {
+    test('shared mode still requires explicit shared-context opt-in', () => {
         const shared = new SessionManager({ basePath: '/tmp/test', mode: 'shared' });
-        const id1 = shared.getSessionId({ agentId: 'bot', isDM: true, sender: 'user1' });
-        const id2 = shared.getSessionId({ agentId: 'bot', isDM: true, sender: 'user2' });
-        expect(id1).toBe(id2);
+        const privateId1 = shared.getSessionId({ agentId: 'bot', isDM: true, sender: 'user1' });
+        const privateId2 = shared.getSessionId({ agentId: 'bot', isDM: true, sender: 'user2' });
+        expect(privateId1).not.toBe(privateId2);
+        const sharedId1 = shared.getSessionId({ agentId: 'bot', conversationId: 'room', allowSharedContext: true, sender: 'user1' });
+        const sharedId2 = shared.getSessionId({ agentId: 'bot', conversationId: 'room', allowSharedContext: true, sender: 'user2' });
+        expect(sharedId1).toBe(sharedId2);
+    });
+
+    test('tenant, domain, site, and channel are part of the private session identity', () => {
+        const base = { agentId: 'bot', sender: 'user1', conversationId: 'room' };
+        const telegram = sm.getSessionId({ ...base, channel: 'telegram', tenantId: 't1', domain: 'network', siteId: 's1' });
+        const whatsapp = sm.getSessionId({ ...base, channel: 'whatsapp', tenantId: 't1', domain: 'network', siteId: 's1' });
+        const otherSite = sm.getSessionId({ ...base, channel: 'telegram', tenantId: 't1', domain: 'network', siteId: 's2' });
+        expect(telegram).not.toBe(whatsapp);
+        expect(telegram).not.toBe(otherSite);
     });
 
     test('defaults agentId to "default"', () => {

@@ -1,0 +1,100 @@
+{
+  "project_info": {
+    "title": "AgentOS Per-User Lifecycle Graphs",
+    "created": 1786847505.653,
+    "last_updated": 1786847882.29,
+    "total_slides": 8
+  },
+  "slides": [
+    {
+      "id": "title",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "lifecycle",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "storage",
+      "state": "edit_pending",
+      "pageNum": 3
+    },
+    {
+      "id": "mesh_scope",
+      "state": "edit_pending",
+      "pageNum": 4
+    },
+    {
+      "id": "scheduled_enforcement",
+      "state": "edit_pending",
+      "pageNum": 5
+    },
+    {
+      "id": "visibility",
+      "state": "edit_pending",
+      "pageNum": 6
+    },
+    {
+      "id": "partner_product",
+      "state": "edit_pending",
+      "pageNum": 7
+    },
+    {
+      "id": "controls",
+      "state": "edit_pending",
+      "pageNum": 8
+    }
+  ],
+  "outline": [
+    {
+      "id": "title",
+      "title": "AgentOS Per-User Lifecycle Graphs",
+      "summary": "Architecture overview: user lifecycle state, scoped synchronization, and privacy boundaries across channels, Firebase/SQLite, MikroTik, and partner operations.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "lifecycle",
+      "title": "One User, One Synchronized Lifecycle Projection",
+      "summary": "Show onboarding, identity linking, voucher redemption, suspension, and offboarding as events projected into a user-keyed graph.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "storage",
+      "title": "Firestore, SQLite, and Local Fallback Parity",
+      "summary": "Explain how the same per-user graph shape is persisted across cloud and local tiers without global activity leakage.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "mesh_scope",
+      "title": "MikroTik Mesh Association Uses Site Identity",
+      "summary": "Show tenant, domain, and site metadata flowing from mesh registration into router state and audit records.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "scheduled_enforcement",
+      "title": "Scheduled Audit and Enforcement Path",
+      "summary": "Trace a scheduled billing or audit run through authorization, agent-toolbox execution, MikroTik/Starlink action, graph update, and scoped audit logging.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "visibility",
+      "title": "Audit Visibility: What Each User Can See",
+      "summary": "Compare authorized versus unauthorized audit queries and show server-derived identity, tenant, domain, and site filters.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "partner_product",
+      "title": "Remote Partner Bot and Product Operations",
+      "summary": "Summarize tenant-scoped partner bot sales, payment/escrow, product catalog, carts, checkout, and the current integration boundaries.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "controls",
+      "title": "Deployment Controls and Next Hardening",
+      "summary": "Close with operational guarantees, committed implementation, remaining legacy audit endpoint limitation, and recommended controls.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

@@ -1,24 +1,12 @@
-import path from 'path';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // src/tools/developer/codeGenTool.js
 // ==========================================
+let skillPromise;
 
-
-
-
-const SKILL_PATH = path.join(__dirname, '../../skills/codegen/index.js');
-
-/** Lazy-load the skill so this file is safe to require without deps ready */
-function getSkill() {
-  return require(SKILL_PATH);
+/** Lazy-load the ESM skill without importing model/provider dependencies at module load time. */
+async function getSkill() {
+  skillPromise ||= import('../../skills/codegen/index.js');
+  const module = await skillPromise;
+  return module.default || module.CodegenSkill;
 }
 
 const codeGenTool = {
@@ -31,8 +19,10 @@ const codeGenTool = {
    * @param {object} context
    */
   async execute(params, context = {}) {
-    const skill = getSkill();
-    return skill.execute(params, context);
+        const Skill = await getSkill();
+    const skill = typeof Skill === 'function' ? new Skill(context.config || {}, context.logger) : Skill;
+    return skill.execute('codegen.generate', params, context);
+
   }
 };
 

@@ -6,6 +6,8 @@ import yaml from 'js-yaml';
 import 'dotenv/config';
 
 
+const DEFAULT_LOGIN_DOMAIN = process.env.LOGIN_DOMAIN || process.env.PUBLIC_DOMAIN || 'br3eze.africa';
+
 const BRAND = {
     name: 'AgentOS',
     version: '2026.7.47',
@@ -359,4 +361,4 @@ export const security = {
     apiKey: process.env.API_KEY,
     ALERT_COOLDOWN_MS: 60000
 };
-export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig };
+export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, DEFAULT_LOGIN_DOMAIN, loadConfig, saveConfig, getConfig };
