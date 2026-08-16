@@ -47,6 +47,19 @@ tools:
         type: number
         required: false
     returns: object
+  - name: cctv.stream.multi
+    description: Build main and sub-stream URLs for multiple NVR channels.
+    parameters:
+      - name: device
+        type: string
+        required: true
+      - name: channels
+        type: array
+        required: false
+      - name: subtype
+        type: number
+        required: false
+    returns: object
   - name: cctv.ptz.move
     description: Move a PTZ camera; requires approval and a reason.
     parameters:

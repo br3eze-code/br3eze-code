@@ -72,9 +72,65 @@ class CctvSkill extends BaseSkill {
     return devices;
   }
 
+  async _channels(provider, device, ctx) {
+    const { definition, skill } = this._adapter(provider);
+    const result = await skill.execute(`${definition.prefix}.device.channels`, { device }, ctx);
+    const rows = Array.isArray(result) ? result : result?.channels || [];
+    return rows.map((row) => ({
+      channel: Number(row.channel ?? row.id),
+      name: row.name || row.channelName || `Channel ${row.channel ?? row.id}`,
+      enabled: row.enabled !== false,
+      provider,
+      device,
+      videoCodec: row.videoCodec || null,
+    })).filter((row) => Number.isInteger(row.channel) && row.channel > 0);
+  }
+
+  _requestedChannels(channels) {
+    if (channels === undefined || channels === null || channels === '') return null;
+    if (!Array.isArray(channels)) channels = [channels];
+    const normalized = [...new Set(channels.map((channel) => Number(channel)))];
+    if (!normalized.length || normalized.some((channel) => !Number.isInteger(channel) || channel <= 0)) {
+      throw new Error('channels must contain positive integer NVR channel identifiers');
+    }
+    if (normalized.length > 64) throw new Error('A maximum of 64 NVR channels may be streamed per request');
+    return normalized;
+  }
+
+  async _multiStream(provider, device, args, ctx) {
+    const { definition, skill } = this._adapter(provider);
+    const available = await this._channels(provider, device, ctx);
+    const requested = this._requestedChannels(args.channels);
+    const selected = (requested ? available.filter((row) => requested.includes(row.channel)) : available.filter((row) => row.enabled));
+    if (requested && selected.length !== requested.length) {
+      const found = new Set(selected.map((row) => row.channel));
+      const missing = requested.filter((channel) => !found.has(channel));
+      throw new Error(`NVR channel(s) not available on ${device}: ${missing.join(', ')}`);
+    }
+    if (!selected.length) return { device, provider, channels: [], note: 'No enabled NVR channels are configured.' };
+
+    const channels = await Promise.all(selected.map(async (row) => {
+      const stream = await skill.execute(`${definition.prefix}.stream.url`, {
+        device,
+        channel: row.channel,
+        subtype: args.subtype,
+      }, ctx);
+      return { ...row, stream };
+    }));
+    return { device, provider, channels };
+  }
+
   async execute(toolName, args = {}, ctx = {}) {
     const action = toolName.replace(/^cctv\./, '');
     if (action === 'device.list') return this._list(args.provider);
+    if (action === 'channel.list') {
+      const provider = this._providerFor(args.device, args.provider);
+      return { device: args.device, provider, channels: await this._channels(provider, args.device, ctx) };
+    }
+    if (action === 'stream.multi') {
+      const provider = this._providerFor(args.device, args.provider);
+      return this._multiStream(provider, args.device, args, ctx);
+    }
     if (action === 'device.discover') {
       const { skill } = this._adapter('dahua');
       return skill.execute('dahua.device.discover', args, ctx);
