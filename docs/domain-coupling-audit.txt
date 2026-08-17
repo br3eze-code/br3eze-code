@@ -1,0 +1,390 @@
+=== package identity and dependencies ===
+package.json:2:  "name": "br3eze-code",
+package.json:4:  "description": "AgentOS — Network Intelligence Operating System for MikroTik via AI",
+package.json:20:    "automate": "pm2 start scripts/automate.js --name agentos-ops",
+package.json:35:    "build:android": "npm run sync:php && cordova build android",
+package.json:36:    "build:android:release": "cordova build android --release -- --gradleArg=-PcdvReleaseSigningPropertiesFile=C:\\Users\\user\\br3eze-code\\platforms\\android\\release-signing.properties",
+package.json:37:    "build:ios": "cordova build ios",
+package.json:53:    "url": "https://github.com/br3eze-code/br3eze-code.git"
+package.json:71:    "productName": "AgentOS",
+package.json:75:    "artifactName": "agentos-${version}-${os}-${arch}.${ext}",
+package.json:96:      "executableName": "agentos"
+package.json:104:      "shortcutName": "AgentOS"
+package.json:108:    "mikrotik",
+package.json:109:    "routeros",
+package.json:116:    "wifi-billing",
+package.json:117:    "starlink"
+package.json:146:    "cordova-plugin-bluetooth-serial": "^0.4.7",
+package.json:156:    "firebase": "^12.13.0",
+package.json:157:    "firebase-admin": "^14.2.0",
+package.json:196:    "routeros-client": "^1.1.1",
+package.json:229:    "community-cordova-plugin-wifi-wizard": "^3.4.0",
+package.json:230:    "cordova": "^13.0.0",
+package.json:231:    "cordova-android": "^15.0.0",
+package.json:232:    "cordova-browser": "^7.0.0",
+package.json:233:    "cordova-plugin-aicore": "file:custom-plugins/cordova-plugin-aicore",
+package.json:234:    "cordova-plugin-android-permissions": "^1.1.5",
+package.json:235:    "cordova-plugin-camera": "^8.0.0",
+package.json:236:    "cordova-plugin-device": "^3.0.0",
+package.json:237:    "cordova-plugin-firebasex": "^20.0.2",
+package.json:238:    "cordova-plugin-inappbrowser": "^6.0.0",
+package.json:239:    "cordova-plugin-local-notification": "^1.2.3",
+package.json:240:    "cordova-plugin-network-information": "^3.0.0",
+package.json:241:    "cordova-plugin-network-tools": "file:custom-plugins/cordova-plugin-network-tools",
+package.json:242:    "cordova-plugin-screen-orientation": "^3.0.4",
+package.json:243:    "cordova-plugin-vibration": "^3.1.1",
+package.json:244:    "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-wifi-billing-agent",
+package.json:245:    "cordova-sqlite-storage": "^7.0.0",
+package.json:259:  "cordova": {
+package.json:265:      "cordova-plugin-oauth": {},
+package.json:266:      "cordova-plugin-contacts": {},
+package.json:267:      "cordova-plugin-aicore": {},
+package.json:268:      "cordova-plugin-wifi-billing-agent": {},
+package.json:269:      "cordova-plugin-android-permissions": {},
+package.json:270:      "community-cordova-plugin-wifi-wizard": {},
+package.json:271:      "cordova-plugin-device": {},
+package.json:272:      "cordova-plugin-network-information": {},
+package.json:273:      "cordova-plugin-firebasex": {},
+package.json:274:      "cordova-plugin-local-notification": {},
+package.json:275:      "cordova-plugin-vibration": {},
+package.json:276:      "cordova-plugin-screen-orientation": {},
+package.json:277:      "cordova-plugin-camera": {},
+package.json:278:      "cordova-plugin-inappbrowser": {},
+package.json:279:      "cordova-sqlite-storage": {},
+package.json:280:      "cordova-plugin-network-tools": {},
+package.json:281:      "cordova-plugin-bluetooth-serial": {}
+package.json:288:    "type": "github",
+package.json:289:    "url": "https://github.com/sponsors/br3eze-code"
+README.md:14:  <img src="https://img.shields.io/badge/MikroTik-RouterOS-green?style=for-the-badge&logo=mikrotik" alt="MikroTik">
+README.md:20:Network Intelligence Platform — AI-powered MikroTik management via Telegram, WhatsApp & CLI
+README.md:34:Managing MikroTik routers shouldn't require memorizing CLI commands or keeping WinBox open 24/7. AgentOS brings conversational AI to network administration — control your infrastructure from messaging apps or the CLI.
+README.md:38:Managing community WiFi infrastructure across multiple MikroTik nodes can be tedious: WinBox requires a desktop, RouterOS CLI requires memorizing commands, and hotspot billing often needs manual voucher generation. AgentOS consolidates these tasks into one intelligent agent you control from Telegram, WhatsApp, or a WebSocket CLI.
+README.md:46:- 🎫 Voucher system with payment integrations and QR code generation
+README.md:60:git clone https://github.com/br3eze-code/br3eze-code.git
+README.md:71:# Edit .env with your MikroTik credentials
+README.md:77:# MikroTik
+README.md:78:MIKROTIK_HOST=192.168.88.1
+README.md:79:MIKROTIK_USER=admin
+README.md:80:MIKROTIK_PASS=your_password
+README.md:81:MIKROTIK_PORT=8728
+README.md:92:# Payments (Mastercard A2A)
+README.md:97:FIREBASE_PROJECT_ID=your_project
+README.md:106:- MikroTik RouterOS 7.x
+README.md:109:- Firebase project (or use local JSON fallback)
+README.md:152:> AI-powered MikroTik management with multi-channel control via Telegram, WhatsApp, and WebSocket CLI
+README.md:168:| MikroTik Manager | `src/core/mikrotik.js` | RouterOS API adapter |
+README.md:170:| Billing | `src/core/universal-billing.js` | Voucher + payment flow |
+README.md:184:Payment flow: **Mastercard A2A → Firebase → Voucher Generation → MikroTik Hotspot User**
+README.md:193:├── agentos-sentinel.rsc     RouterOS native agent
+README.md:194:├── mikro.rsc                RouterOS bootstrap scripts
+README.md:198:│   │   ├── mikrotik.js      RouterOS manager
+README.md:200:│   │   ├── database.js      Firebase/local DB
+README.md:206:├── services/                Billing, voucher, payment
+README.md:211:├── custom-plugins/          Cordova plugin: aicore
+README.md:240:│   ├── kick <username>       Disconnect user
+README.md:241:│   ├── add <username>        Create hotspot user
+README.md:242:│   ├── remove <username>     Delete user
+README.md:243:│   └── status <username>     Check online + usage
+README.md:262:/kick       Kick a user by name
+README.md:286:| Router API | MikroTik RouterOS API (routeros-client) |
+README.md:289:| Payments | Mastercard A2A · OAuth 1.0a RSA-SHA256 |
+README.md:290:| Database | Firebase Firestore / Local JSON |
+README.md:319:bash /tmp/agentos-install.sh --ref upgrade/commerce-domains
+README.md:330:powershell -ExecutionPolicy Bypass -File $env:TEMP\agentos-install.ps1 -Ref upgrade/commerce-domains
+README.md:336:The default locations are `~/.agentos/app` and `~/.agentos/bin` on Unix, and `%USERPROFILE%\\.agentos\\app` and `%USERPROFILE%\\.agentos\\bin` on Windows. Use `--profile NAME` to keep separate tenants or environments isolated. Use `--desktop` only when you want the installer to fetch development dependencies and build the Electron directory package:
+README.md:346:### RouterOS Sentinel
+README.md:350:/import file-name=agentos-sentinel.rsc
+README.md:364:- 🐛 Open an issue: https://github.com/br3eze-code/br3eze-code/issues
+README.md:365:- 💡 Start a discussion: https://github.com/br3eze-code/br3eze-code/discussions
+README.md:378:  <a href="https://github.com/br3eze-code/br3ezeclaw/stargazers">
+README.md:379:    <img src="https://img.shields.io/github/stars/br3eze-code/br3ezeclaw?style=social" alt="Stars">
+README.md:381:  <a href="https://github.com/br3eze-code/br3ezeclaw/network/members">
+README.md:382:    <img src="https://img.shields.io/github/forks/br3eze-code/br3ezeclaw?style=social" alt="Forks">
+=== core imports and references ===
+src/adapters/telegram-starlink-innbucks.mjs
+src/agentEngine.js
+src/agentRuntime.js
+src/agents/mikrotik.agent.js
+src/ai/coordinator.js
+src/api/mobile-bridge.js
+src/api/routes/pos.js
+src/api/routes/project-manager.js
+src/api/routes/shop.js
+src/api/routes/v1.js
+src/api/routes/v2.js
+src/api/routes/v3.js
+src/channels/telegram.adapter.js
+src/channels/telegram.js
+src/channels/whatsapp.adapter.js
+src/cli/commands/ask.js
+src/cli/commands/config.js
+src/cli/commands/dashboard.js
+src/cli/commands/doctor.js
+src/cli/commands/domain.js
+src/cli/commands/gateway.js
+src/cli/commands/login.js
+src/cli/commands/mikrotik.js
+src/cli/commands/networks.js
+src/cli/commands/onboard.js
+src/cli/commands/starlink.js
+src/cli/commands/status.js
+src/cli/commands/users.js
+src/cli/commands/voucher.js
+src/cli/commands/wacli.js
+src/commands/payment-command.js
+src/core/AgentOS.js
+src/core/AgentOS.js
+src/core/ChaosMonkey.v2.js
+src/core/ChaosMonkey.v2.js
+src/core/HealthMonitor.js
+src/core/HealthMonitor.js
+src/core/agent-role-profiles.js
+src/core/agent-role-profiles.js
+src/core/agentEngine.js
+src/core/agentEngine.js
+src/core/agentKernel.js
+src/core/agentKernel.js
+src/core/agentPolicy.js
+src/core/agentPolicy.js
+src/core/agentRuntime.js
+src/core/agentRuntime.js
+src/core/ai-orchestrator.js
+src/core/ai-orchestrator.js
+src/core/ask-engine.js
+src/core/ask-engine.js
+src/core/authPrompt.js
+src/core/authPrompt.js
+src/core/bot.ai.js
+src/core/bot.ai.js
+src/core/capability-manifest.js
+src/core/capability-manifest.js
+src/core/capability-policy.js
+src/core/capability-policy.js
+src/core/channels/DiscordChannel.js
+src/core/channels/DiscordChannel.js
+src/core/channels/EmailChannel.js
+src/core/channels/EmailChannel.js
+src/core/channels/HandlerLibrary.js
+src/core/channels/HandlerLibrary.js
+src/core/channels/SMSChannel.js
+src/core/channels/SMSChannel.js
+src/core/channels/SlackChannel.js
+src/core/channels/SlackChannel.js
+src/core/channels/TelegramChannel.js
+src/core/channels/TelegramChannel.js
+src/core/channels/USSDChannel.js
+src/core/channels/USSDChannel.js
+src/core/channels/WebSocketCLI.js
+src/core/channels/WebSocketCLI.js
+src/core/channels/WebSocketChannel.js
+src/core/channels/WebSocketChannel.js
+src/core/channels/WhatsappChannel.js
+src/core/channels/WhatsappChannel.js
+src/core/channels/link-verifier.js
+src/core/channels/link-verifier.js
+src/core/chaosMonkey.js
+src/core/chaosMonkey.js
+src/core/cli.js
+src/core/cli.js
+src/core/config.js
+src/core/config.js
+src/core/couriers/courier-guy-provider.js
+src/core/couriers/courier-guy-provider.js
+src/core/database-enhanced.js
+src/core/database-enhanced.js
+src/core/database.js
+src/core/database.js
+src/core/diagnostics.js
+src/core/diagnostics.js
+src/core/discovery.js
+src/core/discovery.js
+src/core/firebase-auth.js
+src/core/firebase-auth.js
+src/core/firebase.js
+src/core/firebase.js
+src/core/gateway-engine.js
+src/core/gateway-engine.js
+src/core/github.js
+src/core/github.js
+src/core/inventory/inventory-specialist.js
+src/core/inventory/inventory-specialist.js
+src/core/memory/MemoryManager.js
+src/core/memory/MemoryManager.js
+src/core/metrics.js
+src/core/metrics.js
+src/core/mikrotik-mesh.js
+src/core/mikrotik-mesh.js
+src/core/mikrotik.js
+src/core/mikrotik.js
+src/core/monitor.js
+src/core/monitor.js
+src/core/node-registry.js
+src/core/node-registry.js
+src/core/oauth2.js
+src/core/oauth2.js
+src/core/onboard.js
+src/core/onboard.js
+src/core/operationProgress.js
+src/core/operationProgress.js
+src/core/orchestrator.js
+src/core/orchestrator.js
+src/core/plans-sales.js
+src/core/plans-sales.js
+src/core/printer.js
+src/core/printer.js
+src/core/product-query-service-bridge.js
+src/core/product-query-service-bridge.js
+src/core/product-query-service.ts
+src/core/product-query-service.ts
+src/core/project-manager-context.js
+src/core/project-manager-context.js
+src/core/resource-model.js
+src/core/resource-model.js
+src/core/routes.js
+src/core/routes.js
+src/core/safety-envelope.js
+src/core/safety-envelope.js
+src/core/security.js
+src/core/security.js
+src/core/server-registry.js
+src/core/server-registry.js
+src/core/server.js
+src/core/server.js
+src/core/shop.js
+src/core/shop.js
+src/core/skills/mikrotik/index.js
+src/core/skills/mikrotik/index.js
+src/core/skills/mikrotik/skill.json
+src/core/skills/mikrotik/skill.json
+src/core/sqlite-db.js
+src/core/sqlite-db.js
+src/core/taskScheduler.js
+src/core/taskScheduler.js
+src/core/telegram.js
+src/core/telegram.js
+src/core/tool-registry.js
+src/core/tool-registry.js
+src/core/toolForge.js
+src/core/toolForge.js
+src/core/universal-billing.js
+src/core/universal-billing.js
+src/core/vault.js
+src/core/vault.js
+src/core/voucher.js
+src/core/voucher.js
+src/core/websocket.js
+src/core/websocket.js
+src/domains/mikrotik/index.js
+src/domains/security/index.js
+src/interfaces/api.js
+src/kernel.js
+src/kernel/SkillDiscovery.js
+src/kernel/index.js
+src/payments/payment-gateway.js
+src/payments/webhook-handler.js
+src/plugins/adapters/mikrotik-adapters.js
+src/plugins/registry.js
+src/policies/roles.json
+src/policies/tools.schema.json
+src/routes/mesh-management.js
+src/routes/mesh-notifications.js
+src/runtime/commerce-specialists.js
+src/runtime/index.js
+src/runtime/registry.js
+src/runtime/runtime.js
+src/runtime/skills/billing.js
+src/runtime/skills/catalog.js
+src/runtime/skills/commerce-helpers.js
+src/runtime/skills/fulfillment.js
+src/runtime/skills/mikrotik.js
+src/runtime/skills/orders.js
+src/runtime/skills/pricing.js
+src/runtime/skills/procurement.js
+src/runtime/skills/project-manager.js
+src/runtime/skills/voucher.js
+src/services/admin/tiered-access.mjs
+src/services/channelPairing.js
+src/services/identity-linking.js
+src/services/mikrotik.js
+src/services/sessions.js
+src/services/starlink/local-grpc-proxy.mjs
+src/services/starlink/starlink-adapter.mjs
+src/skills/agentos/manifest.yaml
+src/skills/codegen/index.js
+src/skills/codegen/manifest.yaml
+src/skills/codegen/skill.json
+src/skills/codgen.js
+src/skills/dahua/index.js
+src/skills/github/index.js
+src/skills/github/skill.json
+src/skills/mikrotik-mesh/index.js
+src/skills/mikrotik-mesh/manifest.yaml
+src/skills/mikrotik/SKILL.md
+src/skills/mikrotik/index.js
+src/skills/mikrotik/manifest.yaml
+src/skills/mikrotik/skill.json
+src/skills/network-tools/index.js
+src/tools/index.js
+src/tools/mikrotik/network.ping/tool.yaml
+src/tools/mikrotik/user.add/handler.js
+src/tools/mikrotik/user.add/tool.yaml
+src/tools/tool.js
+src/utils/formatters.js
+=== core reference counts ===
+926
+=== top-level domains ===
+src/core
+src/core/acp
+src/core/channels
+src/core/couriers
+src/core/health
+src/core/interaction
+src/core/inventory
+src/core/llm
+src/core/llm/providers
+src/core/memory
+src/core/memory/adapters
+src/core/orchestration
+src/core/platform
+src/core/project-selection
+src/core/providers
+src/core/skills
+src/core/skills/mikrotik
+src/core/specialists
+=== skills with domain terms ===
+skills/README.md
+skills/SkillRegistry.js
+skills/agentos-expeditor/SKILL.md
+skills/agentos-security-remediation/SKILL.md
+skills/agentos-specialist-swarm/SKILL.md
+skills/br3eze-service-agent/SKILL.md
+skills/codegen.js
+skills/coding/SKILL.md
+skills/create_agent.js
+skills/create_user.js
+skills/design/SKILL.md
+skills/finance/SKILL.md
+skills/finance/index.js
+skills/general/SKILL.md
+skills/hotspot_brand.js
+skills/mcporter/SKILL.md
+skills/mcporter/index.js
+skills/mcporter/skill.json
+skills/memory.js
+skills/mesh/skill.json
+skills/mikrotik/SKILL.md
+skills/mikrotik/index.js
+skills/mikrotik/manifest.json
+skills/mikrotik/manifest.yaml
+skills/mikrotik/skill.json
+skills/onboard.js
+skills/product-specialist/SKILL.md
+skills/research/SKILL.md
+skills/research/index.js
+skills/router_health.js
+skills/skill_create.js
+skills/system/SKILL.md
+skills/voucher-access-specialist/SKILL.md
+skills/voucher/SKILL.md
+skills/voucher/index.js
+skills/voucher/skill.json
