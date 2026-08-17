@@ -49,8 +49,20 @@ export class Runtime {
     async _invoke(name, args, context) {
         const tool = this.registry.getTool(name);
         if (!tool) return { type: 'error', result: `Unknown tool: ${name}` };
+        const executionContext = context || {};
+        const granted = new Set(executionContext.authorizedCapabilities || executionContext.permissions || []);
+        const required = tool.permissions || [];
+        if (required.some((permission) => !granted.has(permission))) {
+            return { type: 'error', tool: name, result: `Permission denied for ${name}` };
+        }
+        if (tool.specialist) {
+            const role = executionContext.agentRole || executionContext.role;
+            if (!role || String(role).trim().toLowerCase() !== String(tool.specialist).trim().toLowerCase()) {
+                return { type: 'error', tool: name, result: `Specialist role required for ${name}: ${tool.specialist}` };
+            }
+        }
         try {
-            const result = await tool.handler(args || {}, context || {});
+            const result = await tool.handler(args || {}, executionContext);
             return { type: 'tool', tool: name, result };
         } catch (e) {
             return { type: 'error', tool: name, result: e.message };

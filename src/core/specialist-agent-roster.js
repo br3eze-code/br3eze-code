@@ -61,11 +61,18 @@ export function validateSpecialistRoster() {
   return { valid: errors.length === 0, errors, teamCount: teams.length };
 }
 
+export function validateSpecialistSkills(availableSkills) {
+  const available = new Set(availableSkills || []);
+  const missing = teams.filter((team) => !available.has(team.skill)).map((team) => team.skill);
+  return { valid: missing.length === 0, missing, skillCount: teams.length - missing.length, teamCount: teams.length };
+}
+
 export { roster };
 export default {
   listSpecialistTeams,
   getSpecialistTeam,
   resolveSpecialistForSkill,
   canHandoff,
-  validateSpecialistRoster
+  validateSpecialistRoster,
+  validateSpecialistSkills
 };

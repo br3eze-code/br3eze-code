@@ -59,6 +59,7 @@ describe('VoiceDomain', () => {
       'soundDesign',
       'streamWSS',
       'voiceClone',
+      'voiceControl',
     ]);
   });
 
@@ -71,21 +72,55 @@ describe('VoiceDomain', () => {
     });
   });
 
-  test('generateTTS() reports an error for an unsupported provider', async () => {
+  test('generateTTS() supports ElevenLabs without requiring a network call', async () => {
     const result = await domain.execute({
       tool: 'generateTTS',
-      params: ['hello', 'elevenlabs'],
+      params: ['hello from AgentOS', 'elevenlabs', { voiceId: 'voice-1', languageCode: 'en-US' }],
     });
-    expect(result).toEqual({ success: false, error: 'Unsupported TTS provider' });
+    expect(result).toMatchObject({
+      success: true,
+      provider: 'elevenlabs',
+      voiceId: 'voice-1',
+      languageCode: 'en-US',
+    });
+    expect(result.url).toContain('elevenlabs_mock');
   });
 
-  test('voiceClone() binds audioSampleUrl and targetText to separate positional arguments', async () => {
-    const result = await domain.execute({
+  test('voiceClone() requires explicit consent and identity-linked ownership', async () => {
+    const denied = await domain.execute({
       tool: 'voiceClone',
       params: ['https://example.com/sample.mp3', 'say this instead'],
     });
-    expect(result.success).toBe(true);
-    expect(result.url).toContain('cloned_mock');
+    expect(denied).toEqual({ success: false, error: 'Explicit voice consent is required' });
+
+    const result = await domain.execute({
+      tool: 'voiceClone',
+      params: ['https://example.com/sample.mp3', 'say this instead', {
+        consent: true,
+        ownerId: 'voice-owner-1',
+        requestedBy: 'operator-1',
+      }],
+    });
+    expect(result).toMatchObject({
+      success: true,
+      provider: 'elevenlabs',
+      ownerId: 'voice-owner-1',
+    });
+    expect(result.url).toContain('elevenlabs_cloned_mock');
+  });
+
+  test('voiceControl() requires identity and permission, and gates sensitive commands', async () => {
+    await expect(domain.execute({
+      tool: 'voiceControl', params: ['start', { userId: 'operator-1' }],
+    })).resolves.toEqual({ success: false, error: 'voice.control permission is required' });
+
+    await expect(domain.execute({
+      tool: 'voiceControl', params: ['start', { userId: 'operator-1', permissions: ['voice.control'], tenantId: 'tenant-a' }],
+    })).resolves.toMatchObject({ success: true, command: 'start', tenantId: 'tenant-a', approvalRequired: false });
+
+    await expect(domain.execute({
+      tool: 'voiceControl', params: ['set_voice', { userId: 'operator-1', permissions: ['voice.control'] }],
+    })).resolves.toMatchObject({ success: true, approvalRequired: true });
   });
 
   test('soundDesign() accepts a single prompt argument', async () => {

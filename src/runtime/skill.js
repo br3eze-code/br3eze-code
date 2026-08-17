@@ -12,9 +12,20 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 /** Define a tool: a named, schema-described function. */
-export function defineTool({ name, description = '', parameters, handler }) {
+export function defineTool({ name, description = '', parameters, inputSchema, outputSchema, handler, permissions = [], specialist = null, ticketTypes = [], risk = 'low' }) {
     if (!name || typeof handler !== 'function') throw new Error('defineTool requires { name, handler }');
-    return { name, description, parameters: parameters || { type: 'object', properties: {} }, handler };
+    return {
+        name,
+        description,
+        parameters: parameters || inputSchema || { type: 'object', properties: {} },
+        inputSchema: inputSchema || parameters || { type: 'object', properties: {} },
+        outputSchema: outputSchema || null,
+        permissions: [...new Set(Array.isArray(permissions) ? permissions : [permissions].filter(Boolean))],
+        specialist,
+        ticketTypes: [...new Set(Array.isArray(ticketTypes) ? ticketTypes : [ticketTypes].filter(Boolean))],
+        risk,
+        handler,
+    };
 }
 
 /**
@@ -25,15 +36,27 @@ export function defineTool({ name, description = '', parameters, handler }) {
  * @param {Array}  [def.tools]      tools (from defineTool)
  * @param {Function} [def.match]    (input) => { tool, args } | null  — fast path
  * @param {string} [def.persona]    text appended to the system prompt
+ * @param {string} [def.specialist] owning specialist role
+ * @param {string[]} [def.permissions] default permissions for the skill
+ * @param {string[]} [def.ticketTypes] ticket types this skill can service
  */
 export function defineSkill(def) {
     if (!def || !def.name) throw new Error('defineSkill requires { name }');
+    const defaultPermissions = [...new Set(Array.isArray(def.permissions) ? def.permissions : [def.permissions].filter(Boolean))];
     return {
         name: def.name,
         description: def.description || '',
-        tools: def.tools || [],
+        tools: (def.tools || []).map((tool) => ({
+            ...tool,
+            specialist: tool.specialist || def.specialist || null,
+            permissions: tool.permissions?.length ? tool.permissions : defaultPermissions,
+            ticketTypes: tool.ticketTypes?.length ? tool.ticketTypes : [...(def.ticketTypes || [])],
+        })),
         match: def.match || null,
         persona: def.persona || '',
+        specialist: def.specialist || null,
+        permissions: defaultPermissions,
+        ticketTypes: [...(def.ticketTypes || [])],
     };
 }
 

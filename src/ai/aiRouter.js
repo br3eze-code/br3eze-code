@@ -2,10 +2,10 @@
 class AIRouter {
   constructor() {
     this.providers = {
-      'anthropic': new AnthropicAdapter(),
-      'openai': new OpenAIAdapter(),
-      'xai': new XAIAdapter(),
-      'gemini': new GeminiAdapter()  // Keep br3ezeclaw's default
+      anthropic: new AnthropicAdapter(),
+      openai: new OpenAIAdapter(),
+      xai: new XAIAdapter(),
+      gemini: new GeminiAdapter(), // Keep br3ezeclaw's default
     };
   }
 
