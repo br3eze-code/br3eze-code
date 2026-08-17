@@ -49,9 +49,9 @@ test('scores a strong project without inventing missing evidence', () => {
   });
 
   expect(result.projectId).toBe('PRJ-001');
-  expect(result.baseScore).toBeGreaterThan(8);
+  expect(result.baseScore).toBeGreaterThan(80);
   expect(result.riskAdjustedScore).toBeLessThanOrEqual(result.baseScore);
-  expect(result.decision).toBe('PRIORITY');
+  expect(result.decision).toBe('APPROVED');
   expect(result.requiredBudget).toBe(50000);
   expect(result.requiredFte).toBe(2);
 });
