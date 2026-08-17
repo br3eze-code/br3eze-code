@@ -2,14 +2,13 @@
  * AgentOS Phase 4 — Project Selection Engine
  *
  * Portfolio decision support for strategic, production, marketing, financial,
- * personnel and administration considerations. Scores are deliberately
- * separate from execution: this module selects and prioritises work; it does
- * not execute projects and it cannot change a project's acceptance criteria.
+ * personnel and administration considerations. This module selects and
+ * prioritises work; it does not execute projects or alter acceptance criteria.
  */
 import model from '../../config/project-selection-model.json' with { type: 'json' };
 
 const DIMENSIONS = Object.freeze(Object.keys(model.dimensions));
-const clamp = (value, min = 0, max = 10) => Math.min(max, Math.max(min, Number(value)));
+const clamp = (value, min = 0, max = 10) => Math.min(max, Math.max(min, Number(value) || 0));
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
 function weightedCriteria(criteria, scores) {
@@ -26,12 +25,10 @@ function weightedCriteria(criteria, scores) {
 }
 
 function scoreDimensions(input) {
-  const result = {};
-  for (const dimension of DIMENSIONS) {
-    const definition = model.dimensions[dimension];
-    result[dimension] = weightedCriteria(definition.criteria, input?.scores?.[dimension]);
-  }
-  return result;
+  return Object.fromEntries(DIMENSIONS.map((dimension) => [
+    dimension,
+    weightedCriteria(model.dimensions[dimension].criteria, input?.scores?.[dimension])
+  ]));
 }
 
 function riskModel(risks = []) {
@@ -49,11 +46,16 @@ function riskModel(risks = []) {
     };
   });
   const totalExposure = normalized.reduce((sum, risk) => sum + risk.exposure, 0);
-  const maximumCriticalExposure = normalized.filter((risk) => risk.critical).reduce((max, risk) => Math.max(max, risk.exposure), 0);
+  const maximumCriticalExposure = normalized.filter((risk) => risk.critical)
+    .reduce((max, risk) => Math.max(max, risk.exposure), 0);
   const maxExposure = Math.max(model.risk.maxExposure, totalExposure);
-  const rawAdjustment = 1 - (totalExposure / maxExposure);
-  const adjustment = Math.max(model.risk.adjustmentFloor, Math.min(1, rawAdjustment));
-  return { risks: normalized, totalExposure, maximumCriticalExposure, adjustment: Number(adjustment.toFixed(4)) };
+  const adjustment = Math.max(model.risk.adjustmentFloor, Math.min(1, 1 - (totalExposure / maxExposure)));
+  return {
+    risks: normalized,
+    totalExposure,
+    maximumCriticalExposure,
+    adjustment: Number(adjustment.toFixed(4))
+  };
 }
 
 function evidenceConfidence(input) {
@@ -89,10 +91,7 @@ function urgencyBand(value) {
   return 'LOW';
 }
 
-/**
- * Score one project. All supplied criterion values use a 0–10 scale.
- * Missing criteria are reported and treated as zero rather than guessed.
- */
+/** Score one project. Criterion values use a 0–10 scale. Missing values are reported, never guessed. */
 export function scoreProject(input = {}) {
   const projectId = String(input.projectId || '').trim();
   if (!projectId) throw new Error('projectId is required');
@@ -101,7 +100,6 @@ export function scoreProject(input = {}) {
   const risk = riskModel(input.risks);
   const confidence = evidenceConfidence(input);
   const gates = evaluateGates(dimensions, risk, confidence);
-
   const baseScore = DIMENSIONS.reduce(
     (sum, dimension) => sum + dimensions[dimension].score * model.dimensions[dimension].weight,
     0
@@ -114,8 +112,7 @@ export function scoreProject(input = {}) {
   const status = gates.length ? 'HOLD' : decisionBand(finalScore);
 
   const missingCriteria = Object.fromEntries(
-    DIMENSIONS
-      .filter((dimension) => dimensions[dimension].missing.length)
+    DIMENSIONS.filter((dimension) => dimensions[dimension].missing.length)
       .map((dimension) => [dimension, dimensions[dimension].missing])
   );
 
@@ -132,39 +129,34 @@ export function scoreProject(input = {}) {
     missingCriteria,
     urgency: urgencyBand(input.urgency),
     strategicValue: clamp(input.strategicValue),
+    requiredBudget: Math.max(0, finite(input.requiredBudget)),
+    requiredFte: Math.max(0, finite(input.requiredFte)),
     constraints: Array.isArray(input.constraints) ? [...input.constraints] : []
   };
 }
 
-/**
- * Rank a portfolio. Selection score is not enough: constrained projects are
- * surfaced explicitly so scarce people/capital/time are not silently ignored.
- */
+/** Rank projects while surfacing gated/blocked work instead of hiding constraints. */
 export function rankPortfolio(projects = []) {
   if (!Array.isArray(projects)) throw new TypeError('projects must be an array');
-  const scored = projects.map(scoreProject);
-  return scored.sort((a, b) => {
+  return projects.map(scoreProject).sort((a, b) => {
     if (a.decision === 'HOLD' && b.decision !== 'HOLD') return 1;
     if (a.decision !== 'HOLD' && b.decision === 'HOLD') return -1;
     return b.riskAdjustedScore - a.riskAdjustedScore || b.strategicValue - a.strategicValue;
   }).map((project, index) => ({ ...project, rank: index + 1 }));
 }
 
-/**
- * Portfolio allocation view. Budget and FTE are hard resource constraints;
- * projects are considered in rank order and marked as fundable/staffable.
- */
+/** Allocate scarce budget/FTE in rank order without silently oversubscribing resources. */
 export function allocatePortfolio(projects, resources = {}) {
   const ranked = rankPortfolio(projects);
   let remainingBudget = Math.max(0, finite(resources.budget));
   let remainingFte = Math.max(0, finite(resources.fte));
 
   return ranked.map((project) => {
-    const requiredBudget = Math.max(0, finite(project.requiredBudget));
-    const requiredFte = Math.max(0, finite(project.requiredFte));
+    const requiredBudget = project.requiredBudget;
+    const requiredFte = project.requiredFte;
     const fundable = requiredBudget <= remainingBudget;
     const staffable = requiredFte <= remainingFte;
-    const executable = project.decision !== 'REJECT' && project.decision !== 'HOLD' && fundable && staffable;
+    const executable = !['REJECT', 'HOLD'].includes(project.decision) && fundable && staffable;
     if (executable) {
       remainingBudget -= requiredBudget;
       remainingFte -= requiredFte;
@@ -189,8 +181,7 @@ export function validateSelectionModel() {
   const weights = DIMENSIONS.reduce((sum, dimension) => sum + model.dimensions[dimension].weight, 0);
   if (Math.abs(weights - 1) > 0.000001) errors.push(`dimension weights must total 1, got ${weights}`);
   for (const dimension of DIMENSIONS) {
-    const criteria = model.dimensions[dimension].criteria;
-    const criterionWeight = Object.values(criteria).reduce((sum, value) => sum + Number(value), 0);
+    const criterionWeight = Object.values(model.dimensions[dimension].criteria).reduce((sum, value) => sum + Number(value), 0);
     if (Math.abs(criterionWeight - 1) > 0.000001) errors.push(`${dimension} criteria weights must total 1, got ${criterionWeight}`);
   }
   return { valid: errors.length === 0, errors, dimensions: DIMENSIONS.length };
