@@ -1,45 +1,45 @@
-# ── Stage 1: builder ─────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+# syntax=docker/dockerfile:1.7
 
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# Copy package files from repo root (not server/)
-COPY package*.json ./
+ENV NODE_ENV=production \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false
 
-# Install production deps only — npm 7+ syntax, skip lifecycle scripts
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
 
-# ── Stage 2: production ───────────────────────────────────────────────────────
-FROM node:22-alpine AS production
+COPY . .
+RUN npm run build:product-query
 
-# dumb-init for proper PID 1 / signal handling
-RUN apk add --no-cache dumb-init
-
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 
-# Non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser  -S nodejs -u 1001
+ENV NODE_ENV=production \
+    HOME=/tmp \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false
 
-# Copy production node_modules from builder
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+RUN groupadd --system --gid 10001 agentos \
+ && useradd --system --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin agentos \
+ && mkdir -p /app/data /app/logs /app/state /app/dist \
+ && chown -R agentos:agentos /app
 
-# Copy application code — server.js lives in server/, source in src/
-COPY --chown=nodejs:nodejs server/server.js ./server.js
-COPY --chown=nodejs:nodejs src/ ./src/
-COPY --chown=nodejs:nodejs bin/ ./bin/
-COPY --chown=nodejs:nodejs scripts/ ./scripts/
-COPY --chown=nodejs:nodejs package.json ./
+COPY --from=build --chown=agentos:agentos /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=agentos:agentos /app/node_modules ./node_modules
+COPY --from=build --chown=agentos:agentos /app/bin ./bin
+COPY --from=build --chown=agentos:agentos /app/src ./src
+COPY --from=build --chown=agentos:agentos /app/config ./config
+COPY --from=build --chown=agentos:agentos /app/scripts ./scripts
+COPY --from=build --chown=agentos:agentos /app/www ./www
+COPY --from=build --chown=agentos:agentos /app/main.js /app/agentos.mjs ./
+COPY --from=build --chown=agentos:agentos /app/dist ./dist
 
-# Create runtime directories as root before switching user
-RUN mkdir -p logs skills && chown -R nodejs:nodejs logs skills
+USER agentos
+EXPOSE 19876 9090
 
-USER nodejs
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.GATEWAY_PORT||19876)+'/health',(r)=>{process.exit(r.statusCode===200?0:1)}).on('error',()=>process.exit(1))"
 
-EXPOSE 3000
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health',(r)=>r.statusCode===200?process.exit(0):process.exit(1))"
-
-ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "server.js"]
+CMD ["node", "bin/agentos.js", "gateway"]

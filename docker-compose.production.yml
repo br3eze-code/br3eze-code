@@ -1,0 +1,125 @@
+name: agentos-production
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${AGENTOS_IMAGE:-agentos:production}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: ${GATEWAY_PORT:-19876}
+      AGENTOS_GATEWAY_TOKEN: ${AGENTOS_GATEWAY_TOKEN:?AGENTOS_GATEWAY_TOKEN is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      CONFIG_PATH: ${CONFIG_PATH:-/app/config/agentos.json}
+      STATE_PATH: ${STATE_PATH:-/app/state}
+      MEMORY_BASE_PATH: ${MEMORY_BASE_PATH:-/app/data/sessions}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_DATABASE_URL: ${FIREBASE_DATABASE_URL:-}
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "${GATEWAY_BIND:-127.0.0.1}:${GATEWAY_PORT:-19876}:${GATEWAY_PORT:-19876}"
+    volumes:
+      - agentos-state:/app/state
+      - agentos-data:/app/data
+      - agentos-logs:/app/logs
+      - ${AGENTOS_CONFIG_DIR:-./config}:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:'+(process.env.GATEWAY_PORT||19876)+'/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  fleet-worker:
+    image: ${AGENTOS_IMAGE:-agentos:production}
+    restart: unless-stopped
+    init: true
+    command: ["node", "src/workers/fleet-health-worker.js"]
+    environment:
+      NODE_ENV: production
+      FLEET_WORKER_ENABLED: ${FLEET_WORKER_ENABLED:-true}
+      FLEET_WORKER_PROVIDER_MODULE: ${FLEET_WORKER_PROVIDER_MODULE:?FLEET_WORKER_PROVIDER_MODULE must point to a provider module}
+      FLEET_TENANT_IDS: ${FLEET_TENANT_IDS:?FLEET_TENANT_IDS must contain authorized tenant IDs}
+      FLEET_WORKER_PRINCIPAL_ID: ${FLEET_WORKER_PRINCIPAL_ID:?FLEET_WORKER_PRINCIPAL_ID is required}
+      FLEET_WORKER_HEALTH_HOST: 0.0.0.0
+      FLEET_WORKER_HEALTH_PORT: ${FLEET_WORKER_HEALTH_PORT:-9090}
+      FLEET_POLL_INTERVAL_MS: ${FLEET_POLL_INTERVAL_MS:-30000}
+      FLEET_POLL_MAX_CONCURRENCY: ${FLEET_POLL_MAX_CONCURRENCY:-25}
+      FLEET_POLL_TIMEOUT_MS: ${FLEET_POLL_TIMEOUT_MS:-10000}
+      FLEET_POLL_LEASE_MS: ${FLEET_POLL_LEASE_MS:-30000}
+      FLEET_ALERT_COOLDOWN_MS: ${FLEET_ALERT_COOLDOWN_MS:-300000}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      MIKROTIK_API_URL: ${MIKROTIK_API_URL:-}
+      MIKROTIK_API_TOKEN: ${MIKROTIK_API_TOKEN:-}
+      STARLINK_API_URL: ${STARLINK_API_URL:-}
+      STARLINK_CLIENT_ID: ${STARLINK_CLIENT_ID:-}
+      STARLINK_CLIENT_SECRET: ${STARLINK_CLIENT_SECRET:-}
+    expose:
+      - "${FLEET_WORKER_HEALTH_PORT:-9090}"
+    volumes:
+      - agentos-state:/app/state
+      - agentos-data:/app/data
+      - agentos-logs:/app/logs
+      - ${FLEET_PROVIDER_DIR:-./config}:/app/config:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:'+(process.env.FLEET_WORKER_HEALTH_PORT||9090)+'/readyz',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_INIT_DIR:-./docs/sql}:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
+  agentos-state:
+  agentos-data:
+  agentos-logs:
