@@ -123,4 +123,3 @@ const verifyWebhookSignature = (payload, signature, secret) => {
 };
 
 export { generateSecurePassword, generateSessionToken, hashPassword, verifyPassword, generateMikrotikUsername, encrypt, decrypt, generateWebhookSignature, verifyWebhookSignature };
-export { generateSecurePassword, generateSessionToken, hashPassword, verifyPassword, generateMikrotikUsername, encrypt, decrypt, generateWebhookSignature, verifyWebhookSignature };

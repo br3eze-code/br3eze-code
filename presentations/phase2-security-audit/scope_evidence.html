@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scope and Evidence Boundary</title>
+<style>
+*{box-sizing:border-box} body{margin:0}
+.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;padding:58px 84px 0;position:relative;overflow:hidden;margin-top:-1px}
+.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}
+.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}
+.title{font-size:42px;letter-spacing:-1px;margin-top:18px}
+.lead{color:#b7c2d2;font-size:19px;line-height:1.35;width:760px;margin-top:8px}
+.body{display:grid;grid-template-columns:760px 300px;gap:58px;margin-top:24px}
+.layer{display:grid;grid-template-columns:170px 1fr;min-height:65px;border-top:1px solid #32425c;padding:8px 0}
+.layer:last-child{border-bottom:1px solid #32425c}
+.layer b{color:#f0b44d;font-size:15px;letter-spacing:1.5px;text-transform:uppercase}
+.layer span{color:#dce5f0;font-size:18px;line-height:1.3}
+.boundary{border-left:1px solid #425673;padding-left:28px}
+.boundary h3{margin:0 0 18px;color:#77d7a4;font-size:18px}
+.boundary p{color:#aab8cb;font-size:16px;line-height:1.45;margin:0 0 20px}
+.tag{color:#f0b44d;font-weight:700}
+.footer{position:absolute;left:84px;bottom:42px;color:#8f9db0;font-size:14px}
+.footer strong{color:#dce5f0}
+</style>
+</head>
+<body>
+<div class="slide-container">
+<div class="accent"></div>
+<div class="eyebrow">01 · Scope</div>
+<div class="title">Scope and evidence boundary</div>
+<div class="lead">The review followed the execution path from identity-linked request to replayable evidence, then separated confirmed local results from unavailable or inherited dependency evidence.</div>
+<div class="body">
+<div>
+<div class="layer"><b>Runtime</b><span>SpecialistRuntime · ToolExecutor · ToolPolicy · SpecialistContext · SpecialistResult</span></div>
+<div class="layer"><b>Security</b><span>Tenant isolation, user identity, specialist ownership, approval gates, idempotency, and audit linkage</span></div>
+<div class="layer"><b>Platforms</b><span>Root npm manifest, runtime packages, Cordova plugins, channel and deployment surfaces</span></div>
+<div class="layer"><b>Validation</b><span>Focused Jest suites, syntax checks, local audit output, manifest coverage, and release-gate evidence</span></div>
+</div>
+<div class="boundary"><h3>Evidence discipline</h3><p><span class="tag">Confirmed:</span> results reproduced in the checked-out repository and test environment.</p><p><span class="tag">Not confirmed:</span> inherited alert counts, unavailable Dependabot detail, missing lockfile coverage, or runtimes not installed.</p><p><span class="tag">Decision:</span> do not convert a limitation into a green release signal.</p></div>
+</div>
+<div class="footer"><strong>Review principle:</strong> trace the actual code path before adding another orchestration layer.</div>
+</div>
+</body>
+</html>

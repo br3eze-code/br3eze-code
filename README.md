@@ -164,10 +164,10 @@ tail -f logs/agentos.log
 | Module | File | Role |
 |--------|------|------|
 | Core Engine | `agentos.mjs` | Entry point, boot sequence |
-| Gateway | `server/gateway.js` | WebSocket + HTTP server |
+| Gateway | `src/core/gateway.js` | WebSocket + HTTP server |
 | MikroTik Manager | `src/core/mikrotik.js` | RouterOS API adapter |
-| AI Engine | `agents/ask-engine.js` | Gemini ReAct loop |
-| Billing | `services/billing.js` | Voucher + payment flow |
+| AI Engine | `src/core/ask-engine.js` | Gemini ReAct loop |
+| Billing | `src/core/universal-billing.js` | Voucher + payment flow |
 | Sentinel | `agentos-sentinel.rsc` | On-router native agent |
 | CLI | `bin/agentos.js` | Commander.js entry |
 

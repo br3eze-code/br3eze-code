@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Release Gate and Residual Risk</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:64px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:48px;line-height:1.08;letter-spacing:-1.5px;margin-top:18px;width:760px}.lead{color:#b7c2d2;font-size:20px;line-height:1.4;margin-top:16px;width:760px}.lower{display:grid;grid-template-columns:720px 1fr;gap:58px;margin-top:42px}.gates{border-top:1px solid #425673}.gate{display:grid;grid-template-columns:32px 210px 1fr;min-height:47px;align-items:center;border-bottom:1px solid #32425c;color:#aab8cb;font-size:15px}.check{color:#77d7a4;font-size:20px}.gate b{color:#dce5f0;font-size:16px}.decision{border-top:2px solid #f0b44d;padding-top:18px}.decision h3{margin:0;color:#f0b44d;font-size:20px}.decision p{color:#c8d2df;font-size:17px;line-height:1.42;margin:15px 0 0}.decision strong{color:#f27c73}.handoff{margin-top:38px;color:#8f9db0;font-size:15px}.handoff strong{color:#77d7a4}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">07 · Release decision</div>
+<div class="title">Verified fix. Gated release.</div>
+<div class="lead">Phase 2 closes the replay authorization flaw. It does not close the dependency, platform, persistence, or evidence gates required for production.</div>
+<div class="lower"><div class="gates"><div class="gate"><div class="check">✓</div><b>Critical exposure</b><span>No reachable critical vulnerability without an approved exception.</span></div><div class="gate"><div class="check">✓</div><b>Replay persistence</b><span>Replace memory-backed idempotency with durable restart-safe storage.</span></div><div class="gate"><div class="check">✓</div><b>Evidence hygiene</b><span>Redact sensitive inputs and verify durable audit references.</span></div><div class="gate"><div class="check">✓</div><b>Dependency proof</b><span>Refresh alerts, close lockfile gaps, and audit Cordova plugins.</span></div><div class="gate"><div class="check">✓</div><b>Platform proof</b><span>Complete PHP, TypeScript, mobile, desktop, and staged deployment checks.</span></div><div class="gate"><div class="check">✓</div><b>Governance</b><span>QA, Security, and Project Manager approve the residual-risk record.</span></div></div><div class="decision"><h3>Current posture</h3><p><strong>Do not declare production-ready yet.</strong></p><p>The authorization fix is verified and merged. Release remains conditional on fresh dependency evidence, durable replay storage, and platform validation.</p></div></div>
+<div class="handoff"><strong>Next control-plane step:</strong> trace gateway → work package → specialist → tool → handoff → approval → verification before implementing Phase 3 orchestration.</div>
+</div></div>
+</body>
+</html>

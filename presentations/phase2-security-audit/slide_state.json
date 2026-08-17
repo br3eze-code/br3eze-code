@@ -1,0 +1,100 @@
+{
+  "project_info": {
+    "title": "AgentOS Phase 2 Security Audit",
+    "created": 1786955595.386,
+    "last_updated": 1786957860.378,
+    "total_slides": 8
+  },
+  "slides": [
+    {
+      "id": "title",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "scope_evidence",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "finding_replay",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "fixes",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "validation",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "dependency_status",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "remediation_waves",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "release_gate",
+      "state": "edited",
+      "pageNum": 8
+    }
+  ],
+  "outline": [
+    {
+      "id": "title",
+      "title": "AgentOS Phase 2 Security Audit",
+      "summary": "Executive title slide stating the audit scope, current branch, and decision context: specialist-first runtime hardening versus remaining dependency release risk.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "scope_evidence",
+      "title": "Scope and Evidence Boundary",
+      "summary": "Explain what was audited: SpecialistRuntime, ToolExecutor, ToolPolicy, result normalization, tenant isolation, idempotency, root npm audit, sub-manifests, Cordova plugins, and Dependabot access limitations.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "finding_replay",
+      "title": "High-Severity Finding: Unauthorized Replay",
+      "summary": "Show the vulnerable execution sequence where replay lookup preceded authorization, and why same-tenant cross-user replay could bypass current permissions.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "fixes",
+      "title": "Fixes Implemented",
+      "summary": "Show the corrected sequence and controls: authorization first, tenant-plus-user replay keys, canonical nested argument hashing, immutable execution records, replayOf linkage, and approval-proposal cache exclusion.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "validation",
+      "title": "Validation Results",
+      "summary": "Present the focused test and syntax evidence: three specialist suites, 15 tests passed, diff check passed, and the pushed commit on main.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "dependency_status",
+      "title": "Dependency and Cordova Security Status",
+      "summary": "Distinguish confirmed local results from unavailable live Dependabot detail: root audit reports 16 moderate and zero high/critical; sub-manifests lack lockfiles; GitHub alert API returned 403; inherited inventory reported critical/high clusters requiring verification.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "remediation_waves",
+      "title": "Remediation Waves and Ownership",
+      "summary": "Summarize the approved wave order across messaging, WhatsApp/Baileys, Cordova, HTTP, payments, email, browser automation, HTML transformation, and platform plugins, with specialist ownership and evidence requirements.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "release_gate",
+      "title": "Release Gate and Residual Risk",
+      "summary": "Close with a release decision framework: no reachable criticals without approved exception, durable idempotency store, sensitive-input redaction, lockfile coverage, platform builds, staged evidence, and QA/Project Manager approval.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

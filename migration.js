@@ -7,7 +7,7 @@ async function migrate() {
   console.log('🔄 Migrating to Domain-Agnostic AgentOS...');
   
   // 1. Load old config
-  const { default: oldConfig } = await import('./old-config.json', { with: { type: 'json' } });
+  const { default: oldConfig } = await import('./old-config.json');
   
   // 2. Create new workspace
   const workspace = {

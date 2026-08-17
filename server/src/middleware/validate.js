@@ -47,4 +47,3 @@ const validate = (validations) => {
 };
 
 export { requestValidator, validate, body, param, query };
-export { requestValidator, validate, body, param, query };

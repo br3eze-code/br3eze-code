@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>High-Severity Finding: Unauthorized Replay</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:58px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:42px;letter-spacing:-1px;margin-top:18px}.lead{color:#b7c2d2;font-size:19px;line-height:1.35;margin-top:10px;width:770px}.trace{display:grid;grid-template-columns:760px 1fr;gap:58px;margin-top:42px}.sequence{border-top:1px solid #425673;border-bottom:1px solid #425673}.step{display:grid;grid-template-columns:52px 190px 1fr;align-items:center;min-height:78px;border-bottom:1px solid #32425c}.step:last-child{border-bottom:0}.num{color:#8f9db0;font-size:15px}.step b{font-size:18px}.step span{color:#aab8cb;font-size:17px}.danger{color:#f27c73!important}.impact{border-left:1px solid #f27c73;padding-left:28px}.impact h3{color:#f27c73;font-size:20px;margin:0 0 18px}.impact p{color:#c8d2df;font-size:17px;line-height:1.45;margin:0 0 18px}.impact strong{color:#f4f7fb}.footer{margin-top:30px;color:#8f9db0;font-size:15px}.footer strong{color:#f27c73}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">02 · Finding</div>
+<div class="title">High-severity finding: unauthorized replay</div>
+<div class="lead">The execution path consulted idempotency state before checking the caller’s current authorization.</div>
+<div class="trace"><div class="sequence">
+<div class="step"><div class="num">01</div><b>Request arrives</b><span>tenant A · user B · tool mutation</span></div>
+<div class="step"><div class="num">02</div><b>Replay lookup</b><span>key matched a prior execution</span></div>
+<div class="step"><div class="num danger">03</div><b class="danger">Authorization skipped</b><span class="danger">current permission and user checks did not run first</span></div>
+<div class="step"><div class="num danger">04</div><b class="danger">Prior result returned</b><span class="danger">same-tenant caller could receive another user’s replay</span></div>
+</div><div class="impact"><h3>Why it mattered</h3><p><strong>Tenant membership was not sufficient.</strong> A replay key that omitted the user identity allowed cross-user reuse within a tenant.</p><p>The flaw affected the authorization boundary around idempotent tool execution, not merely response caching.</p></div></div>
+<div class="footer"><strong>Audit classification:</strong> high severity · authorization-before-replay was required.</div>
+</div></div>
+</body>
+</html>

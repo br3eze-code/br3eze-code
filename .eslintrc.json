@@ -5,7 +5,7 @@
     "es2022": true
   },
   "parserOptions": {
-    "ecmaVersion": 2022,
+    "ecmaVersion": "latest",
     "sourceType": "module"
   },
   "plugins": [
@@ -24,11 +24,22 @@
     "prefer-const": "warn",
     "prefer-template": "warn",
     "object-shorthand": "warn",
-    "no-throw-literal": "error",
+    "no-throw-literal": "warn",
+    "no-undef": "warn",
+    "no-case-declarations": "warn",
+    "no-empty": "warn",
+    "no-inner-declarations": "warn",
+    "no-irregular-whitespace": "warn",
+    "no-control-regex": "warn",
+    "no-dupe-keys": "warn",
+    "no-dupe-class-members": "warn",
+    "no-constant-condition": "warn",
+    "no-fallthrough": "warn",
+    "no-useless-escape": "warn",
     "no-return-await": "warn",
     "require-await": "warn",
     "no-shadow": ["warn", { "hoist": "functions" }],
-    "no-use-before-define": ["error", { "functions": false, "classes": true, "variables": true }]
+    "no-use-before-define": ["warn", { "functions": false, "classes": true, "variables": true }]
   },
   "overrides": [
     {

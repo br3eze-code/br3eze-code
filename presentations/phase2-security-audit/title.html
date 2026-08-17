@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AgentOS Phase 2 Security Audit</title>
+<style>
+*{box-sizing:border-box} body{margin:0} .slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;padding:72px 84px 0;position:relative;overflow:hidden;margin-top:-1px}.eyebrow{color:#f0b44d;font-size:18px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:64px;line-height:1.03;max-width:680px;margin-top:28px;letter-spacing:-2px}.subtitle{font-size:24px;color:#b7c2d2;line-height:1.4;max-width:620px;margin-top:28px}.meta{position:absolute;left:84px;bottom:52px;color:#8f9db0;font-size:16px}.meta strong{color:#dce5f0}.rail{position:absolute;right:88px;top:130px;width:390px;height:420px;border-left:2px solid #32425c;padding-left:38px}.node{height:92px;border:1px solid #425673;margin-bottom:26px;padding:20px 22px;background:#111c2e}.node b{display:block;font-size:22px;margin-bottom:8px}.node span{color:#aab8cb;font-size:16px}.connector{height:26px;border-left:2px solid #f0b44d;margin-left:40px;margin-top:-26px;margin-bottom:0}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.status{position:absolute;right:84px;bottom:52px;color:#77d7a4;font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="slide-container">
+<div class="accent"></div>
+<div class="eyebrow">AgentOS · Phase 2 · Security Review</div>
+<div class="title">Hardening the specialist-first runtime</div>
+<div class="subtitle">Authorization ordering, idempotent execution, tenant isolation, and the remaining dependency release gate.</div>
+<div class="rail">
+<div class="node"><b>01 · Request</b><span>Identity-linked specialist action</span></div>
+<div class="connector"></div>
+<div class="node"><b>02 · Policy</b><span>Tenant, role, ownership, approval</span></div>
+<div class="connector"></div>
+<div class="node"><b>03 · Evidence</b><span>Execution record and replay chain</span></div>
+</div>
+<div class="meta"><strong>Scope:</strong> SpecialistRuntime · ToolExecutor · ToolPolicy · Cordova/runtime dependency review<br><strong>Branch:</strong> main · <strong>Evidence:</strong> 17 Aug 2026</div>
+<div class="status">Code-path fix verified · dependency gate remains open</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fixes Implemented</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:58px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:42px;letter-spacing:-1px;margin-top:18px}.lead{color:#b7c2d2;font-size:19px;line-height:1.35;margin-top:10px}.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:44px;border-top:1px solid #425673;border-bottom:1px solid #425673}.stage{min-height:142px;padding:24px 22px 0;border-right:1px solid #32425c}.stage:first-child{padding-left:0}.stage:last-child{border-right:0}.stage .n{color:#f0b44d;font-size:14px;letter-spacing:2px}.stage b{display:block;font-size:20px;margin-top:16px;color:#77d7a4}.stage span{display:block;color:#aab8cb;font-size:16px;line-height:1.35;margin-top:10px}.controls{display:grid;grid-template-columns:260px 260px 260px 1fr;gap:26px;margin-top:34px}.control{border-top:2px solid #77d7a4;padding-top:14px}.control b{display:block;font-size:16px;color:#dce5f0}.control span{display:block;margin-top:8px;color:#aab8cb;font-size:15px;line-height:1.35}.note{color:#8f9db0;font-size:14px;line-height:1.35;margin-top:28px}.note strong{color:#f0b44d}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">03 · Control design</div>
+<div class="title">Fixes implemented</div>
+<div class="lead">The corrected path makes authorization a prerequisite for replay and binds execution evidence to the requesting identity.</div>
+<div class="flow">
+<div class="stage"><div class="n">01</div><b>Authorize first</b><span>ToolPolicy evaluates tenant, user, role, ownership, ticket, and approval context.</span></div>
+<div class="stage"><div class="n">02</div><b>Bind the key</b><span>Replay identity includes tenantId and userId, with deterministic nested input hashing.</span></div>
+<div class="stage"><div class="n">03</div><b>Execute + record</b><span>Immutable execution evidence records the action and preserves the audit chain.</span></div>
+<div class="stage"><div class="n">04</div><b>Replay safely</b><span>Valid callers may replay; replay attempts retain replayOf linkage and identity evidence.</span></div>
+</div>
+<div class="controls"><div class="control"><b>Canonical inputs</b><span>Stable hashes for nested arguments prevent accidental key drift.</span></div><div class="control"><b>Result normalization</b><span>SpecialistResult gives callers a consistent success/error shape.</span></div><div class="control"><b>Approval boundary</b><span>Approval proposals are not cached as completed mutations.</span></div><div class="control"><b>Residual control</b><span>Default replay storage remains memory-backed; durable restart-safe persistence is still required.</span></div></div>
+<div class="note"><strong>Security invariant:</strong> no replay lookup can bypass current authorization.</div>
+</div></div>
+</body>
+</html>

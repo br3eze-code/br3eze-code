@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Dependency and Cordova Security Status</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:58px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:42px;letter-spacing:-1px;margin-top:18px}.lead{color:#b7c2d2;font-size:19px;line-height:1.35;margin-top:10px;width:900px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:42px;border-top:1px solid #425673;border-bottom:1px solid #425673}.column{min-height:310px;padding:25px 34px 0;border-right:1px solid #32425c}.column:first-child{padding-left:0}.column:last-child{border-right:0}.head{font-size:20px;font-weight:700;margin-bottom:20px}.confirmed{color:#77d7a4}.open{color:#f27c73}.item{display:grid;grid-template-columns:18px 1fr;gap:12px;margin:0 0 19px;color:#b7c2d2;font-size:16px;line-height:1.35}.dot{color:#f0b44d}.item b{color:#dce5f0}.bottom{margin-top:28px;color:#aab8cb;font-size:16px;line-height:1.45;width:900px}.bottom strong{color:#f0b44d}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">05 · Dependencies</div>
+<div class="title">Dependency and Cordova security status</div>
+<div class="lead">The audit distinguishes what was reproduced locally from what still requires lockfile, API, or platform evidence.</div>
+<div class="columns"><div class="column"><div class="head confirmed">Confirmed locally</div><div class="item"><div class="dot">●</div><div><b>Root audit output</b><br>16 moderate findings and zero high/critical findings in the available local report.</div></div><div class="item"><div class="dot">●</div><div><b>Syntax surface</b><br>479 JavaScript files passed the repository syntax check.</div></div><div class="item"><div class="dot">●</div><div><b>Lockfile boundary</b><br>Root package-lock.json was available for local dependency inspection.</div></div></div><div class="column"><div class="head open">Still open</div><div class="item"><div class="dot">●</div><div><b>Cordova plugins</b><br>Sub-manifests lacked equivalent lockfile-backed audit coverage.</div></div><div class="item"><div class="dot">●</div><div><b>Live alert detail</b><br>Dependabot API access was unavailable in the audit environment.</div></div><div class="item"><div class="dot">●</div><div><b>Inherited inventory</b><br>Earlier critical/high counts require fresh authoritative verification before release.</div></div></div></div>
+<div class="bottom"><strong>Interpretation rule:</strong> a clean local root result does not close platform-specific or inaccessible dependency surfaces.</div>
+</div></div>
+</body>
+</html>
