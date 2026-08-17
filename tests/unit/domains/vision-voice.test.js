@@ -69,6 +69,8 @@ describe('VoiceDomain', () => {
       success: true,
       url: 'https://cdn.br3eze.africa/voice/minimax_mock.mp3',
       provider: 'minimax',
+      voiceId: null,
+      languageCode: null,
     });
   });
 
