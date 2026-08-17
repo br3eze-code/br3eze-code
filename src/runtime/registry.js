@@ -30,9 +30,15 @@ export class Registry {
         this.tools.set(tool.name, {
             name: tool.name,
             description: tool.description || '',
-            parameters: tool.parameters || { type: 'object', properties: {} },
+            parameters: tool.parameters || tool.inputSchema || { type: 'object', properties: {} },
+            inputSchema: tool.inputSchema || tool.parameters || { type: 'object', properties: {} },
+            outputSchema: tool.outputSchema || null,
             handler: tool.handler,
             skill: tool.skill || null,
+            specialist: tool.specialist || null,
+            permissions: [...new Set(Array.isArray(tool.permissions) ? tool.permissions : [tool.permissions].filter(Boolean))],
+            ticketTypes: [...new Set(Array.isArray(tool.ticketTypes) ? tool.ticketTypes : [tool.ticketTypes].filter(Boolean))],
+            risk: tool.risk || 'low',
         });
         return this;
     }
@@ -77,6 +83,12 @@ export class Registry {
             name: t.name,
             description: t.description,
             parameters: t.parameters,
+            inputSchema: t.inputSchema,
+            outputSchema: t.outputSchema,
+            specialist: t.specialist,
+            permissions: t.permissions,
+            ticketTypes: t.ticketTypes,
+            risk: t.risk,
         }));
     }
 }

@@ -147,3 +147,56 @@ describe('AgentOS skill runtime', () => {
     expect(executable).not.toMatch(/mikrotik|hotspot|powerconnect|voucher|firebase/i);
   });
 });
+
+  test('preserves specialist and ticket contracts and blocks unauthorized invocation', async () => {
+    const { createRuntime } = await import('../../../src/runtime/runtime.js');
+    const { SpecialistRegistry } = await import('../../../src/runtime/specialist-registry.js');
+    const specialistRegistry = new SpecialistRegistry();
+    expect(specialistRegistry.register({
+      role: 'inventory',
+      permissions: ['inventory:write'],
+      ticketTypes: ['reserve-stock'],
+    })).toMatchObject({ role: 'inventory', ticketTypes: ['reserve-stock'] });
+
+    const runtime = createRuntime();
+    runtime.use(defineSkill({
+      name: 'inventory',
+      specialist: 'inventory',
+      ticketTypes: ['reserve-stock'],
+      match: (input) => input === 'reserve' ? { tool: 'inventory.reserve', args: { sku: 'SKU-1' } } : null,
+      tools: [defineTool({
+        name: 'inventory.reserve',
+        specialist: 'inventory',
+        permissions: ['inventory:write'],
+        ticketTypes: ['reserve-stock'],
+        handler: async ({ sku }) => ({ reservationId: `r-${sku}` }),
+      })],
+    }));
+
+    const denied = await runtime.run('reserve', { agentRole: 'inventory', ticketType: 'reserve-stock' });
+    expect(denied).toMatchObject({ type: 'error', result: 'Permission denied for inventory.reserve' });
+
+    const wrongRole = await runtime.run('reserve', {
+      agentRole: 'procurement',
+      permissions: ['inventory:write'],
+      ticketType: 'reserve-stock',
+    });
+    expect(wrongRole).toMatchObject({ type: 'error', result: 'Specialist role required for inventory.reserve: inventory' });
+
+    const allowed = await runtime._invoke('inventory.reserve', { sku: 'SKU-1' }, {
+      agentRole: 'inventory',
+      authorizedCapabilities: ['inventory:write'],
+      ticketType: 'reserve-stock',
+    });
+    expect(allowed).toMatchObject({ type: 'tool', result: { reservationId: 'r-SKU-1' } });
+  });
+
+  test('rejects duplicate specialist roles and unknown ticket capability', async () => {
+    const { SpecialistRegistry } = await import('../../../src/runtime/specialist-registry.js');
+    const registry = new SpecialistRegistry();
+    registry.register({ role: 'procurement', ticketTypes: ['purchase-proposal'] });
+    expect(() => registry.register({ role: 'procurement' })).toThrow('already registered');
+    expect(registry.canHandle('procurement', 'purchase-proposal')).toBe(true);
+    expect(registry.canHandle('procurement', 'deploy')).toBe(false);
+    expect(registry.canHandle('unknown', 'purchase-proposal')).toBe(false);
+  });

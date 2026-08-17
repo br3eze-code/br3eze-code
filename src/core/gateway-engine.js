@@ -37,6 +37,7 @@ import { ProactiveTelemetry } from './proactive-telemetry.js';
 import { buildProposalManifest } from './channel-action-manifest.js';
 import { DataAnalystRegistry } from './data-analyst.js';
 import { normalizeBotContext } from './bot.ai.js';
+import createProjectManagerRouter from '../routes/project-manager.js';
 
 // A2A is an optional capability. Deployments that provide the plugin can
 // load it without changing the core gateway; its absence is not a startup error.
@@ -439,6 +440,14 @@ class Gateway extends EventEmitter {
         res.status(error.status || 500).json({ error: error.message, code: error.code || 'PROPOSAL_DECISION_FAILED' });
       }
     });
+
+    // ── Canonical Project Manager API ─────────────────────────────────────────
+    // The preceding /api middleware establishes the gateway/Firebase identity.
+    // The router derives tenant, channel, session, WBS, and approval scope from it.
+    this.app.use('/api/v1/project-manager', createProjectManagerRouter({
+      store: this.config.projectManager?.store,
+      coordinator: this.config.projectManager?.coordinator,
+    }));
 
     // ── SSE streaming /ask ────────────────────────────────────────────────────
     this.app.post('/api/v1/ask', async (req, res) => {

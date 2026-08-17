@@ -19,4 +19,6 @@
 
 export { Runtime, createRuntime } from './runtime.js';
 export { Registry } from './registry.js';
+export { SpecialistRegistry } from './specialist-registry.js';
+export { INVENTORY_SPECIALIST, CATALOG_SPECIALIST, PRICING_SPECIALIST, ORDERS_SPECIALIST, VOUCHER_SPECIALIST, FULFILLMENT_SPECIALIST, PROCUREMENT_SPECIALIST, BILLING_SPECIALIST, PROJECT_MANAGER_SPECIALIST, registerCommerceSpecialists, inventorySkill, catalogSkill, pricingSkill, ordersSkill, voucherSkill, fulfillmentSkill, procurementSkill, billingSkill, projectManagerSkill } from './commerce-specialists.js';
 export { defineSkill, defineTool, loadSkillsFrom } from './skill.js';
