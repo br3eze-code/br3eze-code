@@ -78,6 +78,14 @@ const PROFILE_DEFINITIONS = Object.freeze({
     approvalRequired: ['qa.accept', 'qa.waive', 'commissioning.accept'],
     defaultNextAction: 'Confirm acceptance criteria, required evidence, test method, and unresolved defects.',
     domains: ['*']
+  },
+  br3ezeserviceagent: {
+    label: 'Br3eze Service Agent',
+    description: 'Represents Br3eze Africa as the governed contact specialist for tenant onboarding and Power Connect handoff.',
+    capabilities: ['tenant.read', 'tenant.onboard', 'site.read', 'site.onboard', 'pairing.create', 'pairing.read', 'device.enrollment.propose', 'support.create', 'handoff.create'],
+    approvalRequired: ['tenant.create', 'site.create', 'device.mutation', 'baseline.apply', 'site.activate'],
+    defaultNextAction: 'Resolve the authenticated principal, tenant membership, site scope, and onboarding session before proposing the next step.',
+    domains: ['network', 'onboarding', '*']
   }
 });
 

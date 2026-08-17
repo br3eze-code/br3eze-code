@@ -100,6 +100,15 @@
       "dependsOn": ["product", "designer"],
       "handoffsTo": ["designer", "product", "fulfillment-expeditor", "procurement"],
       "owns": ["project baseline", "work packages", "milestones", "risks", "approvals", "closure"]
+    },
+    {
+      "id": "br3eze-code",
+      "name": "Br3eze Service Agent",
+      "skill": "br3eze-service-agent",
+      "mission": "Represent Br3eze Africa as the governed tenant contact specialist across onboarding, support coordination, and Power Connect handoff.",
+      "dependsOn": ["project-manager"],
+      "handoffsTo": ["project-manager"],
+      "owns": ["tenant contact ownership", "channel onboarding", "Power Connect pairing", "site enrollment coordination", "customer handoff"]
     }
   ]
 }
