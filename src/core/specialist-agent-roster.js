@@ -1,4 +1,7 @@
-import roster from '../../config/specialist-agent-roster.json' with { type: 'json' };
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const roster = require('../../config/specialist-agent-roster.json');
 
 const teams = Object.freeze(roster.teams.map((team) => Object.freeze({
   ...team,

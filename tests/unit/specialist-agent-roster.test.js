@@ -8,9 +8,9 @@ import {
 } from '../../src/core/specialist-agent-roster.js';
 
 describe('specialist agent roster', () => {
-  test('covers all eleven specialist teams', () => {
+  test('covers all twelve specialist teams', () => {
     const teams = listSpecialistTeams();
-    expect(teams).toHaveLength(11);
+    expect(teams).toHaveLength(12);
     expect(teams.map((team) => team.skill)).toEqual(expect.arrayContaining([
       'designer',
       'catalog-specialist',
@@ -22,7 +22,8 @@ describe('specialist agent roster', () => {
       'procurement-specialist',
       'billing-payments-specialist',
       'product-specialist',
-      'project-manager'
+      'project-manager',
+      'br3eze-service-agent'
     ]));
   });
 
@@ -45,6 +46,6 @@ describe('specialist agent roster', () => {
   });
 
   test('has valid references for every dependency and handoff', () => {
-    expect(validateSpecialistRoster()).toEqual({ valid: true, errors: [], teamCount: 11 });
+    expect(validateSpecialistRoster()).toEqual({ valid: true, errors: [], teamCount: 12 });
   });
 });

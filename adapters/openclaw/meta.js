@@ -9,7 +9,10 @@
  *   const makeMeta = require('./adapters/openclaw/meta');
  *   const manifest = makeMeta(kernelInstance);
  */
-import pkg from '../../package.json' with { type: 'json' };
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../../package.json');
 
 /**
  * @param {import('../../src/core/agentKernel')} kernelInstance  Live AgentKernel

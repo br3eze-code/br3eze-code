@@ -27,7 +27,7 @@ function tmpPath(name) {
 
 describe('fileIO — writeFile / readFile', () => {
     let filePath;
-    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) {} });
+    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) { /* cleanup is best-effort */ } });
 
     test('writes and reads JSON object', () => {
         filePath = tmpPath('obj.json');
@@ -60,7 +60,7 @@ describe('fileIO — writeFile / readFile', () => {
         expect(writeFile(nested, { ok: true })).toBe(true);
         expect(readFile(nested)).toEqual({ ok: true });
         // cleanup
-        try { fs.rmSync(path.dirname(path.dirname(nested)), { recursive: true }); } catch (_) {}
+        try { fs.rmSync(path.dirname(path.dirname(nested)), { recursive: true }); } catch (_) { /* cleanup is best-effort */ }
     });
 
     test('readFile returns fallback on JSON parse error', () => {
@@ -74,7 +74,7 @@ describe('fileIO — writeFile / readFile', () => {
 
 describe('fileIO — appendJson', () => {
     let filePath;
-    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) {} });
+    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) { /* cleanup is best-effort */ } });
 
     test('creates file and appends first record', () => {
         filePath = tmpPath('append.json');
@@ -100,7 +100,7 @@ describe('fileIO — appendJson', () => {
 
 describe('fileIO — readRaw / writeRaw', () => {
     let filePath;
-    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) {} });
+    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) { /* cleanup is best-effort */ } });
 
     test('writes and reads raw string', () => {
         filePath = tmpPath('raw.txt');
@@ -146,7 +146,7 @@ describe('fileIO — listDirectory', () => {
 
 describe('fileIO — getFileStats', () => {
     let filePath;
-    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) {} });
+    afterEach(() => { try { fs.unlinkSync(filePath); } catch (_) { /* cleanup is best-effort */ } });
 
     test('returns stats object with size', () => {
         filePath = tmpPath('stats.json');

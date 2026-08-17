@@ -5,7 +5,11 @@
  * personnel and administration considerations. This module selects and
  * prioritises work; it does not execute projects or alter acceptance criteria.
  */
-import model from '../../config/project-selection-model.json' with { type: 'json' };
+import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(path.join(process.cwd(), 'package.json'));
+const model = require('./config/project-selection-model.json');
 
 const DIMENSIONS = Object.freeze(Object.keys(model.dimensions));
 const clamp = (value, min = 0, max = 10) => Math.min(max, Math.max(min, Number(value) || 0));

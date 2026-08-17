@@ -2,7 +2,10 @@ import chalk from 'chalk';
 import { getManager } from '../../core/mikrotik.js';
 import { getUserSandbox } from '../../core/userSandbox.js';
 import { getDatabase } from '../../core/database.js';
-import rolesPolicy from '../../policies/roles.json' with { type: 'json' };
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const rolesPolicy = require('../../policies/roles.json');
 
 const { roles } = rolesPolicy;
 import { _internal as loginInternal } from './login.js';

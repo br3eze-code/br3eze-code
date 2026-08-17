@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Remediation Waves and Ownership</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:58px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:42px;letter-spacing:-1px;margin-top:18px}.lead{color:#b7c2d2;font-size:19px;line-height:1.35;margin-top:10px;width:900px}.waves{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:42px;border-top:1px solid #425673;border-bottom:1px solid #425673}.wave{min-height:190px;padding:20px 16px 0;border-right:1px solid #32425c}.wave:first-child{padding-left:0}.wave:last-child{border-right:0}.num{font-size:14px;color:#f0b44d;letter-spacing:2px}.wave b{display:block;font-size:18px;margin-top:15px;color:#dce5f0}.wave span{display:block;color:#aab8cb;font-size:14px;line-height:1.35;margin-top:10px}.owner{display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;margin-top:28px}.owner div{border-top:2px solid #77d7a4;padding-top:12px;color:#aab8cb;font-size:15px;line-height:1.35}.owner b{color:#dce5f0}.footer{margin-top:28px;color:#8f9db0;font-size:14px}.footer strong{color:#f0b44d}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">06 · Remediation</div>
+<div class="title">Remediation waves and ownership</div>
+<div class="lead">Close the release risk in bounded waves, with a named owner and verifiable evidence at every boundary.</div>
+<div class="waves"><div class="wave"><div class="num">WAVE 01</div><b>Runtime core</b><span>Durable idempotency, input redaction, schema rigor, replay evidence.</span></div><div class="wave"><div class="num">WAVE 02</div><b>Messaging</b><span>Baileys and channel adapters; identity, session, webhook, and approval paths.</span></div><div class="wave"><div class="num">WAVE 03</div><b>Cordova</b><span>Plugin manifests, mobile bridge permissions, Android/iOS build evidence.</span></div><div class="wave"><div class="num">WAVE 04</div><b>External edges</b><span>HTTP, payments, email, browser automation, HTML transformation, providers.</span></div><div class="wave"><div class="num">WAVE 05</div><b>Release proof</b><span>Fresh alert export, lockfile coverage, regression suite, staged rollout.</span></div></div>
+<div class="owner"><div><b>Engineer</b><br>patches, tests, dependency graph, rollback plan</div><div><b>QA + Security</b><br>acceptance evidence, tenant-boundary tests, vulnerability closure</div><div><b>Project Manager</b><br>dependency order, approvals, residual-risk decision, release record</div></div>
+<div class="footer"><strong>Exit condition:</strong> every wave has an owner, evidence, and explicit disposition—not just a version bump.</div>
+</div></div>
+</body>
+</html>

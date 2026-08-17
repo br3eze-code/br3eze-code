@@ -114,7 +114,9 @@ class ToolRegistry {
       parameters:  t.schema?.parameters || t.parameters || [],
       returns:     t.schema?.returns || 'any',
       domain:      t.domain,
-      risk:        t.risk || 'low',
+      risk:        t.risk || t.riskLevel || 'low',
+      riskLevel:   t.riskLevel || t.risk || 'low',
+      auditable:   typeof t.audit === 'function',
     }));
     this._manifestCache = {
       version: '2.0.0',

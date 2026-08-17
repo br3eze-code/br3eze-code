@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Validation Results</title>
+<style>
+*{box-sizing:border-box} body{margin:0}.slide-container{width:1280px;min-height:720px;background:#0b1220;color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;position:relative;overflow:hidden}.accent{position:absolute;left:0;top:0;width:12px;min-height:720px;background:#f0b44d}.content{margin-left:84px;margin-top:58px;width:1110px}.eyebrow{color:#f0b44d;font-size:16px;letter-spacing:3px;text-transform:uppercase;font-weight:700}.title{font-size:42px;letter-spacing:-1px;margin-top:18px}.lead{color:#b7c2d2;font-size:19px;line-height:1.35;margin-top:10px}.metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;margin-top:45px;border-top:1px solid #425673;border-bottom:1px solid #425673}.metric{min-height:158px;padding:25px 28px 0;border-right:1px solid #32425c}.metric:first-child{padding-left:0}.metric:last-child{border-right:0}.num{font-size:56px;letter-spacing:-2px;color:#77d7a4;font-weight:700}.label{font-size:17px;color:#dce5f0;margin-top:8px}.detail{font-size:14px;color:#8f9db0;margin-top:8px}.ledger{display:grid;grid-template-columns:180px 1fr 170px;gap:20px;margin-top:34px;border-top:1px solid #32425c}.row{display:contents}.cell{padding:14px 0;border-bottom:1px solid #32425c;color:#aab8cb;font-size:16px}.cell strong{color:#dce5f0}.state{color:#77d7a4!important;font-weight:700}.warn{color:#f0b44d!important;font-weight:700}.footer{margin-top:25px;color:#8f9db0;font-size:14px}.footer strong{color:#f0b44d}
+</style>
+</head>
+<body>
+<div class="slide-container"><div class="accent"></div><div class="content">
+<div class="eyebrow">04 · Validation</div>
+<div class="title">Validation results</div>
+<div class="lead">The authorization hardening was regression-tested locally, then carried into the merged commerce branch.</div>
+<div class="metrics"><div class="metric"><div class="num">15</div><div class="label">focused Phase 2 tests</div><div class="detail">specialist runtime and replay paths</div></div><div class="metric"><div class="num">99</div><div class="label">full Jest suites</div><div class="detail">repository-wide post-merge run</div></div><div class="metric"><div class="num">846</div><div class="label">full-suite tests</div><div class="detail">all passed in the completed run</div></div></div>
+<div class="ledger"><div class="row"><div class="cell"><strong>Syntax</strong></div><div class="cell">JavaScript syntax check across 479 files</div><div class="cell state">PASSED</div></div><div class="row"><div class="cell"><strong>Diff integrity</strong></div><div class="cell">Whitespace and patch review</div><div class="cell state">PASSED</div></div><div class="row"><div class="cell"><strong>Runtime caveat</strong></div><div class="cell">Standard Jest run emitted delayed-exit warning; detector found no stable owner</div><div class="cell warn">INVESTIGATE</div></div><div class="row"><div class="cell"><strong>Environment</strong></div><div class="cell">PHP unavailable; TypeScript check resource-terminated</div><div class="cell warn">OPEN</div></div></div>
+<div class="footer"><strong>Evidence status:</strong> code-path fix verified; platform and environment gates remain separate decisions.</div>
+</div></div>
+</body>
+</html>

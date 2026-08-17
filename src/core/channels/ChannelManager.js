@@ -7,6 +7,7 @@ import { getTaskRegistry } from '../taskRegistry.js';
 import { evaluateProactiveNotification } from '../proactive-policy.js';
 import { buildProposalManifest } from '../channel-action-manifest.js';
 import ProactiveTelemetry from '../proactive-telemetry.js';
+import { ChannelAgentRouter } from '../channel-agent-router.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -22,6 +23,7 @@ class ChannelManager extends EventEmitter {
     super();
     this.agent = agent;
     this.channels = new Map();
+    this.handoffRouter = new ChannelAgentRouter({ channelManager: this });
     this.proactiveTelemetry = agent?.services?.proactiveTelemetry || new ProactiveTelemetry();
     this._proposalEventHandlers = [];
     this._loadAdapters();
@@ -236,6 +238,10 @@ class ChannelManager extends EventEmitter {
     const channel = this.channels.get(channelType);
     if (!channel) throw new Error(`Channel not registered: ${channelType}`);
     return channel.send(userId, message);
+  }
+
+  async dispatchHandoff(handoff, scope) {
+    return this.handoffRouter.dispatch(handoff, scope);
   }
 
   async broadcast(message, filter = null) {
