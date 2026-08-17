@@ -100,14 +100,15 @@ export function scoreProject(input = {}) {
   const risk = riskModel(input.risks);
   const confidence = evidenceConfidence(input);
   const gates = evaluateGates(dimensions, risk, confidence);
-  const baseScore = DIMENSIONS.reduce(
+  const baseScore10 = DIMENSIONS.reduce(
     (sum, dimension) => sum + dimensions[dimension].score * model.dimensions[dimension].weight,
     0
   );
 
   // Evidence uncertainty is a bounded penalty. High-confidence evidence has no penalty.
   const evidenceFactor = 1 - ((1 - confidence) * model.evidence.confidencePenalty);
-  const riskAdjustedScore = baseScore * risk.adjustment * evidenceFactor;
+  const riskAdjustedScore = baseScore10 * 10 * risk.adjustment * evidenceFactor;
+  const baseScore = Number((baseScore10 * 10).toFixed(2));
   const finalScore = Number(riskAdjustedScore.toFixed(2));
   const status = gates.length ? 'HOLD' : decisionBand(finalScore);
 
@@ -118,11 +119,12 @@ export function scoreProject(input = {}) {
 
   return {
     projectId,
-    dimensions: Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, Number(dimensions[dimension].score.toFixed(2))])),
+    scale: '0-100',
+    dimensions: Object.fromEntries(DIMENSIONS.map((dimension) => [dimension, Number((dimensions[dimension].score * 10).toFixed(2))])),
     dimensionDetails: dimensions,
     risk,
     evidenceConfidence: confidence,
-    baseScore: Number(baseScore.toFixed(2)),
+    baseScore,
     riskAdjustedScore: finalScore,
     decision: status,
     gateFailures: gates,
