@@ -1,0 +1,107 @@
+{
+  "version": "1.0.0",
+  "scale": { "min": 0, "max": 10 },
+  "dimensions": {
+    "strategic": {
+      "weight": 0.20,
+      "criteria": {
+        "strategicAlignment": 0.20,
+        "problemImportance": 0.20,
+        "marketOpportunity": 0.15,
+        "competitiveAdvantage": 0.15,
+        "revenuePotential": 0.15,
+        "capabilityFit": 0.10,
+        "platformValue": 0.05
+      }
+    },
+    "production": {
+      "weight": 0.20,
+      "criteria": {
+        "technicalFeasibility": 0.20,
+        "resourceAvailability": 0.15,
+        "operationalComplexity": 0.15,
+        "dependencyRisk": 0.10,
+        "timeToMvp": 0.10,
+        "timeToProduction": 0.10,
+        "infrastructureReadiness": 0.10,
+        "qualityFeasibility": 0.10
+      }
+    },
+    "marketing": {
+      "weight": 0.15,
+      "criteria": {
+        "marketSize": 0.15,
+        "demandEvidence": 0.20,
+        "customerAcquisition": 0.15,
+        "distributionAdvantage": 0.15,
+        "brandFit": 0.10,
+        "referralPotential": 0.10,
+        "positioning": 0.10,
+        "marketTiming": 0.05
+      }
+    },
+    "financial": {
+      "weight": 0.25,
+      "criteria": {
+        "revenuePotential": 0.15,
+        "grossMargin": 0.15,
+        "roi": 0.20,
+        "payback": 0.15,
+        "cashFlow": 0.15,
+        "capitalRequirement": 0.10,
+        "downsideProtection": 0.10
+      }
+    },
+    "personnel": {
+      "weight": 0.10,
+      "criteria": {
+        "skillsAvailable": 0.20,
+        "capacity": 0.15,
+        "hiringDifficulty": 0.15,
+        "keyPersonDependency": 0.15,
+        "managementCapacity": 0.10,
+        "trainingRequirement": 0.10,
+        "scalability": 0.10,
+        "retentionRisk": 0.05
+      }
+    },
+    "administration": {
+      "weight": 0.10,
+      "criteria": {
+        "regulatoryComplexity": 0.15,
+        "licensing": 0.10,
+        "contractComplexity": 0.10,
+        "dataPrivacy": 0.15,
+        "accountingComplexity": 0.10,
+        "insuranceLiability": 0.10,
+        "procurementComplexity": 0.10,
+        "reporting": 0.10,
+        "governanceReadiness": 0.10
+      }
+    }
+  },
+  "risk": {
+    "probabilityScale": 5,
+    "impactScale": 5,
+    "maxExposure": 25,
+    "weight": 0.20,
+    "adjustmentFloor": 0.50
+  },
+  "evidence": {
+    "confidencePenalty": 0.20,
+    "defaultConfidence": 0.50
+  },
+  "gates": {
+    "minimumStrategic": 5,
+    "minimumFinancial": 4,
+    "minimumProduction": 4,
+    "maximumCriticalRiskExposure": 20,
+    "minimumEvidenceConfidence": 0.35
+  },
+  "decisionBands": {
+    "priority": 85,
+    "approved": 70,
+    "conditional": 55,
+    "hold": 40
+  }
+}
