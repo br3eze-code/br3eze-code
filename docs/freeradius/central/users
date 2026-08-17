@@ -1,0 +1,23 @@
+# Central FreeRADIUS policy.
+# Production identity and authorization should be resolved by SQL/REST through
+# the AgentOS adapter. This file contains only safe examples and fail-closed
+# defaults.
+
+# Regional proxies must be mapped to a controlled realm by NAS-Identifier.
+DEFAULT NAS-Identifier == "regional-proxy-west"
+        Proxy-To-Realm := "agentos-central"
+
+DEFAULT NAS-Identifier == "regional-proxy-east"
+        Proxy-To-Realm := "agentos-central"
+
+# Example policy attributes returned after the AgentOS adapter has authorized
+# a tenant/site user. Replace with dynamic SQL/REST attributes in production.
+# demo-user Cleartext-Password := "CHANGE_ME_ONLY_FOR_LOCAL_TESTS"
+#            Mikrotik-Rate-Limit := "20M/20M",
+#            Session-Timeout := 3600,
+#            Acct-Interim-Interval := 300,
+#            Filter-Id := "tenant:tenant-demo:region:west:site:site-demo"
+
+# Fail closed when central authorization does not produce an allow decision.
+DEFAULT
+        Auth-Type := Reject
