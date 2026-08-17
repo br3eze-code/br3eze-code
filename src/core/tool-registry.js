@@ -5,7 +5,7 @@ import yaml from 'js-yaml';
 import { logger } from './logger.js';
 
 import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+const require = createRequire(path.resolve(process.cwd(), 'package.json'));
 
 /**
  * ToolRegistry — AgentOS Skill & Tool Loader

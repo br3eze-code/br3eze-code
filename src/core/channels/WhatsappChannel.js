@@ -4,7 +4,7 @@ import _chalk from 'chalk';
 import { logger } from '../logger.js';
 import { BaseChannel } from './BaseChannel.js';
 import { formatStartText, listAvailableDomains } from '../domain-menu.js';
-import { buildExecutionContext } from '../execution-context.js';
+import { buildChannelExecutionContext } from '../execution-context.js';
 import { buildActionManifest, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
 import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 
@@ -828,7 +828,7 @@ class WhatsAppChannel extends BaseChannel {
         logger.debug(`WhatsApp UI context lookup failed: ${error.message}`)
       }
     }
-    return buildExecutionContext({ message: msg, userId: msg?._uid || userDoc?.uid || jid, platformId: jid, channel: 'whatsapp', userDoc, config: this.config })
+    return buildChannelExecutionContext({ message: msg, userId: msg?._uid || userDoc?.uid || jid, platformId: jid, channel: 'whatsapp', userDoc, config: this.config })
   }
 
   async _sendUiActions(jid, msg) {
@@ -1448,7 +1448,7 @@ class WhatsAppChannel extends BaseChannel {
   async _handleShop(jid, msg, args) {
     const action = args[1] || "list";
     const uid = msg?._uid || jid;
-    const context = buildExecutionContext({
+    const context = buildChannelExecutionContext({
       message: msg,
       userId: uid,
       platformId: jid,

@@ -1509,7 +1509,9 @@ app.post('/api/checkout/create', async (req, res) => {
     if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
     // Stripe's USD minimum is $0.50; the cap keeps a typo from becoming a $10k charge.
     if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
-    const origin = req.headers.origin || 'https://br3eze-africa-312df.web.app';
+    const configuredOrigin = process.env.AGENTOS_DASHBOARD_URL || process.env.AGENTOS_API_BASE_URL || process.env.AGENTOS_GATEWAY_URL || '';
+    const origin = req.headers.origin || configuredOrigin;
+    if (!origin) return res.status(500).json({ error: 'Dashboard origin is not configured' });
     try {
         const r = await _stripeAxios.post('https://api.stripe.com/v1/checkout/sessions', _stripeForm({
             mode: 'payment',

@@ -47,12 +47,12 @@ const DEFAULT_CONFIG = {
     name: BRAND.name,
     version: BRAND.version,
     mikrotik: {
-        ip: process.env.MIKROTIK_IP || '192.168.88.1',
-        user: process.env.MIKROTIK_USER || 'admin',
+        ip: process.env.MIKROTIK_IP || '',
+        user: process.env.MIKROTIK_USER || '',
         pass: process.env.MIKROTIK_PASS || '',
         port: parseInt(process.env.MIKROTIK_PORT) || 8728,
-        reconnectInterval: 5000,
-        maxReconnectAttempts: Infinity
+        reconnectInterval: Number(process.env.MIKROTIK_RECONNECT_INTERVAL_MS || 5000),
+        maxReconnectAttempts: Number(process.env.MIKROTIK_MAX_RECONNECT_ATTEMPTS || 0) || Infinity
     },
     telegram: {
         token: '',
@@ -90,7 +90,7 @@ const DEFAULT_CONFIG = {
         GOOGLE: {
             CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
             CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-            REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://127.0.0.1:0/oauth/callback',
+            REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
             SCOPE: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile'
         },
         FACEBOOK: {
@@ -102,8 +102,44 @@ const DEFAULT_CONFIG = {
         }
     },
     server: {
-        port: 3000,
-        host: '0.0.0.0'
+        port: Number(process.env.SERVER_PORT || 3000),
+        host: process.env.SERVER_HOST || '0.0.0.0'
+    },
+    public: {
+        apiBaseUrl: process.env.AGENTOS_API_BASE_URL || process.env.AGENTOS_GATEWAY_URL || '',
+        dashboardUrl: process.env.AGENTOS_DASHBOARD_URL || '',
+        serviceName: process.env.BRAND_SERVICE_NAME || BRAND.name
+    },
+    api: {
+        version: process.env.AGENTOS_API_VERSION || 'v1',
+        basePath: process.env.AGENTOS_API_BASE_PATH || '/api/v1',
+        requireAuth: process.env.AGENTOS_API_REQUIRE_AUTH !== 'false'
+    },
+    onboarding: {
+        pairingTtlMs: Number(process.env.AGENTOS_ONBOARDING_PAIRING_TTL_MS || 600000),
+        wbsEnabled: process.env.AGENTOS_ONBOARDING_WBS_ENABLED !== 'false',
+        defaultChannel: process.env.AGENTOS_ONBOARDING_DEFAULT_CHANNEL || 'telegram',
+        defaultSpecialistId: process.env.AGENTOS_ONBOARDING_SPECIALIST_ID || '',
+        sessionStore: process.env.AGENTOS_ONBOARDING_SESSION_STORE || 'memory'
+    },
+    storyline: {
+        basePath: process.env.AGENTOS_STORYLINE_BASE_PATH || '',
+        sessionTtlMs: Number(process.env.AGENTOS_STORYLINE_SESSION_TTL_MS || 86400000),
+        maxCacheEntries: Number(process.env.AGENTOS_STORYLINE_MAX_CACHE_ENTRIES || 100),
+        compactKeepLast: Number(process.env.AGENTOS_STORYLINE_COMPACT_KEEP_LAST || 20),
+        defaultMode: process.env.AGENTOS_STORYLINE_MODE || 'isolated',
+        summaryMaxChars: Number(process.env.AGENTOS_STORYLINE_SUMMARY_MAX_CHARS || 50),
+        systemSummaryLabel: process.env.AGENTOS_STORYLINE_SUMMARY_LABEL || 'Previous conversation summary'
+    },
+    firebase: {
+        apiKey: process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || '',
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
+        databaseURL: process.env.FIREBASE_DATABASE_URL || '',
+        projectId: process.env.FIREBASE_PROJECT_ID || '',
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
+        appId: process.env.FIREBASE_APP_ID || '',
+        measurementId: process.env.FIREBASE_MEASUREMENT_ID || ''
     },
     // Canonical multi-server inventory. Credentials stay in environment variables or vault refs.
     servers: [],
@@ -112,8 +148,8 @@ const DEFAULT_CONFIG = {
         primary: process.env.AGENTOS_LLM_PRIMARY || 'ollama',
         fallbacks: (process.env.AGENTOS_LLM_FALLBACKS || 'openrouter,openai,xai').split(',').map(value => value.trim()).filter(Boolean),
         openModels: {
-            endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || 'http://127.0.0.1:11434/v1',
-            model: process.env.AGENTOS_OPEN_MODEL || 'llama3.1:8b'
+            endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || '',
+            model: process.env.AGENTOS_OPEN_MODEL || ''
         }
     },
     security: {

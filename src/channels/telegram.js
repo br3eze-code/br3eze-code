@@ -3,6 +3,7 @@ import https from 'https';
 import EventEmitter from 'events';
 import security from '../core/security.js';
 import { logger } from '../core/logger.js';
+import { resolveRoamingContext } from '../core/roaming-context.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -265,9 +266,10 @@ class TelegramChannel extends EventEmitter {
     return entry.siteId;
   }
 
-  _meshContext(chatId) {
+  _meshContext(chatId, selection = {}) {
     const context = typeof this.meshContext === 'function' ? this.meshContext(chatId) : {};
-    return { ...context, userId: context.userId || chatId, channel: 'telegram' };
+    const base = { ...context, userId: context.userId || chatId, channel: 'telegram' };
+    return Object.keys(selection).length ? { ...base, ...resolveRoamingContext({ context: base, selection }) } : base;
   }
 
   async _handleMeshSites(msg) {
@@ -308,7 +310,7 @@ class TelegramChannel extends EventEmitter {
   async _handleMeshHealth(chatId, token) {
     const siteId = this._resolveMeshSite(token);
     if (!siteId) return this.bot.sendMessage(chatId, '⚠️ This health button expired. Use /sites again.');
-    const context = this._meshContext(chatId);
+    const context = this._meshContext(chatId, { siteId, activeSiteId: siteId, source: 'telegram-mesh-site' });
     try {
       const result = await this.mesh.health([siteId], context);
       return this.bot.sendMessage(chatId, `📊 *${siteId}*\n\n\`${this._safeTelegramJson(result[0])}\``, { parse_mode: 'Markdown' });

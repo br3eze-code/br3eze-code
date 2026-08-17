@@ -50,7 +50,7 @@ function init() {
   try {
     admin.initializeApp({
       credential: getCredential(),
-      projectId:  process.env.FIREBASE_PROJECT_ID || 'br3eze-africa-312df',
+      projectId:  process.env.FIREBASE_PROJECT_ID || undefined,
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
     _initialized = true;

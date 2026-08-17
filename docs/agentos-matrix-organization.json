@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "matrixVersion": "2026-08-17",
+  "principles": [
+    "channels-render-work",
+    "specialists-own-work",
+    "adapters-reach-resources",
+    "policy-authorizes-work",
+    "durable-state-proves-work"
+  ],
+  "accountabilityCells": [
+    {"id":"project-manager","owns":["portfolio","wbs","dependencies","critical-path","closeout"],"approvalCapabilities":["scope.mutate","schedule.mutate","budget.mutate"]},
+    {"id":"planner","owns":["objectives","packages","milestones","acceptance-criteria"],"approvalCapabilities":["plan.execute_mutation"]},
+    {"id":"engineer","owns":["diagnostics","implementation","integration","rollback"],"approvalCapabilities":["code.write","config.write","deploy","device.mutation"]},
+    {"id":"designer","owns":["requirements","flows","prototypes","design-review"],"approvalCapabilities":["design.publish","asset.publish"]},
+    {"id":"draftsman","owns":["controlled-diagrams","specifications","revisions","issue"],"approvalCapabilities":["document.publish","drawing.issue"]},
+    {"id":"accountant","owns":["period","currency","cost","variance","settlement"],"approvalCapabilities":["ledger.write","payment.create","settlement.release"]},
+    {"id":"procurement","owns":["suppliers","quotes","buy-make","purchase-proposals"],"approvalCapabilities":["purchase.order","supplier.commit","budget.allocate"]},
+    {"id":"expeditor","owns":["shipments","milestones","tracking","exceptions"],"approvalCapabilities":["shipment.change","vendor.escalate","notify.send"]},
+    {"id":"secretary","owns":["stakeholders","communications","meetings","records"],"approvalCapabilities":["message.send","calendar.commit","record.share"]},
+    {"id":"qa","owns":["acceptance","regression","defects","commissioning"],"approvalCapabilities":["release.recommend","commission"]},
+    {"id":"security","owns":["tenant-isolation","identity","secrets","vulnerabilities"],"approvalCapabilities":["access.change","containment"]},
+    {"id":"fleet-operations","owns":["polling-policies","adapter-health","site-events","alert-grouping"],"approvalCapabilities":[]}
+  ],
+  "capabilityFamilies": [
+    {"id":"context","capabilities":["context.resolve","context.select","context.expire","context.redact"]},
+    {"id":"fleet","capabilities":["health.read","topology.read","users.read","access.resolve","roaming.attach","session.revoke"]},
+    {"id":"execution","capabilities":["proposal.create","tool.execute","device.mutation","config.write","deploy"]},
+    {"id":"project","capabilities":["wbs.read","package.create","dependency.update","milestone.update","closeout"]},
+    {"id":"commerce","capabilities":["catalog.read","order.read","payment.reconcile","settlement.propose"]},
+    {"id":"fulfillment","capabilities":["shipment.read","exception.propose","milestone.update"]},
+    {"id":"documents","capabilities":["document.read","document.draft","diagram.draft","document.publish"]},
+    {"id":"communication","capabilities":["message.draft","message.send","notification.publish"]}
+  ],
+  "resourceHierarchy":["principal","tenant","project","meshGroup","site","node","user","session","activity"],
+  "channels":[
+    {"id":"telegram","contextSource":"chat-bound-principal","renderer":"telegram","requiresExplicitSelection":true},
+    {"id":"whatsapp","contextSource":"phone-bound-principal","renderer":"whatsapp","requiresExplicitSelection":true},
+    {"id":"pwa","contextSource":"browser-session","renderer":"web","requiresExplicitSelection":true},
+    {"id":"cli","contextSource":"local-identity-and-flags","renderer":"structured-text","requiresExplicitSelection":true},
+    {"id":"desktop","contextSource":"device-bound-session","renderer":"native","requiresExplicitSelection":true},
+    {"id":"mobile","contextSource":"device-bound-session","renderer":"native","requiresExplicitSelection":true},
+    {"id":"edge-agent","contextSource":"enrolled-node-identity","renderer":"metrics-events","requiresExplicitSelection":false}
+  ],
+  "executionClasses":[
+    {"id":"fleet-health-poll","modelOnCriticalPath":false,"state":["lease","cursor","snapshot","retry-budget"],"isolation":"per-node"},
+    {"id":"site-aggregation","modelOnCriticalPath":false,"state":["window","counts","dominant-state","dedupe-key"],"isolation":"per-site"},
+    {"id":"channel-query","modelOnCriticalPath":false,"state":["context","trace","query-budget"],"isolation":"per-request"},
+    {"id":"device-mutation","modelOnCriticalPath":false,"state":["approval","idempotency","audit","rollback"],"isolation":"per-action"},
+    {"id":"wbs-activity","modelOnCriticalPath":true,"state":["activity","dependency","handoff","evidence"],"isolation":"per-activity"}
+  ],
+  "evidenceFields":["traceId","activityNumber","tenantId","projectId","siteId","nodeId","capability","actor","channel","approvalId","idempotencyKey","startedAt","finishedAt","outcome","evidenceRefs"]
+}
