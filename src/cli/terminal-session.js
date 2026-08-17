@@ -45,6 +45,9 @@ export function createTerminalSpinner(message, { stdout = process.stdout, intera
   };
 }
 
+/**
+ * @returns {{ signal: AbortSignal, abort: () => void, dispose: () => void }}
+ */
 export function createAbortController({ stdin = process.stdin, stdout = process.stdout } = {}) {
   const controller = new AbortController();
   const onSigint = () => controller.abort(new Error('Operation cancelled by user'));

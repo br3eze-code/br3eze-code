@@ -55,8 +55,11 @@ jobs:
           PORT: 3000
           GATEWAY_PORT: 19876
 
-      - name: Type check (jsconfig + tsconfig)
+      - name: Syntax check
         run: npm run build:check
+
+      - name: Type check (jsconfig + tsconfig)
+        run: npm run build:types
 
       - name: Security check script
         run: npm run security:audit
