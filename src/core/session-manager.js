@@ -1,6 +1,7 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Logger } from '../utils/logger.js';
+import { resolveRuntimeConfig } from './runtime-config.js';
 
 /**
  * Session Manager
@@ -9,11 +10,16 @@ import { Logger } from '../utils/logger.js';
 
 class SessionManager {
   constructor(options = {}) {
-    this.basePath = options.basePath || path.join(process.cwd(), 'data/sessions');
-    this.mode = options.mode || 'isolated'; // 'isolated' or 'shared'
+    const runtime = options.runtimeConfig || resolveRuntimeConfig();
+    this.basePath = options.basePath || runtime.storyline.basePath || path.join(process.cwd(), 'data/sessions');
+    this.mode = options.mode || runtime.storyline.defaultMode;
     this.logger = new Logger('SessionManager');
     this.cache = new Map();
-    this.maxCacheSize = 100;
+    this.maxCacheSize = options.maxCacheSize ?? runtime.storyline.maxCacheEntries;
+    this.sessionTtlMs = options.sessionTtlMs ?? runtime.storyline.sessionTtlMs;
+    this.compactKeepLast = options.compactKeepLast ?? runtime.storyline.compactKeepLast;
+    this.summaryMaxChars = options.summaryMaxChars ?? runtime.storyline.summaryMaxChars;
+    this.systemSummaryLabel = options.systemSummaryLabel || runtime.storyline.systemSummaryLabel;
   }
   
   async initialize() {
@@ -121,7 +127,7 @@ class SessionManager {
   /**
    * Compact session to prevent infinite growth
    */
-  async compact(sessionId, keepLast = 20) {
+  async compact(sessionId, keepLast = this.compactKeepLast) {
     const history = await this.load(sessionId);
     
     if (history.length <= keepLast + 5) return; // No need to compact
@@ -140,7 +146,7 @@ class SessionManager {
       systemPrompt,
       { 
         role: 'system', 
-        content: `[Previous conversation summary: ${summary}]` 
+                content: `[${this.systemSummaryLabel}: ${summary}]`
       },
       ...recent
     ].filter(Boolean);
@@ -160,7 +166,7 @@ class SessionManager {
     
     const topics = userMessages.slice(-3).map(m => {
       const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-      return content.substring(0, 50);
+      return content.substring(0, this.summaryMaxChars);
     }).join('; ');
     
     return `${userMessages.length} messages, ${toolCalls} tool calls. Recent: ${topics}...`;

@@ -148,3 +148,6 @@ www_backup/
 # Runtime SQLite databases
 server/agentos.db
 *.db
+
+# AgentOS local mutable runtime state
+state/

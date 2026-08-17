@@ -12,7 +12,7 @@ import { BaseChannel } from './BaseChannel.js';
 import { BRAND } from '../config.js';
 import { IdentityLinkingService } from '../../services/identity-linking.js';
 import { formatStartText, telegramStartKeyboard, listAvailableDomains } from '../domain-menu.js';
-import { buildExecutionContext } from '../execution-context.js';
+import { buildChannelExecutionContext } from '../execution-context.js';
 import { buildActionManifest, actionCallback, actionPrompt, parseActionCallback } from '../channel-action-manifest.js';
 import { listUserTasks, getUserTask, stopUserTask, updateUserTaskStep } from '../user-task-service.js';
 import { acquireBotLock, releaseBotLock, LOCK_FILE } from '../../utils/bot-lock.js';
@@ -561,7 +561,7 @@ class TelegramChannel extends BaseChannel {
                 logger.debug(`Telegram UI context lookup failed: ${error.message}`)
             }
         }
-        return buildExecutionContext({ message, userId: message?._uid || userDoc?.uid || platformId, platformId, channel: 'telegram', userDoc, config: this.config })
+        return buildChannelExecutionContext({ message, userId: message?._uid || userDoc?.uid || platformId, platformId, channel: 'telegram', userDoc, config: this.config })
     }
 
     async _sendUiActions(message, opts = {}) {
@@ -1907,7 +1907,7 @@ class TelegramChannel extends BaseChannel {
         const chatId = msg.chat.id;
         const args = match?.[1]?.trim().split(/\s+/) || [];
         const action = args[0] || 'list';
-        const toolCtx = buildExecutionContext({ message: msg, userId: msg._uid || msg.from?.id || chatId, platformId: chatId, channel: 'telegram', userDoc: msg.userDoc, config: this.config });
+        const toolCtx = buildChannelExecutionContext({ message: msg, userId: msg._uid || msg.from?.id || chatId, platformId: chatId, channel: 'telegram', userDoc: msg.userDoc, config: this.config });
 
         try {
             if (!this.agent) throw new Error('Agent not initialized');
@@ -1969,7 +1969,7 @@ class TelegramChannel extends BaseChannel {
     }
 
     async _handleShopCallback(chatId, action, extra, messageId, query) {
-        const toolCtx = buildExecutionContext({ message: query?.message || {}, userId: query?._uid || chatId, platformId: chatId, channel: 'telegram', userDoc: query?.userDoc, config: this.config });
+        const toolCtx = buildChannelExecutionContext({ message: query?.message || {}, userId: query?._uid || chatId, platformId: chatId, channel: 'telegram', userDoc: query?.userDoc, config: this.config });
         try {
             if (action === 'view') {
                 const p = await this.agent.executeTool('shop.get_product', { productRef: extra }, toolCtx);

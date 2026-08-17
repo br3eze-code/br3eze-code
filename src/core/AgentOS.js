@@ -21,6 +21,7 @@ import FinancialController from './financial.js';
 import UniversalBilling from './universal-billing.js';
 import DiscoveryService from './discovery.js';
 import ServerRegistry from './server-registry.js';
+import { buildChannelExecutionContext } from './execution-context.js';
 
 
 class AgentOS extends EventEmitter {
@@ -311,22 +312,38 @@ Respond with JSON: {"skill": "skillName", "params": {}, "confidence": 0.9}
   async buildContext(input, context, interactionId) {
   const userMemory = await this.memory.getUserContext(input.userId);
   const session = await this.memory.getSession(input.sessionId);
+  const scoped = buildChannelExecutionContext({
+    ...context,
+    ...input,
+    message: input.message || context.message,
+    userDoc: input.userDoc || context.userDoc,
+    selection: input.selection || context.selection,
+    roaming: input.roaming || context.roaming,
+    channel: input.channel || context.channel,
+    source: 'agentos'
+  });
 
   return {
+    ...scoped,
     id: interactionId,
     agentId: this.id,
-    userId: input.userId,
+    userId: scoped.userId || input.userId,
     sessionId: input.sessionId,
-    channel: input.channel,
     timestamp: new Date().toISOString(),
     memory: userMemory,
-    session: session,
+    session,
     summary: {
-      userId: input.userId,
+      userId: scoped.userId || input.userId,
+      tenantId: scoped.tenantId,
+      siteId: scoped.siteId,
+      nodeId: scoped.nodeId,
+      activeTenantId: scoped.activeTenantId,
+      activeSiteId: scoped.activeSiteId,
+      activeNodeId: scoped.activeNodeId,
+      channel: scoped.channel,
       previousIntent: userMemory?.lastIntent,
       skillHistory: userMemory?.recentSkills || []
     },
-    // Skill execution context
     skills: this.skills,
     memory: this.memory,
     llm: this.llm,

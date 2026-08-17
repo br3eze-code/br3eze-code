@@ -194,6 +194,40 @@ class WebSocketChannel extends BaseChannel {
     }
   }
 
+  _normalizeAuthorityContext(rawContext, userId) {
+    if (!rawContext || typeof rawContext !== 'object' || !rawContext.tenantId || !userId) return null;
+    if (rawContext.userId && rawContext.userId !== userId) return null;
+    const unique = (value) => [...new Set((Array.isArray(value) ? value : []).filter(Boolean).map(String))];
+    const authorizedSiteIds = unique(rawContext.authorizedSiteIds || rawContext.siteIds);
+    const authorizedRouterIds = unique(rawContext.authorizedRouterIds || rawContext.routerIds);
+    const siteId = rawContext.siteId ? String(rawContext.siteId) : null;
+    const routerId = rawContext.routerId ? String(rawContext.routerId) : null;
+    if (siteId && authorizedSiteIds.length && !authorizedSiteIds.includes(siteId)) return null;
+    if (routerId && authorizedRouterIds.length && !authorizedRouterIds.includes(routerId)) return null;
+    return Object.freeze({
+      source: 'server-membership',
+      userId: String(userId),
+      tenantId: String(rawContext.tenantId),
+      siteId,
+      routerId,
+      authorizedSiteIds,
+      authorizedRouterIds,
+      capabilities: unique(rawContext.capabilities),
+      roles: unique(rawContext.roles)
+    });
+  }
+
+  async _deriveAuthorityContext(db, authUser) {
+    if (!db || !authUser?.uid) return null;
+    let rawContext = null;
+    if (typeof db.resolveAuthorityContext === 'function') {
+      rawContext = await db.resolveAuthorityContext(authUser.uid);
+    } else {
+      rawContext = authUser.authorityContext || null;
+    }
+    return this._normalizeAuthorityContext(rawContext, authUser.uid);
+  }
+
   async handleLegacyMessage(clientId, message) {
     const client = this.clients.get(clientId);
     if (!client) return;
@@ -230,15 +264,22 @@ class WebSocketChannel extends BaseChannel {
               }).catch(() => null);
 
               if (authUser?.uid) {
+                const authorityContext = await this._deriveAuthorityContext(db, authUser);
+                if (!authorityContext) {
+                  logger.warn(`[WebSocketChannel] Identity bridged without trusted tenant authority: uid:${authUser.uid}`);
+                  this.sendToWs(client.ws, { type: 'auth.rejected', code: 'TENANT_AUTHORITY_REQUIRED' });
+                  break;
+                }
                 const existing = this.clients.get(clientId) || {};
                 this.clients.set(clientId, {
                   ...existing,
                   firebaseUid: authUser.uid,
                   email: authUser.email,
-                  stableChannelId   // store so _rl() can use it for intent routing
+                  stableChannelId,
+                  authorityContext
                 });
-                logger.info(`[WebSocketChannel] Identity bridged: ws:${stableChannelId} -> uid:${authUser.uid}`);
-                this.sendToWs(client.ws, { type: 'auth.identified', uid: authUser.uid, clientId: stableChannelId });
+                logger.info(`[WebSocketChannel] Identity bridged: ws:${stableChannelId} -> uid:${authUser.uid} tenant:${authorityContext.tenantId}`);
+                this.sendToWs(client.ws, { type: 'auth.identified', uid: authUser.uid, clientId: stableChannelId, authorityContext });
               } else {
                 logger.debug(`[WebSocketChannel] auth.identify: no Firebase record for ${identifier}`);
               }
@@ -282,6 +323,7 @@ class WebSocketChannel extends BaseChannel {
         try {
           const { PrintBroker } = require('../print-broker');
           PrintBroker.getInstance()._handleMobileAck({
+            clientId,
             jobId:   message.jobId   || message.payload?.jobId,
             success: message.success ?? message.payload?.success ?? false,
             error:   message.error   || message.payload?.error,

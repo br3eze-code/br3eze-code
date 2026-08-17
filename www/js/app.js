@@ -374,23 +374,24 @@ function getActiveSubscription() {
 /*  =====  HELPERS & CALCULATORS  =====  */
 //const Firebasekeys = import.meta.env.FIREBASE_API_KEY;
 /*  =====  FIREBASE CONFIG  =====  */
+const runtime = window.ENV || {};
 const firebaseConfig = {
-    apiKey: window.ENV.FIREBASE_API_KEY,
-    authDomain: "br3eze-africa-312df.firebaseapp.com",
-    databaseURL: "https://br3eze-africa-312df-default-rtdb.firebaseio.com",
-    projectId: "br3eze-africa-312df",
-    storageBucket: "br3eze-africa-312df.firebasestorage.app",
-    messagingSenderId: "123902078923",
-    appId: "1:123902078923:web:1153a45add9fe25208504e",
-    measurementId: "G-Y6YS53B86S"
+    apiKey: runtime.FIREBASE_WEB_API_KEY || runtime.FIREBASE_API_KEY || '',
+    authDomain: runtime.FIREBASE_AUTH_DOMAIN || '',
+    databaseURL: runtime.FIREBASE_DATABASE_URL || '',
+    projectId: runtime.FIREBASE_PROJECT_ID || '',
+    storageBucket: runtime.FIREBASE_STORAGE_BUCKET || '',
+    messagingSenderId: runtime.FIREBASE_MESSAGING_SENDER_ID || '',
+    appId: runtime.FIREBASE_APP_ID || '',
+    measurementId: runtime.FIREBASE_MEASUREMENT_ID || ''
 };
-
-if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+const firebaseConfigured = Object.values(firebaseConfig).filter(Boolean).length >= 3;
+if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
-const auth = typeof firebase !== 'undefined' ? firebase.auth() : null;
-const db = typeof firebase !== 'undefined' ? firebase.firestore() : null;
-const storage = typeof firebase !== 'undefined' ? firebase.storage() : null;
+const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
+const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
+const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
 window.currentUser = null;
 
 function syncOfflineUserContext(user) {

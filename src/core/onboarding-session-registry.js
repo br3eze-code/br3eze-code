@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { resolveRuntimeConfig } from './runtime-config.js';
 import {
   BR3EZE_CONTACT_SPECIALIST_ID,
   BR3EZE_SERVICE_PROVIDER_ID,
@@ -35,10 +36,11 @@ function clone(value) {
  * get/set/delete surface and provide durable RLS-backed storage later.
  */
 export class OnboardingSessionRegistry {
-  constructor({ store = new Map(), now = () => new Date(), pairingTtlMs = 10 * 60 * 1000 } = {}) {
+  constructor({ store = new Map(), now = () => new Date(), pairingTtlMs, runtimeConfig } = {}) {
+    const runtime = runtimeConfig || resolveRuntimeConfig();
     this.store = store;
     this.now = now;
-    this.pairingTtlMs = pairingTtlMs;
+    this.pairingTtlMs = pairingTtlMs ?? runtime.onboarding.pairingTtlMs;
   }
 
   create({ tenantId, siteId, principalId, channelIdentityId, channel, createdBy, specialistId = BR3EZE_CONTACT_SPECIALIST_ID }) {

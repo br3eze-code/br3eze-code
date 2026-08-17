@@ -4,28 +4,32 @@
    Depends on: Firebase SDK (loaded in index.html)
    ========================================================== */
 
+const runtime = window.ENV || {};
 const firebaseConfig = {
-    apiKey:            'AIzaSyANPQZKsAV9VsW9vKZJ3ghhrpnkxuLfdP8',
-    authDomain:        'br3eze-africa-312df.firebaseapp.com',
-    databaseURL:       'https://br3eze-africa-312df-default-rtdb.firebaseio.com',
-    projectId:         'br3eze-africa-312df',
-    storageBucket:     'br3eze-africa-312df.firebasestorage.app',
-    messagingSenderId: '123902078923',
-    appId:             '1:123902078923:web:1153a45add9fe25208504e',
-    measurementId:     'G-Y6YS53B86S'
+    apiKey: runtime.FIREBASE_WEB_API_KEY || runtime.FIREBASE_API_KEY || '',
+    authDomain: runtime.FIREBASE_AUTH_DOMAIN || '',
+    databaseURL: runtime.FIREBASE_DATABASE_URL || '',
+    projectId: runtime.FIREBASE_PROJECT_ID || '',
+    storageBucket: runtime.FIREBASE_STORAGE_BUCKET || '',
+    messagingSenderId: runtime.FIREBASE_MESSAGING_SENDER_ID || '',
+    appId: runtime.FIREBASE_APP_ID || '',
+    measurementId: runtime.FIREBASE_MEASUREMENT_ID || ''
 };
 
-if (typeof firebase !== 'undefined' && !firebase.apps.length) {
+const firebaseConfigured = Object.values(firebaseConfig).filter(Boolean).length >= 3;
+if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-const auth    = firebase.auth();
-const db      = firebase.firestore();
-const storage = firebase.storage();
+const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
+const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
+const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
 
 // Enable offline persistence (Firestore)
-db.enablePersistence({ synchronizeTabs: true })
-    .catch(err => console.warn('[Firebase] Persistence:', err.code));
+if (db) {
+    db.enablePersistence({ synchronizeTabs: true })
+        .catch(err => console.warn('[Firebase] Persistence:', err.code));
+}
 
 // ── Global state ────────────────────────────────────────────
 window.currentUser = null;

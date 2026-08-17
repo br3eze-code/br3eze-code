@@ -1,6 +1,7 @@
 import { buildChannelUiPolicy } from './channel-ui-policy.js';
 import { summarizeActionWbs, formatWbsForPrompt } from './action-wbs.js';
 import { normalizeDeviceInfo } from './device-context.js';
+import { resolveRoamingContext } from './roaming-context.js';
 import { resolveAgentRole, getAgentRoleProfile } from './agent-role-profiles.js';
 
 const CHANNEL_ID_FIELDS = {
@@ -22,6 +23,11 @@ function firstValue(...values) {
 
 function asString(value) {
   return value == null ? null : String(value);
+}
+
+function normalizeIdList(...sources) {
+  const values = sources.flatMap((source) => Array.isArray(source) ? source : (source == null ? [] : [source]));
+  return [...new Set(values.map((value) => asString(value)).filter(Boolean))];
 }
 
 function hasLocationPermission(input = {}, userDoc = {}, consent = {}) {
@@ -98,7 +104,17 @@ export function buildExecutionContext(input = {}) {
   const deviceInfo = normalizeDeviceInfo(input, userDoc);
   const scopes = input.scopes || userDoc.scopes || {};
   const tenantId = asString(firstValue(input.tenantId, input.tenant, userDoc.tenantId, scopes.tenantId));
+  const tenantIds = normalizeIdList(input.tenantIds, input.authorizedTenantIds, userDoc.tenantIds, userDoc.authorizedTenantIds, tenantId);
   const siteId = asString(firstValue(input.siteId, userDoc.siteId, scopes.siteId));
+  const siteIds = normalizeIdList(input.siteIds, input.authorizedSiteIds, userDoc.siteIds, userDoc.authorizedSiteIds, siteId);
+  const nodeId = asString(firstValue(input.nodeId, input.routerId, userDoc.nodeId, userDoc.routerId, scopes.nodeId));
+  const nodeIds = normalizeIdList(input.nodeIds, input.routerIds, input.authorizedNodeIds, input.authorizedRouterIds, userDoc.nodeIds, userDoc.routerIds, userDoc.authorizedNodeIds, userDoc.authorizedRouterIds, nodeId);
+  const activeTenantId = asString(firstValue(input.activeTenantId, input.selectedTenantId, tenantId));
+  const activeSiteId = asString(firstValue(input.activeSiteId, input.selectedSiteId, siteId));
+  const activeNodeId = asString(firstValue(input.activeNodeId, input.selectedNodeId, input.selectedRouterId, nodeId));
+  const roamingSessionId = asString(firstValue(input.roamingSessionId, input.roaming?.sessionId, userDoc.roamingSessionId));
+  const selectionSource = asString(firstValue(input.selectionSource, input.roaming?.source, 'context'));
+  const selectionExpiresAt = firstValue(input.selectionExpiresAt, input.roaming?.expiresAt, userDoc.selectionExpiresAt, null);
   const domain = String(firstValue(input.domain, userDoc.domain, scopes.domain, config.domain, 'general'));
   const status = String(firstValue(userDoc.status, input.status, 'active')).toLowerCase();
   const influenceTier = String(firstValue(input.influenceTier, userDoc.influenceTier, 'standard')).toLowerCase();
@@ -132,7 +148,17 @@ export function buildExecutionContext(input = {}) {
     agentRole,
     agentProfile,
     tenantId,
+    tenantIds,
+    activeTenantId,
     siteId,
+    siteIds,
+    activeSiteId,
+    nodeId,
+    nodeIds,
+    activeNodeId,
+    roamingSessionId,
+    selectionSource,
+    selectionExpiresAt,
     domain,
     status,
     influenceTier,
@@ -144,10 +170,12 @@ export function buildExecutionContext(input = {}) {
     wbs,
     wbsSummary,
     wbsPrompt: formatWbsForPrompt(wbs, wbsSummary),
-    scopes: { tenantId, siteId, domain, allowedDomains, authorizedSiteIds },
+    scopes: { tenantId, tenantIds, activeTenantId, siteId, siteIds, activeSiteId, nodeId, nodeIds, activeNodeId, domain, allowedDomains, authorizedSiteIds },
     scope: { tenantId, siteId, domain },
     allowedDomains,
-    authorizedSiteIds,
+    authorizedTenantIds: tenantIds,
+    authorizedSiteIds: siteIds,
+    authorizedNodeIds: nodeIds,
     authorizedCapabilities,
     uiPolicy: buildChannelUiPolicy({ channel, roles, role: roles[0], status, influenceTier, practiceMode: input.practiceMode || userDoc.practiceMode, channelCapabilities: input.channelCapabilities, authorizedCapabilities, locationPermission, consent }),
 
@@ -166,8 +194,14 @@ export function buildExecutionContext(input = {}) {
   };
 }
 
+export function buildChannelExecutionContext(input = {}) {
+  const base = buildExecutionContext(input);
+  const roaming = resolveRoamingContext({ context: base, selection: input.selection || input.roaming || {}, now: input.now || (() => Date.now()) });
+  return buildExecutionContext({ ...input, ...roaming, tenantId: roaming.tenantId, siteId: roaming.siteId, nodeId: roaming.nodeId, activeTenantId: roaming.activeTenantId, activeSiteId: roaming.activeSiteId, activeNodeId: roaming.activeNodeId, roamingSessionId: roaming.roamingSessionId, selectionSource: roaming.selectionSource, selectionExpiresAt: roaming.selectionExpiresAt, authorizedTenantIds: roaming.authorizedTenantIds, authorizedSiteIds: roaming.authorizedSiteIds, authorizedNodeIds: roaming.authorizedNodeIds, userDoc: input.userDoc || base.userDoc });
+}
+
 export function withExecutionContext(context, patch = {}) {
   return buildExecutionContext({ ...context, ...patch, userDoc: patch.userDoc || context?.userDoc });
 }
 
-export default { buildExecutionContext, withExecutionContext, getChannelIdentifier, normalizeProviderIdentities, normalizeDeviceInfo };
+export default { buildExecutionContext, buildChannelExecutionContext, withExecutionContext, getChannelIdentifier, normalizeProviderIdentities, normalizeDeviceInfo };

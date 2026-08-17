@@ -9,13 +9,17 @@ import { pathToFileURL } from 'url';
 import 'dotenv/config';
 import { onboardRouter, provisionAgents } from './src/core/onboard.js';
 import { logger } from './src/core/logger.js';
+import { getConfig } from './src/core/config.js';
+import { resolveRuntimeConfig } from './src/core/runtime-config.js';
 
 async function main() {
     const args = process.argv.slice(2);
-    const host = args[0] || process.env.MIKROTIK_HOST || process.env.MIKROTIK_IP || '192.168.88.1';
-    const user = process.env.MIKROTIK_USER || 'admin';
-    const password = process.env.MIKROTIK_PASSWORD || process.env.MIKROTIK_PASS || '';
-    const port = process.env.MIKROTIK_PORT || 8728;
+    const config = getConfig();
+    const runtime = resolveRuntimeConfig({ config });
+    const host = args[0] || process.env.MIKROTIK_HOST || process.env.MIKROTIK_IP || config.mikrotik?.ip || '';
+    const user = process.env.MIKROTIK_USER || config.mikrotik?.user || '';
+    const password = process.env.MIKROTIK_PASSWORD || process.env.MIKROTIK_PASS || config.mikrotik?.pass || '';
+    const port = process.env.MIKROTIK_PORT || config.mikrotik?.port || '';
 
     const isDebug = args.includes('--debug');
     const isDryRun = args.includes('--dry-run') || isDebug;
@@ -31,18 +35,19 @@ async function main() {
         port,
         dryRun: isDryRun,
         // Map common .env names to template variables
-        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || 'http://br3eze.africa',
-        FIREBASE_URL: process.env.FIREBASE_URL || process.env.FIREBASE_DATABASE_URL,
-        FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || 'AIzaSy_DEFAULT_KEY',
+                AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || runtime.public.apiBaseUrl,
+        FIREBASE_URL: process.env.FIREBASE_URL || runtime.firebase.databaseURL,
+                FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || runtime.firebase.apiKey,
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
         TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || (process.env.ALLOWED_CHAT_IDS ? process.env.ALLOWED_CHAT_IDS.split(',')[0] : ''),
-        
-        // Router Passwords - Use ENV or defaults
-        AGENTOS_API_PASSWORD: process.env.AGENTOS_API_PASSWORD || 'AgentOS_API_123!',
-        AGENTOS_ADMIN_PASSWORD: process.env.AGENTOS_ADMIN_PASSWORD || 'AgentOS_Admin_123!',
-        AGENTOS_OPERATOR_PASSWORD: process.env.AGENTOS_OPERATOR_PASSWORD || 'AgentOS_Op_123!',
-        AGENTOS_READONLY_PASSWORD: process.env.AGENTOS_READONLY_PASSWORD || 'AgentOS_RO_123!',
-        BACKUP_PASSWORD: process.env.BACKUP_PASSWORD || 'AgentOS_Backup_123!'
+
+        // Router passwords are secrets: supply them through environment or a secret manager.
+
+        AGENTOS_API_PASSWORD: process.env.AGENTOS_API_PASSWORD,
+        AGENTOS_ADMIN_PASSWORD: process.env.AGENTOS_ADMIN_PASSWORD,
+        AGENTOS_OPERATOR_PASSWORD: process.env.AGENTOS_OPERATOR_PASSWORD,
+        AGENTOS_READONLY_PASSWORD: process.env.AGENTOS_READONLY_PASSWORD,
+        BACKUP_PASSWORD: process.env.BACKUP_PASSWORD
     };
 
     if (isDebug) {
