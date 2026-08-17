@@ -25,6 +25,7 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "lint": "eslint .",
     "lint:ci": "eslint src/core/PluginManager.js src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
+    "check:ci-quality": "node scripts/ci-quality-gate.mjs",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.js\"",
     "build": "npm run build:product-query && npm run build:check",
