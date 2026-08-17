@@ -1,7 +1,3 @@
-import pg from 'pg';
-
-const { Pool } = pg;
-
 const NODE_STATUSES = new Set(['enrolling', 'online', 'offline', 'quarantined', 'suspended', 'retired']);
 
 function validationError(message) {
@@ -87,7 +83,8 @@ export class PostgresMeshManagementStore {
     if (!pool && !connectionString && !process.env.DATABASE_URL) {
       throw new Error('PostgresMeshManagementStore requires pool, connectionString, or DATABASE_URL');
     }
-    this.pool = pool || new Pool({ connectionString: connectionString || process.env.DATABASE_URL, max, ssl });
+    this.pool = pool || null;
+    this.poolOptions = { connectionString: connectionString || process.env.DATABASE_URL, max, ssl };
     this.schema = /^[a-z_][a-z0-9_]*$/i.test(schema) ? schema : 'public';
     this.tables = {
       groups: `${this.schema}.agentos_mesh_groups`,
@@ -96,8 +93,18 @@ export class PostgresMeshManagementStore {
     };
   }
 
+  async _ensurePool() {
+    if (this.pool) return this.pool;
+    const module = await import('pg');
+    const Pool = module.default?.Pool || module.Pool;
+    if (typeof Pool !== 'function') throw new Error('pg Pool export is unavailable');
+    this.pool = new Pool(this.poolOptions);
+    return this.pool;
+  }
+
   async _transaction({ tenantId, principalId }, callback) {
-    const client = await this.pool.connect();
+    const pool = await this._ensurePool();
+    const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await client.query("SELECT set_config('app.tenant_id', $1, true), set_config('app.principal_id', $2, true)", [tenantId, principalId]);
