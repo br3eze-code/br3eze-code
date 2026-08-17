@@ -23,7 +23,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
     const specialist = specialistRegistry.get('inventory-specialist');
     expect(specialist).toMatchObject({ id: 'inventory-specialist', domain: 'commerce' });
     expect(toolRegistry.toolsForSpecialist(specialist).map((tool) => tool.name)).toEqual([
-      'inventory.search', 'inventory.get', 'inventory.reserve', 'inventory.release', 'inventory.adjust', 'inventory.transfer', 'inventory.lowStock',
+      'inventory.search', 'inventory.get', 'inventory.reserve', 'inventory.release', 'inventory.adjust', 'inventory.transfer', 'inventory.reconcile', 'inventory.lowStock',
     ]);
 
     const result = await runtime.execute('inventory-specialist', {

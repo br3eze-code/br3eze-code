@@ -134,6 +134,24 @@ const inventorySkill = defineSkill({
       },
     }),
     defineTool({
+      name: 'inventory.reconcile',
+      description: 'Reconcile counted stock against system stock and propose or execute an approved correction.',
+      specialist: 'inventory',
+      permissions: ['inventory:read', 'inventory:write'],
+      ticketTypes: ['reconcile-stock'],
+      risk: 'high',
+      parameters: { type: 'object', required: ['itemId', 'countedQuantity', 'evidenceRefs', 'idempotencyKey'], properties: { itemId: { type: 'string' }, countedQuantity: { type: 'number', minimum: 0 }, siteId: { type: 'string' }, evidenceRefs: { type: 'array', items: { type: 'string' } }, idempotencyKey: { type: 'string' }, reason: { type: 'string' } } },
+      outputSchema: {},
+      handler: async (args = {}, context = {}) => {
+        const scope = { ...scopeFrom(context), siteId: args.siteId || scopeFrom(context).siteId };
+        const proposal = approvalOrProposal('inventory.reconcile', args, context);
+        if (proposal) return proposal;
+        const provider = providerFrom(context);
+        if (typeof provider.reconcile !== 'function') throw new Error('Inventory provider does not support reconcile');
+        return assertTenant(await provider.reconcile({ ...args, scope }), scope.tenantId);
+      },
+    }),
+    defineTool({
       name: 'inventory.lowStock',
       description: 'Find tenant-scoped items below a configured threshold.',
       specialist: 'inventory',

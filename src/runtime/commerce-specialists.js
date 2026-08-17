@@ -17,8 +17,8 @@ const descriptor = ({ id, role, name, description, tools, permissions, dependsOn
 export const INVENTORY_SPECIALIST = descriptor({
   id: 'inventory-specialist', role: 'inventory', name: 'Inventory Specialist',
   description: 'Maintains scoped availability, reservations, reconciliation, and stock evidence.',
-  tools: ['inventory.search', 'inventory.get', 'inventory.reserve', 'inventory.release', 'inventory.adjust', 'inventory.transfer', 'inventory.lowStock'],
-  permissions: ['inventory:read', 'inventory:write'], dependsOn: ['catalog'], handoffsTo: ['orders', 'procurement', 'fulfillment', 'project-manager'],
+  tools: ['inventory.search', 'inventory.get', 'inventory.reserve', 'inventory.release', 'inventory.adjust', 'inventory.transfer', 'inventory.reconcile', 'inventory.lowStock'],
+  permissions: ['inventory:read', 'inventory:write'], dependsOn: ['catalog'], handoffsTo: ['catalog', 'orders', 'procurement', 'fulfillment', 'project-manager'],
   ticketTypes: ['inventory-inquiry', 'reserve-stock', 'release-stock', 'adjust-stock', 'transfer-stock', 'reconcile-stock', 'replenishment-review'],
 });
 
