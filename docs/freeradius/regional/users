@@ -1,0 +1,16 @@
+# Regional proxy local policy.
+# Do not put tenant passwords here in production. Use the central AgentOS/RADIUS
+# identity adapter and keep this file for controlled proxy attributes only.
+
+# Preserve the region identity when proxying to central FreeRADIUS.
+DEFAULT NAS-Identifier == "mikrotik-site-nbo-01"
+        Proxy-To-Realm := "agentos-central",
+        Reply-Filter-Id := "region:west"
+
+DEFAULT NAS-Identifier == "mikrotik-site-kis-01"
+        Proxy-To-Realm := "agentos-central",
+        Reply-Filter-Id := "region:west"
+
+# Fail closed when a request arrives without a recognized routing identity.
+DEFAULT
+        Auth-Type := Reject

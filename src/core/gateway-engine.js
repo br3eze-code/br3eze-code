@@ -42,6 +42,7 @@ import createMeshManagementRouter from '../routes/mesh-management.js';
 import createMeshNotificationRouter from '../routes/mesh-notifications.js';
 import MeshNotificationHub from './mesh-notification-hub.js';
 import PostgresMeshManagementStore from './postgres-mesh-management-store.js';
+import createRegionalAccessRouter from '../routes/regional-access.js';
 
 // A2A is an optional capability. Deployments that provide the plugin can
 // load it without changing the core gateway; its absence is not a startup error.
@@ -94,6 +95,7 @@ class Gateway extends EventEmitter {
     this.dataAnalysts = this.services.dataAnalysts || new DataAnalystRegistry();
     this.meshNotifications = this.config.meshManagement?.notifications || new MeshNotificationHub();
     this.meshStore = this.config.meshManagement?.store || (process.env.DATABASE_URL ? new PostgresMeshManagementStore({ connectionString: process.env.DATABASE_URL }) : undefined);
+    this.regionalAccessAdapter = this.config.regionalAccess?.adapter || this.services.regionalAccessAdapter || null;
     this.channelManager = new ChannelManager(this.ai);
 
     // Relay special events from ChannelManager to system
@@ -462,6 +464,12 @@ class Gateway extends EventEmitter {
     this.app.use('/api/v1/mesh', createMeshNotificationRouter({
       hub: this.meshNotifications,
     }));
+    if (this.regionalAccessAdapter) {
+      this.app.use('/api/v1/regional', createRegionalAccessRouter({
+        adapter: this.regionalAccessAdapter,
+        logger,
+      }));
+    }
 
     // ── SSE streaming /ask ────────────────────────────────────────────────────
     this.app.post('/api/v1/ask', async (req, res) => {
