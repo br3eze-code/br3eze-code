@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
+const require = createRequire(path.join(process.cwd(), 'package.json'));
 
 /** Define a tool: a named, schema-described function. */
 export function defineTool({ name, description = '', parameters, inputSchema, outputSchema, handler, permissions = [], specialist = null, ticketTypes = [], risk = 'low' }) {
