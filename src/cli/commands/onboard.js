@@ -244,8 +244,8 @@ async function collectFirebaseConfig(existing = {}) {
       {
         type: 'input',
         name: 'saKeyPath',
-        message: 'Path to serviceAccountKey.json:',
-        default: existing.serviceAccount || './serviceAccountKey.json',
+        message: 'Path to Firebase service-account JSON outside the repository:',
+        default: existing.serviceAccount || process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
         validate: v => fs.existsSync(v) ? true : 'File not found'
       },
       {
