@@ -4,12 +4,10 @@
  * Supports multiple credential strategies (priority order):
  *   1. GOOGLE_APPLICATION_CREDENTIALS env var (file path)
  *   2. FIREBASE_SERVICE_ACCOUNT env var (JSON string)
- *   3. serviceAccountKey.json beside this file (local dev)
- *   4. Application Default Credentials (Cloud Run / GCE)
+ *   3. Application Default Credentials (Cloud Run / GCE)
  */
 
 import admin from 'firebase-admin';
-import path from 'path';
 import fs from 'fs';
 
 let _db   = null;
@@ -34,13 +32,7 @@ function getCredential() {
     }
   }
 
-  // 3. Local serviceAccountKey.json (dev)
-  const localKey = path.join(__dirname, '../serviceAccountKey.json');
-  if (fs.existsSync(localKey)) {
-    return admin.credential.cert(JSON.parse(fs.readFileSync(localKey, 'utf8')));
-  }
-
-  // 4. ADC (Cloud Run, GCE, Cloud Shell)
+  // 3. ADC (Cloud Run, GCE, Cloud Shell). No repository-local fallback is allowed.
   return admin.credential.applicationDefault();
 }
 

@@ -6,6 +6,14 @@
 .env.development
 *.key
 *.pem
+*.keystore
+*.jks
+release-signing.properties
+serviceAccountKey.json
+*service-account*.json
+*credentials*.json
+GoogleService-Info.plist
+google-services.json
 secrets/
 
 # 📦 Dependencies
