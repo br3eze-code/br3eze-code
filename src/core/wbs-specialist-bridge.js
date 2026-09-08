@@ -6,20 +6,15 @@ import { registerCommerceSpecialists } from '../runtime/commerce-specialists.js'
 
 /**
  * WBS -> Specialist -> Skill -> Tool routing contract.
- *
  * WBS remains the durable work model. Specialists own capabilities, skills
  * describe the procedure, and tools perform side effects. Events create or
  * advance work; they never bypass authorization or the specialist runtime.
  */
 export const WBS_SPECIALIST_MAP = Object.freeze({
   planner: { specialist: 'project-manager-specialist', skill: 'project-manager' },
-  engineer: { specialist: 'br3eze-code-specialist', skill: 'br3eze-code' },
   accountant: { specialist: 'billing-specialist', skill: 'billing' },
   procurement: { specialist: 'procurement-specialist', skill: 'procurement' },
   expeditor: { specialist: 'fulfillment-specialist', skill: 'fulfillment' },
-  designer: { specialist: 'designer-specialist', skill: 'designer' },
-  draftsman: { specialist: 'designer-specialist', skill: 'designer' },
-  qa: { specialist: 'project-manager-specialist', skill: 'project-manager' },
   catalog: { specialist: 'catalog-specialist', skill: 'catalog' },
   pricing: { specialist: 'pricing-specialist', skill: 'pricing' },
   inventory: { specialist: 'inventory-specialist', skill: 'inventory' },
@@ -74,10 +69,7 @@ export function resolveEventTask(eventName, payload = {}) {
   };
 }
 
-/**
- * Attach event-driven work creation to an EventEmitter-compatible bus.
- * Returns an unsubscribe function so tests/process shutdown can detach it.
- */
+/** Attach event-driven work creation to an EventEmitter-compatible bus. */
 export function attachWbsEventTaskBridge({ eventBus = defaultEventBus, taskRegistry = getTaskRegistry() } = {}) {
   const handlers = [];
   for (const eventName of Object.keys(EVENT_TASK_MAP)) {
@@ -88,29 +80,26 @@ export function attachWbsEventTaskBridge({ eventBus = defaultEventBus, taskRegis
       const tenantId = payload.tenantId || payload.tenant?.id || payload.context?.tenantId || null;
       const projectId = payload.projectId || payload.context?.projectId || null;
       const workId = payload.workId || payload.taskId || payload.executionId || `${eventName}:${Date.now()}`;
-      const task = taskRegistry.create(
-        `Handle event ${eventName} for ${route.specialistId}`,
-        {
-          teamId: route.specialistId,
-          action: route.action,
-          context: {
-            tenantId,
-            projectId,
-            userId: payload.userId || payload.actor || null,
-            role: route.specialistId,
-            authorizedCapabilities: payload.authorizedCapabilities || [],
-            channel: payload.channel || null,
-          },
-          input: {
-            eventName,
-            workId,
-            ticketType: route.ticketType,
-            specialistId: route.specialistId,
-            skillId: route.skillId,
-            payload,
-          },
-        }
-      );
+      const task = taskRegistry.create(`Handle event ${eventName} for ${route.specialistId}`, {
+        teamId: route.specialistId,
+        action: route.action,
+        context: {
+          tenantId,
+          projectId,
+          userId: payload.userId || payload.actor || null,
+          role: route.specialistId,
+          authorizedCapabilities: payload.authorizedCapabilities || [],
+          channel: payload.channel || null,
+        },
+        input: {
+          eventName,
+          workId,
+          ticketType: route.ticketType,
+          specialistId: route.specialistId,
+          skillId: route.skillId,
+          payload,
+        },
+      });
       taskRegistry.update(task.taskId, {
         event: { name: eventName, workId },
         routing: { specialistId: route.specialistId, skillId: route.skillId, ticketType: route.ticketType },
