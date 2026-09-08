@@ -58,17 +58,25 @@ const form=document.getElementById('leadForm'),btn=document.getElementById('subm
 let env={};
 async function loadEnv(){try{const r=await fetch('/js/env.js',{cache:'no-store'});if(r.ok){await r.text();env=window.ENV||{}}}catch(_){env=window.ENV||{}}}
 loadEnv();
+function show(message){notice.textContent=message;notice.style.display='block'}
 form.addEventListener('submit',async(e)=>{e.preventDefault();btn.disabled=true;btn.textContent='Creating secure payment…';notice.style.display='none';
   const data=Object.fromEntries(new FormData(form));
-  const label=`Managed Wi-Fi Assessment — ${data.business}`.slice(0,120);
+  const business=data.business.trim();
+  const phone=data.phone.trim();
+  const label=`Managed Wi-Fi Assessment — ${business}`.slice(0,120);
+  const customerRef=`${business} | ${phone}`.slice(0,180);
   try{
     const headers={'Content-Type':'application/json'};
     if(env.GATEWAY_TOKEN) headers['x-gateway-token']=env.GATEWAY_TOKEN;
-    const r=await fetch('/api/v2/billing/payment-link',{method:'POST',headers,body:JSON.stringify({plan:'managed-wifi-assessment',amount:20,currency:'USD',label})});
+    const r=await fetch('/api/v2/billing/payment-link',{method:'POST',headers,body:JSON.stringify({
+      plan:'managed-wifi-assessment',amount:20,currency:'USD',label,
+      customer:{name:data.name,business,businessType:data.businessType,phone,email:data.email||null,problem:data.problem||null},
+      metadata:{product:'managed-wifi-assessment',customerRef}
+    })});
     const result=await r.json();
     if(!r.ok || !result?.data?.link) throw new Error(result?.error||'Payment service is not ready. Please contact Br3eze to arrange payment.');
     window.location.assign(result.data.link);
-  }catch(err){notice.textContent=err.message;notice.style.display='block';btn.disabled=false;btn.textContent='Continue to secure payment'}
+  }catch(err){show(err.message);btn.disabled=false;btn.textContent='Continue to secure payment'}
 });
 </script>
 </body>
