@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Br3eze Managed Wi-Fi Assessment</title>
+  <meta name="description" content="Book a Br3eze Managed Wi-Fi Assessment for your business. Find weak coverage, access-control and network-management problems before they cost customers.">
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#f7f9fc;background:#071018;line-height:1.5}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#123047 0,#071018 45%,#05090d 100%)}
+    .wrap{max-width:1050px;margin:auto;padding:28px 20px 70px}.nav{display:flex;justify-content:space-between;align-items:center;padding:8px 0 55px}.brand{font-weight:800;letter-spacing:.08em}.badge{font-size:12px;border:1px solid #31536a;border-radius:999px;padding:7px 11px;color:#a9d8ef}
+    .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}.eyebrow{color:#63d4ff;font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:13px}h1{font-size:clamp(42px,7vw,76px);line-height:.98;margin:15px 0 20px}h2{font-size:28px;margin:0 0 10px}p{color:#b6c4cf}.lead{font-size:19px;max-width:650px}.card{background:rgba(12,24,34,.9);border:1px solid #244052;border-radius:22px;padding:25px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.price{font-size:42px;font-weight:800;margin:8px 0}.small{font-size:13px;color:#91a3b1}.points{padding:0;margin:22px 0;list-style:none}.points li{padding:9px 0;border-bottom:1px solid #203542}.points li:last-child{border:0}label{display:block;font-size:13px;color:#b6c4cf;margin:14px 0 6px}input,select,textarea{width:100%;padding:13px 14px;border-radius:11px;border:1px solid #31505f;background:#09151e;color:#fff;font:inherit}textarea{min-height:80px;resize:vertical}.btn{display:block;width:100%;border:0;border-radius:12px;padding:15px;margin-top:18px;background:#63d4ff;color:#031018;font-weight:800;font-size:16px;cursor:pointer}.btn:disabled{opacity:.6;cursor:wait}.notice{display:none;margin-top:14px;padding:12px;border-radius:10px;background:#102936;color:#bde9f9}.section{margin-top:70px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.feature{padding:22px;border:1px solid #1f3948;border-radius:16px;background:#09151e}.feature strong{display:block;margin-bottom:7px}.footer{margin-top:65px;color:#718391;font-size:12px}@media(max-width:800px){.hero{grid-template-columns:1fr}.section{grid-template-columns:1fr}.nav{padding-bottom:30px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="nav"><div class="brand">BR3EZE</div><div class="badge">Managed Wi-Fi • Bulawayo</div></nav>
+  <main>
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Stop losing customers to bad Wi-Fi</div>
+        <h1>Know what is wrong with your network.</h1>
+        <p class="lead">Br3eze checks your business Wi-Fi, access control and network operations, then gives you a practical fix plan.</p>
+        <ul class="points">
+          <li>✓ Coverage and connectivity review</li>
+          <li>✓ Guest/customer access-control review</li>
+          <li>✓ Bandwidth and router configuration review</li>
+          <li>✓ Clear next-step recommendations</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="small">START WITH A PAID ASSESSMENT</div>
+        <h2>Managed Wi-Fi Assessment</h2>
+        <div class="price">$20</div>
+        <div class="small">One-time assessment • final quote follows the assessment</div>
+        <form id="leadForm">
+          <label for="name">Your name</label><input id="name" name="name" required maxlength="120" autocomplete="name">
+          <label for="business">Business / property</label><input id="business" name="business" required maxlength="160" autocomplete="organization">
+          <label for="type">Business type</label><select id="type" name="businessType"><option>Lodge / Guesthouse</option><option>Restaurant / Cafe</option><option>School</option><option>Office</option><option>Apartment / Property</option><option>Other</option></select>
+          <label for="phone">Phone / WhatsApp</label><input id="phone" name="phone" required maxlength="40" autocomplete="tel">
+          <label for="email">Email (optional)</label><input id="email" name="email" type="email" maxlength="160" autocomplete="email">
+          <label for="problem">What is going wrong?</label><textarea id="problem" name="problem" maxlength="500" placeholder="Slow Wi-Fi, weak coverage, shared passwords, billing, downtime..."></textarea>
+          <button class="btn" id="submitBtn" type="submit">Continue to secure payment</button>
+          <div class="notice" id="notice"></div>
+        </form>
+      </div>
+    </section>
+    <section class="section">
+      <div class="feature"><strong>One visit</strong><span class="small">We focus on the problems affecting your customers and staff right now.</span></div>
+      <div class="feature"><strong>Action plan</strong><span class="small">You get practical priorities instead of a pile of technical jargon.</span></div>
+      <div class="feature"><strong>Then manage it</strong><span class="small">If you want, Br3eze can quote ongoing network management after the assessment.</span></div>
+    </section>
+    <div class="footer">Br3eze Africa • Assessment payments are processed by the configured payment provider.</div>
+  </main>
+</div>
+<script>
+const form=document.getElementById('leadForm'),btn=document.getElementById('submitBtn'),notice=document.getElementById('notice');
+let env={};
+async function loadEnv(){try{const r=await fetch('/js/env.js',{cache:'no-store'});if(r.ok){await r.text();env=window.ENV||{}}}catch(_){env=window.ENV||{}}}
+loadEnv();
+form.addEventListener('submit',async(e)=>{e.preventDefault();btn.disabled=true;btn.textContent='Creating secure payment…';notice.style.display='none';
+  const data=Object.fromEntries(new FormData(form));
+  const label=`Managed Wi-Fi Assessment — ${data.business}`.slice(0,120);
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(env.GATEWAY_TOKEN) headers['x-gateway-token']=env.GATEWAY_TOKEN;
+    const r=await fetch('/api/v2/billing/payment-link',{method:'POST',headers,body:JSON.stringify({plan:'managed-wifi-assessment',amount:20,currency:'USD',label})});
+    const result=await r.json();
+    if(!r.ok || !result?.data?.link) throw new Error(result?.error||'Payment service is not ready. Please contact Br3eze to arrange payment.');
+    window.location.assign(result.data.link);
+  }catch(err){notice.textContent=err.message;notice.style.display='block';btn.disabled=false;btn.textContent='Continue to secure payment'}
+});
+</script>
+</body>
+</html>
