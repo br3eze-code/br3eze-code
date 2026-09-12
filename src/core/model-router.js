@@ -2,17 +2,18 @@
  * Canonical model policy for AgentOS.
  *
  * Providers are adapters; orchestration selects a capability tier, not a
- * provider-specific model string. This keeps every channel/domain on the same
- * model policy while allowing deployments to override model IDs through env.
+ * provider-specific model string. Deployments can override IDs through env.
+ * The defaults track the current provider catalogs rather than ChatGPT UI
+ * model names. See provider adapters for endpoint-specific capabilities.
  */
 
 const DEFAULTS = Object.freeze({
-  reasoning: process.env.AGENTOS_MODEL_REASONING || 'gpt-5.6-sol',
+  reasoning: process.env.AGENTOS_MODEL_REASONING || 'gpt-6-astra',
   balanced: process.env.AGENTOS_MODEL_BALANCED || 'gpt-5.6-terra',
   fast: process.env.AGENTOS_MODEL_FAST || 'gpt-5.6-luna',
-  multimodal: process.env.AGENTOS_MODEL_MULTIMODAL || 'gemini-3.8-flash',
-  live: process.env.AGENTOS_MODEL_LIVE || 'gemini-3.1-flash-live-preview',
-  embedding: process.env.AGENTOS_MODEL_EMBEDDING || 'gemini-embedding-2-preview',
+  multimodal: process.env.AGENTOS_MODEL_MULTIMODAL || 'gpt-6-astra',
+  live: process.env.AGENTOS_MODEL_LIVE || 'gpt-realtime-2.1',
+  embedding: process.env.AGENTOS_MODEL_EMBEDDING || 'text-embedding-3-large',
 });
 
 const TASK_TIERS = Object.freeze({
