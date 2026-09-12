@@ -2,6 +2,7 @@
   "name": "@br3eze/wifi-manager-desktop",
   "version": "2.1.0",
   "private": true,
+  "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
