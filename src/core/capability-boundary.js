@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { assertTenantScope, assertEntitlement } from './saas-boundary.js';
 
 /**
  * Domain-neutral capability boundary.
  * Plugins, skills and domains may advertise capabilities, but the kernel only
- * executes a capability after scope, authorization, approval and lifecycle checks.
+ * executes a capability after scope, entitlement, authorization, approval and
+ * lifecycle checks.
  */
 
 const PHASES = Object.freeze(['plan', 'draft', 'approve', 'execute', 'observe', 'verify', 'complete']);
@@ -13,11 +15,11 @@ function normalizeCapabilities(values = []) {
   return [...new Set((Array.isArray(values) ? values : [values]).filter(Boolean).map((value) => String(value).trim()).filter(Boolean))];
 }
 
-export function describeCapability({ id, domain = 'general', skill = null, tool = null, phase = 'plan', risk = 'low', requiresApproval = false, permissions = [] } = {}) {
+export function describeCapability({ id, domain = 'general', skill = null, tool = null, phase = 'plan', risk = 'low', requiresApproval = false, permissions = [], entitlement = null } = {}) {
   if (!id) throw new Error('capability id is required');
   if (!PHASES.includes(phase)) throw new Error(`invalid capability phase: ${phase}`);
   if (!RISK_LEVELS.includes(risk)) throw new Error(`invalid capability risk: ${risk}`);
-  return Object.freeze({ id: String(id), domain: String(domain || 'general'), skill: skill ? String(skill) : null, tool: tool ? String(tool) : null, phase, risk, requiresApproval: Boolean(requiresApproval || (phase === 'execute' && risk !== 'low')), permissions: normalizeCapabilities(permissions) });
+  return Object.freeze({ id: String(id), domain: String(domain || 'general'), skill: skill ? String(skill) : null, tool: tool ? String(tool) : null, phase, risk, requiresApproval: Boolean(requiresApproval || (phase === 'execute' && risk !== 'low')), permissions: normalizeCapabilities(permissions), entitlement: entitlement ? String(entitlement) : null });
 }
 
 export function checkCapabilityBoundary(capability, context = {}, { phase = 'plan', approved = false } = {}) {
@@ -26,8 +28,10 @@ export function checkCapabilityBoundary(capability, context = {}, { phase = 'pla
   if (!PHASES.includes(phase)) errors.push('invalid_phase');
   if (capability && phase === 'execute' && capability.phase !== 'execute') errors.push('capability_not_executable');
   if (capability && phase === 'execute' && capability.requiresApproval && approved !== true) errors.push('approval_required');
-  if (!context.tenantId) errors.push('tenant_scope_required');
-  if (!context.userId && !context.actorId) errors.push('actor_required');
+  try { assertTenantScope(context, context.resource || {}); } catch (error) { errors.push(error.message === 'authenticated tenant context required' ? 'tenant_scope_required' : error.message); }
+  if (capability?.entitlement) {
+    try { assertEntitlement(context, capability.entitlement); } catch { errors.push(`entitlement_required:${capability.entitlement}`); }
+  }
   const granted = normalizeCapabilities(context.authorizedCapabilities || context.capabilities);
   if (capability?.permissions?.length && !granted.includes('*')) {
     for (const permission of capability.permissions) if (!granted.includes(permission)) errors.push(`missing_permission:${permission}`);
