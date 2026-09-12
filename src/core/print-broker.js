@@ -2,12 +2,6 @@ import crypto from 'node:crypto';
 import { logger } from './logger.js';
 
 const DEFAULT_JOB_TIMEOUT_MS = 20000;
-
-/**
- * Domain-neutral job broker. A concrete output adapter is injected by the
- * composition root; the kernel never knows what is being printed or by which
- * hardware/protocol.
- */
 class PrintBroker {
   constructor({ outputAdapter = null, clock = () => Date.now() } = {}) { this.outputAdapter = outputAdapter; this.clock = clock; this.wsChannel = null; this.pending = new Map(); }
   static getInstance(options = {}) { if (!PrintBroker._instance) PrintBroker._instance = new PrintBroker(options); return PrintBroker._instance; }
@@ -19,6 +13,5 @@ class PrintBroker {
   handleAck({ jobId, clientId, success, error }) { const pending = this.pending.get(jobId); if (!pending) return; if (pending.clientId && pending.clientId !== clientId) return; clearTimeout(pending.timer); this.pending.delete(jobId); success ? pending.resolve() : pending.reject(new Error(error || 'Output operation failed')); }
   _handleMobileAck(args) { return this.handleAck(args); }
 }
-
 export { PrintBroker };
 export default PrintBroker;
