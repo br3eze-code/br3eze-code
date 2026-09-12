@@ -1,6 +1,8 @@
 import { Storage } from '@google-cloud/storage';
-import { InstancesClient } from '@google-cloud/compute';
+import { v1 } from '@google-cloud/compute';
 import { BaseSkill } from '../base.js';
+
+const { InstancesClient } = v1;
 
 class GCPSkill extends BaseSkill {
   static id = 'gcp'
@@ -14,36 +16,9 @@ class GCPSkill extends BaseSkill {
 
   static getTools() {
     return {
-      'gcp.compute.list': {
-        risk: 'low',
-        description: 'List GCE instances in a project/zone',
-        parameters: {
-          type: 'object',
-          properties: {
-            project: { type: 'string', description: 'projectId from workspace' },
-            zone: { type: 'string', default: 'us-central1-a' },
-            status: { type: 'string', enum: ['RUNNING', 'STOPPED', 'ALL'], default: 'RUNNING' }
-          },
-          required: ['project']
-        }
-      },
-      'gcp.compute.reboot': {
-        risk: 'high',
-        description: 'Reset GCE instance. Requires approval.',
-        parameters: {
-          type: 'object',
-          properties: {
-            project: { type: 'string' }, zone: { type: 'string' },
-            instance: { type: 'string' }, reason: { type: 'string', maxLength: 200 }
-          },
-          required: ['project', 'zone', 'instance', 'reason']
-        }
-      },
-      'gcp.storage.buckets': {
-        risk: 'low',
-        description: 'List GCS buckets in a project',
-        parameters: { type: 'object', properties: { project: { type: 'string' } }, required: ['project'] }
-      }
+      'gcp.compute.list': { risk: 'low', description: 'List GCE instances in a project/zone', parameters: { type: 'object', properties: { project: { type: 'string', description: 'projectId from workspace' }, zone: { type: 'string', default: 'us-central1-a' }, status: { type: 'string', enum: ['RUNNING', 'STOPPED', 'ALL'], default: 'RUNNING' } }, required: ['project'] } },
+      'gcp.compute.reboot': { risk: 'high', description: 'Reset GCE instance. Requires approval.', parameters: { type: 'object', properties: { project: { type: 'string' }, zone: { type: 'string' }, instance: { type: 'string' }, reason: { type: 'string', maxLength: 200 } }, required: ['project', 'zone', 'instance', 'reason'] } },
+      'gcp.storage.buckets': { risk: 'low', description: 'List GCS buckets in a project', parameters: { type: 'object', properties: { project: { type: 'string' } }, required: ['project'] } },
     }
   }
 
@@ -57,7 +32,6 @@ class GCPSkill extends BaseSkill {
   async execute(toolName, args, ctx) {
     const project = this.workspace.gcp_projects[args.project]
     if (!project || project.driver !== 'gcp') throw new Error(`GCP project ${args.project} not found`)
-
     switch (toolName) {
       case 'gcp.compute.list': {
         const [instances] = await this.compute.list({ project: args.project, zone: args.zone || 'us-central1-a' })
@@ -73,8 +47,7 @@ class GCPSkill extends BaseSkill {
         const [buckets] = await this.storage.getBuckets({ projectId: args.project })
         return buckets.map((b) => ({ name: b.name, location: b.metadata.location }))
       }
-      default:
-        throw new Error(`Unknown tool ${toolName}`)
+      default: throw new Error(`Unknown tool ${toolName}`)
     }
   }
 }
