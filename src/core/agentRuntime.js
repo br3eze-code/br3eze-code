@@ -1,232 +1,93 @@
-import EventEmitter from 'events';
+import EventEmitter from 'node:events';
 import { AgentEngine } from './agentEngine.js';
 import { PermissionMode, PermissionDenial } from './permissions.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
-import { getMikroTikClient } from './mikrotik.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
 
-/**
- * AgentRuntime
- *
- */
-
-
-// ── Tool manifest ─────────────────────────────────────────────────────────────
-
-const TOOL_MANIFEST = [
-    { name: 'system.stats',      keywords: ['stats', 'cpu', 'memory', 'resource', 'system', 'health'] },
-    { name: 'system.logs',       keywords: ['log', 'logs', 'syslog', 'event'] },
-    { name: 'system.reboot',     keywords: ['reboot', 'restart', 'reset', 'boot'] },
-    { name: 'users.active',      keywords: ['active', 'online', 'connected', 'sessions'] },
-    { name: 'users.all',         keywords: ['all', 'users', 'list', 'hotspot'] },
-    { name: 'user.add',          keywords: ['add', 'create', 'new', 'register', 'user'] },
-    { name: 'user.remove',       keywords: ['remove', 'delete', 'user'] },
-    { name: 'user.kick',         keywords: ['kick', 'disconnect', 'eject'] },
-    { name: 'user.status',       keywords: ['status', 'user', 'check', 'session'] },
-    { name: 'ping',              keywords: ['ping', 'latency', 'reach', 'reachable'] },
-    { name: 'traceroute',        keywords: ['trace', 'traceroute', 'route', 'path', 'hop'] },
-    { name: 'firewall.list',     keywords: ['firewall', 'rules', 'filter', 'list'] },
-    { name: 'firewall.block',    keywords: ['block', 'ban', 'blacklist', 'deny'] },
-    { name: 'firewall.unblock',  keywords: ['unblock', 'unban', 'whitelist', 'allow'] },
-    { name: 'dhcp.leases',       keywords: ['dhcp', 'lease', 'ip', 'address', 'lease'] },
-    { name: 'interface.list',    keywords: ['interface', 'port', 'eth', 'wlan', 'network'] },
-    { name: 'arp.table',         keywords: ['arp', 'mac', 'table', 'device', 'client'] }
-];
-
-// ── Scoring  ──────────────────────────────────────
-
-function scorePrompt(tokens, toolEntry) {
-    return toolEntry.keywords.filter(kw => tokens.has(kw)).length;
+function normalizeManifest(manifest = []) {
+  return manifest.filter(Boolean).map(entry => typeof entry === 'string' ? { name: entry, keywords: [] } : ({ ...entry, keywords: entry.keywords || [] }));
 }
-
-// ── RuntimeSession ────────────────────────────────────────────────────────────
+function scorePrompt(tokens, toolEntry) { return toolEntry.keywords.filter(kw => tokens.has(String(kw).toLowerCase())).length; }
 
 class RuntimeSession {
-    constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null }) {
-        this.prompt            = prompt;
-        this.engine            = engine;
-        this.matchedTools      = matchedTools;
-        this.permissionDenials = permissionDenials;
-        this.taskId            = taskId;
-        this.createdAt         = new Date().toISOString();
-    }
- 
-    asMarkdown() {
-        const lines = [
-            `# Runtime Session`,
-            ``,
-            `Prompt: ${this.prompt}`,
-            `Session ID: ${this.engine.sessionId}`,
-            ``,
-            `## Matched Tools`,
-            ...(this.matchedTools.length
-                ? this.matchedTools.map(t => `- ${t}`)
-                : ['- none']),
-            ``,
-            `## Permission Denials`,
-            ...(this.permissionDenials.length
-                ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`)
-                : ['- none']),
-            ``,
-            `## Agent State`,
-            this.engine.renderSummary(),
-            ``,
-            ...(this.taskId ? [`Task ID: ${this.taskId}`] : [])
-        ];
-        return lines.join('\n');
-    }
+  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null, scope = null }) {
+    this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools;
+    this.permissionDenials = permissionDenials; this.taskId = taskId; this.scope = scope;
+    this.createdAt = new Date().toISOString();
+  }
+  asMarkdown() {
+    return ['# Runtime Session', '', `Prompt: ${this.prompt}`, `Session ID: ${this.engine.sessionId}`, '', '## Matched Tools', ...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']), '', '## Permission Denials', ...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']), '', '## Agent State', this.engine.renderSummary(), ...(this.taskId ? ['', `Task ID: ${this.taskId}`] : [])].join('\n');
+  }
 }
-
-// ── AgentRuntime ──────────────────────────────────────────────────────────────
 
 class AgentRuntime extends EventEmitter {
-    constructor(config = {}) {
-        super();
-        this.defaultConfig = {
-            permissionMode:   config.permissionMode   || PermissionMode.PROMPT,
-            maxTurns:         config.maxTurns         || 8,
-            maxBudgetTokens:  config.maxBudgetTokens  || 4000,
-            compactAfterTurns: config.compactAfterTurns || 12
-        };
+  constructor(config = {}) {
+    super();
+    this.defaultConfig = {
+      permissionMode: config.permissionMode || PermissionMode.PROMPT,
+      maxTurns: config.maxTurns || 8,
+      maxBudgetTokens: config.maxBudgetTokens || 4000,
+      compactAfterTurns: config.compactAfterTurns || 12
+    };
+    this.toolManifest = normalizeManifest(config.toolManifest || config.tools || []);
+  }
+
+  setToolManifest(manifest = []) { this.toolManifest = normalizeManifest(manifest); return this; }
+  routePrompt(prompt, limit = 5) {
+    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
+    return this.toolManifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
+  }
+
+  async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
+    if (!context.tenantId || !context.userId) throw new Error('tenantId and userId are required in runtime context');
+    const engine = sessionId ? AgentEngine.fromSession(sessionId) : AgentEngine.create({ ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode });
+    const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
+    const promptWithWbs = `${prompt}${wbsText}`;
+    const matchedTools = this.routePrompt(promptWithWbs);
+    const denials = this._inferDenials(matchedTools, engine);
+    const session = new RuntimeSession({ prompt: promptWithWbs, engine, matchedTools, permissionDenials: denials, scope: { tenantId: context.tenantId, userId: context.userId, siteId: context.siteId || null } });
+    this.emit('session:created', session); return session;
+  }
+
+  async runTurnLoop(prompt, opts = {}) {
+    const session = await this.bootstrapSession(prompt, opts);
+    const { engine, matchedTools, permissionDenials } = session;
+    const turns = opts.maxTurns || this.defaultConfig.maxTurns;
+    const results = [];
+    const promptWithWbs = opts.wbs?.length ? `${prompt}\n\n## Work Breakdown State\n${formatWbsForPrompt(opts.wbs)}` : prompt;
+    for (let i = 0; i < turns; i++) {
+      const result = await engine.submitMessage(i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`, matchedTools, permissionDenials);
+      results.push(result); this.emit('turn', result);
+      if (result.stopReason !== 'completed') break;
     }
+    const sessionPath = engine.persistSession();
+    return { results, session, sessionPath };
+  }
 
-    // ── Prompt routing ────────────────────────────────────────────────────────
+  async dispatchTask(prompt, opts = {}) {
+    const context = opts.context || {};
+    if (!context.tenantId || !context.userId) throw new Error('tenantId and userId are required to dispatch a task');
+    const registry = getTaskRegistry();
+    const task = registry.create(prompt, { description: opts.description, action: opts.action || 'assist.task', owner: { userId: context.userId, platformId: context.platformId || null }, context, wbs: opts.wbs || null });
+    this.emit('task:dispatched', task);
+    this._executeTask(task.taskId, prompt, opts).catch(err => { registry.setStatus(task.taskId, TaskStatus.FAILED, err.message); logger.error(`Task ${task.taskId} failed:`, err.message); });
+    return task;
+  }
 
-    routePrompt(prompt, limit = 5) {
-        const tokens = new Set(
-            prompt.toLowerCase()
-                .replace(/[^a-z0-9\s]/g, ' ')
-                .split(/\s+/)
-                .filter(Boolean)
-        );
+  async _executeTask(taskId, prompt, opts) {
+    const registry = getTaskRegistry(); const task = registry.get(taskId);
+    const { results } = await this.runTurnLoop(prompt, { ...opts, wbs: opts.wbs || task?.wbs, context: opts.context || task?.scope || {} });
+    for (const result of results) registry.appendOutput(taskId, 'assistant', result.output);
+    const last = results.at(-1); registry.setStatus(taskId, last?.stopReason === 'completed' ? TaskStatus.COMPLETED : TaskStatus.FAILED);
+  }
 
-        const scored = TOOL_MANIFEST
-            .map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
-            .filter(m => m.score > 0)
-            .sort((a, b) => b.score - a.score);
-
-        return scored.slice(0, limit).map(m => m.name);
-    }
-
-    // ── Session bootstrap ─────────────────────────────────────────────────────
-
-    async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
-        const engine = sessionId
-            ? AgentEngine.fromSession(sessionId)
-            : AgentEngine.create({ ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode });
- 
-        const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
-        const promptWithWbs = `${prompt}${wbsText}`;
-        const matchedTools = this.routePrompt(promptWithWbs);
- 
-        const denials = this._inferDenials(matchedTools, engine);
- 
-        logger.info(`AgentRuntime bootstrap — tools: [${matchedTools.join(', ')}] denials: ${denials.length}`);
- 
-        const session = new RuntimeSession({
-            prompt: promptWithWbs,
-            engine,
-            matchedTools,
-            permissionDenials: denials
-        });
- 
-        this.emit('session:created', session);
-        return session;
-    }
-
-    // ── Turn loop ─────────────────────────────────────────────────────────────
-
-    async runTurnLoop(prompt, { maxTurns = null, sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
-        const session  = await this.bootstrapSession(prompt, { sessionId, permissionMode, context, wbs });
-        const { engine, matchedTools, permissionDenials } = session;
-        const turns    = maxTurns || this.defaultConfig.maxTurns;
-        const results  = [];
-        const promptWithWbs = wbs?.length ? `${prompt}\\n\\n## Work Breakdown State\\n${formatWbsForPrompt(wbs)}` : prompt;
- 
-        for (let i = 0; i < turns; i++) {
-            const turnPrompt = i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`;
-            const result     = await engine.submitMessage(turnPrompt, matchedTools, permissionDenials);
-            results.push(result);
-            this.emit('turn', result);
-            if (result.stopReason !== 'completed') break;
-        }
- 
-        const sessionPath = engine.persistSession();
-        logger.info(`Session persisted → ${sessionPath}`);
- 
-        return { results, session, sessionPath };
-    }
-    // ── Async task dispatch ───────────────────────────────────────────────────
-  
- 
-    async dispatchTask(prompt, opts = {}) {
-        const registry = getTaskRegistry();
-        const task     = registry.create(prompt, {
-            description: opts.description,
-            action: opts.action || 'assist.task',
-            owner: { userId: opts.context?.userId || null, platformId: opts.context?.platformId || null },
-            context: opts.context || {},
-            wbs: opts.wbs || null
-        });
- 
-        registry.setStatus(task.taskId, TaskStatus.RUNNING);
-        this.emit('task:dispatched', task);
- 
-      
-        this._executeTask(task.taskId, prompt, opts).catch(err => {
-            registry.setStatus(task.taskId, TaskStatus.FAILED, err.message);
-            logger.error(`Task ${task.taskId} failed:`, err.message);
-        });
- 
-        return task;
-    }
- 
-    async _executeTask(taskId, prompt, opts) {
-        const registry = getTaskRegistry();
-        const { results } = await this.runTurnLoop(prompt, { ...opts, wbs: opts.wbs || registry.get(taskId)?.wbs, context: opts.context || registry.get(taskId)?.scope || {} });
-        for (const r of results) {
-            registry.appendOutput(taskId, 'assistant', r.output);
-        }
-        const last = results[results.length - 1];
-        registry.setStatus(taskId, last?.stopReason === 'completed' ? TaskStatus.COMPLETED : TaskStatus.FAILED);
-    }
-
-    // ── Permission denial inference ───────────────────────────────────────────
- 
- 
-    _inferDenials(toolNames, engine) {
-        const denials = [];
-        for (const name of toolNames) {
-            const check = engine.enforcer.check(name);
-            if (!check.allowed) {
-                denials.push(new PermissionDenial(name, check.reason));
-            }
-        }
-        return denials;
-    }
-
-    // ── Tool manifest info (for /tools Telegram command) ─────────────────────
- 
-    listTools() {
-        return TOOL_MANIFEST.map(t => t.name);
-    }
- 
-    findTools(query) {
-        const needle = query.toLowerCase();
-        return TOOL_MANIFEST
-            .filter(t => t.name.includes(needle) || t.keywords.some(k => k.includes(needle)))
-            .map(t => t.name);
-    }
+  _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }
+  listTools() { return this.toolManifest.map(t => t.name); }
+  findTools(query) { const needle = String(query).toLowerCase(); return this.toolManifest.filter(t => t.name.includes(needle) || t.keywords.some(k => String(k).toLowerCase().includes(needle))).map(t => t.name); }
 }
 
-// ── Singleton ─────────────────────────────────────────────────────────────────
- 
 let _runtime = null;
-function getAgentRuntime(config = {}) {
-    if (!_runtime) _runtime = new AgentRuntime(config);
-    return _runtime;
-}
- 
-export { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
-export default { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
+function getAgentRuntime(config = {}) { if (!_runtime) _runtime = new AgentRuntime(config); return _runtime; }
+export { AgentRuntime, RuntimeSession, getAgentRuntime };
+export default { AgentRuntime, RuntimeSession, getAgentRuntime };
