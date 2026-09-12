@@ -1,84 +1,66 @@
-import { createRequire } from 'module';
+import { promises as fs, existsSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import yaml from 'js-yaml';
 import { logger } from '../logger.js';
-const require = createRequire(import.meta.url);
 
-// src/core/skills/SkillRegistry.js
+async function importFresh(filePath) {
+  const url = pathToFileURL(path.resolve(filePath));
+  url.searchParams.set('reload', Date.now().toString());
+  return import(url.href);
+}
 
 class SkillRegistry {
   constructor() {
     this.skills = new Map();
     this.manifests = new Map();
-    this.implementations = new Map(); // skillName -> implementation class/object for static introspection
+    this.implementations = new Map();
   }
 
   async loadFromDirectory(skillsPath, config = {}) {
-    const fs = require('fs').promises;
-    const path = require('path');
-
     const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const dirPath = path.join(skillsPath, entry.name);
+      if (!entry.isDirectory()) continue;
+      const dirPath = path.join(skillsPath, entry.name);
+      try {
+        const jsonPath = path.join(dirPath, 'skill.json');
+        const yamlPath = path.join(dirPath, 'manifest.yaml');
         let manifest = null;
+        if (existsSync(jsonPath)) manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+        else if (existsSync(yamlPath)) manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
+        if (!manifest) continue;
 
-        try {
-          // Try skill.json first, then manifest.yaml
-          const jsonPath = path.join(dirPath, 'skill.json');
-          const yamlPath = path.join(dirPath, 'manifest.yaml');
-
-          if (require('fs').existsSync(jsonPath)) {
-            manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-          } else if (require('fs').existsSync(yamlPath)) {
-            const yaml = require('js-yaml');
-            manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
-          }
-
-          if (!manifest) continue;
-
-          const entryFile = manifest.entry || 'index.js';
-          const codePath = path.join(dirPath, entryFile);
-
-          if (!require('fs').existsSync(codePath)) {
-            logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
-            continue;
-          }
-
-          const skillModule = require(path.resolve(codePath));
-          this.register(manifest, skillModule, config);
-          logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
-        } catch (err) {
-          logger.error(`Failed to load skill ${entry.name}: ${err.stack || err.message || err}`);
+        const entryFile = manifest.entry || 'index.js';
+        const codePath = path.join(dirPath, entryFile);
+        if (!existsSync(codePath)) {
+          logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
+          continue;
         }
+
+        const imported = await importFresh(codePath);
+        const implementation = imported.default || imported;
+        this.register(manifest, implementation, config);
+        logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
+      } catch (error) {
+        logger.error(`Failed to load skill ${entry.name}: ${error.stack || error.message || error}`);
       }
     }
   }
 
   register(manifest, implementation, config = {}) {
+    if (!manifest?.name) throw new TypeError('Skill manifest requires a name');
     let executor;
     const skillConfig = config?.skills?.[manifest.name] || config?.[manifest.name] || {};
     const workspace = config?.workspace || {};
-
-    // require()-of-ESM interop wraps a `export default X` module as
-    // {__esModule: true, default: X} instead of returning X directly —
-    // unwrap it so class-based skills (the common case) are still detected
-    // below. Plain CJS `module.exports = X` has no __esModule flag and
-    // passes through unchanged.
-    if (implementation && implementation.__esModule && implementation.default !== undefined) {
-      implementation = implementation.default;
-    }
 
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
       const instance = new implementation(skillConfig, logger, workspace);
       executor = (toolName, args, ctx) => instance.execute(toolName, args, ctx || {});
     } else if (typeof implementation?.execute === 'function') {
       const fn = implementation.execute.bind(implementation);
-      if (fn.length <= 2) {
-        executor = (toolName, args, ctx) =>
-          fn({ action: toolName, ...(args || {}) }, ctx || {});
-      } else {
-        executor = (toolName, args, ctx) => fn(toolName, args, ctx || {});
-      }
+      executor = fn.length <= 2
+        ? (toolName, args, ctx) => fn({ action: toolName, ...(args || {}) }, ctx || {})
+        : (toolName, args, ctx) => fn(toolName, args, ctx || {});
     } else if (typeof implementation === 'function') {
       executor = (params, ctx) => implementation(params, ctx);
     } else {
@@ -86,18 +68,11 @@ class SkillRegistry {
       executor = () => ({ status: 'no-op', skill: manifest.name });
     }
 
-    // `implementation` can legitimately be null/undefined when a malformed
-    // skill was discovered. Never dereference it while constructing the
-    // registry entry; the old code crashed here after logging the no-op warning.
     const validate = typeof implementation?.validate === 'function'
       ? implementation.validate.bind(implementation)
       : () => true;
 
-    this.skills.set(manifest.name, {
-      manifest,
-      execute: executor,
-      validate
-    });
+    this.skills.set(manifest.name, { manifest, execute: executor, validate });
     this.manifests.set(manifest.name, manifest);
     this.implementations.set(manifest.name, implementation);
   }
@@ -105,51 +80,31 @@ class SkillRegistry {
   async execute(skillName, toolName, args = {}, context = {}) {
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill '${skillName}' not found`);
-
     let actualToolName = toolName;
     let actualArgs = args;
     let actualContext = context;
-
     if (typeof toolName === 'object') {
       actualToolName = skillName;
       actualArgs = toolName;
       actualContext = args || {};
     }
-
-    return await skill.execute(actualToolName, actualArgs, actualContext);
+    return skill.execute(actualToolName, actualArgs, actualContext);
   }
 
   validateParams(params, schema) {
-    for (const [key, config] of Object.entries(schema)) {
-      if (config.required && !(key in params)) {
-        throw new Error(`Missing required parameter: ${key}`);
-      }
+    for (const [key, config] of Object.entries(schema || {})) {
+      if (config.required && !(key in params)) throw new Error(`Missing required parameter: ${key}`);
     }
   }
 
-  list() {
-    return Array.from(this.manifests.values());
-  }
-
-  count() {
-    return this.skills.size;
-  }
-
-  has(name) {
-    return this.skills.has(name);
-  }
-
-  get(name) {
-    return this.skills.get(name);
-  }
-
+  list() { return [...this.manifests.values()]; }
+  count() { return this.skills.size; }
+  has(name) { return this.skills.has(name); }
+  get(name) { return this.skills.get(name); }
   getDescriptions() {
-    return Array.from(this.skills.values()).map(s => ({
-      name: s.manifest.name,
-      description: s.manifest.description,
-      version: s.manifest.version
-    }));
+    return [...this.skills.values()].map((skill) => ({ name: skill.manifest.name, description: skill.manifest.description, version: skill.manifest.version }));
   }
 }
 
 export default SkillRegistry;
+export { SkillRegistry };
