@@ -1,10 +1,8 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import hpp from 'hpp';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { logger } from './logger.js';
 
 // src/core/security.js
 
@@ -15,7 +13,6 @@ class SecurityManager {
     this.blockedIPs = new Set();
   }
 
-  // Encrypt sensitive data (WhatsApp credentials, tokens)
   encrypt(text) {
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
@@ -34,122 +31,61 @@ class SecurityManager {
     return decrypted;
   }
 
-  // Input validation for network commands
   sanitizeHost(host) {
-    // Prevent command injection
-    if (!/^[\w\.-]+$/.test(host)) {
-      throw new Error('Invalid hostname format');
-    }
-    // Prevent internal IP scanning
-    const forbidden = ['127.0.0.1', 'localhost', '0.0.0.0', '::1'];
-    if (forbidden.includes(host.toLowerCase())) {
-      throw new Error('Forbidden host');
-    }
+    if (!/^[\w\.-]+$/.test(host)) throw new Error('Invalid hostname format');
+    if (['127.0.0.1', 'localhost', '0.0.0.0', '::1'].includes(host.toLowerCase())) throw new Error('Forbidden host');
     return host;
   }
 
-  // Rate limiter for messaging channels
   getMessageLimiter() {
-    return rateLimit({
-      windowMs: 60 * 1000, // 1 minute
-      max: 30, // 30 messages per minute
-      message: 'Too many messages, please slow down',
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+    return rateLimit({ windowMs: 60 * 1000, max: 30, message: 'Too many messages, please slow down', standardHeaders: true, legacyHeaders: false });
   }
 
-  // Express security middleware stack
   getSecurityMiddleware() {
     return [
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            connectSrc: [
-              "'self'",
-              "wss:",
-              "https://*.firebaseio.com",
-              "wss://*.firebaseio.com",
-              "https://*.googleapis.com",
-              "https://*.firebaseapp.com"
-            ],
-            scriptSrc: [
-              "'self'",
-              "'unsafe-inline'",
-              "'unsafe-eval'",
-              "https://www.gstatic.com",
-              "https://apis.google.com"
-            ],
-            frameSrc: [
-              "'self'",
-              "https://*.firebaseapp.com",
-              "https://*.google.com"
-            ],
-            styleSrc: [
-              "'self'",
-              "'unsafe-inline'",
-              "https://fonts.googleapis.com",
-              "https://cdnjs.cloudflare.com"
-            ],
-            fontSrc: [
-              "'self'",
-              "https://fonts.gstatic.com",
-              "https://cdnjs.cloudflare.com"
-            ],
-            imgSrc: [
-              "'self'",
-              "data:",
-              "https://*.googleusercontent.com",
-              "https://*.gstatic.com",
-              "https://*.firebaseapp.com"
-            ]
+            connectSrc: ["'self'", 'wss:', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.googleapis.com', 'https://*.firebaseapp.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://www.gstatic.com', 'https://apis.google.com'],
+            frameSrc: ["'self'", 'https://*.firebaseapp.com', 'https://*.google.com'],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+            imgSrc: ["'self'", 'data:', 'https://*.googleusercontent.com', 'https://*.gstatic.com', 'https://*.firebaseapp.com'],
           },
         },
-        hsts: {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true
-        }
+        hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
       }),
-      hpp(), // Prevent HTTP Parameter Pollution
-      this.auditMiddleware.bind(this)
+      hpp(),
+      this.auditMiddleware.bind(this),
     ];
   }
 
-  // Audit logging middleware
   auditMiddleware(req, res, next) {
-    const { logger } = require('./logger');
     const start = Date.now();
-
     res.on('finish', () => {
-      const duration = Date.now() - start;
       logger.audit('http_request', {
         method: req.method,
         path: req.path,
         statusCode: res.statusCode,
-        duration,
+        duration: Date.now() - start,
         ip: req.ip,
         userAgent: req.get('user-agent'),
         correlationId: req.correlationId,
-        // Sanitize body to avoid logging passwords
-        body: this.sanitizeBody(req.body)
+        body: this.sanitizeBody(req.body),
       });
     });
-
     next();
   }
 
   sanitizeBody(body) {
     if (!body) return body;
     const sensitive = ['password', 'token', 'secret', 'key', 'credential'];
-    const sanitized = { ...body };
-    for (const key of Object.keys(sanitized)) {
-      if (sensitive.some(s => key.toLowerCase().includes(s))) {
-        sanitized[key] = '[REDACTED]';
-      }
-    }
-    return sanitized;
+    return Object.fromEntries(Object.entries(body).map(([key, value]) => [
+      key,
+      sensitive.some((name) => key.toLowerCase().includes(name)) ? '[REDACTED]' : value,
+    ]));
   }
 }
 
