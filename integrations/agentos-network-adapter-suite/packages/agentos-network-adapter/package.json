@@ -1,0 +1,8 @@
+{
+  "name": "@br3eze/agentos-network-adapter",
+  "version": "2.1.0",
+  "type": "module",
+  "main": "src/index.mjs",
+  "exports": ".",
+  "engines": { "node": ">=22" }
+}
