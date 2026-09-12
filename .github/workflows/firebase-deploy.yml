@@ -30,9 +30,6 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    # Only proceed if this was triggered manually, or the Release workflow
-    # actually ran on main and succeeded (it no-ops without failing when
-    # there's nothing new to release, so also guard on it having produced one).
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
@@ -53,8 +50,12 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Install functions (server/) dependencies
-        run: npm ci --ignore-scripts --prefix server
+      - name: Install functions dependencies
+        working-directory: server
+        run: |
+          # server/ currently has no lockfile. npm ci therefore cannot work here.
+          # Keep this explicit until server/package-lock.json is intentionally added.
+          npm install --ignore-scripts --no-audit --no-fund
 
       - name: Validate secrets
         id: validate
@@ -72,12 +73,6 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-key.json" >> "$GITHUB_ENV"
 
       - name: Write CI .env for the hosting predeploy step
-        # firebase.json's hosting.predeploy runs scripts/generate-env-www.js,
-        # which reads a root .env for the browser-safe keys it copies into
-        # www/js/env.js. There's no .env checked into the repo, so build a
-        # minimal one here from secrets. Only add keys generate-env-www.js's
-        # BROWSER_KEYS allowlist actually reads (FIREBASE_API_KEY, GEMINI_API_KEY) -
-        # nothing else belongs in a file destined for the client bundle.
         run: |
           {
             echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}"
