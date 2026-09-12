@@ -14,31 +14,31 @@ class SkillRegistry {
   async loadFromDirectory(skillsPath, config = {}) {
     const fs = require('fs').promises;
     const path = require('path');
-    
+
     const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const dirPath = path.join(skillsPath, entry.name);
         let manifest = null;
-        
+
         try {
           // Try skill.json first, then manifest.yaml
           const jsonPath = path.join(dirPath, 'skill.json');
           const yamlPath = path.join(dirPath, 'manifest.yaml');
-          
+
           if (require('fs').existsSync(jsonPath)) {
             manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
           } else if (require('fs').existsSync(yamlPath)) {
             const yaml = require('js-yaml');
             manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
           }
-          
+
           if (!manifest) continue;
 
           const entryFile = manifest.entry || 'index.js';
           const codePath = path.join(dirPath, entryFile);
-          
+
           if (!require('fs').existsSync(codePath)) {
             logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
             continue;
@@ -69,34 +69,34 @@ class SkillRegistry {
     }
 
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
-      // Class-based skill (e.g. DahuaSkill extends BaseSkill) — execute(toolName, args, ctx)
       const instance = new implementation(skillConfig, logger, workspace);
       executor = (toolName, args, ctx) => instance.execute(toolName, args, ctx || {});
     } else if (typeof implementation?.execute === 'function') {
-      // Plain-object singleton — could use legacy (params, context) OR (toolName, args, ctx).
-      // Discriminate by arity: arity <= 2 → legacy (params, context) contract.
-      // We normalise by forwarding toolName inside params so both contracts are satisfied.
       const fn = implementation.execute.bind(implementation);
       if (fn.length <= 2) {
-        // Legacy contract: execute({ action, params, ... }, context)
         executor = (toolName, args, ctx) =>
           fn({ action: toolName, ...(args || {}) }, ctx || {});
       } else {
-        // Modern contract: execute(toolName, args, ctx)
         executor = (toolName, args, ctx) => fn(toolName, args, ctx || {});
       }
     } else if (typeof implementation === 'function') {
-      // Plain function
       executor = (params, ctx) => implementation(params, ctx);
     } else {
       logger.warn(`Skill "${manifest.name}": no execute implementation found — registering as no-op`);
       executor = () => ({ status: 'no-op', skill: manifest.name });
     }
 
+    // `implementation` can legitimately be null/undefined when a malformed
+    // skill was discovered. Never dereference it while constructing the
+    // registry entry; the old code crashed here after logging the no-op warning.
+    const validate = typeof implementation?.validate === 'function'
+      ? implementation.validate.bind(implementation)
+      : () => true;
+
     this.skills.set(manifest.name, {
       manifest,
       execute: executor,
-      validate: implementation.validate || (() => true)
+      validate
     });
     this.manifests.set(manifest.name, manifest);
     this.implementations.set(manifest.name, implementation);
@@ -105,7 +105,7 @@ class SkillRegistry {
   async execute(skillName, toolName, args = {}, context = {}) {
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill '${skillName}' not found`);
-    
+
     let actualToolName = toolName;
     let actualArgs = args;
     let actualContext = context;
@@ -131,27 +131,23 @@ class SkillRegistry {
     return Array.from(this.manifests.values());
   }
 
-  /** Count of registered skills */
   count() {
     return this.skills.size;
   }
 
-  /** Check if skill exists */
   has(name) {
     return this.skills.has(name);
   }
 
-  /** Get skill entry */
   get(name) {
     return this.skills.get(name);
   }
 
-  /** Get all skill descriptions */
   getDescriptions() {
     return Array.from(this.skills.values()).map(s => ({
-      name:        s.manifest.name,
+      name: s.manifest.name,
       description: s.manifest.description,
-      version:     s.manifest.version
+      version: s.manifest.version
     }));
   }
 }
