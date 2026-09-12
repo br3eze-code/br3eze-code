@@ -23,8 +23,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install (skip postinstall/preuninstall hooks)
-        run: npm ci --ignore-scripts
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Lint maintained pipeline and plugin code
         run: npm run lint:ci
@@ -33,25 +33,13 @@ jobs:
         run: npm test -- --ci --forceExit --passWithNoTests
         env:
           NODE_ENV: test
-          # RouterOS — mocked in tests
-          ROS_HOST: 127.0.0.1
-          ROS_PORT: 8728
-          ROS_USER: admin
-          ROS_PASS: test
-          MIKROTIK_HOST: 127.0.0.1
-          MIKROTIK_USER: admin
-          MIKROTIK_PASS: test
-          # Firebase
           DATA_BACKEND: local
           FIREBASE_PROJECT_ID: test-project
-          # AI
           LLM_PROVIDER: gemini
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Messaging
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
-          # Server
           PORT: 3000
           GATEWAY_PORT: 19876
 
@@ -62,7 +50,7 @@ jobs:
         run: npm run security:audit
         env:
           NODE_ENV: test
-        continue-on-error: true # advisory only in CI — hard block is in security.yml
+        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         if: always()
