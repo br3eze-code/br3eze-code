@@ -5,396 +5,106 @@ import crypto from 'node:crypto';
 import yaml from 'js-yaml';
 import 'dotenv/config';
 
-
 const DEFAULT_LOGIN_DOMAIN = process.env.LOGIN_DOMAIN || process.env.PUBLIC_DOMAIN || 'br3eze.africa';
 
 const BRAND = {
     name: 'AgentOS',
-    version: '2026.7.47',
+    version: '2026.9.15',
     emoji: '🤖',
     tagline: 'Network Intelligence, Simplified'
 };
 
 function getProfileDir() {
-    const profile = process.env.AGENTOS_PROFILE ||
-        (process.argv.includes('--dev') ? 'dev' : 'default');
-
-    if (profile === 'default') {
-        return path.join(os.homedir(), '.agentos');
-    }
-    return path.join(os.homedir(), `.agentos-${profile}`);
+    const profile = process.env.AGENTOS_PROFILE || (process.argv.includes('--dev') ? 'dev' : 'default');
+    return profile === 'default' ? path.join(os.homedir(), '.agentos') : path.join(os.homedir(), `.agentos-${profile}`);
 }
 
 function ensureProfile() {
     const dir = getProfileDir();
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     return dir;
 }
 
 const PROFILE_DIR = ensureProfile();
 const CONFIG_PATH = path.join(PROFILE_DIR, 'config.json');
 const STATE_PATH = path.join(PROFILE_DIR, 'state');
+if (!fs.existsSync(STATE_PATH)) fs.mkdirSync(STATE_PATH, { recursive: true });
 
-// Ensure state dir
-if (!fs.existsSync(STATE_PATH)) {
-    fs.mkdirSync(STATE_PATH, { recursive: true });
-}
-
-// Default config
 const DEFAULT_CONFIG = {
     name: BRAND.name,
     version: BRAND.version,
-    mikrotik: {
-        ip: process.env.MIKROTIK_IP || '',
-        user: process.env.MIKROTIK_USER || '',
-        pass: process.env.MIKROTIK_PASS || '',
-        port: parseInt(process.env.MIKROTIK_PORT) || 8728,
-        reconnectInterval: Number(process.env.MIKROTIK_RECONNECT_INTERVAL_MS || 5000),
-        maxReconnectAttempts: Number(process.env.MIKROTIK_MAX_RECONNECT_ATTEMPTS || 0) || Infinity
-    },
-    telegram: {
-        token: '',
-        allowedChats: [],
-        botUsername: 'AgentOSBot'
-    },
-    starlink: {
-        clientId: process.env.STARLINK_CLIENT_ID || '',
-        clientSecret: process.env.STARLINK_CLIENT_SECRET || '',
-        baseUrl: process.env.STARLINK_API_BASE_URL || '',
-        localProxyUrl: process.env.STARLINK_LOCAL_PROXY_URL || ''
-    },
-    payments: {
-        innbucks: {
-            mode: process.env.INNBUCKS_MODE || 'paynow',
-            baseUrl: process.env.INNBUCKS_BASE_URL || process.env.PAYNOW_BASE_URL || '',
-            integrationId: process.env.PAYNOW_INTEGRATION_ID || '',
-            integrationKey: process.env.PAYNOW_INTEGRATION_KEY || ''
-        }
-    },
-    gateway: {
-        port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876,
-        host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1',
-        token: process.env.AGENTOS_GATEWAY_TOKEN
-            || crypto.randomBytes(32).toString('hex')
-    },
-    OAUTH: {
-        GITHUB: {
-            CLIENT_ID: process.env.GITHUB_CLIENT_ID || '',
-            CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '',
-            REDIRECT_URI: process.env.GITHUB_OAUTH_REDIRECT_URI || '',
-            SCOPE: process.env.GITHUB_OAUTH_SCOPE || 'read:user repo',
-            WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || ''
-        },
-        GOOGLE: {
-            CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
-            CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
-            REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
-            SCOPE: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile'
-        },
-        FACEBOOK: {
-            CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || '',
-            CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || '',
-            REDIRECT_URI: process.env.FACEBOOK_OAUTH_REDIRECT_URI || '',
-            SCOPE: process.env.FACEBOOK_OAUTH_SCOPE || 'public_profile,email',
-            RELAY_URL: process.env.FACEBOOK_OAUTH_RELAY_URL || ''
-        }
-    },
-    server: {
-        port: Number(process.env.SERVER_PORT || 3000),
-        host: process.env.SERVER_HOST || '0.0.0.0'
-    },
-    public: {
-        apiBaseUrl: process.env.AGENTOS_API_BASE_URL || process.env.AGENTOS_GATEWAY_URL || '',
-        dashboardUrl: process.env.AGENTOS_DASHBOARD_URL || '',
-        serviceName: process.env.BRAND_SERVICE_NAME || BRAND.name
-    },
-    api: {
-        version: process.env.AGENTOS_API_VERSION || 'v1',
-        basePath: process.env.AGENTOS_API_BASE_PATH || '/api/v1',
-        requireAuth: process.env.AGENTOS_API_REQUIRE_AUTH !== 'false'
-    },
+    mikrotik: { ip: process.env.MIKROTIK_IP || '', user: process.env.MIKROTIK_USER || '', pass: process.env.MIKROTIK_PASS || '', port: parseInt(process.env.MIKROTIK_PORT) || 8728, reconnectInterval: Number(process.env.MIKROTIK_RECONNECT_INTERVAL_MS || 5000), maxReconnectAttempts: Number(process.env.MIKROTIK_MAX_RECONNECT_ATTEMPTS || 0) || Infinity },
+    telegram: { token: '', allowedChats: [], botUsername: 'AgentOSBot' },
+    starlink: { clientId: process.env.STARLINK_CLIENT_ID || '', clientSecret: process.env.STARLINK_CLIENT_SECRET || '', baseUrl: process.env.STARLINK_API_BASE_URL || '', localProxyUrl: process.env.STARLINK_LOCAL_PROXY_URL || '' },
+    payments: { innbucks: { mode: process.env.INNBUCKS_MODE || 'paynow', baseUrl: process.env.INNBUCKS_BASE_URL || process.env.PAYNOW_BASE_URL || '', integrationId: process.env.PAYNOW_INTEGRATION_ID || '', integrationKey: process.env.PAYNOW_INTEGRATION_KEY || '' } },
+    gateway: { port: parseInt(process.env.GATEWAY_PORT || process.env.PORT) || 19876, host: process.env.GATEWAY_HOST || process.env.HOST || '127.0.0.1', token: process.env.AGENTOS_GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex') },
+    OAUTH: { GITHUB: { CLIENT_ID: process.env.GITHUB_CLIENT_ID || '', CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || '', REDIRECT_URI: process.env.GITHUB_OAUTH_REDIRECT_URI || '', SCOPE: process.env.GITHUB_OAUTH_SCOPE || 'read:user repo', WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET || '' }, GOOGLE: { CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '', CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '', REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI || '', SCOPE: process.env.GOOGLE_OAUTH_SCOPE || 'openid email profile' }, FACEBOOK: { CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || '', CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || '', REDIRECT_URI: process.env.FACEBOOK_OAUTH_REDIRECT_URI || '', SCOPE: process.env.FACEBOOK_OAUTH_SCOPE || 'public_profile,email', RELAY_URL: process.env.FACEBOOK_OAUTH_RELAY_URL || '' } },
+    server: { port: Number(process.env.SERVER_PORT || 3000), host: process.env.SERVER_HOST || '0.0.0.0' },
+    public: { apiBaseUrl: process.env.AGENTOS_API_BASE_URL || process.env.AGENTOS_GATEWAY_URL || '', dashboardUrl: process.env.AGENTOS_DASHBOARD_URL || '', serviceName: process.env.BRAND_SERVICE_NAME || BRAND.name },
+    api: { version: process.env.AGENTOS_API_VERSION || 'v1', basePath: process.env.AGENTOS_API_BASE_PATH || '/api/v1', requireAuth: process.env.AGENTOS_API_REQUIRE_AUTH !== 'false' },
     onboarding: {
         pairingTtlMs: Number(process.env.AGENTOS_ONBOARDING_PAIRING_TTL_MS || 600000),
         wbsEnabled: process.env.AGENTOS_ONBOARDING_WBS_ENABLED !== 'false',
-        defaultChannel: process.env.AGENTOS_ONBOARDING_DEFAULT_CHANNEL || 'telegram',
+        defaultChannel: process.env.AGENTOS_ONBOARDING_DEFAULT_CHANNEL || 'any',
         defaultSpecialistId: process.env.AGENTOS_ONBOARDING_SPECIALIST_ID || '',
-        sessionStore: process.env.AGENTOS_ONBOARDING_SESSION_STORE || 'memory'
+        sessionStore: process.env.AGENTOS_ONBOARDING_SESSION_STORE || 'memory',
+        steps: ['receive', 'identify', 'understand', 'scope', 'plan', 'authorize', 'execute', 'observe', 'evaluate', 'verify', 'complete'],
+        modelPolicy: { reasoning: process.env.AGENTOS_MODEL_REASONING || 'gpt-5.6-sol', balanced: process.env.AGENTOS_MODEL_BALANCED || 'gpt-5.6-terra', fast: process.env.AGENTOS_MODEL_FAST || 'gpt-5.6-luna', multimodal: process.env.AGENTOS_MODEL_MULTIMODAL || 'gemini-3.8-flash', live: process.env.AGENTOS_MODEL_LIVE || 'gemini-3.1-flash-live-preview', embedding: process.env.AGENTOS_MODEL_EMBEDDING || 'gemini-embedding-2-preview' }
     },
-    storyline: {
-        basePath: process.env.AGENTOS_STORYLINE_BASE_PATH || '',
-        sessionTtlMs: Number(process.env.AGENTOS_STORYLINE_SESSION_TTL_MS || 86400000),
-        maxCacheEntries: Number(process.env.AGENTOS_STORYLINE_MAX_CACHE_ENTRIES || 100),
-        compactKeepLast: Number(process.env.AGENTOS_STORYLINE_COMPACT_KEEP_LAST || 20),
-        defaultMode: process.env.AGENTOS_STORYLINE_MODE || 'isolated',
-        summaryMaxChars: Number(process.env.AGENTOS_STORYLINE_SUMMARY_MAX_CHARS || 50),
-        systemSummaryLabel: process.env.AGENTOS_STORYLINE_SUMMARY_LABEL || 'Previous conversation summary'
-    },
-    firebase: {
-        apiKey: process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || '',
-        authDomain: process.env.FIREBASE_AUTH_DOMAIN || '',
-        databaseURL: process.env.FIREBASE_DATABASE_URL || '',
-        projectId: process.env.FIREBASE_PROJECT_ID || '',
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '',
-        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '',
-        appId: process.env.FIREBASE_APP_ID || '',
-        measurementId: process.env.FIREBASE_MEASUREMENT_ID || ''
-    },
-    // Canonical multi-server inventory. Credentials stay in environment variables or vault refs.
+    storyline: { basePath: process.env.AGENTOS_STORYLINE_BASE_PATH || '', sessionTtlMs: Number(process.env.AGENTOS_STORYLINE_SESSION_TTL_MS || 86400000), maxCacheEntries: Number(process.env.AGENTOS_STORYLINE_MAX_CACHE_ENTRIES || 100), compactKeepLast: Number(process.env.AGENTOS_STORYLINE_COMPACT_KEEP_LAST || 20), defaultMode: process.env.AGENTOS_STORYLINE_MODE || 'isolated', summaryMaxChars: Number(process.env.AGENTOS_STORYLINE_SUMMARY_MAX_CHARS || 50), systemSummaryLabel: process.env.AGENTOS_STORYLINE_SUMMARY_LABEL || 'Previous conversation summary' },
+    firebase: { apiKey: process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY || '', authDomain: process.env.FIREBASE_AUTH_DOMAIN || '', databaseURL: process.env.FIREBASE_DATABASE_URL || '', projectId: process.env.FIREBASE_PROJECT_ID || '', storageBucket: process.env.FIREBASE_STORAGE_BUCKET || '', messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || '', appId: process.env.FIREBASE_APP_ID || '', measurementId: process.env.FIREBASE_MEASUREMENT_ID || '' },
     servers: [],
-    llm: {
-        strategy: 'open-model-first',
-        primary: process.env.AGENTOS_LLM_PRIMARY || 'ollama',
-        fallbacks: (process.env.AGENTOS_LLM_FALLBACKS || 'openrouter,openai,xai').split(',').map(value => value.trim()).filter(Boolean),
-        openModels: {
-            endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || '',
-            model: process.env.AGENTOS_OPEN_MODEL || ''
-        }
-    },
-    security: {
-        rateLimitWindow: 15 * 60 * 1000,
-        rateLimitMax: 100,
-        voucherRateLimit: 5,
-        alertCooldownMs: 60000
-    },
-    features: {
-        vouchers: true,
-        telegramBot: true,
-        webDashboard: true,
-        websocketApi: true
-    },
-    vouchers: {
-        prefix: 'STAR',
-        format: 'XXXX-XXXX',
-        alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    },
-    whatsapp: {
-        enabled: false,
-        authStateFolder: './data/whatsapp_auth',
-        allowedJids: []
-    },
-    plans: [
-        { name: '1 Hour', description: 'Perfect for a quick browsing session.', deviceLimit: 1, durationUnit: 'hours', durationValue: 1, imageUrl: '', mikrotikProfile: '1Hour', price: 0.50, currency: 'USD', active: true },
-        { name: '1 Day', description: 'Full-day access for work or entertainment.', deviceLimit: 1, durationUnit: 'days', durationValue: 1, imageUrl: '', mikrotikProfile: '1Day', price: 1.00, currency: 'USD', active: true },
-        { name: '7 Days', description: 'A full week of high-speed connectivity.', deviceLimit: 2, durationUnit: 'days', durationValue: 7, imageUrl: '', mikrotikProfile: '7Day', price: 3.00, currency: 'USD', active: true },
-        { name: '30 Days', description: 'Monthly plan — best value for regular users.', deviceLimit: 3, durationUnit: 'days', durationValue: 30, imageUrl: '', mikrotikProfile: '30Day', price: 5.00, currency: 'USD', active: true },
-    ],
-    printer: {
-        type: process.env.PRINTER_TYPE || 'EPSON',
-        interface: process.env.PRINTER_INTERFACE || 'tcp://192.168.88.254',
-        width: parseInt(process.env.PRINTER_WIDTH) || 80,
-        timeout: parseInt(process.env.PRINTER_TIMEOUT) || 5000,
-        enabled: process.env.PRINTER_ENABLED !== 'false'
-    },
-    slack: {
-        enabled: false,
-        token: process.env.SLACK_BOT_TOKEN || '',
-        channel: process.env.SLACK_CHANNEL || ''
-    },
-    discord: {
-        enabled: false,
-        token: process.env.DISCORD_BOT_TOKEN || '',
-        channelId: process.env.DISCORD_CHANNEL_ID || ''
-    },
-    sms: {
-        enabled: false,
-        provider: process.env.SMS_PROVIDER || 'twilio',
-        // Twilio credentials
-        accountSid: process.env.TWILIO_ACCOUNT_SID || process.env.SMS_ACCOUNT_SID || '',
-        authToken: process.env.TWILIO_AUTH_TOKEN || process.env.SMS_AUTH_TOKEN || '',
-        phoneNumber: process.env.TWILIO_FROM_NUMBER || process.env.SMS_PHONE_NUMBER || '',
-        // Econet A2A credentials
-        econetBaseUrl: process.env.ECONET_BASE_URL || 'https://api.econet.co.zw',
-        econetClientId: process.env.ECONET_CLIENT_ID || '',
-        econetClientSecret: process.env.ECONET_CLIENT_SECRET || '',
-        econetFromName: process.env.ECONET_FROM_NAME || 'AgentOS'
-    },
-    ussd: {
-        enabled: false,
-        provider: process.env.USSD_PROVIDER || 'africastalking',
-        apiKey: process.env.USSD_API_KEY || '',
-        username: process.env.USSD_USERNAME || '',
-        serviceCode: process.env.USSD_SERVICE_CODE || ''
-    },
-    email: {
-        enabled: false,
-        host: process.env.EMAIL_HOST || '',
-        port: parseInt(process.env.EMAIL_PORT) || 587,
-        user: process.env.EMAIL_USER || '',
-        pass: process.env.EMAIL_PASS || '',
-        from: process.env.EMAIL_FROM || ''
-    }
+    llm: { strategy: 'capability-routed', primary: process.env.AGENTOS_LLM_PRIMARY || 'openai', fallbacks: (process.env.AGENTOS_LLM_FALLBACKS || 'gemini,ollama,openrouter').split(',').map(value => value.trim()).filter(Boolean), openModels: { endpoint: process.env.OPENAI_API_BASE || process.env.OPEN_MODEL_BASE_URL || '', model: process.env.AGENTOS_OPEN_MODEL || '' }, modelPolicy: { reasoning: process.env.AGENTOS_MODEL_REASONING || 'gpt-5.6-sol', balanced: process.env.AGENTOS_MODEL_BALANCED || 'gpt-5.6-terra', fast: process.env.AGENTOS_MODEL_FAST || 'gpt-5.6-luna', multimodal: process.env.AGENTOS_MODEL_MULTIMODAL || 'gemini-3.8-flash', live: process.env.AGENTOS_MODEL_LIVE || 'gemini-3.1-flash-live-preview', embedding: process.env.AGENTOS_MODEL_EMBEDDING || 'gemini-embedding-2-preview' } },
+    security: { rateLimitWindow: 15 * 60 * 1000, rateLimitMax: 100, voucherRateLimit: 5, alertCooldownMs: 60000 },
+    features: { vouchers: true, telegramBot: true, webDashboard: true, websocketApi: true },
+    vouchers: { prefix: 'STAR', format: 'XXXX-XXXX', alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' },
+    whatsapp: { enabled: false, authStateFolder: './data/whatsapp_auth', allowedJids: [] },
+    plans: [{ name: '1 Hour', description: 'Perfect for a quick browsing session.', deviceLimit: 1, durationUnit: 'hours', durationValue: 1, imageUrl: '', mikrotikProfile: '1Hour', price: 0.50, currency: 'USD', active: true }, { name: '1 Day', description: 'Full-day access for work or entertainment.', deviceLimit: 1, durationUnit: 'days', durationValue: 1, imageUrl: '', mikrotikProfile: '1Day', price: 1.00, currency: 'USD', active: true }, { name: '7 Days', description: 'A full week of high-speed connectivity.', deviceLimit: 2, durationUnit: 'days', durationValue: 7, imageUrl: '', mikrotikProfile: '7Day', price: 3.00, currency: 'USD', active: true }, { name: '30 Days', description: 'Monthly plan — best value for regular users.', deviceLimit: 3, durationUnit: 'days', durationValue: 30, imageUrl: '', mikrotikProfile: '30Day', price: 5.00, currency: 'USD', active: true }],
+    printer: { type: process.env.PRINTER_TYPE || 'EPSON', interface: process.env.PRINTER_INTERFACE || 'tcp://192.168.88.254', width: parseInt(process.env.PRINTER_WIDTH) || 80, timeout: parseInt(process.env.PRINTER_TIMEOUT) || 5000, enabled: process.env.PRINTER_ENABLED !== 'false' },
+    slack: { enabled: false, token: process.env.SLACK_BOT_TOKEN || '', channel: process.env.SLACK_CHANNEL || '' },
+    discord: { enabled: false, token: process.env.DISCORD_BOT_TOKEN || '', channelId: process.env.DISCORD_CHANNEL_ID || '' },
+    sms: { enabled: false, provider: process.env.SMS_PROVIDER || 'twilio', accountSid: process.env.TWILIO_ACCOUNT_SID || process.env.SMS_ACCOUNT_SID || '', authToken: process.env.TWILIO_AUTH_TOKEN || process.env.SMS_AUTH_TOKEN || '', phoneNumber: process.env.TWILIO_FROM_NUMBER || process.env.SMS_PHONE_NUMBER || '', econetBaseUrl: process.env.ECONET_BASE_URL || 'https://api.econet.co.zw', econetClientId: process.env.ECONET_CLIENT_ID || '', econetClientSecret: process.env.ECONET_CLIENT_SECRET || '', econetFromName: process.env.ECONET_FROM_NAME || 'AgentOS' },
+    ussd: { enabled: false, provider: process.env.USSD_PROVIDER || 'africastalking', apiKey: process.env.USSD_API_KEY || '', username: process.env.USSD_USERNAME || '', serviceCode: process.env.USSD_SERVICE_CODE || '' },
+    email: { enabled: false, host: process.env.EMAIL_HOST || '', port: parseInt(process.env.EMAIL_PORT) || 587, user: process.env.EMAIL_USER || '', pass: process.env.EMAIL_PASS || '', from: process.env.EMAIL_FROM || '' }
 };
 
-/**
- * Deep-merge `src` into `dst`, skipping null/undefined src values so that
- * DEFAULT_CONFIG sub-objects are never clobbered by a null in the saved file.
- */
-function deepMerge(dst, src) {
-    if (!src || typeof src !== 'object' || Array.isArray(src)) return dst;
-    const out = { ...dst };
-    for (const key of Object.keys(src)) {
-        const sv = src[key];
-        if (sv === null || sv === undefined) continue; // keep default
-        if (typeof sv === 'object' && !Array.isArray(sv) && typeof dst[key] === 'object' && dst[key] !== null) {
-            out[key] = deepMerge(dst[key], sv);
-        } else {
-            out[key] = sv;
-        }
-    }
-    return out;
-}
+function deepMerge(dst, src) { if (!src || typeof src !== 'object' || Array.isArray(src)) return dst; const out = { ...dst }; for (const key of Object.keys(src)) { const sv = src[key]; if (sv === null || sv === undefined) continue; if (typeof sv === 'object' && !Array.isArray(sv) && typeof dst[key] === 'object' && dst[key] !== null) out[key] = deepMerge(dst[key], sv); else out[key] = sv; } return out; }
 
 function loadConfig() {
-    let config = JSON.parse(JSON.stringify(DEFAULT_CONFIG)); // deep clone defaults
-
-    // Load JSON config from profile
-    if (fs.existsSync(CONFIG_PATH)) {
-        try {
-            const saved = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-            config = deepMerge(config, saved);
-        } catch (e) {
-            console.error('Failed to load JSON config:', e.message);
-        }
-    }
-
-    // Load YAML config from project root or config folder
-    const yamlPaths = [
-        path.join(process.cwd(), 'br3eze.yaml'),
-        path.join(process.cwd(), 'config', 'br3eze.yaml')
-    ];
-
-    for (const yamlPath of yamlPaths) {
-        if (fs.existsSync(yamlPath)) {
-            try {
-                const content = fs.readFileSync(yamlPath, 'utf8');
-                const loaded = yaml.load(content);
-
-                // Merge common sections
-                if (loaded.integration && loaded.integration.printer) {
-                    config.printer = { ...config.printer, ...loaded.integration.printer };
-                }
-
-                // Also merge other sections if needed
-                if (loaded.mikrotik) {
-                    config.mikrotik = { ...config.mikrotik, ...loaded.mikrotik };
-                }
-
-                break; // Use the first one found
-            } catch (e) {
-                console.error(`Failed to load YAML config from ${yamlPath}:`, e.message);
-            }
-        }
-    }
-
+    let config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    if (fs.existsSync(CONFIG_PATH)) { try { config = deepMerge(config, JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'))); } catch (e) { console.error('Failed to load JSON config:', e.message); } }
+    const yamlPaths = [path.join(process.cwd(), 'br3eze.yaml'), path.join(process.cwd(), 'config', 'br3eze.yaml')];
+    for (const yamlPath of yamlPaths) { if (fs.existsSync(yamlPath)) { try { const loaded = yaml.load(fs.readFileSync(yamlPath, 'utf8')); if (loaded.integration?.printer) config.printer = { ...config.printer, ...loaded.integration.printer }; if (loaded.mikrotik) config.mikrotik = { ...config.mikrotik, ...loaded.mikrotik }; break; } catch (e) { console.error(`Failed to load YAML config from ${yamlPath}:`, e.message); } } }
     return config;
 }
 
-function saveConfig(config) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
+function saveConfig(config) { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2)); }
 
 function getConfig() {
     const loaded = loadConfig() || { ...DEFAULT_CONFIG, createdAt: new Date().toISOString() };
-
-    // Environment variables ALWAYS override config file for critical infrastructure
-    if (process.env.GATEWAY_PORT || process.env.PORT) {
-        loaded.gateway.port = parseInt(process.env.GATEWAY_PORT || process.env.PORT);
-    }
-    if (process.env.GATEWAY_HOST || process.env.HOST) {
-        loaded.gateway.host = process.env.GATEWAY_HOST || process.env.HOST;
-    }
-    if (process.env.MIKROTIK_IP) {
-        loaded.mikrotik.ip = process.env.MIKROTIK_IP;
-    }
-    if (process.env.AGENTOS_GATEWAY_TOKEN) {
-        loaded.gateway.token = process.env.AGENTOS_GATEWAY_TOKEN;
-    }
-
-    // Printer Overrides
+    if (process.env.GATEWAY_PORT || process.env.PORT) loaded.gateway.port = parseInt(process.env.GATEWAY_PORT || process.env.PORT);
+    if (process.env.GATEWAY_HOST || process.env.HOST) loaded.gateway.host = process.env.GATEWAY_HOST || process.env.HOST;
+    if (process.env.MIKROTIK_IP) loaded.mikrotik.ip = process.env.MIKROTIK_IP;
+    if (process.env.AGENTOS_GATEWAY_TOKEN) loaded.gateway.token = process.env.AGENTOS_GATEWAY_TOKEN;
     loaded.printer = loaded.printer || {};
-    if (process.env.PRINTER_INTERFACE) {
-        loaded.printer.interface = process.env.PRINTER_INTERFACE;
-    }
-    if (process.env.PRINTER_TYPE) {
-        loaded.printer.type = process.env.PRINTER_TYPE;
-    }
-    if (process.env.PRINTER_ENABLED !== undefined) {
-        loaded.printer.enabled = process.env.PRINTER_ENABLED !== 'false';
-    }
-
-    // Ensure structures exist before setting properties
-    loaded.whatsapp = loaded.whatsapp || {};
-    loaded.telegram = loaded.telegram || {};
-
-    // Channel Overrides
-    if (process.env.WHATSAPP_ENABLED) {
-        loaded.whatsapp.enabled = process.env.WHATSAPP_ENABLED === 'true';
-    }
-    if (process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN) {
-        loaded.telegram.enabled = true;
-        loaded.telegram.token = process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
-    }
-    if (process.env.ALLOWED_CHAT_IDS) {
-        const ids = process.env.ALLOWED_CHAT_IDS.split(',').map(id => id.trim()).filter(Boolean);
-        loaded.telegram.allowed_ids = ids;
-        loaded.whatsapp.allowed_ids = ids;
-    }
-
-    // Slack & Discord Overrides
-    if (process.env.SLACK_ENABLED !== undefined) {
-        loaded.slack.enabled = process.env.SLACK_ENABLED === 'true';
-    } else if (process.env.SLACK_BOT_TOKEN) {
-        loaded.slack.enabled = true;
-    }
-    if (process.env.SLACK_BOT_TOKEN) {
-        loaded.slack.token = process.env.SLACK_BOT_TOKEN;
-    }
-    if (process.env.SLACK_CHANNEL) {
-        loaded.slack.channel = process.env.SLACK_CHANNEL;
-    }
-
-    if (process.env.DISCORD_ENABLED !== undefined) {
-        loaded.discord.enabled = process.env.DISCORD_ENABLED === 'true';
-    } else if (process.env.DISCORD_BOT_TOKEN) {
-        loaded.discord.enabled = true;
-    }
-    if (process.env.DISCORD_BOT_TOKEN) {
-        loaded.discord.token = process.env.DISCORD_BOT_TOKEN;
-    }
-    if (process.env.DISCORD_CHANNEL_ID) {
-        loaded.discord.channelId = process.env.DISCORD_CHANNEL_ID;
-    }
-
-    // SMS Overrides
-    loaded.sms = loaded.sms || {};
-    if (process.env.SMS_ENABLED !== undefined) {
-        loaded.sms.enabled = process.env.SMS_ENABLED === 'true';
-    }
-
-    // USSD Overrides
-    loaded.ussd = loaded.ussd || {};
-    if (process.env.USSD_ENABLED !== undefined) {
-        loaded.ussd.enabled = process.env.USSD_ENABLED === 'true';
-    }
-
-    // Email Overrides
-    loaded.email = loaded.email || {};
-    if (process.env.EMAIL_ENABLED !== undefined) {
-        loaded.email.enabled = process.env.EMAIL_ENABLED === 'true';
-    }
-
+    if (process.env.PRINTER_INTERFACE) loaded.printer.interface = process.env.PRINTER_INTERFACE;
+    if (process.env.PRINTER_TYPE) loaded.printer.type = process.env.PRINTER_TYPE;
+    if (process.env.PRINTER_ENABLED !== undefined) loaded.printer.enabled = process.env.PRINTER_ENABLED !== 'false';
+    loaded.whatsapp = loaded.whatsapp || {}; loaded.telegram = loaded.telegram || {};
+    if (process.env.WHATSAPP_ENABLED) loaded.whatsapp.enabled = process.env.WHATSAPP_ENABLED === 'true';
+    if (process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN) { loaded.telegram.enabled = true; loaded.telegram.token = process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN; }
+    if (process.env.ALLOWED_CHAT_IDS) { const ids = process.env.ALLOWED_CHAT_IDS.split(',').map(id => id.trim()).filter(Boolean); loaded.telegram.allowed_ids = ids; loaded.whatsapp.allowed_ids = ids; }
+    if (process.env.SLACK_ENABLED !== undefined) loaded.slack.enabled = process.env.SLACK_ENABLED === 'true'; else if (process.env.SLACK_BOT_TOKEN) loaded.slack.enabled = true;
+    if (process.env.SLACK_BOT_TOKEN) loaded.slack.token = process.env.SLACK_BOT_TOKEN;
+    if (process.env.SLACK_CHANNEL) loaded.slack.channel = process.env.SLACK_CHANNEL;
+    if (process.env.DISCORD_ENABLED !== undefined) loaded.discord.enabled = process.env.DISCORD_ENABLED === 'true'; else if (process.env.DISCORD_BOT_TOKEN) loaded.discord.enabled = true;
+    if (process.env.DISCORD_BOT_TOKEN) loaded.discord.token = process.env.DISCORD_BOT_TOKEN;
+    if (process.env.DISCORD_CHANNEL_ID) loaded.discord.channelId = process.env.DISCORD_CHANNEL_ID;
+    if (process.env.AGENTOS_ONBOARDING_DEFAULT_CHANNEL) loaded.onboarding.defaultChannel = process.env.AGENTOS_ONBOARDING_DEFAULT_CHANNEL;
+    for (const tier of ['reasoning', 'balanced', 'fast', 'multimodal', 'live', 'embedding']) { const key = `AGENTOS_MODEL_${tier.toUpperCase()}`; if (process.env[key]) { loaded.onboarding.modelPolicy[tier] = process.env[key]; loaded.llm.modelPolicy[tier] = process.env[key]; } }
     return loaded;
 }
 
-export const mikrotik = {
-    host: process.env.MIKROTIK_IP,
-    user: process.env.MIKROTIK_USER,
-    pass: process.env.MIKROTIK_PASS
-};
-export const security = {
-    apiKey: process.env.API_KEY,
-    ALERT_COOLDOWN_MS: 60000
-};
-export { BRAND, PROFILE_DIR, CONFIG_PATH, STATE_PATH, DEFAULT_CONFIG, DEFAULT_LOGIN_DOMAIN, loadConfig, saveConfig, getConfig };
+export { DEFAULT_LOGIN_DOMAIN, BRAND, DEFAULT_CONFIG, loadConfig, saveConfig, getConfig, PROFILE_DIR, CONFIG_PATH, STATE_PATH };
+
+export default getConfig();
