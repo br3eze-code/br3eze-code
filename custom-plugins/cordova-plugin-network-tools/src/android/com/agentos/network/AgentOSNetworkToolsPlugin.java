@@ -4,6 +4,7 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -52,15 +53,34 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
 
     private JSONObject connectivity() throws JSONException {
         JSONObject result = new JSONObject();
-        ConnectivityManager manager = (ConnectivityManager) cordova.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-        Network network = manager == null ? null : manager.getActiveNetwork();
-        NetworkCapabilities capabilities = network == null ? null : manager.getNetworkCapabilities(network);
+        ConnectivityManager manager = (ConnectivityManager) cordova.getContext()
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        if (manager == null) {
+            return result.put("connected", false).put("transport", "offline").put("validated", false);
+        }
+
+        NetworkCapabilities capabilities = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Network network = manager.getActiveNetwork();
+            capabilities = network == null ? null : manager.getNetworkCapabilities(network);
+        } else {
+            NetworkInfo info = manager.getActiveNetworkInfo();
+            result.put("connected", info != null && info.isConnected());
+            result.put("transport", info == null ? "offline" : legacyTransport(info.getType()));
+            result.put("validated", false);
+            return result;
+        }
+
         result.put("connected", capabilities != null);
         result.put("transport", transport(capabilities));
-        result.put("validated", capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
+        result.put("validated", capabilities != null
+                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
 
         if (capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-            WifiManager wifi = (WifiManager) cordova.getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            WifiManager wifi = (WifiManager) cordova.getContext().getApplicationContext()
+                    .getSystemService(Context.WIFI_SERVICE);
             WifiInfo info = wifi == null ? null : wifi.getConnectionInfo();
             if (info != null) {
                 result.put("ssid", sanitizeSsid(info.getSSID()));
@@ -70,12 +90,22 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
         return result;
     }
 
+    private String legacyTransport(int type) {
+        switch (type) {
+            case 1: return "wifi";
+            case 9: return "ethernet";
+            case 0: return "cellular";
+            default: return "other";
+        }
+    }
+
     private String transport(NetworkCapabilities capabilities) {
         if (capabilities == null) return "offline";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return "wifi";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return "ethernet";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return "cellular";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return "vpn";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return "vpn";
         return "other";
     }
 
@@ -95,7 +125,8 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
                 item.put("loopback", networkInterface.isLoopback());
                 item.put("mtu", networkInterface.getMTU());
                 JSONArray addresses = new JSONArray();
-                Collections.list(networkInterface.getInetAddresses()).forEach(address -> addresses.put(address.getHostAddress()));
+                Collections.list(networkInterface.getInetAddresses())
+                        .forEach(address -> addresses.put(address.getHostAddress()));
                 item.put("addresses", addresses);
                 result.put(item);
             }
