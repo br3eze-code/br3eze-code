@@ -63,25 +63,24 @@ export function createOnboardingWbs(context = {}, input = {}) {
 
 export function attachOnboardingWbs(frame = {}) {
   const message = frame.message || frame.msg || frame;
-  const context = buildExecutionContext({
-    ...frame,
-    message,
-    channel: normalizeChannel(frame),
-  });
-  const existing = Array.isArray(frame.wbs) && frame.wbs.length > 0
+  const channel = normalizeChannel(frame);
+  const context = buildExecutionContext({ ...frame, message, channel });
+  const existingWbs = Array.isArray(frame.wbs) && frame.wbs.length > 0;
+
+  const existing = existingWbs
     ? {
       wbs: frame.wbs,
       wbsSummary: frame.wbsSummary || summarizeActionWbs(frame.wbs),
-      wbsPrompt: frame.wbsPrompt || formatWbsForPrompt(frame.wbs, frame.wbsSummary),
+      wbsPrompt: frame.wbsPrompt || formatWbsForPrompt(frame.wbs, frame.wbsSummary || summarizeActionWbs(frame.wbs)),
       nextAction: frame.nextAction || null,
-      channel: normalizeChannel(frame),
+      channel,
       model: frame.model || resolveModel({ task: frame.task || 'execution', tier: frame.modelTier, override: frame.model }),
       task: frame.task || 'execution',
       onboardingSteps: [...ONBOARDING_STEPS],
     }
     : createOnboardingWbs(context, {
       text: frame.content || frame.text || frame.action,
-      channel: normalizeChannel(frame),
+      channel,
       task: frame.task || frame.intent || 'execution',
       model: frame.model,
       modelTier: frame.modelTier,
