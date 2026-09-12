@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import sdk from '../plugin-sdk/index.js';
 import { getSQLite } from './sqlite-db.js';
-import { getFirestore } from '../adapters/firebase/admin.js';
 
 let cachedService = null;
 let attemptedLoad = false;
@@ -12,8 +12,9 @@ async function getProductQueryService() {
   if (cachedService) return cachedService; if (attemptedLoad) return null; attemptedLoad = true;
   const module = await loadCompiledService(); if (!module) return null;
   let sql; try { sql = new module.SqlProductAdapter(await getSQLite()); } catch { sql = undefined; }
-  let firebase; try { const firestore = getFirestore(); if (firestore) firebase = new module.FirebaseProductAdapter(firestore); } catch { firebase = undefined; }
-  if (!sql && !firebase) return null; cachedService = new module.ProductQueryService({ sql, firebase }); return cachedService;
+  let documentStore; try { documentStore = sdk.hasProvider('document-store') ? sdk.getProvider('document-store') : null; } catch { documentStore = null; }
+  let remote; try { if (documentStore) remote = new module.FirebaseProductAdapter(documentStore); } catch { remote = undefined; }
+  if (!sql && !remote) return null; cachedService = new module.ProductQueryService({ sql, firebase: remote }); return cachedService;
 }
 function resetProductQueryServiceBridge() { cachedService = null; attemptedLoad = false; }
 export { getProductQueryService, resetProductQueryServiceBridge };
