@@ -17,11 +17,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
@@ -43,7 +41,7 @@ jobs:
           PORT: 3000
           GATEWAY_PORT: 19876
 
-      - name: Type check (jsconfig + tsconfig)
+      - name: Type check (syntax + runtime source)
         run: npm run build:check
 
       - name: Security check script
