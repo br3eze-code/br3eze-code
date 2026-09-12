@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { logger } from './logger.js';
 import defaultRegistry from './ToolRegistry.js';
 import BaseDomain from '../domains/BaseDomain.js';
-import { pathToFileURL } from 'node:url';
 
 /**
  * Load every domain into the supplied capability registry.
@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
  * multi-runtime use.
  */
 async function loadAllDomains(config = {}, registry = defaultRegistry) {
-  const domainsDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../domains');
+  const domainsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../domains');
 
   if (!fs.existsSync(domainsDir)) {
     logger.warn('Domains directory not found');
@@ -38,10 +38,7 @@ async function loadAllDomains(config = {}, registry = defaultRegistry) {
       ) {
         const domainInstance = new domainModule(config[item] || {});
         registry.registerDomain(domainInstance.name || item, domainInstance.getSkills());
-      } else if (
-        domainModule &&
-        typeof domainModule.getSkills === 'function'
-      ) {
+      } else if (domainModule && typeof domainModule.getSkills === 'function') {
         registry.registerDomain(domainModule.name || item, domainModule.getSkills());
       } else {
         logger.warn(`Domain ${item} does not follow a recognized registration pattern`);
