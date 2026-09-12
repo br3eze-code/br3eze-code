@@ -1,0 +1,13 @@
+{
+  "name": "@br3eze/agentos-network-adapter-suite",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Portable AgentOS network adapter suite with desktop Wi-Fi support.",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "test": "node tests/contract.test.mjs",
+    "desktop:start": "npm --prefix apps/wifi-manager-desktop start",
+    "desktop:build": "npm --prefix apps/wifi-manager-desktop run build"
+  },
+  "engines": { "node": ">=22" }
+}

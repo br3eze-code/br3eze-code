@@ -1,0 +1,23 @@
+{
+  "name": "@br3eze/wifi-manager-desktop",
+  "version": "2.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --mac --linux"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "africa.br3eze.agentos.wifi",
+    "productName": "AgentOS Wi-Fi Manager",
+    "files": ["src/**/*", "package.json"],
+    "win": { "target": ["nsis", "portable"] },
+    "mac": { "target": ["dmg", "zip"] },
+    "linux": { "target": ["AppImage", "deb"] }
+  }
+}
