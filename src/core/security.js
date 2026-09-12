@@ -4,35 +4,64 @@ import helmet from 'helmet';
 import hpp from 'hpp';
 import { logger } from './logger.js';
 
-// src/core/security.js
-
+/**
+ * SecurityManager — HTTP hardening, audit logging and authenticated encryption.
+ *
+ * AES-256-GCM is used with a fresh IV for every ciphertext. If a master key is
+ * configured it is deterministically normalized to 32 bytes so encrypted data
+ * survives process restarts. Without one, a random process key is used and a
+ * warning is emitted because ciphertext cannot be decrypted after restart.
+ */
 class SecurityManager {
   constructor() {
-    this.encryptionKey = process.env.AGENTOS_MASTER_KEY || crypto.randomBytes(32);
+    const configuredKey = process.env.AGENTOS_MASTER_KEY;
+    if (configuredKey) {
+      this.encryptionKey = SecurityManager.normalizeKey(configuredKey);
+    } else {
+      this.encryptionKey = crypto.randomBytes(32);
+      logger.warn('[Security] AGENTOS_MASTER_KEY is not configured; encryption key is ephemeral for this process.');
+    }
     this.failedAttempts = new Map();
     this.blockedIPs = new Set();
   }
 
+  static normalizeKey(value) {
+    if (/^[0-9a-fA-F]{64}$/.test(value)) return Buffer.from(value, 'hex');
+    if (/^[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length >= 43) {
+      const decoded = Buffer.from(value, 'base64');
+      if (decoded.length === 32) return decoded;
+    }
+    return crypto.createHash('sha256').update(value, 'utf8').digest();
+  }
+
   encrypt(text) {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    if (text === undefined || text === null) throw new TypeError('text is required');
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+    const encrypted = Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]);
     const authTag = cipher.getAuthTag();
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
   decrypt(encryptedData) {
-    const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
-    const decipher = crypto.createDecipher('aes-256-gcm', this.encryptionKey);
-    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+    if (typeof encryptedData !== 'string') throw new TypeError('encryptedData must be a string');
+    const parts = encryptedData.split(':');
+    if (parts.length !== 3) throw new Error('Invalid encrypted data format');
+    const [ivHex, authTagHex, encryptedHex] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    const ciphertext = Buffer.from(encryptedHex, 'hex');
+    if (iv.length !== 12 || authTag.length !== 16 || ciphertext.length === 0) {
+      throw new Error('Invalid encrypted data');
+    }
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString('utf8');
   }
 
   sanitizeHost(host) {
-    if (!/^[\w\.-]+$/.test(host)) throw new Error('Invalid hostname format');
+    if (typeof host !== 'string' || !/^[\w\.-]+$/.test(host)) throw new Error('Invalid hostname format');
     if (['127.0.0.1', 'localhost', '0.0.0.0', '::1'].includes(host.toLowerCase())) throw new Error('Forbidden host');
     return host;
   }
@@ -80,8 +109,8 @@ class SecurityManager {
   }
 
   sanitizeBody(body) {
-    if (!body) return body;
-    const sensitive = ['password', 'token', 'secret', 'key', 'credential'];
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+    const sensitive = ['password', 'token', 'secret', 'key', 'credential', 'authorization'];
     return Object.fromEntries(Object.entries(body).map(([key, value]) => [
       key,
       sensitive.some((name) => key.toLowerCase().includes(name)) ? '[REDACTED]' : value,
