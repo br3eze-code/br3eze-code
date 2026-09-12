@@ -6,15 +6,13 @@ import { createNextActionProposal } from './next-action-planner.js';
 const TaskStatus = Object.freeze({ CREATED: 'created', RUNNING: 'running', COMPLETED: 'completed', FAILED: 'failed', STOPPED: 'stopped' });
 const TaskPhase = Object.freeze({ PLAN: 'plan', DRAFT: 'draft', APPROVE: 'approve', EXECUTE: 'execute', OBSERVE: 'observe', VERIFY: 'verify', COMPLETE: 'complete' });
 const TERMINAL_STATUSES = new Set([TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.STOPPED]);
-const MUTATING_ACTION_PATTERNS = Object.freeze([/^payment\./, /^purchase\./, /^supplier\.commit$/, /^budget\.allocate$/, /^ledger\.write$/, /^settlement\./, /^order\.(create|commit|cancel)/, /^account\.(suspend|delete)/]);
-const requiresApprovalByAction = (action) => MUTATING_ACTION_PATTERNS.some((pattern) => pattern.test(String(action || '')));
 
 class TaskRegistry extends EventEmitter {
   constructor({ store = null, staleAfterMs = 30 * 60 * 1000, clock = () => Date.now() } = {}) {
     super(); this.tasks = new Map(); this.counter = 0; this.store = store; this.staleAfterMs = staleAfterMs; this.clock = clock;
   }
 
-  create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = requiresApprovalByAction(action) } = {}) {
+  create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = false } = {}) {
     const taskId = uuidv4(), now = this.clock();
     const taskWbs = wbs || createActionWbs(action || 'assist.task', { context, input: { text: prompt, action, ...input } });
     const task = {
@@ -66,7 +64,6 @@ class TaskRegistry extends EventEmitter {
   beginExecution(taskId) { return this.setPhase(taskId, TaskPhase.EXECUTE); }
   checkpoint(taskId, checkpoint = {}) { const task = this.tasks.get(taskId); if (!task) return null; task.checkpoints.push({ ...checkpoint, timestamp: this.clock() }); task.updatedAt = this.clock(); this._persist(task); this.emit('task:checkpoint', task); return task; }
   markVerified(taskId, evidence = []) { const task = this.tasks.get(taskId); if (!task) return null; task.execution.verifiedAt = this.clock(); task.execution.verificationEvidence = [...evidence]; task.execution.phase = TaskPhase.VERIFY; task.updatedAt = this.clock(); this._persist(task); this.emit('task:verified', task); return task; }
-
   findIncomplete({ scope = {}, staleAfterMs = this.staleAfterMs } = {}) { const now = this.clock(); return this.list(null, scope).filter((task) => !TERMINAL_STATUSES.has(task.status)).map((task) => ({ ...task, stale: now - task.updatedAt > staleAfterMs })); }
   summary() { const counts = {}; for (const status of Object.values(TaskStatus)) counts[status] = 0; for (const task of this.tasks.values()) counts[task.status] = (counts[task.status] || 0) + 1; return { total: this.tasks.size, ...counts, incomplete: this.findIncomplete().length }; }
   stop(taskId) { return this.setStatus(taskId, TaskStatus.STOPPED, 'Stopped by operator'); }
@@ -75,5 +72,4 @@ class TaskRegistry extends EventEmitter {
 
 let _instance = null;
 function getTaskRegistry(options) { if (!_instance) _instance = new TaskRegistry(options); return _instance; }
-
-export { TaskRegistry, TaskStatus, TaskPhase, TERMINAL_STATUSES, requiresApprovalByAction, getTaskRegistry };
+export { TaskRegistry, TaskStatus, TaskPhase, TERMINAL_STATUSES, getTaskRegistry };
