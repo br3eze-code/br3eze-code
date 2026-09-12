@@ -1,15 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { assertTenantScope, assertEntitlement } from './saas-boundary.js';
 
-/**
- * Domain-neutral capability boundary.
- * Plugins, skills and domains may advertise capabilities, but the kernel only
- * executes a capability after scope, entitlement, authorization, approval and
- * lifecycle checks.
- */
-
 const PHASES = Object.freeze(['plan', 'draft', 'approve', 'execute', 'observe', 'verify', 'complete']);
 const RISK_LEVELS = Object.freeze(['low', 'medium', 'high', 'critical']);
+const ACTIVE_ACCOUNT_STATES = new Set(['trialing', 'active', 'past_due']);
 
 function normalizeCapabilities(values = []) {
   return [...new Set((Array.isArray(values) ? values : [values]).filter(Boolean).map((value) => String(value).trim()).filter(Boolean))];
@@ -26,6 +20,7 @@ export function checkCapabilityBoundary(capability, context = {}, { phase = 'pla
   const errors = [];
   if (!capability?.id) errors.push('capability_required');
   if (!PHASES.includes(phase)) errors.push('invalid_phase');
+  if (context.accountState && !ACTIVE_ACCOUNT_STATES.has(context.accountState)) errors.push(`account_state_blocked:${context.accountState}`);
   if (capability && phase === 'execute' && capability.phase !== 'execute') errors.push('capability_not_executable');
   if (capability && phase === 'execute' && capability.requiresApproval && approved !== true) errors.push('approval_required');
   try { assertTenantScope(context, context.resource || {}); } catch (error) { errors.push(error.message === 'authenticated tenant context required' ? 'tenant_scope_required' : error.message); }
