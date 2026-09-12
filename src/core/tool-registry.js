@@ -7,7 +7,6 @@ import { logger } from './logger.js';
 
 /**
  * Canonical AgentOS ToolRegistry.
- *
  * Owns skill discovery, tool registration/execution, schemas and metrics.
  * Keep domain implementations behind this registry; do not create parallel
  * ToolRegistry implementations elsewhere in core.
@@ -16,11 +15,9 @@ import { logger } from './logger.js';
 function syncExists(filePath) {
   try { fsSync.accessSync(filePath); return true; } catch { return false; }
 }
-
 function syncIsDir(filePath) {
   try { return fsSync.statSync(filePath).isDirectory(); } catch { return false; }
 }
-
 async function importFresh(filePath) {
   const url = pathToFileURL(filePath);
   url.searchParams.set('reload', Date.now().toString());
@@ -41,9 +38,28 @@ class ToolRegistry {
   }
 
   registerDomain(domainName, toolDefs = []) {
+    if (!domainName || typeof domainName !== 'string') throw new TypeError('domainName is required');
     if (!Array.isArray(toolDefs)) throw new TypeError('toolDefs must be an array');
     this.domains.add(domainName);
-    for (const tool of toolDefs) this.register(`${domainName}.${tool.name}`, { ...tool, domain: domainName });
+    for (const tool of toolDefs) {
+      if (!tool?.name || typeof tool.execute !== 'function') {
+        throw new TypeError(`Invalid domain tool for "${domainName}": name and execute() are required`);
+      }
+      const handler = tool.passContext
+        ? (args = {}, ctx = {}) => {
+            const positional = Array.isArray(args) ? args : [args];
+            return tool.execute(...positional, ctx);
+          }
+        : (args = {}) => {
+            const positional = Array.isArray(args) ? args : [args];
+            return tool.execute(...positional);
+          };
+      this.register(`${domainName}.${tool.name}`, {
+        ...tool,
+        handler,
+        domain: domainName,
+      });
+    }
     return this;
   }
 
@@ -80,14 +96,7 @@ class ToolRegistry {
     try {
       const tools = await this._loadTools(skillPath, manifest);
       const skillHooks = await this._loadHooks(skillPath);
-      this.skills.set(manifest.name, {
-        manifest,
-        tools,
-        hooks: skillHooks,
-        path: skillPath,
-        enabled: true,
-        loadedAt: new Date().toISOString(),
-      });
+      this.skills.set(manifest.name, { manifest, tools, hooks: skillHooks, path: skillPath, enabled: true, loadedAt: new Date().toISOString() });
       if (skillHooks['on-enable']) await skillHooks['on-enable']({ config: manifest.config || {} });
       this._manifestCache = null;
       return true;
@@ -122,7 +131,6 @@ class ToolRegistry {
     if (!entry) throw new ToolNotFoundError(fullName);
     const skill = this.skills.get(entry.skill);
     if (skill && !skill.enabled) throw new SkillDisabledError(entry.skill, fullName);
-
     const metrics = this._metrics.get(fullName) || { calls: 0, errors: 0, lastCalledAt: null, totalMs: 0 };
     this._metrics.set(fullName, metrics);
     metrics.calls += 1;
@@ -143,15 +151,11 @@ class ToolRegistry {
 
   search(query, limit = 10) {
     const q = String(query).toLowerCase();
-    return [...this.tools.entries()]
-      .map(([fullName, entry]) => ({
-        fullName,
-        entry,
-        score: (fullName.toLowerCase().includes(q) ? 2 : 0) + ((entry.schema?.description || '').toLowerCase().includes(q) ? 1 : 0),
-      }))
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
+    return [...this.tools.entries()].map(([fullName, entry]) => ({
+      fullName,
+      entry,
+      score: (fullName.toLowerCase().includes(q) ? 2 : 0) + ((entry.schema?.description || '').toLowerCase().includes(q) ? 1 : 0),
+    })).filter((item) => item.score > 0).sort((a, b) => b.score - a.score).slice(0, limit)
       .map(({ fullName, entry }) => ({ name: fullName, description: entry.schema?.description || '', skill: entry.skill, risk: entry.schema?.risk || 'low' }));
   }
 
@@ -172,14 +176,7 @@ class ToolRegistry {
           Object.assign(properties, params.properties || {});
           required.push(...(params.required || []));
         }
-        return {
-          type: 'function',
-          function: {
-            name: fullName.replace(/\./g, '__'),
-            description: entry.schema?.description || fullName,
-            parameters: { type: 'object', properties, required },
-          },
-        };
+        return { type: 'function', function: { name: fullName.replace(/\./g, '__'), description: entry.schema?.description || fullName, parameters: { type: 'object', properties, required } } };
       });
   }
 
@@ -194,14 +191,7 @@ class ToolRegistry {
       skill: tool.skill,
       risk: tool.schema?.risk || tool.risk || 'low',
     }));
-    this._manifestCache = {
-      version: '2.0.0',
-      agent: 'AgentOS',
-      domains: [...this.domains],
-      skills: [...this.skills.keys()],
-      tools,
-      safety: { maxToolsPerRequest: 10, allowedOperations: tools.map((tool) => tool.name) },
-    };
+    this._manifestCache = { version: '2.0.0', agent: 'AgentOS', domains: [...this.domains], skills: [...this.skills.keys()], tools, safety: { maxToolsPerRequest: 10, allowedOperations: tools.map((tool) => tool.name) } };
     return this._manifestCache;
   }
 
@@ -212,58 +202,20 @@ class ToolRegistry {
   getToolsForDomain(domain) { return this.getToolsByDomain(domain); }
   getSkillNames() { return [...this.skills.keys()]; }
   getToolCount() { return this.tools.size; }
-
-  getToolsBySkill(skillName) {
-    const skill = this.skills.get(skillName);
-    return skill ? [...skill.tools.values()] : [];
-  }
-
+  getToolsBySkill(skillName) { const skill = this.skills.get(skillName); return skill ? [...skill.tools.values()] : []; }
   getSkill(skillName) { return this.skills.get(skillName) || null; }
-
-  getSkillInfo(skillName) {
-    const skill = this.skills.get(skillName);
-    return skill ? { ...skill.manifest, toolCount: skill.tools.size, enabled: skill.enabled, loadedAt: skill.loadedAt } : null;
-  }
-
-  setSkillEnabled(skillName, enabled) {
-    const skill = this.skills.get(skillName);
-    if (skill) {
-      skill.enabled = Boolean(enabled);
-      this._manifestCache = null;
-    }
-  }
-
+  getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...skill.manifest, toolCount: skill.tools.size, enabled: skill.enabled, loadedAt: skill.loadedAt } : null; }
+  setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this._manifestCache = null; } }
   getMetrics(toolName = null) {
     if (toolName) return this._metrics.get(toolName) || null;
-    return Object.fromEntries([...this._metrics.entries()].map(([name, metrics]) => [name, {
-      ...metrics,
-      avgMs: metrics.calls ? Math.round(metrics.totalMs / metrics.calls) : 0,
-    }]));
+    return Object.fromEntries([...this._metrics.entries()].map(([name, metrics]) => [name, { ...metrics, avgMs: metrics.calls ? Math.round(metrics.totalMs / metrics.calls) : 0 }]));
   }
-
-  listSkillsTable() {
-    return [...this.skills.values()].map((skill) => ({
-      skill: skill.manifest.name,
-      version: skill.manifest.version || '—',
-      tools: skill.tools.size,
-      enabled: skill.enabled ? '✓' : '✗',
-      loadedAt: skill.loadedAt?.slice(11, 19) || '—',
-    }));
-  }
+  listSkillsTable() { return [...this.skills.values()].map((skill) => ({ skill: skill.manifest.name, version: skill.manifest.version || '—', tools: skill.tools.size, enabled: skill.enabled ? '✓' : '✗', loadedAt: skill.loadedAt?.slice(11, 19) || '—' })); }
 
   async _resolveManifest(skillPath, skillName) {
-    const candidates = [
-      [path.join(skillPath, 'manifest.yaml'), 'yaml'],
-      [path.join(skillPath, 'manifest.yml'), 'yaml'],
-      [path.join(skillPath, 'skill.json'), 'json'],
-    ];
+    const candidates = [[path.join(skillPath, 'manifest.yaml'), 'yaml'], [path.join(skillPath, 'manifest.yml'), 'yaml'], [path.join(skillPath, 'skill.json'), 'json']];
     for (const [file, type] of candidates) {
-      try {
-        const raw = await fsp.readFile(file, 'utf8');
-        return type === 'yaml' ? yaml.load(raw) : JSON.parse(raw);
-      } catch {
-        // Try the next manifest format.
-      }
+      try { const raw = await fsp.readFile(file, 'utf8'); return type === 'yaml' ? yaml.load(raw) : JSON.parse(raw); } catch { /* Try next manifest format. */ }
     }
     this.logger.warn(`No manifest found for skill "${skillName}"`);
     return null;
@@ -277,17 +229,13 @@ class ToolRegistry {
     const hasToolsDir = syncIsDir(toolsDir);
     const hasIndex = syncExists(indexPath);
     let indexModule = null;
-
     if (!hasToolsDir && hasIndex) {
       try {
         const imported = await importFresh(indexPath);
         const exported = imported.default || imported;
         indexModule = typeof exported === 'function' ? new exported({}, this.logger, this.workspace) : exported;
-      } catch (error) {
-        this.logger.warn(`Skill "${manifest.name}": failed to load index.js — ${error.message}`);
-      }
+      } catch (error) { this.logger.warn(`Skill "${manifest.name}": failed to load index.js — ${error.message}`); }
     }
-
     for (const toolDef of manifest.tools) {
       if (hasToolsDir) {
         const toolPath = path.join(toolsDir, `${toolDef.name.replace(/\./g, '-')}.js`);
@@ -296,22 +244,11 @@ class ToolRegistry {
           const handler = imported.handler || imported.default || imported;
           if (typeof handler !== 'function') throw new TypeError('tool module does not export a function');
           const entry = { schema: toolDef, handler, skill: manifest.name, fullName: `${manifest.name}.${toolDef.name}` };
-          tools.set(toolDef.name, entry);
-          this.tools.set(entry.fullName, entry);
-          this.domains.add(manifest.name);
-        } catch (error) {
-          this.logger.error(`Failed to load tool "${toolDef.name}": ${error.message}`);
-        }
+          tools.set(toolDef.name, entry); this.tools.set(entry.fullName, entry); this.domains.add(manifest.name);
+        } catch (error) { this.logger.error(`Failed to load tool "${toolDef.name}": ${error.message}`); }
       } else if (indexModule && typeof indexModule.execute === 'function') {
-        const entry = {
-          schema: toolDef,
-          skill: manifest.name,
-          fullName: `${manifest.name}.${toolDef.name}`,
-          handler: (args = {}, ctx = {}) => indexModule.execute(toolDef.name, args, ctx),
-        };
-        tools.set(toolDef.name, entry);
-        this.tools.set(entry.fullName, entry);
-        this.domains.add(manifest.name);
+        const entry = { schema: toolDef, skill: manifest.name, fullName: `${manifest.name}.${toolDef.name}`, handler: (args = {}, ctx = {}) => indexModule.execute(toolDef.name, args, ctx) };
+        tools.set(toolDef.name, entry); this.tools.set(entry.fullName, entry); this.domains.add(manifest.name);
       } else {
         this.logger.warn(`Skill "${manifest.name}": no tools/ directory and no execute() — skipping "${toolDef.name}"`);
       }
@@ -328,28 +265,16 @@ class ToolRegistry {
         const imported = await importFresh(path.join(hooksDir, file));
         hooks[path.basename(file, '.js')] = imported.default || imported;
       }
-    } catch {
-      // Hooks are optional.
-    }
+    } catch { /* Hooks are optional. */ }
     return hooks;
   }
 }
 
 class ToolNotFoundError extends Error {
-  constructor(name) {
-    super(`Tool not found: "${name}"`);
-    this.name = 'ToolNotFoundError';
-    this.toolName = name;
-  }
+  constructor(name) { super(`Tool not found: "${name}"`); this.name = 'ToolNotFoundError'; this.toolName = name; }
 }
-
 class SkillDisabledError extends Error {
-  constructor(skill, tool) {
-    super(`Skill "${skill}" is disabled — cannot execute tool "${tool}"`);
-    this.name = 'SkillDisabledError';
-    this.skillName = skill;
-    this.toolName = tool;
-  }
+  constructor(skill, tool) { super(`Skill "${skill}" is disabled — cannot execute tool "${tool}"`); this.name = 'SkillDisabledError'; this.skillName = skill; this.toolName = tool; }
 }
 
 export { ToolRegistry, ToolNotFoundError, SkillDisabledError };
