@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality-gate:
-    name: Duplicate exports and new lint blockers
+    name: Duplicate exports, architecture and new lint blockers
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -23,10 +23,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Resolve comparison base
         id: base
@@ -37,6 +36,9 @@ jobs:
           else
             echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Run architecture gate
+        run: npm run check:architecture
 
       - name: Run CI quality gate
         env:

@@ -1,155 +1,120 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import hpp from 'hpp';
+import { logger } from './logger.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-// src/core/security.js
-
+/**
+ * SecurityManager — HTTP hardening, audit logging and authenticated encryption.
+ *
+ * AES-256-GCM is used with a fresh IV for every ciphertext. If a master key is
+ * configured it is deterministically normalized to 32 bytes so encrypted data
+ * survives process restarts. Without one, a random process key is used and a
+ * warning is emitted because ciphertext cannot be decrypted after restart.
+ */
 class SecurityManager {
   constructor() {
-    this.encryptionKey = process.env.AGENTOS_MASTER_KEY || crypto.randomBytes(32);
+    const configuredKey = process.env.AGENTOS_MASTER_KEY;
+    if (configuredKey) {
+      this.encryptionKey = SecurityManager.normalizeKey(configuredKey);
+    } else {
+      this.encryptionKey = crypto.randomBytes(32);
+      logger.warn('[Security] AGENTOS_MASTER_KEY is not configured; encryption key is ephemeral for this process.');
+    }
     this.failedAttempts = new Map();
     this.blockedIPs = new Set();
   }
 
-  // Encrypt sensitive data (WhatsApp credentials, tokens)
+  static normalizeKey(value) {
+    if (/^[0-9a-fA-F]{64}$/.test(value)) return Buffer.from(value, 'hex');
+    if (/^[A-Za-z0-9+/]+={0,2}$/.test(value) && value.length >= 43) {
+      const decoded = Buffer.from(value, 'base64');
+      if (decoded.length === 32) return decoded;
+    }
+    return crypto.createHash('sha256').update(value, 'utf8').digest();
+  }
+
   encrypt(text) {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
+    if (text === undefined || text === null) throw new TypeError('text is required');
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+    const encrypted = Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]);
     const authTag = cipher.getAuthTag();
-    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+    return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
   decrypt(encryptedData) {
-    const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
-    const decipher = crypto.createDecipher('aes-256-gcm', this.encryptionKey);
-    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+    if (typeof encryptedData !== 'string') throw new TypeError('encryptedData must be a string');
+    const parts = encryptedData.split(':');
+    if (parts.length !== 3) throw new Error('Invalid encrypted data format');
+    const [ivHex, authTagHex, encryptedHex] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
+    const ciphertext = Buffer.from(encryptedHex, 'hex');
+    if (iv.length !== 12 || authTag.length !== 16 || ciphertext.length === 0) {
+      throw new Error('Invalid encrypted data');
+    }
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString('utf8');
   }
 
-  // Input validation for network commands
   sanitizeHost(host) {
-    // Prevent command injection
-    if (!/^[\w\.-]+$/.test(host)) {
-      throw new Error('Invalid hostname format');
-    }
-    // Prevent internal IP scanning
-    const forbidden = ['127.0.0.1', 'localhost', '0.0.0.0', '::1'];
-    if (forbidden.includes(host.toLowerCase())) {
-      throw new Error('Forbidden host');
-    }
+    if (typeof host !== 'string' || !/^[\w\.-]+$/.test(host)) throw new Error('Invalid hostname format');
+    if (['127.0.0.1', 'localhost', '0.0.0.0', '::1'].includes(host.toLowerCase())) throw new Error('Forbidden host');
     return host;
   }
 
-  // Rate limiter for messaging channels
   getMessageLimiter() {
-    return rateLimit({
-      windowMs: 60 * 1000, // 1 minute
-      max: 30, // 30 messages per minute
-      message: 'Too many messages, please slow down',
-      standardHeaders: true,
-      legacyHeaders: false,
-    });
+    return rateLimit({ windowMs: 60 * 1000, max: 30, message: 'Too many messages, please slow down', standardHeaders: true, legacyHeaders: false });
   }
 
-  // Express security middleware stack
   getSecurityMiddleware() {
     return [
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            connectSrc: [
-              "'self'",
-              "wss:",
-              "https://*.firebaseio.com",
-              "wss://*.firebaseio.com",
-              "https://*.googleapis.com",
-              "https://*.firebaseapp.com"
-            ],
-            scriptSrc: [
-              "'self'",
-              "'unsafe-inline'",
-              "'unsafe-eval'",
-              "https://www.gstatic.com",
-              "https://apis.google.com"
-            ],
-            frameSrc: [
-              "'self'",
-              "https://*.firebaseapp.com",
-              "https://*.google.com"
-            ],
-            styleSrc: [
-              "'self'",
-              "'unsafe-inline'",
-              "https://fonts.googleapis.com",
-              "https://cdnjs.cloudflare.com"
-            ],
-            fontSrc: [
-              "'self'",
-              "https://fonts.gstatic.com",
-              "https://cdnjs.cloudflare.com"
-            ],
-            imgSrc: [
-              "'self'",
-              "data:",
-              "https://*.googleusercontent.com",
-              "https://*.gstatic.com",
-              "https://*.firebaseapp.com"
-            ]
+            connectSrc: ["'self'", 'wss:', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.googleapis.com', 'https://*.firebaseapp.com'],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://www.gstatic.com', 'https://apis.google.com'],
+            frameSrc: ["'self'", 'https://*.firebaseapp.com', 'https://*.google.com'],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+            imgSrc: ["'self'", 'data:', 'https://*.googleusercontent.com', 'https://*.gstatic.com', 'https://*.firebaseapp.com'],
           },
         },
-        hsts: {
-          maxAge: 31536000,
-          includeSubDomains: true,
-          preload: true
-        }
+        hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
       }),
-      hpp(), // Prevent HTTP Parameter Pollution
-      this.auditMiddleware.bind(this)
+      hpp(),
+      this.auditMiddleware.bind(this),
     ];
   }
 
-  // Audit logging middleware
   auditMiddleware(req, res, next) {
-    const { logger } = require('./logger');
     const start = Date.now();
-
     res.on('finish', () => {
-      const duration = Date.now() - start;
       logger.audit('http_request', {
         method: req.method,
         path: req.path,
         statusCode: res.statusCode,
-        duration,
+        duration: Date.now() - start,
         ip: req.ip,
         userAgent: req.get('user-agent'),
         correlationId: req.correlationId,
-        // Sanitize body to avoid logging passwords
-        body: this.sanitizeBody(req.body)
+        body: this.sanitizeBody(req.body),
       });
     });
-
     next();
   }
 
   sanitizeBody(body) {
-    if (!body) return body;
-    const sensitive = ['password', 'token', 'secret', 'key', 'credential'];
-    const sanitized = { ...body };
-    for (const key of Object.keys(sanitized)) {
-      if (sensitive.some(s => key.toLowerCase().includes(s))) {
-        sanitized[key] = '[REDACTED]';
-      }
-    }
-    return sanitized;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+    const sensitive = ['password', 'token', 'secret', 'key', 'credential', 'authorization'];
+    return Object.fromEntries(Object.entries(body).map(([key, value]) => [
+      key,
+      sensitive.some((name) => key.toLowerCase().includes(name)) ? '[REDACTED]' : value,
+    ]));
   }
 }
 
