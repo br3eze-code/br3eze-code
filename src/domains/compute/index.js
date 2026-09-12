@@ -1,44 +1,44 @@
+import os from 'node:os';
 import BaseDomain from '../BaseDomain.js';
-
-// src/domains/compute/index.js
 
 class ComputeDomain extends BaseDomain {
   constructor() {
     super();
     this.name = 'compute';
-    
     this.registerTool({
       name: 'stats',
       description: 'Get CPU and memory utilization statistics',
       execute: async () => {
         const memory = process.memoryUsage();
-        const load = await this._getLoad();
+        const [load1] = os.loadavg();
+        const cpuCount = Math.max(1, os.cpus().length);
+        const cpu = Math.min(100, Math.max(0, (load1 / cpuCount) * 100));
         return {
-          cpu: `${load}%`,
+          cpu: `${cpu.toFixed(1)}%`,
+          loadAverage: Number(load1.toFixed(2)),
           memory: {
             heapUsed: `${Math.floor(memory.heapUsed / 1024 / 1024)}MB`,
             heapTotal: `${Math.floor(memory.heapTotal / 1024 / 1024)}MB`,
-            rss: `${Math.floor(memory.rss / 1024 / 1024)}MB`
-          }
+            rss: `${Math.floor(memory.rss / 1024 / 1024)}MB`,
+          },
+          uptime: process.uptime(),
+          cpuCount,
         };
-      }
+      },
     });
-    
     this.registerTool({
       name: 'processes',
-      description: 'List active internal tasks and agents',
-      execute: async () => {
-        return [
-          { id: 'fleet-master', status: 'running', uptime: process.uptime() },
-          { id: 'billing-reaper', status: 'active', interval: '10m' }
-        ];
-      }
+      description: 'Get AgentOS runtime process information',
+      execute: async () => [{
+        pid: process.pid,
+        status: 'running',
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        node: process.version,
+        platform: process.platform,
+        arch: process.arch,
+      }],
     });
-  }
-
-  async _getLoad() {
-    // Simple mock load for now, would use 'os' module in production
-    return (Math.random() * 20).toFixed(1);
   }
 }
 
