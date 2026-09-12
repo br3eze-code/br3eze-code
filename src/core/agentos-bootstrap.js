@@ -14,9 +14,12 @@ export async function bootstrapAgentOS({ registry, skillRegistry, config = {}, s
   const tools = registry || new ToolRegistry({ logger, workspace: config.workspace });
   const skills = skillRegistry || new SkillRegistry();
 
-  await loadAllDomains(config);
-  if (skillsPath) await skills.loadFromDirectory(skillsPath, config);
-  else await tools.loadSkills();
+  await loadAllDomains(config, tools);
+  if (skillsPath) {
+    await skills.loadFromDirectory(skillsPath, config);
+  } else {
+    await tools.loadSkills();
+  }
 
   const manifest = tools.getManifest();
   return {
