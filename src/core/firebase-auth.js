@@ -1,12 +1,8 @@
-import { getAuth } from './firebase.js';
+import { getAuth } from '../adapters/firebase/admin.js';
 import { logger } from './logger.js';
 import { getDatabase } from './database.js';
 
-/**
- * Verifies a Firebase ID token and resolves it to {uid, email, role}.
- * Never throws — returns null on any failure so callers can fall through
- * to their existing auth path instead of erroring.
- */
+/** Compatibility auth entry point; provider implementation lives in adapters. */
 async function verifyFirebaseIdToken(idToken) {
   const auth = getAuth();
   if (!auth || !idToken) return null;
@@ -14,15 +10,8 @@ async function verifyFirebaseIdToken(idToken) {
     const decoded = await auth.verifyIdToken(idToken);
     const db = await getDatabase();
     const userDoc = await db.resolveFirebaseUser(decoded.uid, {});
-    return {
-      uid: decoded.uid,
-      email: decoded.email || userDoc?.email || null,
-      role: userDoc?.role || 'user',
-    };
-  } catch (e) {
-    logger.debug(`[firebase-auth] verifyIdToken failed: ${e.message}`);
-    return null;
-  }
+    return { uid: decoded.uid, email: decoded.email || userDoc?.email || null, role: userDoc?.role || 'user' };
+  } catch (error) { logger.debug(`Identity token verification failed: ${error.message}`); return null; }
 }
 
 export { verifyFirebaseIdToken };
