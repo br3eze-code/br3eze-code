@@ -2,101 +2,68 @@ import { createRequire } from 'module';
 import { logger } from '../logger.js';
 const require = createRequire(import.meta.url);
 
-// src/core/skills/SkillRegistry.js
-
 class SkillRegistry {
   constructor() {
     this.skills = new Map();
     this.manifests = new Map();
-    this.implementations = new Map(); // skillName -> implementation class/object for static introspection
+    this.implementations = new Map();
   }
 
   async loadFromDirectory(skillsPath, config = {}) {
     const fs = require('fs').promises;
     const path = require('path');
-    
     const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-    
     for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const dirPath = path.join(skillsPath, entry.name);
+      if (!entry.isDirectory()) continue;
+      const dirPath = path.join(skillsPath, entry.name);
+      try {
         let manifest = null;
-        
-        try {
-          // Try skill.json first, then manifest.yaml
-          const jsonPath = path.join(dirPath, 'skill.json');
-          const yamlPath = path.join(dirPath, 'manifest.yaml');
-          
-          if (require('fs').existsSync(jsonPath)) {
-            manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
-          } else if (require('fs').existsSync(yamlPath)) {
-            const yaml = require('js-yaml');
-            manifest = yaml.load(await fs.readFile(yamlPath, 'utf8'));
-          }
-          
-          if (!manifest) continue;
-
-          const entryFile = manifest.entry || 'index.js';
-          const codePath = path.join(dirPath, entryFile);
-          
-          if (!require('fs').existsSync(codePath)) {
-            logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
-            continue;
-          }
-
-          const skillModule = require(path.resolve(codePath));
-          this.register(manifest, skillModule, config);
-          logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
-        } catch (err) {
-          logger.error(`Failed to load skill ${entry.name}: ${err.stack || err.message || err}`);
+        const jsonPath = path.join(dirPath, 'skill.json');
+        const yamlPath = path.join(dirPath, 'manifest.yaml');
+        if (require('fs').existsSync(jsonPath)) manifest = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+        else if (require('fs').existsSync(yamlPath)) manifest = require('js-yaml').load(await fs.readFile(yamlPath, 'utf8'));
+        if (!manifest) continue;
+        const entryFile = manifest.entry || 'index.js';
+        const codePath = path.join(dirPath, entryFile);
+        if (!require('fs').existsSync(codePath)) {
+          logger.warn(`Skill ${entry.name} entry file not found: ${entryFile}`);
+          continue;
         }
+        const skillModule = require(path.resolve(codePath));
+        this.register(manifest, skillModule, config);
+        logger.info(`Skill loaded: ${manifest.name} v${manifest.version || '1.0.0'}`);
+      } catch (err) {
+        logger.error(`Failed to load skill ${entry.name}: ${err.stack || err.message || err}`);
       }
     }
   }
 
   register(manifest, implementation, config = {}) {
-    let executor;
+    if (!manifest?.name) throw new Error('skill manifest name is required');
+    if (implementation?.__esModule && implementation.default !== undefined) implementation = implementation.default;
+
     const skillConfig = config?.skills?.[manifest.name] || config?.[manifest.name] || {};
     const workspace = config?.workspace || {};
-
-    // require()-of-ESM interop wraps a `export default X` module as
-    // {__esModule: true, default: X} instead of returning X directly —
-    // unwrap it so class-based skills (the common case) are still detected
-    // below. Plain CJS `module.exports = X` has no __esModule flag and
-    // passes through unchanged.
-    if (implementation && implementation.__esModule && implementation.default !== undefined) {
-      implementation = implementation.default;
-    }
+    let executor;
 
     if (typeof implementation === 'function' && implementation.prototype?.execute) {
-      // Class-based skill (e.g. DahuaSkill extends BaseSkill) — execute(toolName, args, ctx)
       const instance = new implementation(skillConfig, logger, workspace);
       executor = (toolName, args, ctx) => instance.execute(toolName, args, ctx || {});
     } else if (typeof implementation?.execute === 'function') {
-      // Plain-object singleton — could use legacy (params, context) OR (toolName, args, ctx).
-      // Discriminate by arity: arity <= 2 → legacy (params, context) contract.
-      // We normalise by forwarding toolName inside params so both contracts are satisfied.
       const fn = implementation.execute.bind(implementation);
-      if (fn.length <= 2) {
-        // Legacy contract: execute({ action, params, ... }, context)
-        executor = (toolName, args, ctx) =>
-          fn({ action: toolName, ...(args || {}) }, ctx || {});
-      } else {
-        // Modern contract: execute(toolName, args, ctx)
-        executor = (toolName, args, ctx) => fn(toolName, args, ctx || {});
-      }
+      executor = fn.length <= 2
+        ? (toolName, args, ctx) => fn({ action: toolName, ...(args || {}) }, ctx || {})
+        : (toolName, args, ctx) => fn(toolName, args, ctx || {});
     } else if (typeof implementation === 'function') {
-      // Plain function
-      executor = (params, ctx) => implementation(params, ctx);
+      executor = (toolName, args, ctx) => implementation({ action: toolName, ...(args || {}) }, ctx || {});
     } else {
-      logger.warn(`Skill "${manifest.name}": no execute implementation found — registering as no-op`);
-      executor = () => ({ status: 'no-op', skill: manifest.name });
+      throw new Error(`Skill "${manifest.name}" has no executable implementation`);
     }
 
     this.skills.set(manifest.name, {
       manifest,
       execute: executor,
-      validate: implementation.validate || (() => true)
+      validate: typeof implementation.validate === 'function' ? implementation.validate : (() => true),
     });
     this.manifests.set(manifest.name, manifest);
     this.implementations.set(manifest.name, implementation);
@@ -105,54 +72,44 @@ class SkillRegistry {
   async execute(skillName, toolName, args = {}, context = {}) {
     const skill = this.skills.get(skillName);
     if (!skill) throw new Error(`Skill '${skillName}' not found`);
-    
-    let actualToolName = toolName;
-    let actualArgs = args;
-    let actualContext = context;
-
     if (typeof toolName === 'object') {
-      actualToolName = skillName;
-      actualArgs = toolName;
-      actualContext = args || {};
+      context = args || {};
+      args = toolName;
+      toolName = skillName;
     }
-
-    return await skill.execute(actualToolName, actualArgs, actualContext);
+    return skill.execute(toolName, args || {}, context || {});
   }
 
-  validateParams(params, schema) {
+  /**
+   * Canonical dot-notation bridge: `skill.tool`.
+   * This is deliberately kept in the registry so every caller uses the same
+   * skill -> tool resolution instead of reaching into implementation objects.
+   */
+  async executeTool(toolName, params = {}, context = {}) {
+    if (!toolName || typeof toolName !== 'string') throw new Error('tool name is required');
+    const separator = toolName.indexOf('.');
+    if (separator <= 0 || separator === toolName.length - 1) {
+      throw new Error(`Invalid tool name '${toolName}'; expected skill.tool`);
+    }
+    const skillName = toolName.slice(0, separator);
+    const operation = toolName.slice(separator + 1);
+    const skill = this.skills.get(skillName);
+    if (!skill) throw new Error(`Skill '${skillName}' not found for tool '${toolName}'`);
+    return skill.execute(operation, params || {}, context || {});
+  }
+
+  validateParams(params, schema = {}) {
     for (const [key, config] of Object.entries(schema)) {
-      if (config.required && !(key in params)) {
-        throw new Error(`Missing required parameter: ${key}`);
-      }
+      if (config.required && !(key in (params || {}))) throw new Error(`Missing required parameter: ${key}`);
     }
   }
 
-  list() {
-    return Array.from(this.manifests.values());
-  }
-
-  /** Count of registered skills */
-  count() {
-    return this.skills.size;
-  }
-
-  /** Check if skill exists */
-  has(name) {
-    return this.skills.has(name);
-  }
-
-  /** Get skill entry */
-  get(name) {
-    return this.skills.get(name);
-  }
-
-  /** Get all skill descriptions */
+  list() { return Array.from(this.manifests.values()); }
+  count() { return this.skills.size; }
+  has(name) { return this.skills.has(name); }
+  get(name) { return this.skills.get(name); }
   getDescriptions() {
-    return Array.from(this.skills.values()).map(s => ({
-      name:        s.manifest.name,
-      description: s.manifest.description,
-      version:     s.manifest.version
-    }));
+    return Array.from(this.skills.values()).map(s => ({ name: s.manifest.name, description: s.manifest.description, version: s.manifest.version }));
   }
 }
 
