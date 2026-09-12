@@ -1,31 +1,44 @@
+import { randomBytes } from 'node:crypto';
 import { getDatabase } from '../core/database.js';
 
-// src/services/vouchers.js
 class VoucherService {
     generateCode() {
-        return "AG-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+        // 6 bytes -> 12 hex characters. Cryptographic randomness prevents
+        // predictable voucher issuance and is portable across Node versions.
+        return `AG-${randomBytes(6).toString('hex').toUpperCase()}`;
     }
 
     async create(plan) {
-        const code = this.generateCode();
-        const voucher = {
-            code,
-            plan,
-            used: false,
-            createdAt: Date.now()
-        };
-
         const db = await getDatabase();
-        await db.saveVoucher(voucher);
-        return voucher;
+        let code;
+        let voucher;
+
+        // Protect the persistence layer from the (very unlikely) random-code
+        // collision rather than relying on randomness alone for uniqueness.
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            code = this.generateCode();
+            const existing = await db.getVoucher(code).catch(() => null);
+            if (existing) continue;
+
+            voucher = {
+                code,
+                plan,
+                used: false,
+                createdAt: Date.now()
+            };
+            await db.saveVoucher(voucher);
+            return voucher;
+        }
+
+        throw new Error('Unable to allocate a unique voucher code');
     }
 
     async redeem(code, username) {
         const db = await getDatabase();
         const voucher = await db.getVoucher(code);
 
-        if (!voucher) throw new Error("Invalid voucher");
-        if (voucher.used) throw new Error("Already used");
+        if (!voucher) throw new Error('Invalid voucher');
+        if (voucher.used) throw new Error('Already used');
 
         const updates = {
             used: true,
