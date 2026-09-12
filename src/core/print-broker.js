@@ -1,27 +1,13 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { logger } from './logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-/**
- * PrintBroker — routes a voucher print job to a connected mobile (Cordova/Android)
- * BLE/USB thermal-printer client over the WebSocket channel, falling back to the
- * server's own thermal printer (printer.js:_printVoucherDirect) when no mobile
- * client is registered or the mobile job fails/times out.
- *
- * Protocol (see WebSocketChannel.js handleLegacyMessage):
- *   client -> server  'printer.register' { capability, platform, model }
- *   server -> client  'print.job'        { jobId, payload: voucherData }
- *   client -> server  'print.result'     { jobId, success, error? }
- */
+import { _printVoucherDirect } from './printer.js';
 
 const DEFAULT_JOB_TIMEOUT_MS = 20000;
 
 class PrintBroker {
   constructor() {
-    this.wsChannel = null; // {clients: Map<clientId, {ws, capabilities, platform, printerModel}>, sendToWs(ws, data)}
-    this.pending = new Map(); // jobId -> { resolve, reject, timer }
+    this.wsChannel = null;
+    this.pending = new Map();
   }
 
   static getInstance() {
@@ -31,13 +17,12 @@ class PrintBroker {
 
   attachWebSocketChannel(wsChannel) {
     if (!wsChannel || typeof wsChannel.sendToWs !== 'function' || !(wsChannel.clients instanceof Map)) {
-      logger.warn('[PrintBroker] attachWebSocketChannel: invalid channel (expected {clients: Map, sendToWs()}) — skipping');
+      logger.warn('[PrintBroker] Invalid WebSocket channel — skipping attachment');
       return;
     }
     this.wsChannel = wsChannel;
   }
 
-  /** { count, clients: [{ clientId, platform, model, capability }] } */
   getMobileClientStatus(scope = null) {
     if (!this.wsChannel || !scope?.tenantId || !scope?.siteId) {
       return { count: 0, clients: [], reason: 'print_scope_required' };
@@ -50,16 +35,14 @@ class PrintBroker {
       const sameSite = authority?.siteId === scope.siteId;
       const canPrint = authority?.capabilities?.includes?.('printer.write') || authority?.capabilities?.includes?.('print.write');
       if (capability && sameTenant && sameSite && canPrint) {
-        clients.push({ clientId, platform: client.platform || 'android', model: client.printerModel || null, capability });
+        clients.push({ clientId, platform: client.platform || 'unknown', model: client.printerModel || null, capability });
       }
     }
     return { count: clients.length, clients };
   }
 
-  /** Returns { success, via: 'mobile'|'server', error? } */
   async print(voucherData, opts = {}) {
     const { preferMobile = true, timeoutMs = DEFAULT_JOB_TIMEOUT_MS, scope = null } = opts;
-
     if (preferMobile && this.wsChannel && scope?.tenantId && scope?.siteId) {
       const status = this.getMobileClientStatus(scope);
       const target = status.clients[0];
@@ -68,13 +51,11 @@ class PrintBroker {
         try {
           await this._sendMobileJob(client.ws, voucherData, timeoutMs, target.clientId);
           return { success: true, via: 'mobile' };
-        } catch (e) {
-          logger.warn(`[PrintBroker] Mobile print failed (${e.message}) — falling back to server printer`);
+        } catch (error) {
+          logger.warn(`[PrintBroker] Mobile print failed (${error.message}) — falling back to server printer`);
         }
       }
     }
-
-    const { _printVoucherDirect } = require('./printer');
     const serverResult = await _printVoucherDirect(voucherData);
     return { ...serverResult, via: 'server' };
   }
@@ -93,7 +74,7 @@ class PrintBroker {
 
   _handleMobileAck({ jobId, clientId, success, error }) {
     const pending = this.pending.get(jobId);
-    if (!pending) return; // unknown or late ack — ignore
+    if (!pending) return;
     if (pending.clientId && pending.clientId !== clientId) {
       logger.warn(`[PrintBroker] Ignoring print ACK from non-originating client ${clientId || 'unknown'}`);
       return;
@@ -106,3 +87,4 @@ class PrintBroker {
 }
 
 export { PrintBroker };
+export default PrintBroker;
