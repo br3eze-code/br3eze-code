@@ -5,7 +5,7 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
 
-/** Domain-neutral execution runtime. Tool discovery is supplied by the caller. */
+/** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
   { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
@@ -14,17 +14,11 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'system.status', keywords: ['status', 'health', 'state'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
-
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
 
 class RuntimeSession {
-  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null }) {
-    this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools;
-    this.permissionDenials = permissionDenials; this.taskId = taskId; this.createdAt = new Date().toISOString();
-  }
-  asMarkdown() {
-    return ['# Runtime Session', '', `Prompt: ${this.prompt}`, `Session ID: ${this.engine.sessionId}`, '', '## Matched Tools', ...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']), '', '## Permission Denials', ...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']), '', '## Agent State', this.engine.renderSummary(), ...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n');
-  }
+  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null }) { this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.createdAt = new Date().toISOString(); }
+  asMarkdown() { return ['# Runtime Session', '', `Prompt: ${this.prompt}`, `Session ID: ${this.engine.sessionId}`, '', '## Matched Tools', ...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']), '', '## Permission Denials', ...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']), '', '## Agent State', this.engine.renderSummary(), ...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n'); }
 }
 
 class AgentRuntime extends EventEmitter {
@@ -32,6 +26,7 @@ class AgentRuntime extends EventEmitter {
     super();
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
+    this.toolExecutor = typeof config.toolExecutor === 'function' ? config.toolExecutor : null;
   }
 
   routePrompt(prompt, limit = 5) {
@@ -40,7 +35,8 @@ class AgentRuntime extends EventEmitter {
   }
 
   async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
-    const engine = sessionId ? AgentEngine.fromSession(sessionId) : AgentEngine.create({ ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode });
+    const config = { ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode, toolExecutor: this.toolExecutor };
+    const engine = sessionId ? AgentEngine.fromSession(sessionId, config) : AgentEngine.create(config);
     const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
     const promptWithWbs = `${prompt}${wbsText}`;
     const matchedTools = this.routePrompt(promptWithWbs);
