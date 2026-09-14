@@ -4,15 +4,25 @@ const MAX_KEY_LENGTH = 128;
 const KEY_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export function validateIdempotencyKey(value) {
-  if (typeof value !== 'string' || !KEY_PATTERN.test(value)) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > MAX_KEY_LENGTH || !KEY_PATTERN.test(value)) {
     throw new Error('A valid idempotency key is required.');
   }
   return value;
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
 export function fingerprintRequest(payload = {}) {
-  const normalized = JSON.stringify(payload, Object.keys(payload).sort());
-  return crypto.createHash('sha256').update(normalized).digest('hex');
+  const normalized = canonicalize(payload);
+  return crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 }
 
 export function createCheckoutSession({ idempotencyKey, merchantId, buyerId = null, currency = null, items = [], totals = {}, checkoutUrl = null } = {}) {
