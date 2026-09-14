@@ -4,298 +4,224 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import EventEmitter from 'node:events';
 import { logger } from './logger.js';
-import yaml from 'js-yaml';
 
-// src/core/SkillRegistry.js
+const REQUIRED_MANIFEST_FIELDS = ['name', 'version', 'description'];
 
-class SkillRegistry extends EventEmitter {
-  constructor(config) {
+/**
+ * Canonical AgentOS skill registry.
+ *
+ * The registry owns discovery, manifest validation, lifecycle, hooks,
+ * introspection and execution. Domain/provider implementations are supplied
+ * by discovered skills or dependency injection; Core contains no vendors.
+ */
+export default class SkillRegistry extends EventEmitter {
+  constructor(config = {}) {
     super();
     this.config = config;
     this.skills = new Map();
-    this.hooks = {
-      beforeExecute: [],
-      afterExecute: [],
-      onError: []
-    };
+    this.hooks = { beforeExecute: [], afterExecute: [], onError: [] };
   }
 
   async loadFromDirectory(skillsPath) {
     try {
       const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-      
       for (const entry of entries) {
-        logger.debug(`SkillRegistry: Checking entry ${entry.name} (isDirectory: ${entry.isDirectory()})`);
-        if (!entry.isDirectory()) continue;
-        
-        const skillPath = path.join(skillsPath, entry.name);
-        await this.loadSkill(skillPath);
+        if (entry.isDirectory()) await this.loadSkill(path.join(skillsPath, entry.name));
       }
-      
       this.emit('loaded', this.skills.size);
+      return this;
     } catch (error) {
-      if (error.code === 'ENOENT') {
-        console.warn(`Skills directory not found: ${skillsPath}`);
-        return;
-      }
+      if (error.code === 'ENOENT') return this;
       throw error;
     }
   }
 
   async loadSkill(skillPath) {
-    try {
-      // ── 1. Load manifest (manifest.yaml preferred, skill.json fallback) ────
-      let manifest;
-      const yamlManifest  = path.join(skillPath, 'manifest.yaml');
-      const yamlManifest2 = path.join(skillPath, 'manifest.yml');
-      const jsonManifest  = path.join(skillPath, 'skill.json');
-      const jsonManifest2 = path.join(skillPath, 'manifest.json');
+    const manifest = await this._loadManifest(skillPath);
+    this.validateManifest(manifest);
+    const implPath = path.join(skillPath, manifest.entry || 'index.js');
+    let implementation = {};
+    if (fsSync.existsSync(implPath)) {
+      const mod = await import(pathToFileURL(path.resolve(implPath)).href);
+      implementation = mod.default || mod;
+    }
+    this.register(manifest, implementation, { path: skillPath });
+    const skill = this.get(manifest.name);
+    await skill.initialize(this.config);
+    this.emit('skillLoaded', manifest.name);
+    return skill;
+  }
 
-      if (fsSync.existsSync(yamlManifest) || fsSync.existsSync(yamlManifest2)) {
-        console.log(`[SkillRegistry] Found YAML manifest for ${path.basename(skillPath)}`);
-        const file = fsSync.existsSync(yamlManifest) ? yamlManifest : yamlManifest2;
-        manifest = yaml.load(await fs.readFile(file, 'utf8'));
-      } else if (fsSync.existsSync(jsonManifest) || fsSync.existsSync(jsonManifest2)) {
-        const file = fsSync.existsSync(jsonManifest) ? jsonManifest : jsonManifest2;
-        console.log(`[SkillRegistry] Found JSON manifest for ${path.basename(skillPath)}`);
-        manifest = JSON.parse(await fs.readFile(file, 'utf8'));
-      } else {
-        console.log(`[SkillRegistry] No manifest found in ${skillPath}`);
-        console.log(`  Checked: ${yamlManifest}`);
-        console.log(`  Checked: ${yamlManifest2}`);
-        console.log(`  Checked: ${jsonManifest}`);
-        console.log(`  Checked: ${jsonManifest2}`);
-        throw new Error('No manifest.yaml or skill.json found');
-      }
+  async _loadManifest(skillPath) {
+    for (const filename of ['manifest.yaml', 'manifest.yml', 'skill.json', 'manifest.json']) {
+      const file = path.join(skillPath, filename);
+      if (!fsSync.existsSync(file)) continue;
+      const raw = await fs.readFile(file, 'utf8');
+      if (filename.endsWith('.json')) return JSON.parse(raw);
+      const yaml = await import('js-yaml');
+      return yaml.default.load(raw);
+    }
+    throw new Error(`No skill manifest found in ${skillPath}`);
+  }
 
-      this.validateManifest(manifest);
+  validateManifest(manifest = {}) {
+    for (const field of REQUIRED_MANIFEST_FIELDS) {
+      if (!manifest[field]) throw new Error(`Missing required field: ${field}`);
+    }
+    if (!/^[a-z0-9._-]+$/.test(manifest.name)) throw new Error(`Invalid skill name: ${manifest.name}`);
+    if (manifest.permissions !== undefined && !Array.isArray(manifest.permissions)) {
+      throw new Error(`Skill '${manifest.name}' permissions must be an array`);
+    }
+    return true;
+  }
 
-      // ── 2. Load implementation (index.js or entry from manifest) ───────────
-      const entry = manifest.entry || 'index.js';
-      const implPath = path.join(skillPath, entry);
-
-      let impl;
-      if (fsSync.existsSync(implPath)) {
-        const fileUrl = pathToFileURL(path.resolve(implPath)).href;
-        const mod = await import(fileUrl);
-        impl = mod.default || mod;
-      } else {
-        impl = {};
-      }
-
-      // ── 3. Normalise to { execute, initialize, destroy, validate } ─────────
-      const mod = (typeof impl === 'function' && impl.prototype?.execute)
-        ? new impl(this.config, logger)  // class
-        : impl;
-
-      const skill = {
-        manifest,
-        execute:    this.wrapExecution(
-                      (mod.execute || (() => ({ status: 'no-op', skill: manifest.name }))).bind(mod)
-                    ),
-        validate:   (mod.validate   || this.defaultValidate).bind(mod),
-        initialize: (mod.initialize || (() => Promise.resolve())).bind(mod),
-        destroy:    (mod.destroy    || (() => Promise.resolve())).bind(mod),
-        path: skillPath
+  register(nameOrManifest, implementationOrSkill = {}, options = {}) {
+    let manifest;
+    let implementation;
+    if (typeof nameOrManifest === 'object' && nameOrManifest !== null) {
+      manifest = { ...nameOrManifest };
+      implementation = implementationOrSkill;
+    } else {
+      const skill = implementationOrSkill || {};
+      manifest = {
+        name: nameOrManifest,
+        description: skill.description || '',
+        version: skill.version || '1.0.0',
+        permissions: skill.permissions || [],
+        parameters: skill.parameters || {},
+        tools: skill.tools,
+        dispatch: skill.dispatch || null,
+        tags: skill.tags || []
       };
-
-      const skillName = manifest.name || path.basename(skillPath);
-      logger.info(`SkillRegistry: Initializing ${skillName}...`);
-      
-      const start = Date.now();
-      const timeout = setTimeout(() => {
-        logger.warn(`SkillRegistry: Skill ${skillName} is taking a long time to initialize (>2s)...`);
-      }, 2000);
-
-      try {
-        await skill.initialize(this.config);
-      } finally {
-        clearTimeout(timeout);
-      }
-
-      const duration = Date.now() - start;
-      logger.info(`SkillRegistry: ${skillName} initialized in ${duration}ms`);
-      
-      this.skills.set(manifest.name, skill);
-      this.emit('skillLoaded', manifest.name);
-
-    } catch (error) {
-      const skillName = path.basename(skillPath);
-      logger.error(`Failed to load skill from ${skillName}: ${error.message}`);
-      if (error.stack) {
-        logger.debug(error.stack);
-      }
-      this.emit('skillError', { path: skillPath, error });
+      implementation = skill;
     }
+    this.validateManifest(manifest);
+    const executor = this._normalizeExecutor(manifest, implementation);
+    this.skills.set(manifest.name, {
+      manifest,
+      execute: this.wrapExecution(executor, manifest.name),
+      validate: typeof implementation?.validate === 'function' ? implementation.validate.bind(implementation) : this.defaultValidate,
+      initialize: typeof implementation?.initialize === 'function' ? implementation.initialize.bind(implementation) : async () => {},
+      destroy: typeof implementation?.destroy === 'function' ? implementation.destroy.bind(implementation) : async () => {},
+      path: options.path || null,
+      implementation
+    });
+    return this;
   }
 
-
-  validateManifest(manifest) {
-    const required = ['name', 'version', 'description'];
-    for (const field of required) {
-      if (!manifest[field]) {
-        throw new Error(`Missing required field: ${field}`);
-      }
+  _normalizeExecutor(manifest, implementation) {
+    let impl = implementation;
+    if (impl?.__esModule && impl.default !== undefined) impl = impl.default;
+    if (typeof impl === 'function' && impl.prototype?.execute) {
+      const instance = new impl(this.config, logger, this.config.workspace || {});
+      return (toolName, args, context) => instance.execute(toolName, args, context || {});
     }
-    
-    if (!/^[a-z0-9._-]+$/.test(manifest.name)) {
-      throw new Error(`Invalid skill name: ${manifest.name}`);
+    if (typeof impl?.execute === 'function') {
+      const fn = impl.execute.bind(impl);
+      if (fn.length <= 2) return (toolName, args, context) => fn({ action: toolName, ...(args || {}) }, context || {});
+      return (toolName, args, context) => fn(toolName, args, context || {});
     }
+    if (typeof impl === 'function') return (params, context) => impl(params, context);
+    return async () => ({ status: 'no-op', skill: manifest.name });
   }
 
-  wrapExecution(executeFn) {
-    return async (params, context) => {
-      // Run before hooks
-      for (const hook of this.hooks.beforeExecute) {
-        await hook(params, context);
-      }
-      
+  wrapExecution(executeFn, skillName) {
+    return async (...args) => {
+      const toolCall = args.length >= 3;
+      const params = toolCall ? (args[1] || {}) : (args[0] || {});
+      const context = toolCall ? (args[2] || {}) : (args[1] || {});
+      for (const hook of this.hooks.beforeExecute) await hook(params, context, skillName);
       try {
-        // Validate parameters
-        if (context.skill?.manifest?.parameters) {
-          this.validateParams(params, context.skill.manifest.parameters);
-        }
-        
-        // Execute
-        const result = await executeFn(params, context);
-        
-        // Run after hooks
-        for (const hook of this.hooks.afterExecute) {
-          await hook(result, context);
-        }
-        
+        const result = await executeFn(...args);
+        for (const hook of this.hooks.afterExecute) await hook(result, context, skillName);
         return result;
-        
       } catch (error) {
-        // Run error hooks
-        for (const hook of this.hooks.onError) {
-          await hook(error, context);
-        }
+        for (const hook of this.hooks.onError) await hook(error, context, skillName);
         throw error;
       }
     };
   }
 
-  validateParams(params, schema) {
-    for (const [key, config] of Object.entries(schema)) {
+  validateParams(params = {}, schema = {}) {
+    for (const [key, config] of Object.entries(schema || {})) {
       const value = params[key];
-      
-      if (config.required && (value === undefined || value === null)) {
-        throw new Error(`Missing required parameter: ${key}`);
-      }
-      
+      if (config.required && (value === undefined || value === null)) throw new Error(`Missing required parameter: ${key}`);
       if (value !== undefined && config.type) {
-        const actualType = Array.isArray(value) ? 'array' : typeof value;
-        if (actualType !== config.type) {
-          throw new Error(`Invalid type for ${key}: expected ${config.type}, got ${actualType}`);
-        }
+        const actual = Array.isArray(value) ? 'array' : typeof value;
+        if (actual !== config.type) throw new Error(`Invalid type for ${key}: expected ${config.type}, got ${actual}`);
       }
-      
-      if (value !== undefined && config.enum && !config.enum.includes(value)) {
-        throw new Error(`Invalid value for ${key}: must be one of ${config.enum.join(', ')}`);
-      }
+      if (value !== undefined && config.enum && !config.enum.includes(value)) throw new Error(`Invalid value for ${key}: must be one of ${config.enum.join(', ')}`);
     }
-  }
-
-  defaultValidate() {
     return true;
   }
 
-  get(name) {
-    return this.skills.get(name);
-  }
-
-  has(name) {
-    return this.skills.has(name);
-  }
-
-  count() {
-    return this.skills.size;
-  }
-
-  list() {
-    return Array.from(this.skills.keys());
-  }
+  defaultValidate() { return true; }
+  get(name) { return this.skills.get(name); }
+  has(name) { return this.skills.has(name); }
+  count() { return this.skills.size; }
+  list() { return [...this.skills.values()].map(({ manifest }) => ({ ...manifest })); }
 
   getDescriptions() {
-    return Array.from(this.skills.values()).map(s => ({
-      name: s.manifest.name,
-      description: s.manifest.description,
-      version: s.manifest.version,
-      parameters: s.manifest.parameters,
-      examples: s.manifest.examples,
-      tools: s.manifest.tools || []
+    return [...this.skills.values()].map(({ manifest }) => ({
+      name: manifest.name,
+      description: manifest.description,
+      version: manifest.version,
+      parameters: manifest.parameters,
+      examples: manifest.examples,
+      tools: manifest.tools || []
     }));
   }
 
-  /** Returns all tools across all skills in a format for the LLM */
   getAllToolDefinitions() {
     const definitions = [];
-    for (const [skillName, skill] of this.skills) {
-      if (skill.manifest.tools) {
-        for (const tool of skill.manifest.tools) {
-          definitions.push({
-            name: tool.name.includes('.') ? tool.name : `${skillName}.${tool.name}`,
-            description: tool.description,
-            parameters: tool.parameters,
-            returns: tool.returns
-          });
-        }
-      } else {
-        // Fallback for legacy skills without a tools array
-        definitions.push({
-          name: skillName,
-          description: skill.manifest.description,
-          parameters: skill.manifest.parameters || {},
-          returns: 'any'
+    for (const { manifest } of this.skills.values()) {
+      if (Array.isArray(manifest.tools) && manifest.tools.length) {
+        for (const tool of manifest.tools) definitions.push({
+          name: tool.name.includes('.') ? tool.name : `${manifest.name}.${tool.name}`,
+          description: tool.description,
+          parameters: tool.parameters,
+          returns: tool.returns
         });
-      }
+      } else definitions.push({ name: manifest.name, description: manifest.description, parameters: manifest.parameters || {}, returns: 'any' });
     }
     return definitions;
   }
 
-  async executeTool(toolFullName, params, context) {
-    const [skillName, ...toolPath] = toolFullName.split('.');
-    const toolName = toolPath.join('.');
-    
-    const skill = this.skills.get(skillName);
-    if (!skill) throw new Error(`Skill not found: ${skillName}`);
-    
-    // If the skill has multiple tools, pass the toolName to the execute function
-    if (toolName) {
-      return await skill.execute(toolName, params, context);
-    }
-    
-    // Otherwise just execute the skill with params
-    return await skill.execute(params, context);
+  async execute(skillName, params = {}, context = {}) {
+    const skill = this.get(skillName);
+    if (!skill) throw new Error(`Skill '${skillName}' not found`);
+    return skill.execute(params, context);
   }
 
-  addHook(type, handler) {
-    if (this.hooks[type]) {
-      this.hooks[type].push(handler);
-    }
+  async executeTool(toolFullName, params = {}, context = {}) {
+    const [skillName, ...rest] = toolFullName.split('.');
+    const skill = this.get(skillName);
+    if (!skill) throw new Error(`Skill not found: ${skillName}`);
+    return rest.length ? skill.execute(rest.join('.'), params, context) : skill.execute(params, context);
   }
+
+  findByDispatch(dispatchKey) { return [...this.skills.values()].find(skill => skill.manifest.dispatch === dispatchKey) || null; }
+  before(fn) { this.hooks.beforeExecute.push(fn); return this; }
+  after(fn) { this.hooks.afterExecute.push(fn); return this; }
+  addHook(type, handler) { if (!this.hooks[type]) throw new Error(`Unknown skill hook: ${type}`); this.hooks[type].push(handler); return this; }
 
   async reload(name) {
-    const skill = this.skills.get(name);
-    if (!skill) throw new Error(`Skill not found: ${name}`);
-    
+    const skill = this.get(name);
+    if (!skill || !skill.path) throw new Error(`Reload requires a discovered skill: ${name}`);
     await skill.destroy();
     this.skills.delete(name);
-    
-    await this.loadSkill(skill.path);
+    return this.loadSkill(skill.path);
+  }
+
+  async initializeAll() {
+    for (const skill of this.skills.values()) await skill.initialize(this.config);
+    return this;
   }
 
   async destroy() {
     for (const [name, skill] of this.skills) {
-      try {
-        await skill.destroy();
-      } catch (error) {
-        console.error(`Error destroying skill ${name}:`, error);
-      }
+      try { await skill.destroy(); } catch (error) { logger.warn(`Failed to destroy skill ${name}: ${error.message}`); }
     }
     this.skills.clear();
   }
 }
-
-export default SkillRegistry;

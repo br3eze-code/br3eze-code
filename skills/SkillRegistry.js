@@ -1,111 +1,20 @@
-import fs from 'node:fs/promises';
+/**
+ * @deprecated Legacy compatibility facade.
+ *
+ * The registry implementation moved to src/core/SkillRegistry.js. This file
+ * only supplies the historical built-in-skill loader contract so older entry
+ * points can migrate without carrying a second registry implementation.
+ */
 import path from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import SkillRegistry from '../src/core/SkillRegistry.js';
 
-// skills/SkillRegistry.js
-// Central skill registry — discovers and wires all built-in skills
-// SPEC.md §12 Skill Loader
-
-
-class SkillRegistry {
-  constructor() {
-    this.skills = new Map();
-  }
-
-  /** Load all built-in skills. Called once during Bootstrap §26. */
+class LegacySkillRegistryFacade extends SkillRegistry {
   async loadBuiltinSkills() {
-    const builtins = [
-      'mikrotik',   // manage_network  — RouterOS users, firewall, system
-      'finance',    // manage_finance  — revenue, P2P, Mastercard A2A
-      'project',    // manage_project  — CPM + EVM
-      'tasks',      // manage_project  — task CRUD (local/todoist/asana/notion)
-      'memory',     // manage_memory   — vector + KV memory
-      'mesh',       // manage_mesh     — multi-router NodeRegistry
-      'voucher',    // manage_vouchers — create, redeem, stats, recurring billing
-    ];
-
-    const registryDir = path.dirname(fileURLToPath(import.meta.url));
-    for (const name of builtins) {
-      try {
-        const skillPath = path.join(registryDir, name, 'index.js');
-        const module = await import(pathToFileURL(skillPath).href);
-        const skill = module.default || module;
-        let meta = {};
-        try {
-          meta = JSON.parse(await fs.readFile(path.join(registryDir, name, 'skill.json'), 'utf8'));
-        } catch {
-          // Metadata is optional for legacy built-in skills.
-        }
-        this.register(name, {
-          description: meta.description || name,
-          parameters: meta.parameters || {},
-          dispatch: meta.dispatch || null,
-          version: meta.version || '1.0.0',
-          tags: meta.tags || [],
-          execute: (params, ctx) => skill.execute(params, ctx)
-        });
-      } catch {
-        this.register(name, {
-          description: `${name} (stub — not yet implemented)`,
-          parameters: {},
-          version: '0.0.0',
-          tags: [],
-          execute: async () => ({ success: false, error: `Skill '${name}' not implemented` })
-        });
-      }
-    }
-  }
-
-  /**
-   * Register a skill.
-   * @param {string} name
-   * @param {{ description, parameters, execute, dispatch?, version?, tags? }} skill
-   */
-  register(name, skill) {
-    this.skills.set(name, {
-      name,
-      description: skill.description,
-      parameters:  skill.parameters,
-      dispatch:    skill.dispatch  || null,
-      execute:     skill.execute,
-      version:     skill.version   || '1.0.0',
-      tags:        skill.tags      || []
-    });
-  }
-
-  /** Execute a skill by name. */
-  async execute(skillName, params, context = {}) {
-    const skill = this.skills.get(skillName);
-    if (!skill) throw new Error(`Skill '${skillName}' not found`);
-    return await skill.execute(params, context);
-  }
-
-  /**
-   * Find the skill registered for a given AskEngine dispatch key.
-   * e.g. dispatch='manage_finance' → returns FinanceSkill
-   */
-  findByDispatch(dispatchKey) {
-    for (const [, skill] of this.skills) {
-      if (skill.dispatch === dispatchKey) return skill;
-    }
-    return null;
-  }
-
-  /** List all registered skills (for `tools` WS message and REPL `tools` command). */
-  list() {
-    return [...this.skills.values()].map(s => ({
-      name:        s.name,
-      description: s.description,
-      version:     s.version,
-      dispatch:    s.dispatch,
-      tags:        s.tags
-    }));
-  }
-
-  /** Check if a skill is registered. */
-  has(skillName) {
-    return this.skills.has(skillName);
+    const dir = path.dirname(fileURLToPath(import.meta.url));
+    await this.loadFromDirectory(dir);
+    return this;
   }
 }
 
-export default new SkillRegistry();
+export default new LegacySkillRegistryFacade();
