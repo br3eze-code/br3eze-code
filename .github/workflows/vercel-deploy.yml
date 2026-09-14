@@ -11,6 +11,10 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+concurrency:
+  group: vercel-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Build & Deploy to Vercel
@@ -60,10 +64,23 @@ jobs:
 
       - name: Verify build output
         run: |
+          set -euo pipefail
           test -d www
           test -f www/index.html
           echo "Build output verified:"
           du -sh www
+
+      - name: Validate Vercel credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+          echo "Vercel credentials are configured"
 
       - name: Install Vercel CLI
         run: npm install --global vercel
@@ -91,12 +108,15 @@ jobs:
             --build-env VITE_STORAGE_BUCKET="$VITE_STORAGE_BUCKET" \
             --build-env VITE_MESSAGING_SENDER_ID="$VITE_MESSAGING_SENDER_ID" \
             --build-env VITE_APP_ID="$VITE_APP_ID")"
+          test -n "$DEPLOYMENT_URL"
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "Vercel deployment: $DEPLOYMENT_URL"
 
       - name: Notify Slack on failure
         if: failure()
         uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
           status: ${{ job.status }}
           text: |
@@ -110,6 +130,8 @@ jobs:
       - name: Notify Slack on success
         if: success()
         uses: 8398a7/action-slack@v3
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
           status: success
           text: |
