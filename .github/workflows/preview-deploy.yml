@@ -1,22 +1,14 @@
 name: Deploy AgentOS Preview
 
+# Phase 2: main is the only canonical source.
+# Preview is manual so it cannot silently become a second production path.
 on:
-  push:
-    branches: [upgrade/commerce-domains]
-    paths:
-      - 'src/**'
-      - 'server/**'
-      - 'helm/**'
-      - 'Dockerfile'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/preview-deploy.yml'
   workflow_dispatch:
     inputs:
       ref:
-        description: Git ref to deploy
+        description: Git ref to deploy (canonical default is main)
         required: false
-        default: upgrade/commerce-domains
+        default: main
         type: string
 
 concurrency:
@@ -39,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || 'main' }}
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
@@ -62,7 +54,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || 'main' }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GHCR
@@ -97,18 +89,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || 'main' }}
       - name: Validate Preview secrets
         env:
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
           INGRESS_HOST: ${{ secrets.KUBE_INGRESS_HOST }}
-      
         run: |
           set -euo pipefail
           test -n "$KUBECONFIG_DATA" || { echo 'Preview secret KUBECONFIG is required'; exit 1; }
           test -n "$INGRESS_HOST" || { echo 'Preview secret KUBE_INGRESS_HOST is required'; exit 1; }
-          printf '%s' "$KUBECONFIG_DATA" > "$RUNNER_TEMP/preview-kubeconfig"
-          echo "KUBECONFIG_PATH=$RUNNER_TEMP/preview-kubeconfig" >> "$GITHUB_ENV"
       - name: Setup Helm
         uses: azure/setup-helm@v4
         with:
@@ -176,4 +165,4 @@ jobs:
           set -euo pipefail
           kubectl rollout status deployment/agentos -n "$NAMESPACE" --timeout=5m
           kubectl get ingress -n "$NAMESPACE"
-          echo 'Preview deployment verified; use the configured KUBE_INGRESS_HOST for live smoke checks.'
+          echo 'Preview deployment verified.'
