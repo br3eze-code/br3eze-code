@@ -71,8 +71,18 @@ export class MikroTikManager {
       switch (toolName) {
         case 'ping': return this._menu('/').call?.('ping', params) ?? [];
         case 'user.add':
-        case 'mikrotik.hotspot.user.add':
-          await this.connect(); return this._menu('/ip/hotspot/user').add({ name: params.username || params.name, password: params.password, profile: params.profile || 'default' });
+        case 'mikrotik.hotspot.user.add': {
+          await this.connect();
+          const user = {
+            name: params.username || params.name,
+            password: params.password,
+            profile: params.profile || 'default'
+          };
+          if (Number.isFinite(Number(params.sharedUsers)) && Number(params.sharedUsers) > 0) {
+            user['shared-users'] = Number(params.sharedUsers);
+          }
+          return this._menu('/ip/hotspot/user').add(user);
+        }
         case 'user.remove':
         case 'mikrotik.hotspot.user.remove': {
           await this.connect(); const users = await this._menu('/ip/hotspot/user').where('name', params.username || params.name).get();
