@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 const TERMINAL = new Set(['completed', 'failed', 'terminated']);
+const PROTECTED_SCOPE_KEYS = ['tenantId', 'workspaceId', 'principalId'];
 
 /**
  * Canonical subagent lifecycle manager.
@@ -15,6 +16,7 @@ export class SubagentRuntime {
     this.executor = executor;
     this.maxDepth = maxDepth;
     this.defaultBudget = defaultBudget;
+    this.children = new Map();
   }
 
   spawn({ parentId = null, role, scope = {}, permissions = [], depth, budget, metadata = {} } = {}) {
@@ -30,14 +32,32 @@ export class SubagentRuntime {
       throw error;
     }
 
+    // Enforce inheritance at the lifecycle boundary itself. Callers cannot
+    // widen permissions or protected tenant/workspace/principal scope by
+    // bypassing AgentRuntime.spawnSubagent().
+    let resolvedPermissions = [...permissions];
+    let resolvedScope = { ...scope };
+    if (parent) {
+      const allowed = new Set(parent.permissions || []);
+      resolvedPermissions = (permissions.length ? permissions : [...allowed]).filter((p) => allowed.has(p));
+      for (const key of PROTECTED_SCOPE_KEYS) {
+        if (parent.scope?.[key] != null) resolvedScope[key] = parent.scope[key];
+      }
+    }
+
     const now = Date.now();
     const item = {
-      id: crypto.randomUUID(), parentId, role, scope, permissions,
+      id: crypto.randomUUID(), parentId, role, scope: resolvedScope, permissions: resolvedPermissions,
       depth: resolvedDepth, budget: budget ?? this.defaultBudget, spent: 0,
       status: 'ready', createdAt: now, updatedAt: now, metadata,
     };
     if (!Number.isFinite(item.budget) || item.budget < 0) throw new TypeError('subagent budget must be a non-negative number');
-    return this.store.create(item);
+    const created = this.store.create(item);
+    if (parentId) {
+      if (!this.children.has(parentId)) this.children.set(parentId, new Set());
+      this.children.get(parentId).add(created.id);
+    }
+    return created;
   }
 
   get(id) { return this.store.get(id); }
@@ -56,10 +76,12 @@ export class SubagentRuntime {
     this.store.update(id, { status: 'running', spent: item.spent + cost });
     try {
       const result = await executor({ subagent: this._require(id), input, context });
-      this.store.update(id, { status: 'completed' });
+      const current = this._require(id);
+      if (current.status !== 'terminated') this.store.update(id, { status: 'completed' });
       return result;
     } catch (error) {
-      this.store.update(id, { status: 'failed', error: error.message });
+      const current = this._require(id);
+      if (current.status !== 'terminated') this.store.update(id, { status: 'failed', error: error.message });
       throw error;
     }
   }
@@ -74,7 +96,15 @@ export class SubagentRuntime {
   terminate(id, reason = 'terminated') {
     const item = this._require(id);
     if (item.status === 'completed') throw new Error(`Cannot terminate completed subagent: ${id}`);
-    return this.store.update(id, { status: 'terminated', terminationReason: reason });
+    if (item.status === 'terminated') return item;
+
+    const result = this.store.update(id, { status: 'terminated', terminationReason: reason });
+    // A terminated parent must not leave runnable descendants behind.
+    for (const childId of this.children.get(id) || []) {
+      const child = this.store.get(childId);
+      if (child && !TERMINAL.has(child.status)) this.terminate(childId, `parent:${id}:${reason}`);
+    }
+    return result;
   }
 
   _require(id) {
