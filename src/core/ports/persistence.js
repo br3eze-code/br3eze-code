@@ -10,6 +10,7 @@ export const getPersistenceProvider = () => port.get();
 export const requirePersistenceProvider = () => port.require();
 export const initialize = () => port.require().initializeFirebase?.() ?? port.require().initialize?.();
 export const getStore = () => port.require().getFirestore?.() ?? port.require().getDatabase?.();
+export const getDatabase = async () => port.require().getDatabase?.() ?? null;
 export const getApp = () => port.require().getFirebaseApp?.();
 export const getAuth = () => port.require().getAuth?.();
 export const createAuthUser = (identifier, options = {}) => port.require().createAuthUser(identifier, options);
