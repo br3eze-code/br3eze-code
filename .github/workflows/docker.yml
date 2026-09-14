@@ -18,6 +18,7 @@ permissions:
 jobs:
   docker:
     name: Build & Push
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -48,9 +49,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          # amd64 only: the deploy targets (Cloud Run / k8s) are amd64, and the
-          # arm64 build under QEMU emulation crashes `npm ci` with SIGILL
-          # (exit 132). Add a native arm64 runner if arm images are needed.
+          # amd64 only: the deploy targets are amd64. Add a native arm64
+          # runner before enabling arm64 production images.
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
