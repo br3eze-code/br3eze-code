@@ -9,19 +9,24 @@ import { registerDatabaseProvider } from '../core/database.js';
 import { registerPersistenceProvider } from '../core/firebase.js';
 import nodeRegistry from '../core/node-registry.js';
 import pluginRegistry from '../plugins/registry.js';
+import PluginManager from '../plugins/manager.js';
+import ServiceRegistry from '../services/registry.js';
 
-/** Host composition root: the only place where concrete providers enter Core. */
+/** Composition root: concrete services/adapters enter the domain-neutral kernel here. */
 export function bootstrapAgentOS() {
   registerNetworkProvider(networkAdapter);
   registerOnboardingProvider(onboardingAdapter.default || onboardingAdapter);
   registerDatabaseProvider(databaseAdapter);
   registerPersistenceProvider(firebaseAdapter.default || firebaseAdapter);
   nodeRegistry.setManagerFactory(networkAdapter.createManager);
-
-  // Concrete adapters are registered here, not inside the domain-neutral registry.
   pluginRegistry.register('mikrotik', MikroTikAdapter);
-
   return { networkAdapter, onboardingAdapter, databaseAdapter, firebaseAdapter, nodeRegistry, pluginRegistry };
+}
+
+export function createExtensionRuntime(agent, options = {}) {
+  const plugins = new PluginManager(agent, options.plugins || {});
+  const services = new ServiceRegistry();
+  return { plugins, services };
 }
 
 export const host = bootstrapAgentOS();
