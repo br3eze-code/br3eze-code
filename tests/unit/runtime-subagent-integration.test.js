@@ -23,7 +23,7 @@ test('runtime narrows child permissions and preserves parent security scope', as
   assert.equal(child.scope.principalId, 'user-a');
   assert.equal(child.scope.extra, 'allowed');
   assert.deepEqual(child.permissions, ['catalog.read']);
-  assert.equal((await runtime.runSubagent(child.id, 'ok')).ok ?? true, true);
+  assert.equal(await runtime.runSubagent(child.id, 'ok'), 'ok');
 });
 
 test('runtime exposes explicit subagent lifecycle operations', () => {
