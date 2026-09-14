@@ -1,11 +1,14 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { PluginRegistry, PluginLoader, isPlugin } from '../sdk/plugin/index.js';
 
 export class PluginManager {
-  constructor(agent, { logger = agent?.logger || console } = {}) {
+  constructor(agent, { logger = agent?.logger || console, runtime = {} } = {}) {
     this.agent = agent;
     this.logger = logger;
     this.plugins = new Map();
+    this.registry = new PluginRegistry();
+    this.loader = new PluginLoader({ registry: this.registry, runtime: { agent, logger, ...runtime } });
     this.hooks = new Map(['preInitialize', 'postInitialize', 'preSkillExecute', 'postSkillExecute', 'preShutdown'].map(name => [name, []]));
   }
 
@@ -15,6 +18,11 @@ export class PluginManager {
     const Exported = module.default ?? module.Plugin ?? module;
     const instance = typeof Exported === 'function' ? new Exported(this.agent, options) : Exported;
     if (!instance || typeof instance !== 'object') throw new TypeError(`Plugin '${pluginPath}' did not export a plugin object or class`);
+    if (isPlugin(instance)) {
+      await this.loader.load(instance);
+      this.plugins.set(instance.id, instance);
+      return instance;
+    }
     for (const [event, handler] of Object.entries(instance.hooks || {})) {
       if (typeof handler === 'function' && this.hooks.has(event)) this.hooks.get(event).push({ name: instance.name || pluginPath, handler: handler.bind(instance) });
     }
@@ -33,8 +41,9 @@ export class PluginManager {
 
   async loadClass(PluginClass, agent = this.agent, options = {}) {
     const instance = new PluginClass(agent, options);
-    await instance.initialize?.();
-    this.plugins.set(instance.name, instance);
+    if (isPlugin(instance)) await this.loader.load(instance);
+    else await instance.initialize?.();
+    this.plugins.set(instance.id || instance.name, instance);
     return instance;
   }
 
@@ -50,11 +59,13 @@ export class PluginManager {
 
   get(name) { return this.plugins.get(name) || null; }
   list() { return [...this.plugins.keys()]; }
+  listManifests() { return this.registry.list(); }
 
   async unload(name) {
     const plugin = this.plugins.get(name);
     if (!plugin) return false;
-    await plugin.destroy?.();
+    if (isPlugin(plugin)) await this.loader.unload(plugin.id);
+    else await plugin.destroy?.();
     for (const handlers of this.hooks.values()) {
       for (let i = handlers.length - 1; i >= 0; i -= 1) if (handlers[i].name === name) handlers.splice(i, 1);
     }
