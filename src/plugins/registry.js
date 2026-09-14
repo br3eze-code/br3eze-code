@@ -1,100 +1,107 @@
-// src/plugins/registry.js
 /**
- * Plugin Registry - Dynamic adapter loading and management
+ * Adapter Registry
+ *
+ * This registry is intentionally outside Core. It owns concrete adapter
+ * loading, lifecycle, resource indexing and action dispatch. Core only sees
+ * capability contracts and injected executors.
  */
 
+const DEFAULT_ADAPTERS = {
+  mikrotik: () => import('../adapters/network/mikrotik-adapter.js')
+};
+
+function unwrap(module) {
+  return module?.default ?? module?.MikroTikAdapter ?? module;
+}
+
 class PluginRegistry {
-  constructor() {
+  constructor({ logger = console } = {}) {
+    this.logger = logger;
     this.adapters = new Map();
     this.resourceIndex = new Map();
+    this.definitions = new Map();
   }
 
-  // Register built-in adapters — optional SDKs are wrapped gracefully
+  register(name, AdapterClassOrLoader) {
+    if (!name || !AdapterClassOrLoader) throw new TypeError('Adapter name and implementation are required');
+    this.definitions.set(name, AdapterClassOrLoader);
+    return this;
+  }
+
   registerBuiltins() {
-    const builtin = [
-      ['mikrotik',    './adapters/mikrotik-adapter'],
-      ['aws',         './adapters/aws-adapter'],
-      ['docker',      './adapters/docker-adapter'],
-      ['kubernetes',  './adapters/kubernetes-adapter'],
-      ['proxmox',     './adapters/proxmox-adapter'],
-    ];
-    for (const [name, path] of builtin) {
-      try {
-        this.register(name, require(path));
-      } catch (err) {
-        console.warn(`⚠️  Adapter '${name}' skipped: ${err.message.split('\n')[0]}`);
-      }
-    }
+    for (const [name, loader] of Object.entries(DEFAULT_ADAPTERS)) this.register(name, loader);
+    return this;
   }
 
-  // Register custom adapter
-  register(name, AdapterClass) {
-    this.adapters.set(name, AdapterClass);
-    console.log(`✅ Registered adapter: ${name}`);
-  }
+  async load(name, config = {}) {
+    const definition = this.definitions.get(name);
+    if (!definition) throw new Error(`Adapter '${name}' not found. Registered: ${[...this.definitions.keys()].join(', ')}`);
 
-  // Load adapter instance
-  async load(name, config) {
-    const AdapterClass = this.adapters.get(name);
-    if (!AdapterClass) {
-      throw new Error(`Adapter '${name}' not found. Registered: ${Array.from(this.adapters.keys())}`);
+    const module = typeof definition === 'function' && definition.constructor?.name === 'AsyncFunction'
+      ? await definition()
+      : definition;
+    const AdapterClass = unwrap(module);
+    const instance = typeof AdapterClass === 'function' ? new AdapterClass(config) : AdapterClass;
+    if (!instance || typeof instance.connect !== 'function' || typeof instance.executeTool !== 'function') {
+      throw new TypeError(`Adapter '${name}' does not satisfy the adapter contract`);
     }
 
-    const instance = new AdapterClass(config);
     await instance.connect();
-    
-    // Index resources
-    instance.on('resource discovered', (resource) => {
-      this.resourceIndex.set(resource.id, { adapter: name, resource });
-    });
-
+    this.adapters.set(name, instance);
+    const resources = typeof instance.discover === 'function' ? await instance.discover() : [];
+    for (const resource of resources || []) this.index(name, resource);
     return instance;
   }
 
-  // Discover all resources across all connected adapters
+  index(adapterName, resource) {
+    if (!resource?.id) return;
+    this.resourceIndex.set(resource.id, { adapter: adapterName, resource });
+  }
+
   async discoverAll() {
-    const allResources = [];
+    const all = [];
     for (const [name, adapter] of this.adapters) {
-      if (adapter.connected) {
-        const resources = await adapter.discover();
-        allResources.push(...resources);
-      }
+      if (!adapter.connected) continue;
+      const resources = await adapter.discover?.() || [];
+      for (const resource of resources) { this.index(name, resource); all.push(resource); }
     }
-    return allResources;
+    return all;
   }
 
-  // Route command to appropriate adapter
-  async execute(resourceId, action, params) {
+  async execute(resourceId, action, params = {}) {
     const location = this.resourceIndex.get(resourceId);
-    if (!location) {
-      throw new Error(`Resource ${resourceId} not found in any adapter`);
-    }
-
+    if (!location) throw new Error(`Resource '${resourceId}' is not registered`);
     const adapter = this.adapters.get(location.adapter);
-    return await adapter.execute(resourceId, action, params);
+    if (!adapter) throw new Error(`Adapter '${location.adapter}' is not loaded`);
+    return adapter.executeTool(action, params, { resourceId, resource: location.resource });
   }
 
-  // Find resources by type
   findByType(type) {
-    return Array.from(this.resourceIndex.values())
-      .filter(({ resource }) => resource.type === type)
-      .map(({ resource }) => resource);
+    return [...this.resourceIndex.values()].filter(({ resource }) => resource.type === type).map(({ resource }) => resource);
   }
 
-  // Find resources by capability
   findByCapability(capability) {
-    return Array.from(this.resourceIndex.values())
-      .filter(({ resource }) => resource.can(capability))
-      .map(({ resource }) => resource);
+    return [...this.resourceIndex.values()].filter(({ resource }) => typeof resource.can === 'function' && resource.can(capability)).map(({ resource }) => resource);
   }
 
-  getAdapter(name) {
-    return this.adapters.get(name);
+  getAdapter(name) { return this.adapters.get(name) || null; }
+  listAdapters() { return [...this.adapters.keys()]; }
+
+  async unload(name) {
+    const adapter = this.adapters.get(name);
+    if (!adapter) return false;
+    await adapter.disconnect?.();
+    adapter.destroy?.();
+    this.adapters.delete(name);
+    for (const [id, location] of this.resourceIndex) if (location.adapter === name) this.resourceIndex.delete(id);
+    return true;
   }
 
-  listAdapters() {
-    return Array.from(this.adapters.keys());
+  async shutdown() {
+    await Promise.allSettled([...this.adapters.keys()].map(name => this.unload(name)));
+    this.resourceIndex.clear();
   }
 }
 
+export { PluginRegistry };
 export default new PluginRegistry();
