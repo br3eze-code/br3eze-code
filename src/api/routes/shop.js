@@ -3,13 +3,16 @@ import * as shop from '../../core/shop.js';
 import { generateOrderPdf } from '../../core/invoice-pdf.js';
 import { logger } from '../../core/logger.js';
 import { getProductQueryService } from '../../core/product-query-service-bridge.js';
+import { executeCheckout } from '../../commerce/acp/checkout-orchestrator.js';
+import { requireIdempotencyKey } from '../../commerce/acp/index.js';
+import { resolveCommerceContext } from './shop-context.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 /**
  * API Routes — Shop
- * Product catalog, per-channel cart, checkout, and order lookups.
+ * Product catalog, authenticated per-user cart, checkout, and order lookups.
  * Mounted at /api/v1/shop by gateway-engine.js.
  * @module api/routes/shop
  */
@@ -29,7 +32,8 @@ const requestOrderScope = (req) => {
 };
 const canViewOrder = (req, order) => {
   const isOwner = req.firebaseUser?.uid && order.userId === req.firebaseUser.uid;
-  const isAdmin = req.firebaseUser?.role === 'admin';
+  const role = req.firebaseUser?.role || req.firebaseUser?.customClaims?.role;
+  const isAdmin = role === 'admin';
   return isOwner || isAdmin;
 };
 const requestProductScope = (req) => {
@@ -94,38 +98,50 @@ router.get('/products/:id', async (req, res) => {
 
 router.get('/cart', async (req, res) => {
   try {
-    const { platform, channelId } = req.query;
-    if (!platform || !channelId) return res.status(400).json({ ok: false, error: 'platform and channelId required' });
-    ok(res, await shop.getCart(platform, channelId));
-  } catch (e) { fail(res, e, 500); }
+    const context = resolveCommerceContext(req);
+    ok(res, await shop.getCart(context.platform, context.channelId, context.scope));
+  } catch (e) { fail(res, e, e.status || 500); }
 });
 
 router.post('/cart/add', async (req, res) => {
   try {
-    const { platform, channelId, productRef, size, qty } = req.body || {};
-    if (!platform || !channelId || !productRef) return res.status(400).json({ ok: false, error: 'platform, channelId, productRef required' });
-    ok(res, await shop.addToCart(platform, channelId, productRef, { size, qty }));
-  } catch (e) { fail(res, e); }
+    const context = resolveCommerceContext(req);
+    const { productRef, size, qty } = req.body || {};
+    if (!productRef) return res.status(400).json({ ok: false, error: 'productRef required' });
+    ok(res, await shop.addToCart(context.platform, context.channelId, productRef, { size, qty }, context.scope));
+  } catch (e) { fail(res, e, e.status || 400); }
 });
 
 router.post('/cart/remove', async (req, res) => {
   try {
-    const { platform, channelId, keyOrProductId } = req.body || {};
-    if (!platform || !channelId || !keyOrProductId) return res.status(400).json({ ok: false, error: 'platform, channelId, keyOrProductId required' });
-    ok(res, await shop.removeFromCart(platform, channelId, keyOrProductId));
-  } catch (e) { fail(res, e); }
+    const context = resolveCommerceContext(req);
+    const { keyOrProductId } = req.body || {};
+    if (!keyOrProductId) return res.status(400).json({ ok: false, error: 'keyOrProductId required' });
+    ok(res, await shop.removeFromCart(context.platform, context.channelId, keyOrProductId, context.scope));
+  } catch (e) { fail(res, e, e.status || 400); }
 });
 
 router.post('/checkout', async (req, res) => {
   try {
-    const { platform, channelId, address, payMethod } = req.body || {};
-    if (!platform || !channelId) return res.status(400).json({ ok: false, error: 'platform and channelId required' });
-    // Never trust a client-supplied uid for a balance charge — always the authenticated caller.
-    const uid = req.firebaseUser?.uid || null;
-    const result = await shop.checkout(platform, channelId, { uid, address, payMethod });
-    logger.info(`[Shop API] checkout ${platform}:${channelId} uid=${uid} order=${result.orderId}`);
+    const context = resolveCommerceContext(req);
+    const { address, payMethod } = req.body || {};
+    const idempotencyKey = req.get('Idempotency-Key') || req.body?.idempotencyKey;
+    requireIdempotencyKey(idempotencyKey);
+
+    const result = await executeCheckout({
+      idempotencyKey,
+      merchantId: context.merchantId,
+      buyerId: context.buyerId,
+      platform: context.platform,
+      channelId: context.channelId,
+      address,
+      payMethod,
+      scope: context.scope,
+    });
+
+    logger.info(`[Shop API] checkout ${context.platform}:${context.channelId} uid=${context.uid} order=${result.orderId}${result.replayed ? ' replay=true' : ''}`);
     ok(res, result);
-  } catch (e) { fail(res, e); }
+  } catch (e) { fail(res, e, e.status || 400); }
 });
 
 router.get('/orders', async (req, res) => {
@@ -166,7 +182,9 @@ router.get('/couriers', (req, res) => {
 
 router.post('/orders/:id/ship', async (req, res) => {
   try {
-    if (req.firebaseUser && req.firebaseUser.role !== 'admin') return res.status(403).json({ ok: false, error: 'Admin role required' });
+    const role = req.firebaseUser?.role || req.firebaseUser?.customClaims?.role;
+    if (!req.firebaseUser?.uid) return res.status(401).json({ ok: false, error: 'Firebase identity required' });
+    if (role !== 'admin') return res.status(403).json({ ok: false, error: 'Admin role required' });
     const { provider } = req.body || {};
     if (!provider) return res.status(400).json({ ok: false, error: 'provider required' });
     ok(res, await shop.createShipment(req.params.id, provider, requestOrderScope(req)));
@@ -175,11 +193,12 @@ router.post('/orders/:id/ship', async (req, res) => {
 
 router.get('/orders/:id/track', async (req, res) => {
   try {
+    if (!req.firebaseUser?.uid) return res.status(401).json({ ok: false, error: 'Firebase identity required' });
     const order = await shop.getOrder(req.params.id);
     if (!order) return res.status(404).json({ ok: false, error: 'Order not found' });
     if (!canViewOrder(req, order)) return res.status(403).json({ ok: false, error: 'Forbidden' });
     ok(res, await shop.trackShipment(req.params.id, requestOrderScope(req)));
-  } catch (e) { fail(res, e, 500); }
+  } catch (e) { fail(res, e, e.status || 500); }
 });
 
 export default router;
