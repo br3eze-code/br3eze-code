@@ -1,10 +1,7 @@
 import crypto from 'node:crypto';
 import { createPaymentIdempotencyStore } from '../../payments/idempotency-store.js';
 import { checkout } from '../../core/shop.js';
-import {
-  fingerprintRequest,
-  validateIdempotencyKey,
-} from './checkout-session.js';
+import { fingerprintRequest, validateIdempotencyKey } from './checkout-session.js';
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -32,9 +29,9 @@ function pendingError() {
  * boundary and replays the completed result after a retry. The underlying shop
  * checkout remains authoritative for product price, stock and order creation.
  *
- * The store is deliberately injectable. The default is the existing durable
- * SQLite/file idempotency store; a distributed Firestore implementation should
- * replace it before multi-instance ACP production traffic is enabled.
+ * The default store is the existing durable SQLite/file idempotency store. A
+ * distributed Firestore implementation is still required before multi-instance
+ * ACP production traffic is enabled.
  */
 export async function executeCheckout({
   idempotencyKey,
@@ -52,47 +49,27 @@ export async function executeCheckout({
   if (!merchantId) throw new Error('merchantId is required.');
   if (!platform || !channelId) throw new Error('platform and channelId are required.');
 
-  const store = idempotencyStore || createPaymentIdempotencyStore({
-    ttlMs: DEFAULT_TTL_MS,
-    ...idempotencyOptions,
-  });
+  const store = idempotencyStore || createPaymentIdempotencyStore({ ttlMs: DEFAULT_TTL_MS, ...idempotencyOptions });
   const storageKey = namespaceKey({ idempotencyKey: key, merchantId, buyerId });
-  const requestFingerprint = fingerprintRequest({
-    merchantId,
-    buyerId,
-    platform,
-    channelId: String(channelId),
-    address,
-    payMethod,
-    scope,
-  });
+  const requestFingerprint = fingerprintRequest({ merchantId, buyerId, platform, channelId: String(channelId), address, payMethod, scope });
 
   const existing = store.get(storageKey);
-  if (existing && existing.requestFingerprint !== requestFingerprint) throw conflictError();
-  if (existing?.result) return { ...existing.result, replayed: true };
+  const existingFingerprint = existing?.requestFingerprint || existing?.metadata?.requestFingerprint;
+  if (existingFingerprint && existingFingerprint !== requestFingerprint) throw conflictError();
+  if (existing && !existing?.pending && existing?.orderId) return { ...existing, replayed: true };
   if (existing?.pending) throw pendingError();
 
-  const metadata = {
-    requestFingerprint,
-    merchantId,
-    buyerId,
-    platform,
-    channelId: String(channelId),
-  };
+  const metadata = { requestFingerprint, merchantId, buyerId, platform, channelId: String(channelId) };
   if (!store.reserve(storageKey, metadata, DEFAULT_TTL_MS)) {
     const concurrent = store.get(storageKey);
-    if (concurrent?.requestFingerprint && concurrent.requestFingerprint !== requestFingerprint) throw conflictError();
-    if (concurrent?.result) return { ...concurrent.result, replayed: true };
+    const concurrentFingerprint = concurrent?.requestFingerprint || concurrent?.metadata?.requestFingerprint;
+    if (concurrentFingerprint && concurrentFingerprint !== requestFingerprint) throw conflictError();
+    if (concurrent && !concurrent?.pending && concurrent?.orderId) return { ...concurrent, replayed: true };
     throw pendingError();
   }
 
   try {
-    const result = await checkout(platform, channelId, {
-      uid: buyerId,
-      address,
-      payMethod,
-      scope,
-    });
+    const result = await checkout(platform, channelId, { uid: buyerId, address, payMethod, scope });
     const persisted = { ...result, requestFingerprint };
     store.set(storageKey, persisted, DEFAULT_TTL_MS);
     return persisted;
