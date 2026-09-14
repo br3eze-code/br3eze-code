@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createPaymentIdempotencyStore } from '../../payments/idempotency-store.js';
-import { checkout } from '../../core/shop.js';
+import { checkout as defaultCheckout } from '../../core/shop.js';
 import { fingerprintRequest, validateIdempotencyKey } from './checkout-session.js';
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -29,6 +29,9 @@ function pendingError() {
  * boundary and replays the completed result after a retry. The underlying shop
  * checkout remains authoritative for product price, stock and order creation.
  *
+ * `checkoutFn` is injectable for deterministic unit tests and host-specific
+ * composition. Production callers use the core shop checkout by default.
+ *
  * The default store is the existing durable SQLite/file idempotency store. A
  * distributed Firestore implementation is still required before multi-instance
  * ACP production traffic is enabled.
@@ -44,10 +47,12 @@ export async function executeCheckout({
   scope = {},
   idempotencyStore = null,
   idempotencyOptions = {},
+  checkoutFn = defaultCheckout,
 } = {}) {
   const key = validateIdempotencyKey(idempotencyKey);
   if (!merchantId) throw new Error('merchantId is required.');
   if (!platform || !channelId) throw new Error('platform and channelId are required.');
+  if (typeof checkoutFn !== 'function') throw new TypeError('checkoutFn must be a function.');
 
   const store = idempotencyStore || createPaymentIdempotencyStore({ ttlMs: DEFAULT_TTL_MS, ...idempotencyOptions });
   const storageKey = namespaceKey({ idempotencyKey: key, merchantId, buyerId });
@@ -69,7 +74,7 @@ export async function executeCheckout({
   }
 
   try {
-    const result = await checkout(platform, channelId, { uid: buyerId, address, payMethod, scope });
+    const result = await checkoutFn(platform, channelId, { uid: buyerId, address, payMethod, scope });
     const persisted = { ...result, requestFingerprint };
     store.set(storageKey, persisted, DEFAULT_TTL_MS);
     return persisted;
