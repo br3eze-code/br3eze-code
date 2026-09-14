@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * AgentOS Onboarding Runner
- * This script serves as the primary entry point for onboarding new routers.
- * It uses the core onboarding service to apply templates and provision agents.
+ * Primary entry point for onboarding network devices.
+ * Provider-specific behavior is supplied by the network onboarding adapter.
  */
 
 import { pathToFileURL } from 'url';
 import 'dotenv/config';
-import { onboardRouter, provisionAgents } from './src/core/onboard.js';
+import { onboardRouter, provisionAgents, templateRsc } from './src/core/ports/onboarding.js';
 import { logger } from './src/core/logger.js';
 import { getConfig } from './src/core/config.js';
 import { resolveRuntimeConfig } from './src/core/runtime-config.js';
@@ -34,15 +34,11 @@ async function main() {
         password,
         port,
         dryRun: isDryRun,
-        // Map common .env names to template variables
-                AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || runtime.public.apiBaseUrl,
+        AGENTOS_NODE_URL: process.env.AGENTOS_NODE_URL || process.env.SERVER_URL || runtime.public.apiBaseUrl,
         FIREBASE_URL: process.env.FIREBASE_URL || runtime.firebase.databaseURL,
-                FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || runtime.firebase.apiKey,
+        FIREBASE_API_KEY: process.env.FIREBASE_API_KEY || runtime.firebase.apiKey,
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
         TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID || (process.env.ALLOWED_CHAT_IDS ? process.env.ALLOWED_CHAT_IDS.split(',')[0] : ''),
-
-        // Router passwords are secrets: supply them through environment or a secret manager.
-
         AGENTOS_API_PASSWORD: process.env.AGENTOS_API_PASSWORD,
         AGENTOS_ADMIN_PASSWORD: process.env.AGENTOS_ADMIN_PASSWORD,
         AGENTOS_OPERATOR_PASSWORD: process.env.AGENTOS_OPERATOR_PASSWORD,
@@ -51,22 +47,19 @@ async function main() {
     };
 
     if (isDebug) {
-        logger.info("DEBUG MODE: Printing templated variables:");
+        logger.info('DEBUG MODE: Printing templated variables:');
         console.log(JSON.stringify(options, null, 2));
-        
-        // Verify we can load the core module
+
         try {
-            const { templateRsc } = await import('./src/core/onboard.js');
             const fs = (await import('fs/promises')).default;
             const path = (await import('path')).default;
-            
             const files = ['setup.rsc', 'mikro.rsc', 'agentos-sentinel.rsc'];
             for (const file of files) {
                 try {
                     const content = await fs.readFile(path.join(process.cwd(), file), 'utf8');
                     const templated = templateRsc(content, options);
                     logger.info(`--- Templated ${file} ---`);
-                    console.log(templated.substring(0, 500) + '...'); // Print snippet
+                    console.log(templated.substring(0, 500) + '...');
                 } catch (e) {
                     logger.warn(`Could not read ${file}: ${e.message}`);
                 }
@@ -79,20 +72,13 @@ async function main() {
 
     const result = await onboardRouter(options);
 
-
     if (result.success) {
-        logger.info(`Onboarding successful!`);
-        
+        logger.info('Onboarding successful!');
         if (!skipProvision) {
-            // Provision an agent for this router
-            const routerId = host.replace(/\./g, '-'); // Simple ID generation
+            const routerId = host.replace(/\./g, '-');
             const agentResult = await provisionAgents(routerId, options);
-            
-            if (agentResult.success) {
-                logger.info(`Agent provisioned: ${agentResult.id}`);
-            } else {
-                logger.warn(`Agent provisioning failed: ${agentResult.error}`);
-            }
+            if (agentResult.success) logger.info(`Agent provisioned: ${agentResult.id}`);
+            else logger.warn(`Agent provisioning failed: ${agentResult.error}`);
         }
     } else {
         logger.error(`Onboarding failed: ${result.error}`);
