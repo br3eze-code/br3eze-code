@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
 import SubagentRuntime from '../../src/core/subagentRuntime.js';
 import { MemorySubagentStore } from '../../src/adapters/persistence/memory-subagent-store.js';
 
