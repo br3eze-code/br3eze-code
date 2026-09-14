@@ -108,7 +108,11 @@ router.post('/cart/add', async (req, res) => {
     const context = resolveCommerceContext(req);
     const { productRef, size, qty } = req.body || {};
     if (!productRef) return res.status(400).json({ ok: false, error: 'productRef required' });
-    ok(res, await shop.addToCart(context.platform, context.channelId, productRef, { size, qty }, context.scope));
+    ok(res, await shop.addToCart(context.platform, context.channelId, productRef, {
+      size,
+      qty,
+      scope: context.scope,
+    }));
   } catch (e) { fail(res, e, e.status || 400); }
 });
 
