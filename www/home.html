@@ -18,8 +18,8 @@
     body { display: block; }
     .public-shell { min-height: 100vh; }
     .public-header { position: sticky; top: 0; z-index: 10; }
-    .public-nav { display: flex; align-items: center; gap: 24px; }
-    .public-nav a { color: var(--color-text-medium); font-size: .9rem; }
+    .public-nav { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+    .public-nav a { color: var(--color-text-medium); font-size: .9rem; white-space: nowrap; }
     .public-nav a:hover, .public-nav a[aria-current="page"] { color: var(--color-text-light); }
     .public-main { max-width: 1120px; margin: 0 auto; padding: 42px 40px 80px; }
     .intro { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 28px; align-items: stretch; margin-bottom: 28px; }
@@ -51,11 +51,37 @@
       .public-footer { padding: 0 20px 28px; }
     }
     @media (max-width: 560px) {
-      .main-header { padding: 15px 20px; }
-      .public-nav { gap: 12px; }
-      .public-nav a { font-size: .78rem; }
+      .main-header {
+        padding: 10px 15px;
+        height: 58px;
+        gap: 12px;
+      }
+      .main-header .logo {
+        font-size: 1rem;
+        letter-spacing: .7px;
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .public-nav {
+        gap: 4px;
+        margin-left: auto;
+      }
+      .public-nav a {
+        font-size: .72rem;
+        padding: 9px 5px;
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
       .section-heading { display: block; }
       .section-heading p { margin-top: 6px; }
+    }
+    @media (max-width: 380px) {
+      .main-header { padding-left: 10px; padding-right: 10px; gap: 6px; }
+      .main-header .logo { font-size: .92rem; }
+      .public-nav { gap: 1px; }
+      .public-nav a { font-size: .68rem; padding-left: 4px; padding-right: 4px; }
     }
   </style>
 </head>
@@ -95,49 +121,21 @@
         <p>Simple tools for everyday connectivity.</p>
       </div>
       <div class="service-grid">
-        <article class="card service-card">
-          <i class="fas fa-wifi" aria-hidden="true"></i>
-          <h3>Connect to a hotspot</h3>
-          <p>Access available Power Connect service and get online through supported locations.</p>
-        </article>
-        <article class="card service-card">
-          <i class="fas fa-receipt" aria-hidden="true"></i>
-          <h3>Manage your access</h3>
-          <p>Keep your plans, access and account information together instead of managing separate services.</p>
-        </article>
-        <article class="card service-card">
-          <i class="fas fa-headset" aria-hidden="true"></i>
-          <h3>Get support</h3>
-          <p>Find the information you need when you have a connection, account or service question.</p>
-        </article>
+        <article class="card service-card"><i class="fas fa-wifi" aria-hidden="true"></i><h3>Connect to a hotspot</h3><p>Access available Power Connect service and get online through supported locations.</p></article>
+        <article class="card service-card"><i class="fas fa-receipt" aria-hidden="true"></i><h3>Manage your access</h3><p>Keep your plans, access and account information together instead of managing separate services.</p></article>
+        <article class="card service-card"><i class="fas fa-headset" aria-hidden="true"></i><h3>Get support</h3><p>Find the information you need when you have a connection, account or service question.</p></article>
       </div>
     </section>
 
     <section aria-labelledby="steps-title">
-      <div class="section-heading">
-        <h2 id="steps-title">How it works</h2>
-        <p>No complicated setup.</p>
-      </div>
+      <div class="section-heading"><h2 id="steps-title">How it works</h2><p>No complicated setup.</p></div>
       <div class="steps">
-        <article class="step">
-          <div class="step-number">01</div>
-          <h3>Find Power Connect</h3>
-          <p>Use a supported Power Connect hotspot or service location.</p>
-        </article>
-        <article class="step">
-          <div class="step-number">02</div>
-          <h3>Choose your access</h3>
-          <p>Select the available access option that fits what you need.</p>
-        </article>
-        <article class="step">
-          <div class="step-number">03</div>
-          <h3>Connect</h3>
-          <p>Sign in and use your connection while managing your account from the same service.</p>
-        </article>
+        <article class="step"><div class="step-number">01</div><h3>Find Power Connect</h3><p>Use a supported Power Connect hotspot or service location.</p></article>
+        <article class="step"><div class="step-number">02</div><h3>Choose your access</h3><p>Select the available access option that fits what you need.</p></article>
+        <article class="step"><div class="step-number">03</div><h3>Connect</h3><p>Sign in and use your connection while managing your account from the same service.</p></article>
       </div>
     </section>
   </main>
-
   <footer class="public-footer">Power Connect · A Br3eze Africa service</footer>
 </div>
 </body>
