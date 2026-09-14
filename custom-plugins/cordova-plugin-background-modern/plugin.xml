@@ -8,13 +8,19 @@
         <clobbers target="cordova.plugins.backgroundModern" />
     </js-module>
 
+    <feature name="BackgroundPlugin">
+        <param name="android-package" value="cordova.plugins.backgroundmodern.BackgroundPlugin" />
+    </feature>
+
     <platform name="android">
         <config-file parent="/*" target="AndroidManifest.xml">
             <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
         </config-file>
         <config-file parent="application" target="AndroidManifest.xml">
             <service
-                android:name=".BackgroundService"
+                android:name="cordova.plugins.backgroundmodern.BackgroundService"
                 android:exported="false"
                 android:stopWithTask="false"
                 android:foregroundServiceType="specialUse">
