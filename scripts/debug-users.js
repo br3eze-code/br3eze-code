@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { initializeFirebase } from '../src/core/firebase.js';
+import { initializeFirebase } from '../src/adapters/persistence/firebase.js';
 import admin from 'firebase-admin';
 
 async function debugUsers() {
@@ -33,7 +33,6 @@ async function debugUsers() {
 
     console.log('\n--- Analysis ---');
 
-    // 1. Firestore users missing 'uid' field
     const missingUidField = firestoreUsers.filter(u => !u.uid);
     if (missingUidField.length > 0) {
       console.log(`⚠️ ${missingUidField.length} Firestore docs missing 'uid' field:`);
@@ -45,7 +44,6 @@ async function debugUsers() {
       console.log('✅ All Firestore users have a \'uid\' field.');
     }
 
-    // 2. Firestore users not in Auth
     const notInAuth = firestoreUsers.filter(u => {
       const uid = u.uid || u.id;
       return !authUids.has(uid);
@@ -57,7 +55,6 @@ async function debugUsers() {
       console.log('\n✅ All Firestore users exist in Firebase Auth.');
     }
 
-    // 3. Auth users not in Firestore
     const notInFirestore = authUsers.filter(u => !firestoreDocIds.has(u.uid) && !firestoreUids.has(u.uid));
     if (notInFirestore.length > 0) {
       console.log(`\n⚠️ ${notInFirestore.length} Firebase Auth users NOT found in Firestore:`);
