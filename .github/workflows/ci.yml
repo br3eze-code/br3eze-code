@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - '**'
   pull_request:
     branches: [main]
 
@@ -24,6 +25,8 @@ jobs:
         run: node scripts/ci/validate-cicd.mjs
       - name: Validate Core boundary
         run: node scripts/core-boundary-gate.mjs
+      - name: Validate architecture direction
+        run: node scripts/architecture-direction-gate.mjs
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Lint maintained pipeline and plugin code
