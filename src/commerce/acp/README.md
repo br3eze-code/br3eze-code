@@ -10,29 +10,53 @@ The reviewed ACP stable snapshot is `2026-04-17`. The public ACP repository desc
 
 | ACP concern | AgentOS implementation | Status |
 |---|---|---|
-| Product/feed data | `src/core/shop.js` + `src/commerce/acp/index.js` | adapter started |
+| Product/feed data | `src/core/shop.js` + `src/commerce/acp/index.js` | adapter started + frozen contract tests |
 | Product availability | `products.stock` / `availability` | mapped |
 | Product URLs | `/product/:id` | mapped |
-| Cart | `carts` + shop cart operations | existing |
-| Checkout | `shop.checkout()` | existing, not yet ACP HTTP compatible |
+| Cart | `carts` + shop cart operations | existing + authenticated user-bound API boundary |
+| Checkout | `shop.checkout()` + `executeCheckout()` | existing engine + request idempotency guard; not yet ACP HTTP compatible |
 | Orders | `orders` + `/api/v1/shop/orders/*` | existing |
-| Authentication | Firebase identity + tenant/domain scope | existing; ACP boundary still needs formal auth mapping |
-| Idempotency | transaction record currently uses an internally generated key | **gap: request-level idempotency is not wired yet** |
+| Authentication | Firebase identity + tenant/domain scope | authenticated commerce context enforced for cart/checkout |
+| Idempotency | `executeCheckout()` + durable SQLite/file store | request-level reserve/replay/conflict guard implemented; distributed atomic persistence still pending |
 | Payment handlers | `PaymentGateway` | existing abstraction; ACP payment-handler mapping not implemented |
 | Cancel/refund lifecycle | no complete external mutation surface found | **gap** |
 | Fulfillment | courier gateway + shipment/tracking | existing |
 | ACP HTTP contract | none found during discovery | **gap** |
 
+## Security boundary
+
+User-facing cart and checkout routes must never treat a caller-supplied `channelId` as proof of ownership.
+
+`src/api/routes/shop-context.js` resolves the commerce identity from authenticated Firebase state:
+
+```text
+Firebase identity
+      ↓
+   buyerId = uid
+      ↓
+ merchantId = tenantId
+      ↓
+ tenant/site/domain scope
+      ↓
+ channelId = authenticated uid
+      ↓
+ core shop operations
+```
+
+A caller may still identify the requested channel in the request for compatibility/diagnostics, but the public user-facing boundary canonicalizes the effective channel to the authenticated user. Agent, bot and POS workflows that need delegated channel identities require a separate authenticated service boundary rather than bypassing this rule with an arbitrary channel ID.
+
+Checkout mutations also require an idempotency key. The same merchant/buyer/key/request is replayed, a key reused for a different request returns a conflict, and a failed checkout releases its reservation so a retry can proceed.
+
 ## Implementation rule
 
 Do not make `shop.js` ACP-specific. The adapter must translate between protocol representations and the existing merchant system. The merchant system remains authoritative for catalog, stock, orders, payments, fulfillment and customer records.
 
-## Next patch sequence
+## Patch sequence
 
-1. Freeze the internal-to-commerce data mapping and add contract tests.
-2. Add a request-scoped checkout-session layer instead of exposing the channel cart directly to an external agent.
-3. Add real request idempotency persistence/replay semantics to checkout mutations.
-4. Add authenticated ACP-facing HTTP routes matching the selected stable ACP snapshot.
+1. Freeze the internal-to-commerce data mapping and add contract tests. **Done.**
+2. Add an authenticated commerce context so public cart/checkout routes cannot select another caller's channel. **Done.**
+3. Add request-scoped idempotency reserve/replay/conflict behavior around checkout mutations. **Done at the host/store boundary; distributed atomic persistence remains.**
+4. Add authenticated ACP-facing HTTP routes matching the selected stable ACP snapshot. **Next.**
 5. Map payment capabilities/handlers without storing or accepting raw payment credentials.
 6. Add order retrieval plus cancellation/refund semantics where supported by the merchant system.
 7. Add protocol conformance tests against the ACP OpenAPI/JSON Schema fixtures.
