@@ -1,12 +1,15 @@
-let provider = null;
-export function registerBillingProvider(implementation) {
-  if (typeof implementation !== 'function' && typeof implementation?.create === 'function') provider = implementation;
-  else if (typeof implementation === 'function') provider = implementation;
-  else throw new TypeError('Billing provider must be a constructor or factory');
-  return provider;
-}
-export function getBillingProvider() { if (!provider) throw new Error('No billing provider registered'); return provider; }
-export function createBilling(config = {}) { const Provider = getBillingProvider(); return typeof Provider.create === 'function' ? Provider.create(config) : new Provider(config); }
+/**
+ * Backward-compatible Core shim for the billing capability port.
+ * Concrete billing implementations live under src/adapters/payments/.
+ */
+export {
+  registerBillingProvider,
+  clearBillingProvider,
+  getBillingProvider,
+  createBilling
+} from './ports/billing.js';
+
+import { createBilling } from './ports/billing.js';
 export default class UniversalBilling {
   constructor(config = {}) { Object.assign(this, createBilling(config)); }
 }
