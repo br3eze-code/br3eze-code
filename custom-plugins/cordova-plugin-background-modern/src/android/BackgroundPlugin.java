@@ -13,6 +13,7 @@ import org.json.JSONObject;
 
 public class BackgroundPlugin extends CordovaPlugin {
     private volatile boolean activityVisible = false;
+    private volatile boolean enabled = false;
 
     @Override
     protected void pluginInitialize() {
@@ -34,16 +35,34 @@ public class BackgroundPlugin extends CordovaPlugin {
     }
 
     @Override
+    public void onReset() {
+        // Do not kill the service merely because the WebView navigates/reloads.
+        super.onReset();
+    }
+
+    @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         switch (action) {
             case "start":
+            case "enable":
                 start(callbackContext);
                 return true;
             case "stop":
+            case "disable":
                 stop(callbackContext);
                 return true;
             case "status":
+            case "isActive":
+            case "isEnabled":
                 status(callbackContext);
+                return true;
+            case "setEnabled":
+                boolean value = args != null && args.length() > 0 && args.optBoolean(0, false);
+                if (value) {
+                    start(callbackContext);
+                } else {
+                    stop(callbackContext);
+                }
                 return true;
             default:
                 callbackContext.error(error("UNKNOWN_ACTION", "Unsupported background action: " + action));
@@ -60,6 +79,7 @@ public class BackgroundPlugin extends CordovaPlugin {
             return;
         }
 
+        enabled = true;
         cordova.getThreadPool().execute(() -> {
             try {
                 Context context = cordova.getContext();
@@ -71,6 +91,7 @@ public class BackgroundPlugin extends CordovaPlugin {
                 }
                 callbackContext.success(statusJson(BackgroundService.isRunning()));
             } catch (RuntimeException error) {
+                enabled = false;
                 callbackContext.error(error(
                         "FOREGROUND_SERVICE_START_FAILED",
                         error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage())
@@ -80,6 +101,7 @@ public class BackgroundPlugin extends CordovaPlugin {
     }
 
     private void stop(CallbackContext callbackContext) {
+        enabled = false;
         cordova.getThreadPool().execute(() -> {
             boolean stopped = cordova.getContext().stopService(
                     new Intent(cordova.getContext(), BackgroundService.class)
@@ -100,6 +122,7 @@ public class BackgroundPlugin extends CordovaPlugin {
         JSONObject result = new JSONObject();
         try {
             result.put("active", active);
+            result.put("enabled", enabled);
             result.put("activityVisible", activityVisible);
             result.put("platform", "android");
             if (stopped != null) result.put("stopped", stopped);
@@ -113,6 +136,7 @@ public class BackgroundPlugin extends CordovaPlugin {
         try {
             result.put("code", code);
             result.put("message", message);
+            result.put("enabled", enabled);
             result.put("activityVisible", activityVisible);
             result.put("platform", "android");
         } catch (JSONException ignored) {
