@@ -14,24 +14,20 @@ jobs:
   lint-test:
     name: Lint & Test
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
-
+      - name: Validate Core boundary
+        run: node scripts/core-boundary-gate.mjs
       - name: Install dependencies
         run: npm ci --ignore-scripts
-
       - name: Lint maintained pipeline and plugin code
         run: npm run lint:ci
-
       - name: Test
         run: npm test -- --ci --forceExit --passWithNoTests
         env:
@@ -52,16 +48,12 @@ jobs:
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
           PORT: 3000
           GATEWAY_PORT: 19876
-
       - name: Type check (jsconfig + tsconfig)
         run: npm run build:check
-
       - name: Security check script
         run: npm run security:audit
         env:
           NODE_ENV: test
-        continue-on-error: true
-
       - uses: actions/upload-artifact@v4
         if: always()
         with:
