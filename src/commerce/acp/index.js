@@ -3,8 +3,7 @@
  *
  * IMPORTANT: this module is deliberately an internal adapter boundary, not a
  * claim of ACP certification or production ChatGPT checkout compatibility.
- * It keeps ACP-shaped concerns out of the core shop implementation so the
- * protocol can evolve independently of the merchant's commerce engine.
+ * It keeps protocol-shaped concerns out of the commerce domain implementation.
  *
  * The current stable ACP snapshot (2026-04-17) includes feed, cart, orders,
  * authentication and checkout concerns. Keep protocol-version-specific HTTP
@@ -26,16 +25,10 @@ function normalizeAvailability(product) {
   return stock > 0 ? 'in_stock' : 'out_of_stock';
 }
 
-/**
- * Convert an internal product into a stable, machine-facing commerce record.
- * This intentionally does not expose the raw Firestore document.
- */
 export function toCommerceProduct(product, { publicUrl = process.env.PUBLIC_URL || 'https://br3eze.africa' } = {}) {
   if (!product?.id) throw new Error('Product id is required');
-
   const price = finiteNumber(product.price, 0);
   const currency = String(product.currency || 'USD').toUpperCase();
-
   return {
     id: String(product.id),
     title: String(product.name || product.title || product.id),
@@ -43,9 +36,7 @@ export function toCommerceProduct(product, { publicUrl = process.env.PUBLIC_URL 
     brand: product.brand ? String(product.brand) : undefined,
     category: product.category ? String(product.category) : undefined,
     sku: product.sku ? String(product.sku) : undefined,
-    price,
-    currency,
-    availability: normalizeAvailability(product),
+    price, currency, availability: normalizeAvailability(product),
     quantity: Math.max(0, finiteNumber(product.stock, 0)),
     url: `${publicUrl.replace(/\/$/, '')}/product/${encodeURIComponent(product.id)}`,
     image: product.image || product.imageUrl || product.images?.[0] || undefined,
@@ -57,25 +48,9 @@ export function toCommerceProduct(product, { publicUrl = process.env.PUBLIC_URL 
   };
 }
 
-export function toCommerceProductFeed(products = [], options = {}) {
-  return products.map((product) => toCommerceProduct(product, options));
-}
+export function toCommerceProductFeed(products = [], options = {}) { return products.map((product) => toCommerceProduct(product, options)); }
 
-/**
- * Produce a merchant-neutral checkout snapshot from the existing order/cart
- * model. No payment token is accepted or interpreted here.
- */
-export function toCheckoutSnapshot({
-  id,
-  items = [],
-  subtotal = 0,
-  shipping = 0,
-  total = 0,
-  currency = 'USD',
-  status = 'pending_payment',
-  fulfillmentStatus = 'unfulfilled',
-  shippingAddress,
-} = {}) {
+export function toCheckoutSnapshot({ id, items = [], subtotal = 0, shipping = 0, total = 0, currency = 'USD', status = 'pending_payment', fulfillmentStatus = 'unfulfilled', shippingAddress } = {}) {
   return {
     id: id ? String(id) : undefined,
     items: items.map((item) => ({
@@ -86,20 +61,12 @@ export function toCheckoutSnapshot({
       currency: String(item.currency || currency).toUpperCase(),
       variant: item.size || item.variant || undefined,
     })),
-    subtotal: finiteNumber(subtotal),
-    shipping: finiteNumber(shipping),
-    total: finiteNumber(total),
-    currency: String(currency).toUpperCase(),
-    status: String(status),
-    fulfillmentStatus: String(fulfillmentStatus),
+    subtotal: finiteNumber(subtotal), shipping: finiteNumber(shipping), total: finiteNumber(total),
+    currency: String(currency).toUpperCase(), status: String(status), fulfillmentStatus: String(fulfillmentStatus),
     shippingAddress: shippingAddress || undefined,
   };
 }
 
-/**
- * Validate an idempotency key at the adapter boundary. The actual persistence
- * and replay semantics are implemented by checkout-orchestrator.js.
- */
 export function requireIdempotencyKey(value) {
   const key = String(value || '').trim();
   if (!key || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
@@ -115,21 +82,12 @@ export function getAcpAlignmentInfo() {
     protocol: 'Agentic Commerce Protocol',
     version: ACP_VERSION,
     status: 'adapter-boundary-only',
-    checkoutEngine: 'src/core/shop.js',
-    catalogEngine: 'src/core/shop.js',
+    checkoutEngine: 'src/domains/commerce/shop.js',
+    catalogEngine: 'src/domains/commerce/shop.js',
     idempotency: 'request-scoped durable guard; distributed atomic persistence still pending',
     note: 'This module does not by itself make the merchant eligible for or connected to ChatGPT commerce.',
   };
 }
 
 export { executeCheckout };
-
-export default {
-  ACP_VERSION,
-  toCommerceProduct,
-  toCommerceProductFeed,
-  toCheckoutSnapshot,
-  requireIdempotencyKey,
-  getAcpAlignmentInfo,
-  executeCheckout,
-};
+export default { ACP_VERSION, toCommerceProduct, toCommerceProductFeed, toCheckoutSnapshot, requireIdempotencyKey, getAcpAlignmentInfo, executeCheckout };
