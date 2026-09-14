@@ -11,6 +11,8 @@
  * handlers outside this mapping layer.
  */
 
+import { executeCheckout } from './checkout-orchestrator.js';
+
 const ACP_VERSION = '2026-04-17';
 
 function finiteNumber(value, fallback = 0) {
@@ -96,12 +98,11 @@ export function toCheckoutSnapshot({
 
 /**
  * Validate an idempotency key at the adapter boundary. The actual persistence
- * and replay semantics belong to the order/payment transaction layer and are
- * intentionally not faked here.
+ * and replay semantics are implemented by checkout-orchestrator.js.
  */
 export function requireIdempotencyKey(value) {
   const key = String(value || '').trim();
-  if (!key || key.length > 255) {
+  if (!key || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
     const error = new Error('A valid idempotency key is required for agentic commerce mutations.');
     error.status = 400;
     throw error;
@@ -116,9 +117,12 @@ export function getAcpAlignmentInfo() {
     status: 'adapter-boundary-only',
     checkoutEngine: 'src/core/shop.js',
     catalogEngine: 'src/core/shop.js',
+    idempotency: 'request-scoped durable guard; distributed atomic persistence still pending',
     note: 'This module does not by itself make the merchant eligible for or connected to ChatGPT commerce.',
   };
 }
+
+export { executeCheckout };
 
 export default {
   ACP_VERSION,
@@ -127,4 +131,5 @@ export default {
   toCheckoutSnapshot,
   requireIdempotencyKey,
   getAcpAlignmentInfo,
+  executeCheckout,
 };
