@@ -1,5 +1,5 @@
 import express from 'express';
-import * as shop from '../../core/shop.js';
+import * as shop from '../../domains/commerce/shop.js';
 import { PosStore } from '../../core/pos-store.js';
 
 const router = express.Router();
@@ -46,8 +46,8 @@ router.get('/context', (req, res) => {
 
 router.get('/catalog', async (req, res) => {
   try {
-    contextFromRequest(req);
-    ok(res, await shop.listProducts({ category: req.query.category, search: req.query.search }));
+    const context = contextFromRequest(req);
+    ok(res, await shop.listProducts({ category: req.query.category, search: req.query.search, scope: context }));
   } catch (error) { fail(res, error); }
 });
 
