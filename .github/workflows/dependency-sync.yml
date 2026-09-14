@@ -1,6 +1,13 @@
 name: Dependency Sync
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+      - server/package.json
+      - server/package-lock.json
   workflow_dispatch:
   schedule:
     - cron: '17 3 * * 1'
