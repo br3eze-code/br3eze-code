@@ -1,167 +1,53 @@
-import fs from 'fs';
-import path from 'path';
-import http from 'http';
-import { logger } from '../../core/logger.js';
-import readline from 'readline';
-import {
-    createAbortController,
-    createQueuedRepl,
-    formatAgentResult,
-    createTerminalSpinner
-} from '../terminal-session.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-// ==========================================
-// AGENTOS ASK COMMAND
-// Query AskEngine from the CLI — proxies to a running gateway over
-// HTTP when one is up (fast, reuses live router/db connections),
-// falls back to a standalone one-shot AskEngine otherwise.
-// ==========================================
-
-function postJSON({ host, port, token }, body, { signal } = {}) {
-    return new Promise((resolve, reject) => {
-        const data = JSON.stringify(body);
-        const req = http.request({
-            host: host || '127.0.0.1',
-            port,
-            path: '/api/v1/ask',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(data),
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            // 90s, not 30s: dahua.events.summarize chains a device log search (occasionally
-            // 20-30s on a slow/busy NVR) with an actual AI call on top — 30s cut it too close
-            // and produced a silent timeout with no error surfaced in time to matter.
-            timeout: 90_000
-        }, (res) => {
-            let chunks = '';
-            res.on('data', (c) => { chunks += c; });
-            res.on('end', () => {
-                if (res.statusCode >= 400) {
-                    return reject(new Error(`Gateway responded ${res.statusCode}: ${chunks}`));
-                }
-                try { resolve(JSON.parse(chunks)); }
-                catch (e) { reject(new Error(`Bad JSON from gateway: ${e.message}`)); }
-            });
-        });
-        req.on('error', reject);
-        req.on('timeout', () => req.destroy(new Error('Gateway request timed out')));
-        if (signal) {
-            if (signal.aborted) req.destroy(signal.reason || new Error('Operation cancelled by user'));
-            else signal.addEventListener('abort', () => req.destroy(signal.reason || new Error('Operation cancelled by user')), { once: true });
-        }
-        req.write(data);
-        req.end();
-    });
-}
+import fs from 'node:fs';
+import path from 'node:path';
+import { createAskClient } from '../ask-client.js';
+import { createAbortController, createQueuedRepl } from '../terminal-session.js';
+import { renderAgentResult } from '../terminal-renderer.js';
 
 function gatewayIsRunning(stateDir) {
     const pidFile = path.join(stateDir, 'gateway.pid');
     if (!fs.existsSync(pidFile)) return false;
     try {
-        const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
-        process.kill(pid, 0); // throws if not running
+        const pid = Number.parseInt(fs.readFileSync(pidFile, 'utf8').trim(), 10);
+        process.kill(pid, 0);
         return true;
     } catch {
         return false;
     }
 }
 
-/** Standalone, gateway-less one-shot AskEngine — used when no gateway is running. */
-async function runStandalone(prompt, { stream, signal }) {
-    const { getManager: getMikroTik } = require('../../core/mikrotik');
-    const { getDatabase } = require('../../core/database');
-    const { getConfig } = require('../../core/config');
-    const FinancialService = require('../../core/financial');
-    const UniversalBilling = require('../../core/universal-billing');
-    const DiscoveryService = require('../../core/discovery');
-    const MemoryManager = require('../../core/memory/MemoryManager');
-    const AskEngine = require('../../core/ask-engine');
-    const LLMCoordinator = require('../../core/llm/LLMCoordinator').default;
-
-    const config = getConfig();
-
-    // Propagate API key from config into env so LLMCoordinator providers can pick it up
-    if (config.ai?.key && !process.env.GEMINI_API_KEY) {
-        process.env.GEMINI_API_KEY = config.ai.key;
-    }
-
-    const mikrotik = getMikroTik();
-    const database = await getDatabase();
-    const financial = new FinancialService({ database });
-    const billing = new UniversalBilling({ database });
-    const discovery = new DiscoveryService({ mikrotik });
-    const memoryManager = new MemoryManager(config.memory?.adapter || 'memory');
-    await memoryManager.initialize();
-
-    let llmCoordinator = null;
-    try {
-        llmCoordinator = new LLMCoordinator();
-    } catch (err) {
-        logger.warn(`LLMCoordinator not initialized: ${err.message}. Running rule-only.`);
-    }
-
-    const askEngine = new AskEngine({
-        mikrotik,
-        database,
-        financial,
-        billing,
-        discovery,
-        memory: memoryManager,
-        llm: llmCoordinator
-    });
-
-    if (stream) {
-        for await (const ev of askEngine.stream(prompt, { signal })) {
-            if (ev.type === 'text' && ev.delta) process.stdout.write(ev.delta);
-            else if (ev.type === 'error') process.stderr.write(`\n[error] ${ev.message}\n`);
-        }
-        process.stdout.write('\n');
-        return null;
-    }
-
-    return askEngine.run(prompt);
-}
-
 function startRepl(dispatch, { json }) {
-    console.log('AgentOS interactive ask — Enter submits, Ctrl+J inserts a newline, Ctrl+C cancels, /back returns, /exit quits.\n');
-    return createQueuedRepl({
-        dispatch,
-        json,
-        renderResult: (result, options) => formatAgentResult(result, options)
-    });
+    console.log('AgentOS interactive ask — Enter submits, Ctrl+C cancels, /back returns, /exit quits.\n');
+    return createQueuedRepl({ dispatch, json, renderResult: (result, options) => renderAgentResult(result, options) });
 }
 
 export default (program) => {
     program
         .command('ask [prompt...]')
         .description('Ask AgentOS a question or give it a command. Omit the prompt to start an interactive session.')
-        .option('--stream', 'Stream the response token-by-token (standalone mode only)')
+        .option('--stream', 'Request a streamed response from the gateway')
         .option('--json', 'Print the full raw response as JSON')
-        .option('--port <port>', 'Gateway port to target', (v) => parseInt(v, 10))
+        .option('--port <port>', 'Gateway port to target', (v) => Number.parseInt(v, 10))
         .action(async (promptParts, options) => {
-            const prompt = (promptParts || []).join(' ');
-
+            const prompt = (promptParts || []).join(' ').trim();
             const { STATE_PATH, CONFIG_PATH } = global.AGENTOS || {};
             let config = {};
             try {
-                if (CONFIG_PATH && fs.existsSync(CONFIG_PATH)) {
-                    config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-                }
-            } catch (_) { /* fall through to standalone */ }
+                if (CONFIG_PATH && fs.existsSync(CONFIG_PATH)) config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+            } catch (_) { /* use defaults */ }
 
             const port = options.port || config.gateway?.port || 19876;
-            const usingGateway = STATE_PATH && gatewayIsRunning(STATE_PATH);
+            const host = config.gateway?.host || '127.0.0.1';
+            if (!STATE_PATH || !gatewayIsRunning(STATE_PATH)) {
+                console.error(`AgentOS gateway is not running on ${host}:${port}. Start the gateway before using 'agentos ask'.`);
+                process.exitCode = 1;
+                return;
+            }
 
-            const dispatch = (p, { signal } = {}) => usingGateway
-                ? postJSON({ host: config.gateway?.host, port, token: config.gateway?.token }, { prompt: p, stream: false }, { signal })
-                : runStandalone(p, { stream: false, signal });
+            const client = createAskClient({ host, port, token: config.gateway?.token });
+            const dispatch = (text, { signal } = {}) => client.run(text, { signal, stream: !!options.stream });
 
-            if (!prompt.trim()) {
+            if (!prompt) {
                 if (!process.stdin.isTTY) {
                     console.error('Usage: agentos ask "<your question or command>" (or run with no args in an interactive terminal)');
                     process.exitCode = 1;
@@ -170,34 +56,16 @@ export default (program) => {
                 return startRepl(dispatch, { json: !!options.json });
             }
 
+            const controller = createAbortController();
             try {
-                if (usingGateway) {
-                    if (options.stream) {
-                        console.error('--stream is only supported in standalone mode (no gateway running); printing full response instead.');
-                    }
-                    const result = await dispatch(prompt);
-                    if (options.json) {
-                        console.log(JSON.stringify(result, null, 2));
-                    } else {
-                        console.log(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2));
-                    }
-                } else {
-                    const controller = createAbortController();
-                    const spinner = options.stream ? null : createTerminalSpinner('AgentOS is working');
-                    const result = await runStandalone(prompt, { stream: !!options.stream, signal: controller.signal });
-                    spinner?.stop('success', 'AgentOS completed');
-                    controller.dispose();
-                    if (result) {
-                        if (options.json) {
-                            console.log(JSON.stringify(result, null, 2));
-                        } else {
-                            console.log(typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2));
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error(`ask failed: ${err.message}`);
+                const result = await dispatch(prompt, { signal: controller.signal });
+                renderAgentResult(result, { json: !!options.json });
+            } catch (error) {
+                const cancelled = controller.signal.aborted || /cancelled/i.test(error?.message || '');
+                console.error(cancelled ? 'ask cancelled' : `ask failed: ${error.message}`);
                 process.exitCode = 1;
+            } finally {
+                controller.dispose();
             }
         });
 };
