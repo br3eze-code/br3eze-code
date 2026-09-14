@@ -30,11 +30,12 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import 'dotenv/config';
-import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
-import { getDatabase } from './src/core/database.js';
+import { BRAND, CONFIG_PATH, STATE_PATH } from './src/core/config.js';
+import { getDatabase } from './src/core/ports/database.js';
 import { logger } from './src/core/logger.js';
 import TelegramChannel from './src/channels/telegram.js';
 import startLogsDaemon from './src/cli/daemon/logs-daemon.js';
+
 /** AgentOS — Master Entry Point */
 const chalk = _chalk.default || _chalk;
 const boxen = _boxen.default || _boxen;
