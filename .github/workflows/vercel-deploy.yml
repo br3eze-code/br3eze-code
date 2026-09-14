@@ -1,0 +1,122 @@
+name: Vercel Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  deploy:
+    name: Build & Deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+
+      - name: Test
+        run: npm test --if-present -- --coverage --passWithNoTests
+        env:
+          NODE_ENV: test
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.br3eze.com' }}
+          VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
+          VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
+          VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
+          VITE_MESSAGING_SENDER_ID: ${{ secrets.VITE_MESSAGING_SENDER_ID }}
+          VITE_APP_ID: ${{ secrets.VITE_APP_ID }}
+
+      - name: Verify build output
+        run: |
+          test -d www
+          test -f www/index.html
+          echo "Build output verified:"
+          du -sh www
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Deploy production
+        id: vercel-production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.br3eze.com' }}
+          VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
+          VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
+          VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
+          VITE_MESSAGING_SENDER_ID: ${{ secrets.VITE_MESSAGING_SENDER_ID }}
+          VITE_APP_ID: ${{ secrets.VITE_APP_ID }}
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_URL="$(vercel deploy \
+            --prod \
+            --yes \
+            --token="$VERCEL_TOKEN" \
+            --build-env NODE_ENV=production \
+            --build-env VITE_API_URL="$VITE_API_URL" \
+            --build-env VITE_AUTH_DOMAIN="$VITE_AUTH_DOMAIN" \
+            --build-env VITE_PROJECT_ID="$VITE_PROJECT_ID" \
+            --build-env VITE_STORAGE_BUCKET="$VITE_STORAGE_BUCKET" \
+            --build-env VITE_MESSAGING_SENDER_ID="$VITE_MESSAGING_SENDER_ID" \
+            --build-env VITE_APP_ID="$VITE_APP_ID")"
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
+          echo "Vercel deployment: $DEPLOYMENT_URL"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            ❌ Vercel deployment failed
+            Repository: ${{ github.repository }}
+            Branch: main
+            Commit: ${{ github.sha }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+      - name: Notify Slack on success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            ✅ Vercel deployment successful
+            Repository: ${{ github.repository }}
+            Branch: main
+            URL: ${{ steps.vercel-production.outputs.deployment_url }}
+            Commit: ${{ github.sha }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
