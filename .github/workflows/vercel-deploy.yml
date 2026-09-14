@@ -20,10 +20,8 @@ jobs:
     name: Build & Deploy to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     permissions:
       contents: read
-
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -38,7 +36,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
       - name: Lint
         run: npm run lint --if-present
@@ -67,7 +65,6 @@ jobs:
           set -euo pipefail
           test -d www
           test -f www/index.html
-          echo "Build output verified:"
           du -sh www
 
       - name: Validate deployment configuration
@@ -81,12 +78,10 @@ jobs:
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
-          test -n "$VITE_API_URL"
           case "$VITE_API_URL" in
             https://*|http://*) ;;
             *) echo "VITE_API_URL must be an absolute HTTP(S) URL" >&2; exit 1 ;;
           esac
-          echo "Vercel and AgentOS backend configuration is present"
 
       - name: Install Vercel CLI
         run: npm install --global vercel
@@ -104,9 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOYMENT_URL="$(vercel deploy \
-            --prod \
-            --yes \
-            --token="$VERCEL_TOKEN" \
+            --prod --yes --token="$VERCEL_TOKEN" \
             --build-env NODE_ENV=production \
             --build-env VITE_API_URL="$VITE_API_URL" \
             --build-env VITE_AUTH_DOMAIN="$VITE_AUTH_DOMAIN" \
@@ -120,22 +113,21 @@ jobs:
           echo "Vercel deployment: $DEPLOYMENT_URL"
 
       - name: Notify Slack on failure
-        if: failure()
+        if: failure() && secrets.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          status: ${{ job.status }}
+          status: failure
           text: |
             ❌ Vercel deployment failed
             Repository: ${{ github.repository }}
             Branch: main
             Commit: ${{ github.sha }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         continue-on-error: true
 
       - name: Notify Slack on success
-        if: success()
+        if: success() && secrets.SLACK_WEBHOOK_URL != ''
         uses: 8398a7/action-slack@v3
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -147,5 +139,4 @@ jobs:
             Branch: main
             URL: ${{ steps.vercel-production.outputs.deployment_url }}
             Commit: ${{ github.sha }}
-          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         continue-on-error: true
