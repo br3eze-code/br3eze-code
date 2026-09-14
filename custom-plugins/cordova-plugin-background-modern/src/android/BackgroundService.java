@@ -5,27 +5,42 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
-import android.content.pm.ServiceInfo;
-
-import androidx.annotation.Nullable;
 
 public class BackgroundService extends Service {
     public static final String CHANNEL_ID = "cordova_background_modern";
     public static final int NOTIFICATION_ID = 4101;
 
+    private static volatile boolean running = false;
+
+    public static boolean isRunning() {
+        return running;
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
-        createChannel();
-        promoteToForeground();
+        try {
+            createChannel();
+            promoteToForeground();
+            running = true;
+        } catch (RuntimeException error) {
+            // Never let a foreground-service policy/permission failure crash the host app.
+            running = false;
+            stopSelf();
+        }
     }
 
     private void promoteToForeground() {
         Notification notification = buildNotification();
-        if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            );
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
@@ -47,14 +62,15 @@ public class BackgroundService extends Service {
 
     private void createChannel() {
         if (Build.VERSION.SDK_INT < 26) return;
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
                 "Background service",
                 NotificationManager.IMPORTANCE_LOW
         );
         channel.setDescription("Status notification for the Cordova background runtime.");
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        if (manager != null) manager.createNotificationChannel(channel);
+        manager.createNotificationChannel(channel);
     }
 
     @Override
@@ -64,11 +80,11 @@ public class BackgroundService extends Service {
 
     @Override
     public void onDestroy() {
+        running = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
         super.onDestroy();
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) {
         return null;
