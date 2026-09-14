@@ -10,3 +10,4 @@ export * from './finance.js';
 export * from './persistence.js';
 export * from './database.js';
 export * from './onboarding.js';
+export * from './session-store.js';
