@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { initializeFirebase } from '../src/core/firebase.js';
+import { initializeFirebase } from '../src/adapters/persistence/firebase.js';
 import admin from 'firebase-admin';
 
 async function reconcileUsers() {
@@ -30,7 +30,7 @@ async function reconcileUsers() {
       if (!userDoc.exists) {
         console.log(` ➕ Creating missing Firestore document for UID: ${uid}`);
         await userRef.set({
-          uid: uid,
+          uid,
           email: email || null,
           phoneNumber: authUser.phoneNumber || null,
           fullname: authUser.displayName || null,
@@ -46,17 +46,16 @@ async function reconcileUsers() {
         if (!userData.uid) {
           console.log(` 🔧 Adding missing 'uid' field to existing document: ${uid}`);
           await userRef.update({
-            uid: uid,
+            uid,
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
           });
         } else {
-          console.log(` ✅ User document is correct.`);
+          console.log(' ✅ User document is correct.');
         }
       }
     }
 
     console.log('\n--- Reconciliation Complete ---');
-
   } catch (error) {
     console.error('Reconciliation failed:', error);
   } finally {
