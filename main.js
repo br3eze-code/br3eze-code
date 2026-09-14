@@ -1,3 +1,4 @@
+import './src/host/bootstrap.js';
 import _cmd_onboard from './src/cli/commands/onboard.js';
 import _cmd_ask from './src/cli/commands/ask.js';
 import _cmd_gateway from './src/cli/commands/gateway.js';
