@@ -1,5 +1,4 @@
 import EventEmitter from 'events';
-import path from 'path';
 import sdk from '../plugin-sdk/index.js';
 import { createRequire } from 'module';
 import { requireSessionStore } from './ports/session-store.js';
@@ -45,21 +44,14 @@ class AgentKernel extends EventEmitter {
     return entry;
   }
 
-  /**
-   * Resolve only when intent is explicit or uniquely matches a domain.
-   * Ambiguous/unmatched intents return null; the planner/host must decide.
-   */
+  /** Resolve only when intent is explicit or uniquely matches a domain. */
   resolveDomain(intent) {
     if (!this.domains.size) return null;
-
-    if (typeof intent === 'object' && intent?.domain) {
-      return this.domains.get(intent.domain) || null;
-    }
+    if (typeof intent === 'object' && intent?.domain) return this.domains.get(intent.domain) || null;
 
     const needle = (typeof intent === 'object'
       ? (intent.text || intent.action || '')
       : String(intent || '')).trim().toLowerCase();
-
     if (!needle) return this.domains.size === 1 ? [...this.domains.values()][0] : null;
 
     const idMatches = [...this.domains.entries()]
@@ -70,9 +62,7 @@ class AgentKernel extends EventEmitter {
 
     const capabilityMatches = [];
     for (const entry of this.domains.values()) {
-      if ((entry.capabilities || []).some((c) => needle.includes(String(c).toLowerCase()))) {
-        capabilityMatches.push(entry);
-      }
+      if ((entry.capabilities || []).some((c) => needle.includes(String(c).toLowerCase()))) capabilityMatches.push(entry);
     }
     return capabilityMatches.length === 1 ? capabilityMatches[0] : null;
   }
@@ -91,7 +81,6 @@ class AgentKernel extends EventEmitter {
       domain: domain.adapter.name || 'unknown',
       meta: { intent: context.intent },
     });
-
     this.emit('dispatch:start', { sessionId: session.id, domain: session.domain });
     try {
       this._sessions.transition(session.id, 'running');
@@ -109,31 +98,26 @@ class AgentKernel extends EventEmitter {
   }
 
   async execute(toolName, params = {}) {
-    const domainId = String(toolName).split('.')[0];
-    const domain = this.domains.get(domainId) || this.resolveDomain({ action: toolName, text: toolName });
-    if (!domain) throw new Error(`No unique domain for tool: ${toolName}`);
-    const skillName = String(toolName).includes('.') ? String(toolName).split('.').slice(1).join('.') : toolName;
-    const skill = domain.adapter.getSkills?.().find((s) => s.name === skillName || s.name === toolName);
-    if (!skill) throw new Error(`Tool not found: ${toolName}`);
-    this.emit('command:run', { tool: toolName, params });
+    const name = String(toolName);
+    const domainId = name.split('.')[0];
+    const domain = this.domains.get(domainId) || this.resolveDomain({ action: name, text: name });
+    if (!domain) throw new Error(`No unique domain for tool: ${name}`);
+    const skillName = name.includes('.') ? name.split('.').slice(1).join('.') : name;
+    const skill = domain.adapter.getSkills?.().find((s) => s.name === skillName || s.name === name);
+    if (!skill) throw new Error(`Tool not found: ${name}`);
+    this.emit('command:run', { tool: name, params });
     const result = await skill.execute(params);
-    this.emit('command:done', { tool: toolName, result });
+    this.emit('command:done', { tool: name, result });
     return result;
   }
 
-  status() {
-    return { ready: this._ready, domains: [...this.domains.keys()], sdk: sdk.snapshot() };
-  }
+  status() { return { ready: this._ready, domains: [...this.domains.keys()], sdk: sdk.snapshot() }; }
 
   getTools() {
     const out = {};
     for (const [, entry] of this.domains) {
       for (const skill of (entry.adapter.getSkills?.() || [])) {
-        out[skill.name] = {
-          description: skill.description || '',
-          parameters: skill.parameters || {},
-          risk: skill.risk || 'low',
-        };
+        out[skill.name] = { description: skill.description || '', parameters: skill.parameters || {}, risk: skill.risk || 'low' };
       }
     }
     return out;
