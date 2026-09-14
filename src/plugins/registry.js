@@ -1,14 +1,10 @@
 /**
  * Adapter Registry
  *
- * This registry is intentionally outside Core. It owns concrete adapter
- * loading, lifecycle, resource indexing and action dispatch. Core only sees
- * capability contracts and injected executors.
+ * This registry is intentionally outside Core. It owns adapter registration,
+ * lifecycle, resource indexing and action dispatch. Concrete adapters are
+ * supplied by the composition root; the registry must not know any domain.
  */
-
-const DEFAULT_ADAPTERS = {
-  mikrotik: () => import('../adapters/network/mikrotik-adapter.js')
-};
 
 function unwrap(module) {
   return module?.default ?? module?.MikroTikAdapter ?? module;
@@ -23,25 +19,25 @@ class PluginRegistry {
   }
 
   register(name, AdapterClassOrLoader) {
-    if (!name || !AdapterClassOrLoader) throw new TypeError('Adapter name and implementation are required');
+    if (!name || !AdapterClassOrLoader) {
+      throw new TypeError('Adapter name and implementation are required');
+    }
     this.definitions.set(name, AdapterClassOrLoader);
-    return this;
-  }
-
-  registerBuiltins() {
-    for (const [name, loader] of Object.entries(DEFAULT_ADAPTERS)) this.register(name, loader);
     return this;
   }
 
   async load(name, config = {}) {
     const definition = this.definitions.get(name);
-    if (!definition) throw new Error(`Adapter '${name}' not found. Registered: ${[...this.definitions.keys()].join(', ')}`);
+    if (!definition) {
+      throw new Error(`Adapter '${name}' not found. Registered: ${[...this.definitions.keys()].join(', ')}`);
+    }
 
     const module = typeof definition === 'function' && definition.constructor?.name === 'AsyncFunction'
       ? await definition()
       : definition;
     const AdapterClass = unwrap(module);
     const instance = typeof AdapterClass === 'function' ? new AdapterClass(config) : AdapterClass;
+
     if (!instance || typeof instance.connect !== 'function' || typeof instance.executeTool !== 'function') {
       throw new TypeError(`Adapter '${name}' does not satisfy the adapter contract`);
     }
@@ -63,7 +59,10 @@ class PluginRegistry {
     for (const [name, adapter] of this.adapters) {
       if (!adapter.connected) continue;
       const resources = await adapter.discover?.() || [];
-      for (const resource of resources) { this.index(name, resource); all.push(resource); }
+      for (const resource of resources) {
+        this.index(name, resource);
+        all.push(resource);
+      }
     }
     return all;
   }
@@ -77,11 +76,15 @@ class PluginRegistry {
   }
 
   findByType(type) {
-    return [...this.resourceIndex.values()].filter(({ resource }) => resource.type === type).map(({ resource }) => resource);
+    return [...this.resourceIndex.values()]
+      .filter(({ resource }) => resource.type === type)
+      .map(({ resource }) => resource);
   }
 
   findByCapability(capability) {
-    return [...this.resourceIndex.values()].filter(({ resource }) => typeof resource.can === 'function' && resource.can(capability)).map(({ resource }) => resource);
+    return [...this.resourceIndex.values()]
+      .filter(({ resource }) => typeof resource.can === 'function' && resource.can(capability))
+      .map(({ resource }) => resource);
   }
 
   getAdapter(name) { return this.adapters.get(name) || null; }
@@ -93,7 +96,9 @@ class PluginRegistry {
     await adapter.disconnect?.();
     adapter.destroy?.();
     this.adapters.delete(name);
-    for (const [id, location] of this.resourceIndex) if (location.adapter === name) this.resourceIndex.delete(id);
+    for (const [id, location] of this.resourceIndex) {
+      if (location.adapter === name) this.resourceIndex.delete(id);
+    }
     return true;
   }
 
