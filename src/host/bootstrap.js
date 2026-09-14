@@ -13,7 +13,9 @@ import { registerPersistenceProvider } from '../core/ports/persistence.js';
 import { registerBillingProvider } from '../core/ports/billing.js';
 import { registerFinancialProvider } from '../core/ports/finance.js';
 import { registerSessionStore } from '../core/ports/session-store.js';
+import { registerSubagentStore } from '../core/ports/subagent-store.js';
 import { SqliteSessionStore } from '../adapters/persistence/sqlite-session-store.js';
+import { SqliteSubagentStore } from '../adapters/persistence/sqlite-subagent-store.js';
 import nodeRegistry from '../core/node-registry.js';
 import pluginRegistry from '../plugins/registry.js';
 import PluginManager from '../plugins/manager.js';
@@ -31,11 +33,18 @@ export function bootstrapAgentOS(options = {}) {
   registerBillingProvider(BillingAdapter);
   registerFinancialProvider(FinancialService);
 
+  const dataDir = options.dataDir || path.join(process.cwd(), 'data');
   const sessionStore = options.sessionStore || new SqliteSessionStore({
-    dbPath: options.sessionDbPath || path.join(process.cwd(), 'data', 'sessions', 'agentos.sqlite'),
+    dbPath: options.sessionDbPath || path.join(dataDir, 'sessions', 'agentos.sqlite'),
   });
   registerSessionStore(sessionStore);
   sessionStore.initialize?.();
+
+  const subagentStore = options.subagentStore || new SqliteSubagentStore({
+    dbPath: options.subagentDbPath || path.join(dataDir, 'sessions', 'agentos.sqlite'),
+  });
+  registerSubagentStore(subagentStore);
+  subagentStore.initialize?.();
 
   nodeRegistry.setManagerFactory(networkAdapter.createManager);
   pluginRegistry.register('mikrotik', MikroTikAdapter);
@@ -48,6 +57,7 @@ export function bootstrapAgentOS(options = {}) {
     BillingAdapter,
     FinancialService,
     sessionStore,
+    subagentStore,
     nodeRegistry,
     pluginRegistry,
   };
