@@ -1,24 +1,23 @@
-import { BaseChannel } from '../core/channels/BaseChannel.js';
-import ChannelManager from '../core/channels/ChannelManager.js';
-import CLIChannel from '../core/channels/CLIChannel.js';
-import TelegramChannel from '../core/channels/TelegramChannel.js';
-import WhatsappChannel from '../core/channels/WhatsappChannel.js';
-import DiscordChannel from '../core/channels/DiscordChannel.js';
-import SlackChannel from '../core/channels/SlackChannel.js';
-import EmailChannel from '../core/channels/EmailChannel.js';
-import SMSChannel from '../core/channels/SMSChannel.js';
-import WebSocketChannel from '../core/channels/WebSocketChannel.js';
+import { BaseChannel } from './base.js';
+import { WhatsAppChannel } from './whatsapp.js';
+import { TelegramChannel } from './telegram.js';
+import DiscordChannel from './discord.js';
+import SlackChannel from './slack.js';
+import SMSAdapter from './sms.adapter.js';
+import WebAdapter from './web.adapter.js';
+import WebSocketChannel from './websocket.js';
 
 /**
- * src/channels/index.js
- *
- * Public barrel for channel adapters.
- * Does NOT import Telegraf, Markup, WebSocketServer, etc. at module level.
- * Each concrete channel lazily requires its own peer deps inside its constructor.
+ * Canonical channel adapter barrel.
+ * Concrete transport/provider implementations stay outside the AgentOS kernel.
  */
-
-// Re-export the canonical channel system
-
-// Force-load built-in channel adapters (self-register via BaseChannel.register)
-
-export { BaseChannel, ChannelManager, CLIChannel, TelegramChannel, WhatsappChannel, DiscordChannel, SlackChannel, EmailChannel, SMSChannel, WebSocketChannel };
+export {
+  BaseChannel,
+  WhatsAppChannel,
+  TelegramChannel,
+  DiscordChannel,
+  SlackChannel,
+  SMSAdapter,
+  WebAdapter,
+  WebSocketChannel
+};
