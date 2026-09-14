@@ -2,30 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Br3eze — Network Intelligence, Simplified</title>
+  <meta name="format-detection" content="telephone=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
   <meta name="description" content="Br3eze builds practical network, commerce and automation systems through a modular AgentOS architecture.">
+  <link rel="icon" href="img/logo.png">
+  <link rel="apple-touch-icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <title>Br3eze — Network Intelligence, Simplified</title>
   <style>
-    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#f7f9fc;background:#071018;line-height:1.5}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#123047 0,#071018 45%,#05090d 100%)}a{color:inherit}.wrap{max-width:1100px;margin:auto;padding:28px 20px 70px}.nav{display:flex;justify-content:space-between;align-items:center;padding:8px 0 55px}.brand{font-weight:900;letter-spacing:.1em}.links{display:flex;gap:20px;color:#b6c4cf;font-size:14px}.hero{padding:30px 0 70px}.eyebrow{color:#63d4ff;font-weight:700;text-transform:uppercase;letter-spacing:.12em;font-size:13px}h1{font-size:clamp(46px,8vw,88px);line-height:.96;margin:15px 0 22px;max-width:900px}p{color:#b6c4cf;font-size:18px;max-width:760px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.btn{display:inline-block;text-decoration:none;border:1px solid #31536a;border-radius:12px;padding:13px 18px;font-weight:800}.primary{background:#63d4ff;color:#031018;border-color:#63d4ff}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{padding:24px;border:1px solid #244052;border-radius:18px;background:rgba(12,24,34,.88)}.card strong{display:block;margin-bottom:8px;font-size:18px}.footer{margin-top:70px;color:#718391;font-size:13px}@media(max-width:760px){.nav{padding-bottom:30px}.links{gap:10px}.grid{grid-template-columns:1fr}}
+    body { display: block; }
+    .public-shell { min-height: 100vh; }
+    .public-header { position: sticky; top: 0; }
+    .public-nav { display: flex; align-items: center; gap: 24px; }
+    .public-nav a { color: var(--color-text-medium); font-size: .9rem; }
+    .public-nav a:hover, .public-nav a[aria-current="page"] { color: var(--color-text-light); }
+    .public-main { max-width: 1180px; margin: 0 auto; padding: 70px 40px 90px; }
+    .hero { max-width: 900px; padding: 45px 0 70px; }
+    .eyebrow { color: var(--color-info-text); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: .8rem; }
+    .hero h1 { font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: .98; margin: 15px 0 24px; }
+    .hero p { max-width: 760px; color: var(--color-text-medium); font-size: 1.1rem; line-height: 1.7; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
+    .feature-card { height: 100%; min-height: 190px; }
+    .feature-card i { color: var(--color-info-text); font-size: 1.2rem; margin-bottom: 18px; }
+    .feature-card h2 { margin: 0 0 10px; font-size: 1.15rem; }
+    .feature-card p { color: var(--color-text-medium); line-height: 1.65; }
+    .public-footer { max-width: 1180px; margin: 0 auto; padding: 0 40px 35px; color: var(--color-text-medium); font-size: .8rem; }
+    @media (max-width: 700px) {
+      .main-header { padding: 15px 20px; }
+      .public-nav { gap: 12px; }
+      .public-nav a { font-size: .78rem; }
+      .public-main { padding: 45px 20px 70px; }
+      .public-footer { padding: 0 20px 30px; }
+    }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <nav class="nav"><div class="brand">BR3EZE</div><div class="links"><a href="home.html">Home</a><a href="about.html">About</a><a href="assessment.html">Assessment</a></div></nav>
-  <main>
+<div class="public-shell">
+  <header class="main-header public-header">
+    <a href="home.html" class="logo" aria-label="Br3eze home">BR3EZE</a>
+    <nav class="public-nav" aria-label="Primary navigation">
+      <a href="home.html" aria-current="page">Home</a>
+      <a href="about.html">About</a>
+      <a href="assessment.html">Assessment</a>
+    </nav>
+  </header>
+
+  <main class="public-main">
     <section class="hero">
       <div class="eyebrow">Network Intelligence, Simplified</div>
       <h1>Build systems that connect, automate and adapt.</h1>
       <p>Br3eze develops modular infrastructure and AgentOS capabilities for network operations, commerce, payments and connected services — with domain adapters kept separate from the core runtime.</p>
-      <div class="actions"><a class="btn primary" href="assessment.html">Get a network assessment</a><a class="btn" href="about.html">Learn about Br3eze</a></div>
+      <div class="actions">
+        <a class="btn btn-primary" href="assessment.html"><i class="fas fa-network-wired"></i> Get a network assessment</a>
+        <a class="btn" href="about.html">Learn about Br3eze</a>
+      </div>
     </section>
-    <section class="grid">
-      <article class="card"><strong>Network Operations</strong><p>Practical tooling for connectivity, access, monitoring and network workflows.</p></article>
-      <article class="card"><strong>AgentOS</strong><p>A modular execution architecture for agents, skills, tools, policies and domain adapters.</p></article>
-      <article class="card"><strong>Commerce</strong><p>Reusable commerce capabilities that can operate alongside the same orchestration layer.</p></article>
+
+    <section class="grid grid-3" aria-label="Br3eze capabilities">
+      <article class="card feature-card">
+        <i class="fas fa-network-wired" aria-hidden="true"></i>
+        <h2>Network Operations</h2>
+        <p>Practical tooling for connectivity, access, monitoring and network workflows.</p>
+      </article>
+      <article class="card feature-card">
+        <i class="fas fa-brain" aria-hidden="true"></i>
+        <h2>AgentOS</h2>
+        <p>A modular execution architecture for agents, skills, tools, policies and domain adapters.</p>
+      </article>
+      <article class="card feature-card">
+        <i class="fas fa-store" aria-hidden="true"></i>
+        <h2>Commerce</h2>
+        <p>Reusable commerce capabilities that can operate alongside the same orchestration layer.</p>
+      </article>
     </section>
   </main>
-  <div class="footer">© Br3eze Africa. Built around modular systems and practical automation.</div>
+
+  <footer class="public-footer">© Br3eze Africa. Built around modular systems and practical automation.</footer>
 </div>
 </body>
 </html>
