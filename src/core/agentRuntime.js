@@ -5,9 +5,8 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
 import { buildExecutionContext } from './execution-context.js';
-import { ToolNotFoundError, SkillDisabledError } from './tool-errors.js';
-import { attachOnboardingWbs } from './onboarding-wbs.js';
-import { resolveAgentRole, getAgentRoleProfile, isApprovalRequired } from './agent-role-profiles.js';
+import { SkillDisabledError } from './tool-errors.js';
+import { isApprovalRequired } from './agent-role-profiles.js';
 
 /** Canonical domain-neutral AgentOS runtime. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -41,6 +40,7 @@ class AgentRuntime extends EventEmitter {
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
     this.toolExecutor = typeof config.toolExecutor === 'function' ? config.toolExecutor : null;
     this.toolRegistry = config.toolRegistry || null; this.sessionManager = config.sessionManager || null; this.memoryStore = config.memoryStore || null; this.safetyEnvelope = config.safetyEnvelope || null;
+    this.subagentRuntime = config.subagentRuntime || null;
   }
   routePrompt(prompt = '', limit = 5) {
     const tokens = new Set(prompt.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
@@ -91,6 +91,42 @@ class AgentRuntime extends EventEmitter {
     registry.setStatus(task.taskId, TaskStatus.RUNNING); this.emit('task:dispatched', task); this._executeTask(task.taskId, prompt, opts).catch(err => { registry.setStatus(task.taskId, TaskStatus.FAILED, err.message); logger.error(`Task ${task.taskId} failed:`, err.message); }); return task;
   }
   async _executeTask(taskId, prompt, opts) { const registry = getTaskRegistry(); const { results } = await this.runTurnLoop(prompt, { ...opts, wbs: opts.wbs || registry.get(taskId)?.wbs, context: opts.context || registry.get(taskId)?.scope || {} }); for (const r of results) registry.appendOutput(taskId, 'assistant', r.output); const last = results[results.length - 1]; registry.setStatus(taskId, last?.stopReason === 'completed' ? TaskStatus.COMPLETED : TaskStatus.FAILED); }
+
+  /** Spawn through the runtime so child scope/permissions can never widen its parent. */
+  spawnSubagent({ parentId = null, role, scope = {}, permissions = [], ...options } = {}) {
+    if (!this.subagentRuntime) throw new Error('No subagent runtime configured');
+    if (!parentId) return this.subagentRuntime.spawn({ role, scope, permissions, ...options });
+    const parent = this.subagentRuntime.get(parentId);
+    if (!parent) throw new Error(`Parent subagent not found: ${parentId}`);
+    const allowed = new Set(parent.permissions || []);
+    const requested = permissions.length ? permissions : [...allowed];
+    const narrowedPermissions = requested.filter(permission => allowed.has(permission));
+    const childScope = { ...scope };
+    for (const key of ['tenantId', 'workspaceId', 'principalId']) {
+      if (parent.scope?.[key] != null) childScope[key] = parent.scope[key];
+    }
+    return this.subagentRuntime.spawn({ parentId, role, scope: childScope, permissions: narrowedPermissions, ...options });
+  }
+
+  runSubagent(id, input, options = {}) {
+    if (!this.subagentRuntime) throw new Error('No subagent runtime configured');
+    return this.subagentRuntime.run(id, input, options);
+  }
+
+  handoffSubagent(id, target, payload = {}) {
+    if (!this.subagentRuntime) throw new Error('No subagent runtime configured');
+    const result = this.subagentRuntime.handoff(id, target, payload);
+    this.emit('subagent:handoff', { id, target, payload });
+    return result;
+  }
+
+  terminateSubagent(id, reason) {
+    if (!this.subagentRuntime) throw new Error('No subagent runtime configured');
+    const result = this.subagentRuntime.terminate(id, reason);
+    this.emit('subagent:terminated', { id, reason });
+    return result;
+  }
+
   _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }
   listTools() { return this.toolManifest.map(t => t.name); }
   findTools(query = '') { const needle = query.toLowerCase(); return this.toolManifest.filter(t => t.name.includes(needle) || t.keywords.some(k => k.includes(needle))).map(t => t.name); }
