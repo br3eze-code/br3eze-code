@@ -1,121 +1,76 @@
 import { randomUUID } from 'node:crypto';
-import UniversalBilling from './universal-billing.js';
-import UniversalAICoordinator from '../ai/universal-coordinator.js';
 
-// src/core/workspace.js
 /**
- * Multi-Tenant Workspace System
+ * Domain-neutral multi-tenant workspace.
+ * Concrete AI, billing, persistence and adapter services are injected by the
+ * host; Core never imports a product/domain implementation.
  */
-
 class Workspace {
   constructor(config = {}) {
     this.id = config.id || randomUUID();
-    this.name = config.name;
-    this.domain = config.domain || 'generic'; // 'network', 'cloud', 'iot', 'hybrid'
-    this.owner = config.owner;
-    this.members = new Map(); // userId -> role
-    this.resources = new Set(); // Resource IDs
-    this.adapters = new Map(); // adapterName -> adapterInstance
+    this.name = config.name || this.id;
+    this.domain = config.domain || 'generic';
+    this.owner = config.owner || null;
+    this.members = new Map(Object.entries(config.members || {}));
+    this.resources = new Set(config.resources || []);
+    this.adapters = new Map();
     this.config = config.settings || {};
-    this.billing = null;
-    this.aiCoordinator = null;
+    this.services = config.services || {};
+    this.policy = config.policy || null;
+    this.commandExecutor = config.commandExecutor || null;
   }
 
-  async initialize(pluginRegistry) {
+  async initialize(pluginRegistry = null) {
+    const registry = pluginRegistry || this.services.pluginRegistry;
     for (const adapterConfig of this.config.adapters || []) {
-      const adapter = await pluginRegistry.load(adapterConfig.type, adapterConfig);
+      if (!registry?.load) throw new Error('No adapter registry configured');
+      const adapter = await registry.load(adapterConfig.type, adapterConfig);
       this.adapters.set(adapterConfig.type, adapter);
     }
-
-    this.billing = new UniversalBilling({
-      database: this.config.database,
-      resourceType: this.domain
-    });
-
-    this.aiCoordinator = new UniversalAICoordinator({
-      domain: this.domain,
-      registry: this,
-      workspace: this.config
-    });
-
     return this;
   }
 
-  async executeCommand(userId, command, params = {}) {
-    if (!this.canExecute(userId, command)) {
-      throw new Error('Unauthorized');
-    }
+  registerAdapter(name, adapter) {
+    if (!name || !adapter) throw new TypeError('Adapter name and instance are required');
+    this.adapters.set(name, adapter);
+    return adapter;
+  }
 
-    return this.aiCoordinator.processQuery(command, {
-      userId,
-      workspace: this.id,
-      ...params
-    });
+  async executeCommand(userId, command, params = {}) {
+    if (!this.canExecute(userId, command)) throw new Error('Unauthorized');
+    if (typeof this.commandExecutor !== 'function') throw new Error('No workspace command executor configured');
+    return this.commandExecutor(command, { userId, workspace: this.id, ...params });
   }
 
   canExecute(userId, command) {
     const role = this.members.get(userId);
     if (!role) return false;
-
+    if (this.policy?.authorize) return Boolean(this.policy.authorize({ userId, role, command, workspace: this }));
     const permissions = {
-      owner: ['*'],
-      admin: ['resource.*', 'billing.*', 'user.*'],
-      operator: ['resource.read', 'resource.execute'],
-      viewer: ['resource.read']
+      owner: ['*'], admin: ['resource.*', 'billing.*', 'user.*'],
+      operator: ['resource.read', 'resource.execute'], viewer: ['resource.read']
     };
-
     const allowed = permissions[role] || [];
     return allowed.includes('*') || allowed.some(permission => command.startsWith(permission.replace('*', '')));
   }
 
   getStats() {
-    return {
-      id: this.id,
-      name: this.name,
-      domain: this.domain,
-      resources: this.resources.size,
-      members: this.members.size,
-      adapters: Array.from(this.adapters.keys()),
-      status: 'active'
-    };
+    return { id: this.id, name: this.name, domain: this.domain, resources: this.resources.size, members: this.members.size, adapters: [...this.adapters.keys()], status: 'active' };
   }
 
-  destroy() {
-    for (const adapter of this.adapters.values()) {
-      adapter.destroy?.();
-    }
+  async destroy() {
+    await Promise.allSettled([...this.adapters.values()].map(adapter => adapter.destroy?.() || adapter.disconnect?.()));
     this.adapters.clear();
-    this.billing = null;
-    this.aiCoordinator = null;
   }
 }
 
 class WorkspaceManager {
-  constructor() {
-    this.workspaces = new Map();
-  }
-
-  createWorkspace(config) {
-    const workspace = new Workspace(config);
-    this.workspaces.set(workspace.id, workspace);
-    return workspace;
-  }
-
-  getWorkspace(id) {
-    return this.workspaces.get(id);
-  }
-
-  listWorkspaces(userId) {
-    return Array.from(this.workspaces.values())
-      .filter(workspace => workspace.members.has(userId))
-      .map(workspace => workspace.getStats());
-  }
-
-  async routeCommand(workspaceId, userId, command, params) {
-    const workspace = this.getWorkspace(workspaceId);
-    if (!workspace) throw new Error('Workspace not found');
-    return workspace.executeCommand(userId, command, params);
-  }
+  constructor() { this.workspaces = new Map(); }
+  createWorkspace(config) { const workspace = new Workspace(config); this.workspaces.set(workspace.id, workspace); return workspace; }
+  getWorkspace(id) { return this.workspaces.get(id); }
+  listWorkspaces(userId) { return [...this.workspaces.values()].filter(w => w.members.has(userId)).map(w => w.getStats()); }
+  async routeCommand(workspaceId, userId, command, params) { const workspace = this.getWorkspace(workspaceId); if (!workspace) throw new Error('Workspace not found'); return workspace.executeCommand(userId, command, params); }
+  async destroyWorkspace(id) { const workspace = this.workspaces.get(id); if (!workspace) return false; await workspace.destroy(); return this.workspaces.delete(id); }
 }
 
 export { Workspace, WorkspaceManager };
