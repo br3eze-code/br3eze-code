@@ -55,7 +55,7 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.br3eze.com' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
           VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
           VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
@@ -70,17 +70,23 @@ jobs:
           echo "Build output verified:"
           du -sh www
 
-      - name: Validate Vercel credentials
+      - name: Validate deployment configuration
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
-          echo "Vercel credentials are configured"
+          test -n "$VITE_API_URL"
+          case "$VITE_API_URL" in
+            https://*|http://*) ;;
+            *) echo "VITE_API_URL must be an absolute HTTP(S) URL" >&2; exit 1 ;;
+          esac
+          echo "Vercel and AgentOS backend configuration is present"
 
       - name: Install Vercel CLI
         run: npm install --global vercel
@@ -89,7 +95,7 @@ jobs:
         id: vercel-production
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://api.br3eze.com' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
           VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
           VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
@@ -107,7 +113,8 @@ jobs:
             --build-env VITE_PROJECT_ID="$VITE_PROJECT_ID" \
             --build-env VITE_STORAGE_BUCKET="$VITE_STORAGE_BUCKET" \
             --build-env VITE_MESSAGING_SENDER_ID="$VITE_MESSAGING_SENDER_ID" \
-            --build-env VITE_APP_ID="$VITE_APP_ID")"
+            --build-env VITE_APP_ID="$VITE_APP_ID" \
+            --env AGENTOS_API_URL="$VITE_API_URL")"
           test -n "$DEPLOYMENT_URL"
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "Vercel deployment: $DEPLOYMENT_URL"
