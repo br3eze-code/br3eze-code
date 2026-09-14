@@ -1,0 +1,11 @@
+{
+  "name": "cordova-plugin-background-modern",
+  "version": "1.0.0",
+  "description": "Lifecycle-aware background execution for Cordova with Android foreground-service support and graceful fallback.",
+  "cordova": {
+    "id": "cordova-plugin-background-modern",
+    "platforms": ["android"]
+  },
+  "keywords": ["cordova", "android", "background", "foreground-service"],
+  "license": "Apache-2.0"
+}
