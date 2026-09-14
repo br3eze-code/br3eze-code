@@ -1,3 +1,4 @@
+import path from 'node:path';
 import * as networkAdapter from '../adapters/network/mikrotik.js';
 import * as onboardingAdapter from '../adapters/network/onboard.js';
 import * as databaseAdapter from '../adapters/persistence/database.js';
@@ -11,21 +12,45 @@ import { registerDatabaseProvider } from '../core/ports/database.js';
 import { registerPersistenceProvider } from '../core/ports/persistence.js';
 import { registerBillingProvider } from '../core/ports/billing.js';
 import { registerFinancialProvider } from '../core/ports/finance.js';
+import { registerSessionStore } from '../core/ports/session-store.js';
+import { SqliteSessionStore } from '../adapters/persistence/sqlite-session-store.js';
 import nodeRegistry from '../core/node-registry.js';
 import pluginRegistry from '../plugins/registry.js';
 import PluginManager from '../plugins/manager.js';
 import ServiceRegistry from '../services/registry.js';
 
-export function bootstrapAgentOS() {
+/**
+ * Compose concrete infrastructure at the host boundary.
+ * Core receives capabilities through ports; it never constructs providers.
+ */
+export function bootstrapAgentOS(options = {}) {
   registerNetworkProvider(networkAdapter);
   registerOnboardingProvider(onboardingAdapter.default || onboardingAdapter);
   registerDatabaseProvider(databaseAdapter);
   registerPersistenceProvider(firebaseAdapter.default || firebaseAdapter);
   registerBillingProvider(BillingAdapter);
   registerFinancialProvider(FinancialService);
+
+  const sessionStore = options.sessionStore || new SqliteSessionStore({
+    dbPath: options.sessionDbPath || path.join(process.cwd(), 'data', 'sessions', 'agentos.sqlite'),
+  });
+  registerSessionStore(sessionStore);
+  sessionStore.initialize?.();
+
   nodeRegistry.setManagerFactory(networkAdapter.createManager);
   pluginRegistry.register('mikrotik', MikroTikAdapter);
-  return { networkAdapter, onboardingAdapter, databaseAdapter, firebaseAdapter, BillingAdapter, FinancialService, nodeRegistry, pluginRegistry };
+
+  return {
+    networkAdapter,
+    onboardingAdapter,
+    databaseAdapter,
+    firebaseAdapter,
+    BillingAdapter,
+    FinancialService,
+    sessionStore,
+    nodeRegistry,
+    pluginRegistry,
+  };
 }
 
 export function createExtensionRuntime(agent, options = {}) {
