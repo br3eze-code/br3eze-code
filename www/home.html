@@ -5,7 +5,7 @@
   <meta name="format-detection" content="telephone=no">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050505">
-  <meta name="description" content="Power Connect — practical internet access and connected services.">
+  <meta name="description" content="Power Connect — connectivity, commerce and connected services coordinated through one operating platform.">
   <link rel="icon" href="img/logo.png">
   <link rel="apple-touch-icon" href="img/logo.png">
   <link rel="stylesheet" href="css/index.css">
@@ -15,128 +15,76 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <title>Power Connect</title>
   <style>
-    body { display: block; }
-    .public-shell { min-height: 100vh; }
-    .public-header { position: sticky; top: 0; z-index: 10; }
-    .public-nav { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
-    .public-nav a { color: var(--color-text-medium); font-size: .9rem; white-space: nowrap; }
-    .public-nav a:hover, .public-nav a[aria-current="page"] { color: var(--color-text-light); }
-    .public-main { max-width: 1120px; margin: 0 auto; padding: 42px 40px 80px; }
-    .intro { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 28px; align-items: stretch; margin-bottom: 28px; }
-    .intro-copy { padding: 18px 0; }
-    .eyebrow { color: var(--color-info-text); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; }
-    .intro h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1.02; margin: 12px 0 18px; max-width: 760px; }
-    .intro p { max-width: 700px; color: var(--color-text-medium); font-size: 1.05rem; line-height: 1.7; margin: 0; }
-    .account-card { display: flex; flex-direction: column; justify-content: space-between; }
-    .account-card h2 { margin: 0 0 10px; font-size: 1.15rem; }
-    .account-card p { color: var(--color-text-medium); line-height: 1.6; margin: 0 0 20px; }
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 42px 0 16px; }
-    .section-heading h2 { margin: 0; font-size: 1.35rem; }
-    .section-heading p { margin: 0; color: var(--color-text-medium); font-size: .9rem; }
-    .service-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-    .service-card { min-height: 170px; }
-    .service-card i { color: var(--color-info-text); font-size: 1rem; margin-bottom: 18px; }
-    .service-card h3 { margin: 0 0 9px; font-size: 1.05rem; }
-    .service-card p { color: var(--color-text-medium); line-height: 1.6; margin: 0; font-size: .92rem; }
-    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-    .step { border-top: 1px solid var(--color-border); padding-top: 17px; }
-    .step-number { color: var(--color-info-text); font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
-    .step h3 { margin: 8px 0 7px; font-size: 1rem; }
-    .step p { color: var(--color-text-medium); line-height: 1.55; font-size: .9rem; margin: 0; }
-    .public-footer { max-width: 1120px; margin: 0 auto; padding: 0 40px 32px; color: var(--color-text-medium); font-size: .8rem; }
-    @media (max-width: 800px) {
-      .intro, .service-grid, .steps { grid-template-columns: 1fr; }
-      .public-main { padding: 32px 20px 65px; }
-      .public-footer { padding: 0 20px 28px; }
-    }
-    @media (max-width: 560px) {
-      .main-header {
-        padding: 10px 15px;
-        height: 58px;
-        gap: 12px;
-      }
-      .main-header .logo {
-        font-size: 1rem;
-        letter-spacing: .7px;
-        min-width: 0;
-        flex: 1 1 auto;
-      }
-      .public-nav {
-        gap: 4px;
-        margin-left: auto;
-      }
-      .public-nav a {
-        font-size: .72rem;
-        padding: 9px 5px;
-        min-height: 36px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .section-heading { display: block; }
-      .section-heading p { margin-top: 6px; }
-    }
-    @media (max-width: 380px) {
-      .main-header { padding-left: 10px; padding-right: 10px; gap: 6px; }
-      .main-header .logo { font-size: .92rem; }
-      .public-nav { gap: 1px; }
-      .public-nav a { font-size: .68rem; padding-left: 4px; padding-right: 4px; }
-    }
+    body { display:block; background:var(--color-background); }
+    .public-shell { min-height:100vh; overflow:hidden; }
+    .public-header { position:sticky; top:0; z-index:20; backdrop-filter:blur(18px); background:rgba(5,5,5,.88); border-bottom:1px solid rgba(255,255,255,.07); }
+    .public-nav { display:flex; align-items:center; gap:24px; flex-shrink:0; }
+    .public-nav a { color:var(--color-text-medium); font-size:.86rem; white-space:nowrap; transition:color .2s ease; }
+    .public-nav a:hover,.public-nav a[aria-current="page"] { color:var(--color-text-light); }
+    .public-main { max-width:1180px; margin:0 auto; padding:58px 40px 90px; }
+    .eyebrow { display:inline-flex; align-items:center; gap:8px; color:#75bfff; font-weight:700; text-transform:uppercase; letter-spacing:.14em; font-size:.7rem; }
+    .eyebrow::before { content:""; width:7px; height:7px; border-radius:50%; background:#55aaff; box-shadow:0 0 16px rgba(85,170,255,.8); }
+    .intro { display:grid; grid-template-columns:minmax(0,1.12fr) minmax(340px,.88fr); gap:54px; align-items:center; padding:38px 0 66px; }
+    .intro h1 { font-size:clamp(2.7rem,6vw,5.8rem); line-height:.98; letter-spacing:-.055em; margin:15px 0 22px; max-width:780px; }
+    .intro h1 span { color:#8bc9ff; }
+    .intro p { max-width:700px; color:var(--color-text-medium); font-size:1.08rem; line-height:1.75; margin:0; }
+    .intro-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:28px; }
+    .system-card { position:relative; min-height:390px; padding:25px; border:1px solid rgba(255,255,255,.1); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.018)); box-shadow:0 24px 80px rgba(0,0,0,.28); overflow:hidden; }
+    .system-card::before { content:""; position:absolute; inset:-30% -10% auto auto; width:260px; height:260px; border-radius:50%; background:radial-gradient(circle,rgba(85,170,255,.18),transparent 68%); pointer-events:none; }
+    .system-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .system-top strong { font-size:.9rem; }
+    .status { color:#8fd3a8; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; }
+    .signal-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .signal { padding:15px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:rgba(0,0,0,.24); }
+    .signal i { color:#7ec4ff; margin-bottom:17px; }
+    .signal strong { display:block; font-size:.92rem; }
+    .signal small { display:block; color:var(--color-text-medium); margin-top:5px; line-height:1.4; }
+    .system-line { height:1px; background:linear-gradient(90deg,rgba(85,170,255,.8),rgba(255,255,255,.08)); margin:18px 0; }
+    .system-foot { display:flex; justify-content:space-between; color:var(--color-text-medium); font-size:.74rem; gap:10px; }
+    .section { margin-top:72px; }
+    .section-heading { display:flex; justify-content:space-between; align-items:end; gap:30px; margin-bottom:20px; }
+    .section-heading h2 { margin:0; font-size:clamp(1.5rem,3vw,2.15rem); letter-spacing:-.03em; }
+    .section-heading p { max-width:560px; margin:0; color:var(--color-text-medium); line-height:1.6; font-size:.9rem; }
+    .domain-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+    .domain { padding:19px; min-height:145px; border:1px solid var(--color-border); border-radius:10px; background:rgba(18,18,18,.72); transition:transform .2s ease,border-color .2s ease; }
+    .domain:hover { transform:translateY(-2px); border-color:#3b668a; }
+    .domain i { color:#72bbff; font-size:.95rem; }
+    .domain h3 { font-size:.94rem; margin:16px 0 7px; }
+    .domain p { color:var(--color-text-medium); font-size:.8rem; line-height:1.5; margin:0; }
+    .use-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .use-card { display:grid; grid-template-columns:42px 1fr; gap:15px; padding:20px; border-top:1px solid var(--color-border); }
+    .use-icon { width:42px; height:42px; display:grid; place-items:center; border:1px solid var(--color-border); border-radius:10px; color:#80c6ff; background:#0b1015; }
+    .use-card h3 { margin:1px 0 7px; font-size:.95rem; }
+    .use-card p { margin:0; color:var(--color-text-medium); line-height:1.55; font-size:.84rem; }
+    .agent-strip { display:flex; flex-wrap:wrap; gap:8px; }
+    .agent { border:1px solid var(--color-border); background:#0d0d0d; border-radius:999px; padding:9px 12px; color:#d7d7d7; font-size:.76rem; }
+    .agent span { color:#6fbaff; margin-right:5px; }
+    .architecture { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .architecture .card { padding:23px; }
+    .architecture h3 { margin:0 0 10px; font-size:1rem; }
+    .architecture p { color:var(--color-text-medium); line-height:1.65; font-size:.86rem; margin:0; }
+    .architecture code { display:block; margin-top:17px; padding:13px; border:1px solid var(--color-border); border-radius:8px; background:#080808; color:#8bc9ff; font-size:.72rem; overflow:auto; }
+    .cta { margin-top:70px; padding:30px; border:1px solid rgba(85,170,255,.24); border-radius:14px; background:linear-gradient(110deg,rgba(85,170,255,.08),rgba(255,255,255,.025)); display:flex; justify-content:space-between; align-items:center; gap:25px; }
+    .cta h2 { margin:0 0 6px; font-size:1.35rem; }
+    .cta p { margin:0; color:var(--color-text-medium); font-size:.86rem; }
+    .public-footer { max-width:1180px; margin:0 auto; padding:0 40px 34px; color:var(--color-text-medium); font-size:.78rem; display:flex; justify-content:space-between; gap:20px; }
+    @media (max-width:900px) { .intro{grid-template-columns:1fr;gap:32px}.domain-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.architecture{grid-template-columns:1fr}.public-main{padding:42px 24px 70px}.public-footer{padding:0 24px 28px} }
+    @media (max-width:560px) { .main-header{padding:13px 16px;height:58px;gap:12px}.main-header .logo{font-size:1rem;letter-spacing:.7px;min-width:0;flex:1 1 auto}.public-nav{gap:4px;margin-left:auto}.public-nav a{font-size:.72rem;padding:9px 5px;min-height:36px;display:inline-flex;align-items:center;justify-content:center}.public-main{padding:30px 17px 60px}.intro{padding:28px 0 48px}.intro h1{font-size:clamp(2.45rem,14vw,4rem)}.intro p{font-size:.96rem}.system-card{min-height:auto;padding:18px}.section{margin-top:52px}.section-heading{display:block}.section-heading p{margin-top:8px}.domain-grid,.use-grid{grid-template-columns:1fr}.cta{display:block;padding:23px}.cta .btn{margin-top:17px;width:100%}.public-footer{padding:0 17px 25px;display:block}.public-footer span{display:block;margin-top:5px} }
+    @media (max-width:380px) { .main-header{padding-left:10px;padding-right:10px;gap:6px}.main-header .logo{font-size:.92rem}.public-nav{gap:1px}.public-nav a{font-size:.68rem;padding-left:4px;padding-right:4px}.signal-grid{grid-template-columns:1fr}.intro-actions .btn{width:100%} }
   </style>
 </head>
 <body>
 <div class="public-shell">
-  <header class="main-header public-header">
-    <a href="home.html" class="logo" aria-label="Power Connect home">POWER CONNECT</a>
-    <nav class="public-nav" aria-label="Primary navigation">
-      <a href="home.html" aria-current="page">Home</a>
-      <a href="about.html">About</a>
-      <a href="assessment.html">Assessment</a>
-    </nav>
-  </header>
-
-  <main class="public-main">
-    <section class="intro" aria-labelledby="page-title">
-      <div class="intro-copy">
-        <div class="eyebrow">Connectivity that works</div>
-        <h1 id="page-title">Get connected. Stay connected.</h1>
-        <p>Power Connect brings internet access, account management and connected services together in one place. Use the service, manage your access and get support without unnecessary complexity.</p>
-      </div>
-      <aside class="card account-card" aria-label="Power Connect account">
-        <div>
-          <h2>Your connection starts here.</h2>
-          <p>Open the service to connect, manage your account or continue with an existing session.</p>
-        </div>
-        <div class="actions">
-          <a class="btn btn-primary" href="index.html"><i class="fas fa-wifi"></i> Connect</a>
-          <a class="btn" href="about.html">About Power Connect</a>
-        </div>
-      </aside>
-    </section>
-
-    <section aria-labelledby="services-title">
-      <div class="section-heading">
-        <h2 id="services-title">What you can do</h2>
-        <p>Simple tools for everyday connectivity.</p>
-      </div>
-      <div class="service-grid">
-        <article class="card service-card"><i class="fas fa-wifi" aria-hidden="true"></i><h3>Connect to a hotspot</h3><p>Access available Power Connect service and get online through supported locations.</p></article>
-        <article class="card service-card"><i class="fas fa-receipt" aria-hidden="true"></i><h3>Manage your access</h3><p>Keep your plans, access and account information together instead of managing separate services.</p></article>
-        <article class="card service-card"><i class="fas fa-headset" aria-hidden="true"></i><h3>Get support</h3><p>Find the information you need when you have a connection, account or service question.</p></article>
-      </div>
-    </section>
-
-    <section aria-labelledby="steps-title">
-      <div class="section-heading"><h2 id="steps-title">How it works</h2><p>No complicated setup.</p></div>
-      <div class="steps">
-        <article class="step"><div class="step-number">01</div><h3>Find Power Connect</h3><p>Use a supported Power Connect hotspot or service location.</p></article>
-        <article class="step"><div class="step-number">02</div><h3>Choose your access</h3><p>Select the available access option that fits what you need.</p></article>
-        <article class="step"><div class="step-number">03</div><h3>Connect</h3><p>Sign in and use your connection while managing your account from the same service.</p></article>
-      </div>
-    </section>
-  </main>
-  <footer class="public-footer">Power Connect · A Br3eze Africa service</footer>
+<header class="main-header public-header"><a href="home.html" class="logo" aria-label="Power Connect home">POWER CONNECT</a><nav class="public-nav" aria-label="Primary navigation"><a href="home.html" aria-current="page">Home</a><a href="about.html">About</a><a href="assessment.html">Assessment</a></nav></header>
+<main class="public-main">
+<section class="intro"><div><div class="eyebrow">One service. Many connected workflows.</div><h1>Connectivity that <span>works together.</span></h1><p>Power Connect is the customer-facing service for connected access and digital operations. Behind the experience is a modular AgentOS control plane that can coordinate networks, commerce, payments, fulfillment, communications and more without forcing customers to manage the machinery underneath.</p><div class="intro-actions"><a class="btn btn-primary" href="index.html"><i class="fas fa-wifi"></i> Connect</a><a class="btn" href="about.html">Explore the platform</a></div></div>
+<aside class="system-card" aria-label="Power Connect operating view"><div class="system-top"><strong>POWER CONNECT / OPERATING VIEW</strong><span class="status">● Coordinated</span></div><div class="signal-grid"><div class="signal"><i class="fas fa-network-wired"></i><strong>Network & fleet</strong><small>Health, topology, access and site operations.</small></div><div class="signal"><i class="fas fa-store"></i><strong>Commerce</strong><small>Catalog, orders, POS, inventory and fulfillment.</small></div><div class="signal"><i class="fas fa-credit-card"></i><strong>Payments</strong><small>Billing, settlement, credits and reconciliation.</small></div><div class="signal"><i class="fas fa-project-diagram"></i><strong>Work orchestration</strong><small>WBS, handoffs, approvals and evidence.</small></div></div><div class="system-line"></div><div class="system-foot"><span>Identity → policy → capability → adapter</span><span>Traceable</span></div></aside></section>
+<section class="section"><div class="section-heading"><h2>One control plane. Multiple domains.</h2><p>The platform is designed to add domain capabilities without creating separate authorization, runtime or evidence systems.</p></div><div class="domain-grid"><article class="domain"><i class="fas fa-network-wired"></i><h3>Network & Fleet</h3><p>Health, topology, devices, sessions, alerts and controlled mutations.</p></article><article class="domain"><i class="fas fa-wifi"></i><h3>Connectivity & Roaming</h3><p>Access resolution, vouchers, roaming sessions and entitlements.</p></article><article class="domain"><i class="fas fa-video"></i><h3>CCTV & IoT</h3><p>Device health, provisioning, gateways and controlled streams.</p></article><article class="domain"><i class="fas fa-shopping-bag"></i><h3>Commerce & POS</h3><p>Catalog, pricing, checkout, orders, inventory and customer commitments.</p></article><article class="domain"><i class="fas fa-truck"></i><h3>Fulfillment</h3><p>Shipments, milestones, provider evidence and exception recovery.</p></article><article class="domain"><i class="fas fa-tasks"></i><h3>Project Delivery</h3><p>WBS, milestones, dependencies, risks, approvals and closeout.</p></article><article class="domain"><i class="fas fa-comments"></i><h3>Media & Communications</h3><p>Briefs, assets, messages, channels, notifications and publication.</p></article><article class="domain"><i class="fas fa-flask"></i><h3>Model & Research</h3><p>Grounded search, context building, classification and bounded model runs.</p></article></div></section>
+<section class="section"><div class="section-heading"><h2>Built for real work</h2><p>From a field operator checking a site to a team completing a purchase, the same control-plane principles apply.</p></div><div class="use-grid"><article class="use-card"><div class="use-icon"><i class="fas fa-heartbeat"></i></div><div><h3>Observe network health</h3><p>Poll devices deterministically, aggregate site state and surface actionable exceptions without putting a model in the critical path.</p></div></article><article class="use-card"><div class="use-icon"><i class="fas fa-user-check"></i></div><div><h3>Resolve access and roaming</h3><p>Keep tenant, site and session scope explicit while resolving connectivity and entitlement decisions.</p></div></article><article class="use-card"><div class="use-icon"><i class="fas fa-shopping-cart"></i></div><div><h3>Run commerce workflows</h3><p>Coordinate catalog, pricing, inventory, checkout, billing and fulfillment through specialist ownership and clear handoffs.</p></div></article><article class="use-card"><div class="use-icon"><i class="fas fa-file-signature"></i></div><div><h3>Control changes</h3><p>Turn proposed mutations into approved, idempotent actions with adapter evidence, rollback boundaries and audit records.</p></div></article><article class="use-card"><div class="use-icon"><i class="fas fa-project-diagram"></i></div><div><h3>Manage projects as work</h3><p>Break objectives into WBS packages, assign accountable specialists, track dependencies and close with evidence.</p></div></article><article class="use-card"><div class="use-icon"><i class="fas fa-comments"></i></div><div><h3>Operate across channels</h3><p>Use web, mobile, desktop, CLI, Telegram, WhatsApp and APIs as presentation surfaces over the same governed runtime.</p></div></article></div></section>
+<section class="section"><div class="section-heading"><h2>The specialist layer</h2><p>Specialists own work; they do not become isolated mini-platforms. The roster is coordinated through common context, capability and policy boundaries.</p></div><div class="agent-strip"><span class="agent"><span>01</span>Designer</span><span class="agent"><span>02</span>Catalog</span><span class="agent"><span>03</span>Pricing & Promotions</span><span class="agent"><span>04</span>Inventory</span><span class="agent"><span>05</span>Orders & Checkout</span><span class="agent"><span>06</span>Voucher & Access</span><span class="agent"><span>07</span>Fulfillment & Expeditor</span><span class="agent"><span>08</span>Procurement</span><span class="agent"><span>09</span>Billing & Payments</span><span class="agent"><span>10</span>Product</span><span class="agent"><span>11</span>Project Manager</span><span class="agent"><span>12</span>Br3eze Service Agent</span></div></section>
+<section class="section architecture"><article class="card"><h3>Governed execution</h3><p>Every meaningful action can carry identity, tenant and resource scope, capability, approval, idempotency and evidence.</p><code>principal → tenant → agent → capability → policy → approval → tool → adapter → audit</code></article><article class="card"><h3>Channels stay thin</h3><p>Web, mobile, desktop, CLI and messaging surfaces render work. Specialists own work, adapters reach resources and durable state proves what happened.</p><code>channel → context → runtime → specialist → port → adapter</code></article></section>
+<section class="cta"><div><h2>See how Power Connect fits together.</h2><p>Explore the service, the specialist model and the technology underneath.</p></div><a class="btn btn-primary" href="about.html">Read about Power Connect <i class="fas fa-arrow-right"></i></a></section>
+</main><footer class="public-footer"><span>Power Connect · A Br3eze Africa service</span><span>Connectivity · Commerce · Operations</span></footer>
 </div>
 </body>
 </html>
