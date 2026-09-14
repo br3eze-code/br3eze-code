@@ -11,12 +11,23 @@ describe('ACP checkout session boundary', () => {
   test('requires a valid idempotency key', () => {
     expect(() => validateIdempotencyKey('')).toThrow();
     expect(() => validateIdempotencyKey('bad key')).toThrow();
+    expect(() => validateIdempotencyKey('a'.repeat(129))).toThrow();
     expect(validateIdempotencyKey('order-123:attempt-1')).toBe('order-123:attempt-1');
   });
 
   test('creates a deterministic request fingerprint', () => {
-    const a = fingerprintRequest({ merchantId: 'm1', currency: 'USD', items: [{ id: 'p1', qty: 1 }] });
-    const b = fingerprintRequest({ merchantId: 'm1', currency: 'USD', items: [{ id: 'p1', qty: 1 }] });
+    const a = fingerprintRequest({
+      merchantId: 'm1',
+      currency: 'USD',
+      items: [{ id: 'p1', qty: 1, attributes: { size: 'M', color: 'blue' } }],
+      address: { city: 'Harare', country: 'ZW' },
+    });
+    const b = fingerprintRequest({
+      address: { country: 'ZW', city: 'Harare' },
+      items: [{ attributes: { color: 'blue', size: 'M' }, qty: 1, id: 'p1' }],
+      currency: 'USD',
+      merchantId: 'm1',
+    });
     expect(a).toBe(b);
   });
 
