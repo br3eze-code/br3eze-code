@@ -15,7 +15,7 @@ jest.unstable_mockModule('../../src/core/logger.js', () => ({
 }));
 
 const { logger } = await import('../../src/core/logger.js');
-const { default: UniversalBilling } = await import('../../src/core/universal-billing.js');
+const { default: UniversalBilling } = await import('../../src/adapters/payments/universal-billing.js');
 
 // ── Shared factory helpers ────────────────────────────────────────────────────
 
@@ -25,24 +25,21 @@ function makeDb(overrides = {}) {
         getVoucher:          jest.fn().mockResolvedValue(null),
         resolveUser:         jest.fn().mockResolvedValue(null),
         expireVoucher:       jest.fn().mockResolvedValue(true),
-        getVouchersByStatus: jest.fn().mockResolvedValue([]),   // PHASE 2 & 3
+        getVouchersByStatus: jest.fn().mockResolvedValue([]),
         getUsersByStatus:    jest.fn().mockResolvedValue([]),
         ...overrides
     };
 }
 
-/** Build a mockMikrotik connected by default */
 function makeMikrotik(overrides = {}) {
     return {
         state:             { isConnected: true },
-        executeTool:       jest.fn().mockResolvedValue([]),     // users.report & user.kick
+        executeTool:       jest.fn().mockResolvedValue([]),
         disableHotspotUser: jest.fn().mockResolvedValue({ success: true }),
         enableHotspotUser:  jest.fn().mockResolvedValue({ success: true }),
         ...overrides
     };
 }
-
-// ── Suite ─────────────────────────────────────────────────────────────────────
 
 describe('UniversalBilling — guardHotspot / reaper', () => {
     let billing, mockDb, mockMikrotik;
@@ -59,14 +56,10 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
         jest.clearAllMocks();
     });
 
-    // ── Smoke ─────────────────────────────────────────────────────────────────
-
     test('smoke: guardHotspot resolves without throwing when nothing to do', async () => {
         mockMikrotik.executeTool.mockResolvedValue([]);
         await expect(billing.guardHotspot()).resolves.toBeUndefined();
     });
-
-    // ── Expiry enforcement ────────────────────────────────────────────────────
 
     test('kicks active users whose voucher is expired', async () => {
         mockMikrotik.executeTool.mockImplementation(async (tool) => {
@@ -74,64 +67,28 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
                 { username: 'user1', isActive: true,  disabled: false },
                 { username: 'user2', isActive: true,  disabled: false }
             ];
-            return { kicked: true }; // user.kick
+            return { kicked: true };
         });
-
-        mockDb.getVoucher.mockImplementation(async (u) => ({
-            code: u, status: 'active',
-            expiresAt: new Date(Date.now() - 1000).toISOString()
-        }));
-
-        // Force both to show as expired
+        mockDb.getVoucher.mockImplementation(async (u) => ({ code: u, status: 'active', expiresAt: new Date(Date.now() - 1000).toISOString() }));
         billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'time_expired' });
-
         await billing.guardHotspot();
-
-        // Both kicked via executeTool
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user1' });
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user2' });
-        
-        // Both marked expired in DB
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user1');
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user2');
     });
 
     test('does NOT kick an inactive user, but still expires them in DB', async () => {
-        mockMikrotik.executeTool.mockImplementation(async (tool) => {
-            if (tool === 'users.report') return [
-                { username: 'idle', isActive: false, disabled: false }
-            ];
-            return {};
-        });
-
+        mockMikrotik.executeTool.mockImplementation(async (tool) => tool === 'users.report' ? [{ username: 'idle', isActive: false, disabled: false }] : {});
         mockDb.getVoucher.mockResolvedValue({ code: 'idle', status: 'active' });
         billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'time_expired' });
-
         await billing.guardHotspot();
-
-        // No kick (not active)
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.kick', expect.anything());
-        // No disable
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', { username: 'idle' });
-        // Still marked expired in DB
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('idle');
     });
 
-    // ── Resilience ────────────────────────────────────────────────────────────
-
     test('continues processing remaining users if kicking user throws for one', async () => {
-        mockMikrotik.executeTool.mockImplementation(async (tool) => {
-            if (tool === 'users.report') return [
-                { username: 'user1', isActive: true, disabled: false },
-                { username: 'user2', isActive: true, disabled: false }
-            ];
-            return { kicked: true };
-        });
-
-        mockDb.getVoucher.mockImplementation(async (u) => ({ code: u, status: 'active' }));
-        billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'test' });
-
-        // user1 kick explodes — user2 must still be processed
         mockMikrotik.executeTool.mockImplementation(async (tool, args) => {
             if (tool === 'users.report') return [
                 { username: 'user1', isActive: true, disabled: false },
@@ -140,109 +97,56 @@ describe('UniversalBilling — guardHotspot / reaper', () => {
             if (tool === 'user.kick' && args.username === 'user1') throw new Error('Router ID missing');
             return { kicked: true };
         });
-
+        mockDb.getVoucher.mockImplementation(async (u) => ({ code: u, status: 'active' }));
+        billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'test' });
         await billing.guardHotspot();
-
-        // user2 still fully processed
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.kick', { username: 'user2' });
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('user2');
-
-        // user1 error was logged via logger (not console)
-        expect(logger.error).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to process user user1'),
-            expect.objectContaining({ error: 'Router ID missing' })
-        );
-
-        // user1 expireVoucher NOT called (throw aborted that user's try block)
+        expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to process user user1'), expect.objectContaining({ error: 'Router ID missing' }));
         expect(mockDb.expireVoucher).not.toHaveBeenCalledWith('user1');
     });
 
-    // ── Recovery (re-enable) ──────────────────────────────────────────────────
-
     test('re-enables a user that is disabled on router but has a valid voucher', async () => {
-        mockMikrotik.executeTool.mockImplementation(async (tool) => {
-            if (tool === 'users.report') return [
-                { username: 'valid', isActive: false, disabled: true }
-            ];
-            return {};
-        });
-
-        mockDb.getVoucher.mockResolvedValue({
-            code: 'valid', status: 'active',
-            expiresAt: new Date(Date.now() + 86_400_000).toISOString()
-        });
-        // Not expired
+        mockMikrotik.executeTool.mockImplementation(async (tool) => tool === 'users.report' ? [{ username: 'valid', isActive: false, disabled: true }] : {});
+        mockDb.getVoucher.mockResolvedValue({ code: 'valid', status: 'active', expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
         billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: false, reason: null });
-
         await billing.guardHotspot();
-
         expect(mockMikrotik.executeTool).toHaveBeenCalledWith('user.enable', { username: 'valid' });
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
         expect(mockDb.expireVoucher).not.toHaveBeenCalled();
     });
 
-    // ── System user guard ─────────────────────────────────────────────────────
-
     test('never touches system users (admin, default, root)', async () => {
-        mockMikrotik.executeTool.mockImplementation(async (tool) => {
-            if (tool === 'users.report') return [
-                { username: 'admin',   isActive: true, disabled: false },
-                { username: 'default', isActive: true, disabled: false },
-                { username: 'root',    isActive: true, disabled: false }
-            ];
-            return {};
-        });
-
+        mockMikrotik.executeTool.mockImplementation(async (tool) => tool === 'users.report' ? [
+            { username: 'admin', isActive: true, disabled: false },
+            { username: 'default', isActive: true, disabled: false },
+            { username: 'root', isActive: true, disabled: false }
+        ] : {});
         billing.checkVoucherStatus = jest.fn().mockResolvedValue({ expired: true, reason: 'time_expired' });
-
         await billing.guardHotspot();
-
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.kick', expect.anything());
         expect(billing.checkVoucherStatus).not.toHaveBeenCalled();
     });
 
-    // ── PHASE 2 — Expired sweep ───────────────────────────────────────────────
-
     test('PHASE 2: ignores users whose voucher is already marked expired in DB since disable logic is commented out', async () => {
-        mockMikrotik.executeTool.mockResolvedValue([]); // no live router users
-
-        mockDb.getVouchersByStatus.mockImplementation(async (status) => {
-            if (status === 'expired') return [{ code: 'old1' }, { code: 'old2' }];
-            return [];
-        });
-
+        mockMikrotik.executeTool.mockResolvedValue([]);
+        mockDb.getVouchersByStatus.mockImplementation(async (status) => status === 'expired' ? [{ code: 'old1' }, { code: 'old2' }] : []);
         await billing.guardHotspot();
-
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
     });
 
-    // ── PHASE 3 — Active parity audit ────────────────────────────────────────
-
     test('PHASE 3: expires DB-active vouchers that have passed their expiry date but does not disable them', async () => {
-        mockMikrotik.executeTool.mockResolvedValue([]); // no live router users
-
-        mockDb.getVouchersByStatus.mockImplementation(async (status) => {
-            if (status === 'active') return [
-                { code: 'stale', expiresAt: new Date(Date.now() - 5000).toISOString() }
-            ];
-            return [];
-        });
-
-        // Real checkVoucherStatus (not mocked) should detect time_expired
+        mockMikrotik.executeTool.mockResolvedValue([]);
+        mockDb.getVouchersByStatus.mockImplementation(async (status) => status === 'active' ? [{ code: 'stale', expiresAt: new Date(Date.now() - 5000).toISOString() }] : []);
         await billing.guardHotspot();
-
         expect(mockDb.expireVoucher).toHaveBeenCalledWith('stale');
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
     });
 
-    // ── Guard: MikroTik disconnected ──────────────────────────────────────────
-
     test('skips run gracefully when MikroTik is not connected', async () => {
         mockMikrotik.state.isConnected = false;
-
         await billing.guardHotspot();
-
         expect(mockMikrotik.executeTool).not.toHaveBeenCalled();
         expect(mockMikrotik.executeTool).not.toHaveBeenCalledWith('user.disable', expect.anything());
     });
