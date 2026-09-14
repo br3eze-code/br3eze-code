@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin id="cordova-plugin-background-modern" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0">
+<plugin id="cordova-plugin-background-modern" version="2.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0">
     <name>Modern Background</name>
-    <description>Lifecycle-aware background execution for Cordova.</description>
+    <description>Lifecycle-aware Cordova background runtime with modern Android foreground-service handling and iOS limited background-task support.</description>
     <license>Apache-2.0</license>
 
     <js-module src="www/background.js" name="Background">
@@ -10,13 +10,14 @@
 
     <feature name="BackgroundPlugin">
         <param name="android-package" value="cordova.plugins.backgroundmodern.BackgroundPlugin" />
+        <param name="ios-package" value="BackgroundPlugin" />
     </feature>
 
     <platform name="android">
         <config-file parent="/*" target="AndroidManifest.xml">
             <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-            <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-            <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+            <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+            <uses-permission android:minSdkVersion="33" android:name="android.permission.POST_NOTIFICATIONS" />
         </config-file>
         <config-file parent="application" target="AndroidManifest.xml">
             <service
@@ -26,10 +27,14 @@
                 android:foregroundServiceType="specialUse">
                 <property
                     android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                    android:value="Cordova application background runtime" />
+                    android:value="Cordova application background runtime for authorized device and network workflow processing" />
             </service>
         </config-file>
         <source-file src="src/android/BackgroundService.java" target-dir="src/cordova/plugins/backgroundmodern" />
         <source-file src="src/android/BackgroundPlugin.java" target-dir="src/cordova/plugins/backgroundmodern" />
+    </platform>
+
+    <platform name="ios">
+        <source-file src="src/ios/BackgroundPlugin.m" />
     </platform>
 </plugin>
