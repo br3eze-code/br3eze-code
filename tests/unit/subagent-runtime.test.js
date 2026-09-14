@@ -9,6 +9,27 @@ test('spawns subagents with scope, permissions, depth and budget', () => {
   assert.equal(root.depth, 0);
   assert.equal(child.depth, 1);
   assert.deepEqual(root.permissions, ['read']);
+  assert.deepEqual(child.permissions, ['read']);
+});
+
+test('prevents child permission and protected-scope widening at the lifecycle boundary', () => {
+  const runtime = new SubagentRuntime({ store: new MemorySubagentStore() });
+  const root = runtime.spawn({
+    role: 'Planner',
+    scope: { tenantId: 'tenant-a', workspaceId: 'workspace-a', principalId: 'principal-a', project: 'x' },
+    permissions: ['read', 'write'],
+  });
+  const child = runtime.spawn({
+    parentId: root.id,
+    role: 'Engineer',
+    scope: { tenantId: 'tenant-b', workspaceId: 'workspace-b', principalId: 'principal-b', project: 'y' },
+    permissions: ['write', 'delete'],
+  });
+  assert.deepEqual(child.permissions, ['write']);
+  assert.equal(child.scope.tenantId, 'tenant-a');
+  assert.equal(child.scope.workspaceId, 'workspace-a');
+  assert.equal(child.scope.principalId, 'principal-a');
+  assert.equal(child.scope.project, 'y');
 });
 
 test('enforces maximum spawn depth', () => {
@@ -25,6 +46,17 @@ test('enforces budget and tracks successful execution', async () => {
   assert.equal(runtime.get(agent.id).spent, 2);
   assert.equal(runtime.get(agent.id).status, 'completed');
   await assert.rejects(runtime.run(agent.id, 'again'), /is completed/);
+});
+
+test('terminating a parent terminates active descendants', () => {
+  const runtime = new SubagentRuntime({ store: new MemorySubagentStore() });
+  const root = runtime.spawn({ role: 'Planner' });
+  const child = runtime.spawn({ parentId: root.id, role: 'Engineer' });
+  const grandchild = runtime.spawn({ parentId: child.id, role: 'QA' });
+  runtime.terminate(root.id, 'cancelled');
+  assert.equal(runtime.get(root.id).status, 'terminated');
+  assert.equal(runtime.get(child.id).status, 'terminated');
+  assert.equal(runtime.get(grandchild.id).status, 'terminated');
 });
 
 test('supports handoff and termination', () => {
