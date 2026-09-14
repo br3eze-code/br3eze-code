@@ -1,32 +1,37 @@
+/**
+ * Specialist tool projection.
+ *
+ * There is one source of truth for executable tools: Core ToolRegistry.
+ * This class only filters that registry for a specialist; it never registers
+ * or owns a second tool universe.
+ */
+import canonicalRegistry, { ToolRegistry as CanonicalToolRegistry } from '../ToolRegistry.js';
+
 export class ToolRegistry {
-  constructor({ skills = [] } = {}) {
-    this.skills = new Map();
-    this.tools = new Map();
-    for (const skill of skills) this.registerSkill(skill);
-  }
-
-  registerSkill(skill) {
-    if (!skill?.name) throw new Error('skill name is required');
-    if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);
-    this.skills.set(skill.name, skill);
-    for (const tool of skill.tools || []) {
-      if (!tool?.name) throw new Error('tool name is required');
-      if (this.tools.has(tool.name)) throw new Error(`Tool "${tool.name}" already registered`);
-      this.tools.set(tool.name, { ...tool, skill: skill.name, specialist: tool.specialist || skill.specialist || null });
+  constructor({ registry = canonicalRegistry } = {}) {
+    if (!registry || typeof registry.getAllTools !== 'function') {
+      throw new TypeError('A canonical ToolRegistry is required');
     }
-    return this;
+    this.registry = registry;
   }
 
-  getSkill(name) { return this.skills.get(name) || null; }
-  getTool(name) { return this.tools.get(name) || null; }
-  listSkills() { return [...this.skills.values()]; }
-  listTools() { return [...this.tools.values()]; }
+  getTool(name) { return this.registry.getTool(name) || null; }
+  listTools() { return this.registry.getAllTools(); }
+  listSkills() { return []; }
 
   toolsForSpecialist(specialist) {
     const names = new Set(specialist?.tools || []);
     const skills = new Set(specialist?.skills || specialist?.skillNames || []);
-    return this.listTools().filter((tool) => (tool.specialist === specialist?.role || tool.specialist === specialist?.id || names.has(tool.name) || skills.has(tool.skill)));
+    return this.listTools().filter((tool) => (
+      tool.specialist === specialist?.role ||
+      tool.specialist === specialist?.id ||
+      names.has(tool.name) ||
+      names.has(tool.fullName) ||
+      skills.has(tool.skill)
+    ));
   }
 }
 
+// Expose the canonical class for callers that need to construct the real registry.
+export { CanonicalToolRegistry };
 export default ToolRegistry;
