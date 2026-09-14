@@ -1,21 +1,12 @@
-/**
- * Persistence capability boundary.
- * Core does not know Firebase or any concrete provider. A host application
- * injects a persistence provider before requesting provider-backed operations.
- */
+/** Domain-neutral persistence capability boundary. */
 let provider = null;
-
-export function registerPersistenceProvider(nextProvider) {
-  if (!nextProvider || typeof nextProvider !== 'object') throw new TypeError('A persistence provider is required');
-  provider = nextProvider;
-  return provider;
-}
+async function ensureProvider() { if (!provider) provider = await import('../adapters/persistence/firebase.js'); return provider; }
+export function registerPersistenceProvider(nextProvider) { if (!nextProvider || typeof nextProvider !== 'object') throw new TypeError('A persistence provider is required'); provider = nextProvider; return provider; }
 export function clearPersistenceProvider() { provider = null; }
 export function getPersistenceProvider() { return provider; }
-export function initializeFirebase() { return provider?.initializeFirebase?.() || { app: null, db: null }; }
-export function getFirestore() { return provider?.getFirestore?.() || null; }
-export function getFirebaseApp() { return provider?.getFirebaseApp?.() || null; }
-export function getAuth() { return provider?.getAuth?.() || null; }
-export async function createAuthUser(identifier, opts = {}) { return provider?.createAuthUser ? provider.createAuthUser(identifier, opts) : null; }
-export async function getDatabase() { return provider?.getDatabase ? provider.getDatabase() : null; }
-export const admin = undefined;
+export async function initializeFirebase() { const p = await ensureProvider(); return p.initializeFirebase(); }
+export async function getFirestore() { const p = await ensureProvider(); return p.getFirestore(); }
+export async function getFirebaseApp() { const p = await ensureProvider(); return p.getFirebaseApp(); }
+export async function getAuth() { const p = await ensureProvider(); return p.getAuth(); }
+export async function createAuthUser(identifier, opts = {}) { const p = await ensureProvider(); return p.createAuthUser(identifier, opts); }
+export async function getDatabase() { return null; }
