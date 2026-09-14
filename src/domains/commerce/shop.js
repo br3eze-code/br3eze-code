@@ -1,19 +1,17 @@
 import { getDatabase } from '../../core/database.js';
 import { logger } from '../../core/logger.js';
 import { PaymentGateway } from '../../payments/payment-gateway.js';
-import { getCourierGateway } from '../../core/courier-gateway.js';
-import { notifyNewOrder } from '../../core/order-notifier.js';
+import { getCourierGateway } from '../../adapters/commerce/courier-gateway.js';
+import { notifyNewOrder } from '../../adapters/commerce/order-notifier.js';
 
 /**
  * Commerce domain shop engine.
- *
- * Owns product catalog, carts, orders, reviews, shipment orchestration and
- * checkout. Provider-specific integrations remain behind gateway modules.
+ * Owns catalog, carts, orders, reviews, shipment orchestration and checkout.
+ * External courier/channel integrations are adapter dependencies.
  */
 
 const SHIPPING_FLAT = 5;
 const PUBLIC_URL = process.env.PUBLIC_URL || 'https://br3eze.africa';
-
 function productUrl(id) { return `${PUBLIC_URL}/product/${id}`; }
 function orderUrl(id) { return `${PUBLIC_URL}/order/${id}`; }
 
@@ -22,65 +20,43 @@ async function _fs() {
     if (!db.db) throw new Error('Shop requires the Firebase backend, which is not configured on this node.');
     return { db, fs: db.db };
 }
-
-function normalizeScope(scope = {}) {
-    return { tenantId: scope.tenantId || null, domain: scope.domain || null, siteId: scope.siteId || null };
-}
-
+function normalizeScope(scope = {}) { return { tenantId: scope.tenantId || null, domain: scope.domain || null, siteId: scope.siteId || null }; }
 function scopeMatches(record, scope = {}) {
     const requested = normalizeScope(scope);
     return ['tenantId', 'domain', 'siteId'].every((key) => !requested[key] || !record[key] || record[key] === requested[key]);
 }
-
 function cartKey(platform, channelId, scope = {}) {
     const { tenantId, domain, siteId } = normalizeScope(scope);
     const suffix = [tenantId, domain, siteId].filter(Boolean).join(':');
     return `${platform}:${channelId}${suffix ? `:${suffix}` : ''}`;
 }
-
 async function listProducts({ category, search, scope = {} } = {}) {
     const { fs } = await _fs();
-    const q = fs.collection('products').where('active', '==', true);
-    const snap = await q.get();
+    const snap = await fs.collection('products').where('active', '==', true).get();
     let items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => scopeMatches(p, scope));
     if (category && category !== 'all') items = items.filter((p) => p.category === category);
-    if (search) {
-        const s = String(search).toLowerCase();
-        items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category} ${p.brand || ''}`.toLowerCase().includes(s));
-    }
+    if (search) { const s = String(search).toLowerCase(); items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category} ${p.brand || ''}`.toLowerCase().includes(s)); }
     return items;
 }
-
-async function relatedProducts(product, limit = 3, scope = {}) {
-    const items = await listProducts({ category: product.category, scope });
-    return items.filter((p) => p.id !== product.id).slice(0, limit);
-}
-
+async function relatedProducts(product, limit = 3, scope = {}) { const items = await listProducts({ category: product.category, scope }); return items.filter((p) => p.id !== product.id).slice(0, limit); }
 async function getProduct(idOrName, scope = {}) {
     const { fs } = await _fs();
     const byId = await fs.collection('products').doc(String(idOrName)).get();
-    if (byId.exists) {
-        const product = { id: byId.id, ...byId.data() };
-        return scopeMatches(product, scope) ? product : null;
-    }
+    if (byId.exists) { const product = { id: byId.id, ...byId.data() }; return scopeMatches(product, scope) ? product : null; }
     const all = await listProducts({ scope });
     const s = String(idOrName).toLowerCase();
     return all.find((p) => p.id.toLowerCase() === s || p.name.toLowerCase() === s || p.name.toLowerCase().includes(s)) || null;
 }
-
 async function getCart(platform, channelId, scope = {}) {
     const { fs } = await _fs();
     const doc = await fs.collection('carts').doc(cartKey(platform, channelId, scope)).get();
     return doc.exists ? (doc.data().items || []) : [];
 }
-
 async function _saveCart(platform, channelId, items, scope = {}) {
     const { fs } = await _fs();
     await fs.collection('carts').doc(cartKey(platform, channelId, scope)).set({ ...normalizeScope(scope), items, updatedAt: new Date().toISOString() });
 }
-
 function subtotal(items) { return items.reduce((s, i) => s + i.price * i.qty, 0); }
-
 async function addToCart(platform, channelId, productRef, { size = null, qty = 1, scope = {} } = {}) {
     const p = await getProduct(productRef, scope);
     if (!p) throw new Error(`Product "${productRef}" not found. Send "shop" to see the catalog.`);
@@ -96,151 +72,67 @@ async function addToCart(platform, channelId, productRef, { size = null, qty = 1
     await _saveCart(platform, channelId, items, scope);
     return { product: p, size, cart: items };
 }
-
-async function removeFromCart(platform, channelId, keyOrProductId, scope = {}) {
-    let items = await getCart(platform, channelId, scope);
-    items = items.filter((i) => i.key !== keyOrProductId && i.productId !== keyOrProductId);
-    await _saveCart(platform, channelId, items, scope);
-    return items;
-}
-
+async function removeFromCart(platform, channelId, keyOrProductId, scope = {}) { let items = await getCart(platform, channelId, scope); items = items.filter((i) => i.key !== keyOrProductId && i.productId !== keyOrProductId); await _saveCart(platform, channelId, items, scope); return items; }
 async function clearCart(platform, channelId, scope = {}) { await _saveCart(platform, channelId, [], scope); }
-
 async function getOrder(orderId, scope = {}) {
-    const { fs } = await _fs();
-    const doc = await fs.collection('orders').doc(String(orderId)).get();
-    if (!doc.exists) return null;
+    const { fs } = await _fs(); const doc = await fs.collection('orders').doc(String(orderId)).get(); if (!doc.exists) return null;
     const order = { id: doc.id, ...doc.data() };
     return Object.keys(normalizeScope(scope)).some((key) => scope[key]) && !scopeMatches(order, scope) ? null : order;
 }
-
-async function getOrdersByUser(uid) {
-    const { fs } = await _fs();
-    const snap = await fs.collection('orders').where('userId', '==', uid).get();
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
+async function getOrdersByUser(uid) { const { fs } = await _fs(); const snap = await fs.collection('orders').where('userId', '==', uid).get(); return snap.docs.map((d) => ({ id: d.id, ...d.data() })); }
 async function submitReview(productId, uid, { rating, comment = '' } = {}) {
     if (!uid) throw new Error('Link your account (/link) to leave a review.');
-    rating = Number(rating);
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error('Rating must be a whole number from 1 to 5.');
-    const orders = await getOrdersByUser(uid);
-    const order = orders.find((o) => (o.items || []).some((i) => i.productId === productId));
+    rating = Number(rating); if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new Error('Rating must be a whole number from 1 to 5.');
+    const orders = await getOrdersByUser(uid); const order = orders.find((o) => (o.items || []).some((i) => i.productId === productId));
     if (!order) throw new Error("You can only review products you've ordered.");
-    const { fs } = await _fs();
-    const reviewId = `${order.id}_${productId}`;
-    const reviewRef = fs.collection('reviews').doc(reviewId);
-    const productRef = fs.collection('products').doc(productId);
+    const { fs } = await _fs(); const reviewId = `${order.id}_${productId}`; const reviewRef = fs.collection('reviews').doc(reviewId); const productRef = fs.collection('products').doc(productId);
     await fs.runTransaction(async (tx) => {
-        const existing = await tx.get(reviewRef);
-        if (existing.exists) throw new Error("You've already reviewed this product for that order.");
-        const pDoc = await tx.get(productRef);
-        if (!pDoc.exists) throw new Error('Product no longer exists.');
-        const p = pDoc.data();
-        const oldCount = p.reviewCount || 0;
-        const oldAvg = p.rating || 0;
-        const newCount = oldCount + 1;
-        const newAvg = (oldAvg * oldCount + rating) / newCount;
+        const existing = await tx.get(reviewRef); if (existing.exists) throw new Error("You've already reviewed this product for that order.");
+        const pDoc = await tx.get(productRef); if (!pDoc.exists) throw new Error('Product no longer exists.'); const p = pDoc.data();
+        const oldCount = p.reviewCount || 0; const oldAvg = p.rating || 0; const newCount = oldCount + 1; const newAvg = (oldAvg * oldCount + rating) / newCount;
         tx.set(reviewRef, { productId, orderId: order.id, userId: uid, rating, comment: String(comment).slice(0, 500), createdAt: new Date().toISOString() });
         tx.update(productRef, { rating: newAvg, reviewCount: newCount });
     });
     return { productId, rating, comment };
 }
-
-async function getReviews(productId, limit = 5) {
-    const { fs } = await _fs();
-    const snap = await fs.collection('reviews').where('productId', '==', productId).orderBy('createdAt', 'desc').limit(limit).get();
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-
+async function getReviews(productId, limit = 5) { const { fs } = await _fs(); const snap = await fs.collection('reviews').where('productId', '==', productId).orderBy('createdAt', 'desc').limit(limit).get(); return snap.docs.map((d) => ({ id: d.id, ...d.data() })); }
 async function createShipment(orderId, providerId, scope = {}) {
-    const order = await getOrder(orderId, scope);
-    if (!order) throw new Error(`Order ${orderId} not found.`);
-    const shipment = await getCourierGateway().createShipment(providerId, order, scope);
-    const { fs } = await _fs();
+    const order = await getOrder(orderId, scope); if (!order) throw new Error(`Order ${orderId} not found.`);
+    const shipment = await getCourierGateway().createShipment(providerId, order, scope); const { fs } = await _fs();
     const courier = { provider: providerId, trackingId: shipment.trackingId, status: 'created', createdAt: new Date().toISOString() };
     await fs.collection('orders').doc(orderId).update({ courier, fulfillmentStatus: 'shipment_created', updatedAt: new Date().toISOString() });
-    logger.info(`[Shop] Shipment created for order ${orderId} via ${providerId}: ${shipment.trackingId}`);
-    return { ...courier, raw: shipment.raw };
+    logger.info(`[Shop] Shipment created for order ${orderId} via ${providerId}: ${shipment.trackingId}`); return { ...courier, raw: shipment.raw };
 }
-
 async function trackShipment(orderId, scope = {}) {
-    const order = await getOrder(orderId, scope);
-    if (!order) throw new Error(`Order ${orderId} not found.`);
-    if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
-    const tracking = await getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId, scope);
-    const fulfillmentStatus = tracking?.status || tracking?.state || order.fulfillmentStatus || 'in_transit';
-    await _fs().then(({ fs }) => fs.collection('orders').doc(orderId).update({ 'courier.status': fulfillmentStatus, fulfillmentStatus, updatedAt: new Date().toISOString() }));
-    return tracking;
+    const order = await getOrder(orderId, scope); if (!order) throw new Error(`Order ${orderId} not found.`); if (!order.courier?.trackingId) throw new Error('No shipment has been created for this order yet.');
+    const tracking = await getCourierGateway().trackShipment(order.courier.provider, order.courier.trackingId, scope); const fulfillmentStatus = tracking?.status || tracking?.state || order.fulfillmentStatus || 'in_transit';
+    await _fs().then(({ fs }) => fs.collection('orders').doc(orderId).update({ 'courier.status': fulfillmentStatus, fulfillmentStatus, updatedAt: new Date().toISOString() })); return tracking;
 }
-
 const SETTLED_METHODS = new Set(['credits', 'card', 'cash']);
-
 function getPaymentMethods({ country = null, device = 'unknown', uid = null, config = {} } = {}) {
     const methods = [{ id: 'cod', name: 'Cash on delivery', type: 'offline', description: 'Pay when your order arrives.' }];
     if (uid) methods.push({ id: 'credits', name: 'Account credits', type: 'balance', description: 'Pay from your linked AgentOS balance.' });
-    try {
-        const gateway = new PaymentGateway(config);
-        methods.push(...gateway.getAvailableMethods({ country, device }));
-    } catch (error) {
-        logger.warn(`[Shop] Payment discovery unavailable: ${error.message}`);
-    }
+    try { const gateway = new PaymentGateway(config); methods.push(...gateway.getAvailableMethods({ country, device })); } catch (error) { logger.warn(`[Shop] Payment discovery unavailable: ${error.message}`); }
     return methods;
 }
-
 async function checkout(platform, channelId, { uid = null, address = {}, payMethod = 'cod', scope = {} } = {}) {
-    const { fs } = await _fs();
-    const items = await getCart(platform, channelId, scope);
-    if (!items.length) throw new Error('Your cart is empty. Add something with "buy <product>".');
-    const sub = subtotal(items);
-    const shipping = SHIPPING_FLAT;
-    const total = sub + shipping;
-    const number = 'INV-' + Date.now().toString(36).toUpperCase();
-    const orderRef = fs.collection('orders').doc();
-    const invoiceRef = fs.collection('invoices').doc();
-    const transactionRef = fs.collection('transactions').doc();
+    const { fs } = await _fs(); const items = await getCart(platform, channelId, scope); if (!items.length) throw new Error('Your cart is empty. Add something with "buy <product>".');
+    const sub = subtotal(items); const shipping = SHIPPING_FLAT; const total = sub + shipping; const number = 'INV-' + Date.now().toString(36).toUpperCase();
+    const orderRef = fs.collection('orders').doc(); const invoiceRef = fs.collection('invoices').doc(); const transactionRef = fs.collection('transactions').doc();
     await fs.runTransaction(async (tx) => {
         const prod = {};
-        for (const it of items) {
-            const ref = fs.collection('products').doc(it.productId);
-            const s = await tx.get(ref);
-            if (!s.exists) throw new Error(`${it.name} is no longer available.`);
-            prod[it.productId] = { ref, stock: s.data().stock || 0 };
-        }
+        for (const it of items) { const ref = fs.collection('products').doc(it.productId); const s = await tx.get(ref); if (!s.exists) throw new Error(`${it.name} is no longer available.`); prod[it.productId] = { ref, stock: s.data().stock || 0 }; }
         let bal = 0, userRef = null;
-        if (payMethod === 'credits' && uid) {
-            userRef = fs.collection('users').doc(uid);
-            const us = await tx.get(userRef);
-            bal = (us.exists && us.data().credits) || 0;
-        }
-        const need = {};
-        for (const it of items) need[it.productId] = (need[it.productId] || 0) + it.qty;
+        if (payMethod === 'credits' && uid) { userRef = fs.collection('users').doc(uid); const us = await tx.get(userRef); bal = (us.exists && us.data().credits) || 0; }
+        const need = {}; for (const it of items) need[it.productId] = (need[it.productId] || 0) + it.qty;
         for (const pid in need) if (prod[pid].stock < need[pid]) throw new Error('Not enough stock for one of your items.');
-        if (payMethod === 'credits') {
-            if (!uid) throw new Error('Link your account (/link) to pay with balance.');
-            if (bal < total) throw new Error(`Insufficient balance ($${bal.toFixed(2)}). Total is $${total.toFixed(2)}.`);
-        }
+        if (payMethod === 'credits') { if (!uid) throw new Error('Link your account (/link) to pay with balance.'); if (bal < total) throw new Error(`Insufficient balance ($${bal.toFixed(2)}). Total is $${total.toFixed(2)}.`); }
         for (const pid in need) tx.update(prod[pid].ref, { stock: prod[pid].stock - need[pid], salesCount: (prod[pid].salesCount || 0) + need[pid] });
         if (payMethod === 'credits' && total > 0) tx.update(userRef, { credits: bal - total });
         const status = SETTLED_METHODS.has(payMethod) ? 'paid' : 'pending_payment';
-        tx.set(orderRef, {
-            userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope),
-            items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod,
-            paymentTransactionId: transactionRef.id, shippingAddress: address, billingAddress: address,
-            invoiceId: invoiceRef.id, invoiceNumber: number, fulfillmentStatus: 'unfulfilled', createdAt: new Date().toISOString(),
-        });
-        tx.set(transactionRef, {
-            id: transactionRef.id, type: 'commerce_order', orderId: orderRef.id, invoiceId: invoiceRef.id,
-            userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope),
-            amount: total, currency: 'USD', paymentMethod: payMethod, status,
-            idempotencyKey: `order:${orderRef.id}`, createdAt: new Date().toISOString(),
-        });
-        tx.set(invoiceRef, {
-            userId: uid || null, orderId: orderRef.id, ...normalizeScope(scope), number,
-            lineItems: items.map((i) => ({ description: `${i.name}${i.size ? ' (' + i.size + ')' : ''}`, qty: i.qty, unitPrice: i.price, amount: +(i.price * i.qty).toFixed(2) })),
-            subtotal: sub, shipping, total, currency: 'USD', billingAddress: address,
-            status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'unpaid', createdAt: new Date().toISOString(),
-        });
+        tx.set(orderRef, { userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod, paymentTransactionId: transactionRef.id, shippingAddress: address, billingAddress: address, invoiceId: invoiceRef.id, invoiceNumber: number, fulfillmentStatus: 'unfulfilled', createdAt: new Date().toISOString() });
+        tx.set(transactionRef, { id: transactionRef.id, type: 'commerce_order', orderId: orderRef.id, invoiceId: invoiceRef.id, userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), amount: total, currency: 'USD', paymentMethod: payMethod, status, idempotencyKey: `order:${orderRef.id}`, createdAt: new Date().toISOString() });
+        tx.set(invoiceRef, { userId: uid || null, orderId: orderRef.id, ...normalizeScope(scope), number, lineItems: items.map((i) => ({ description: `${i.name}${i.size ? ' (' + i.size + ')' : ''}`, qty: i.qty, unitPrice: i.price, amount: +(i.price * i.qty).toFixed(2) })), subtotal: sub, shipping, total, currency: 'USD', billingAddress: address, status: SETTLED_METHODS.has(payMethod) ? 'paid' : 'unpaid', createdAt: new Date().toISOString() });
     });
     await clearCart(platform, channelId, scope);
     logger.info(`[Shop] Sale closed via ${platform}: order ${orderRef.id} (${number}), $${total}, ${payMethod}`);
