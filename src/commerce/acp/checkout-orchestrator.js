@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createPaymentIdempotencyStore } from '../../payments/idempotency-store.js';
-import { checkout as defaultCheckout } from '../../core/shop.js';
+import { checkout as defaultCheckout } from '../../domains/commerce/shop.js';
 import { fingerprintRequest, validateIdempotencyKey } from './checkout-session.js';
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -22,20 +22,6 @@ function pendingError() {
   return error;
 }
 
-/**
- * Request-scoped commerce mutation guard.
- *
- * This prevents duplicate sequential/concurrent calls at the orchestration
- * boundary and replays the completed result after a retry. The underlying shop
- * checkout remains authoritative for product price, stock and order creation.
- *
- * `checkoutFn` is injectable for deterministic unit tests and host-specific
- * composition. Production callers use the core shop checkout by default.
- *
- * The default store is the existing durable SQLite/file idempotency store. A
- * distributed Firestore implementation is still required before multi-instance
- * ACP production traffic is enabled.
- */
 export async function executeCheckout({
   idempotencyKey,
   merchantId,
