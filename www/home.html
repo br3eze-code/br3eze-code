@@ -5,7 +5,7 @@
   <meta name="format-detection" content="telephone=no">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050505">
-  <meta name="description" content="Br3eze builds practical network, commerce and automation systems through a modular AgentOS architecture.">
+  <meta name="description" content="Power Connect — practical internet access and connected services.">
   <link rel="icon" href="img/logo.png">
   <link rel="apple-touch-icon" href="img/logo.png">
   <link rel="stylesheet" href="css/index.css">
@@ -13,38 +13,56 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <title>Br3eze — Network Intelligence, Simplified</title>
+  <title>Power Connect</title>
   <style>
     body { display: block; }
     .public-shell { min-height: 100vh; }
-    .public-header { position: sticky; top: 0; }
+    .public-header { position: sticky; top: 0; z-index: 10; }
     .public-nav { display: flex; align-items: center; gap: 24px; }
     .public-nav a { color: var(--color-text-medium); font-size: .9rem; }
     .public-nav a:hover, .public-nav a[aria-current="page"] { color: var(--color-text-light); }
-    .public-main { max-width: 1180px; margin: 0 auto; padding: 70px 40px 90px; }
-    .hero { max-width: 900px; padding: 45px 0 70px; }
-    .eyebrow { color: var(--color-info-text); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: .8rem; }
-    .hero h1 { font-size: clamp(2.8rem, 7vw, 5.5rem); line-height: .98; margin: 15px 0 24px; }
-    .hero p { max-width: 760px; color: var(--color-text-medium); font-size: 1.1rem; line-height: 1.7; }
-    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
-    .feature-card { height: 100%; min-height: 190px; }
-    .feature-card i { color: var(--color-info-text); font-size: 1.2rem; margin-bottom: 18px; }
-    .feature-card h2 { margin: 0 0 10px; font-size: 1.15rem; }
-    .feature-card p { color: var(--color-text-medium); line-height: 1.65; }
-    .public-footer { max-width: 1180px; margin: 0 auto; padding: 0 40px 35px; color: var(--color-text-medium); font-size: .8rem; }
-    @media (max-width: 700px) {
+    .public-main { max-width: 1120px; margin: 0 auto; padding: 42px 40px 80px; }
+    .intro { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 28px; align-items: stretch; margin-bottom: 28px; }
+    .intro-copy { padding: 18px 0; }
+    .eyebrow { color: var(--color-info-text); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: .78rem; }
+    .intro h1 { font-size: clamp(2.4rem, 5vw, 4.2rem); line-height: 1.02; margin: 12px 0 18px; max-width: 760px; }
+    .intro p { max-width: 700px; color: var(--color-text-medium); font-size: 1.05rem; line-height: 1.7; margin: 0; }
+    .account-card { display: flex; flex-direction: column; justify-content: space-between; }
+    .account-card h2 { margin: 0 0 10px; font-size: 1.15rem; }
+    .account-card p { color: var(--color-text-medium); line-height: 1.6; margin: 0 0 20px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 42px 0 16px; }
+    .section-heading h2 { margin: 0; font-size: 1.35rem; }
+    .section-heading p { margin: 0; color: var(--color-text-medium); font-size: .9rem; }
+    .service-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .service-card { min-height: 170px; }
+    .service-card i { color: var(--color-info-text); font-size: 1rem; margin-bottom: 18px; }
+    .service-card h3 { margin: 0 0 9px; font-size: 1.05rem; }
+    .service-card p { color: var(--color-text-medium); line-height: 1.6; margin: 0; font-size: .92rem; }
+    .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .step { border-top: 1px solid var(--color-border); padding-top: 17px; }
+    .step-number { color: var(--color-info-text); font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+    .step h3 { margin: 8px 0 7px; font-size: 1rem; }
+    .step p { color: var(--color-text-medium); line-height: 1.55; font-size: .9rem; margin: 0; }
+    .public-footer { max-width: 1120px; margin: 0 auto; padding: 0 40px 32px; color: var(--color-text-medium); font-size: .8rem; }
+    @media (max-width: 800px) {
+      .intro, .service-grid, .steps { grid-template-columns: 1fr; }
+      .public-main { padding: 32px 20px 65px; }
+      .public-footer { padding: 0 20px 28px; }
+    }
+    @media (max-width: 560px) {
       .main-header { padding: 15px 20px; }
       .public-nav { gap: 12px; }
       .public-nav a { font-size: .78rem; }
-      .public-main { padding: 45px 20px 70px; }
-      .public-footer { padding: 0 20px 30px; }
+      .section-heading { display: block; }
+      .section-heading p { margin-top: 6px; }
     }
   </style>
 </head>
 <body>
 <div class="public-shell">
   <header class="main-header public-header">
-    <a href="home.html" class="logo" aria-label="Br3eze home">BR3EZE</a>
+    <a href="home.html" class="logo" aria-label="Power Connect home">POWER CONNECT</a>
     <nav class="public-nav" aria-label="Primary navigation">
       <a href="home.html" aria-current="page">Home</a>
       <a href="about.html">About</a>
@@ -53,36 +71,74 @@
   </header>
 
   <main class="public-main">
-    <section class="hero">
-      <div class="eyebrow">Network Intelligence, Simplified</div>
-      <h1>Build systems that connect, automate and adapt.</h1>
-      <p>Br3eze develops modular infrastructure and AgentOS capabilities for network operations, commerce, payments and connected services — with domain adapters kept separate from the core runtime.</p>
-      <div class="actions">
-        <a class="btn btn-primary" href="assessment.html"><i class="fas fa-network-wired"></i> Get a network assessment</a>
-        <a class="btn" href="about.html">Learn about Br3eze</a>
+    <section class="intro" aria-labelledby="page-title">
+      <div class="intro-copy">
+        <div class="eyebrow">Connectivity that works</div>
+        <h1 id="page-title">Get connected. Stay connected.</h1>
+        <p>Power Connect brings internet access, account management and connected services together in one place. Use the service, manage your access and get support without unnecessary complexity.</p>
+      </div>
+      <aside class="card account-card" aria-label="Power Connect account">
+        <div>
+          <h2>Your connection starts here.</h2>
+          <p>Open the service to connect, manage your account or continue with an existing session.</p>
+        </div>
+        <div class="actions">
+          <a class="btn btn-primary" href="index.html"><i class="fas fa-wifi"></i> Connect</a>
+          <a class="btn" href="about.html">About Power Connect</a>
+        </div>
+      </aside>
+    </section>
+
+    <section aria-labelledby="services-title">
+      <div class="section-heading">
+        <h2 id="services-title">What you can do</h2>
+        <p>Simple tools for everyday connectivity.</p>
+      </div>
+      <div class="service-grid">
+        <article class="card service-card">
+          <i class="fas fa-wifi" aria-hidden="true"></i>
+          <h3>Connect to a hotspot</h3>
+          <p>Access available Power Connect service and get online through supported locations.</p>
+        </article>
+        <article class="card service-card">
+          <i class="fas fa-receipt" aria-hidden="true"></i>
+          <h3>Manage your access</h3>
+          <p>Keep your plans, access and account information together instead of managing separate services.</p>
+        </article>
+        <article class="card service-card">
+          <i class="fas fa-headset" aria-hidden="true"></i>
+          <h3>Get support</h3>
+          <p>Find the information you need when you have a connection, account or service question.</p>
+        </article>
       </div>
     </section>
 
-    <section class="grid grid-3" aria-label="Br3eze capabilities">
-      <article class="card feature-card">
-        <i class="fas fa-network-wired" aria-hidden="true"></i>
-        <h2>Network Operations</h2>
-        <p>Practical tooling for connectivity, access, monitoring and network workflows.</p>
-      </article>
-      <article class="card feature-card">
-        <i class="fas fa-brain" aria-hidden="true"></i>
-        <h2>AgentOS</h2>
-        <p>A modular execution architecture for agents, skills, tools, policies and domain adapters.</p>
-      </article>
-      <article class="card feature-card">
-        <i class="fas fa-store" aria-hidden="true"></i>
-        <h2>Commerce</h2>
-        <p>Reusable commerce capabilities that can operate alongside the same orchestration layer.</p>
-      </article>
+    <section aria-labelledby="steps-title">
+      <div class="section-heading">
+        <h2 id="steps-title">How it works</h2>
+        <p>No complicated setup.</p>
+      </div>
+      <div class="steps">
+        <article class="step">
+          <div class="step-number">01</div>
+          <h3>Find Power Connect</h3>
+          <p>Use a supported Power Connect hotspot or service location.</p>
+        </article>
+        <article class="step">
+          <div class="step-number">02</div>
+          <h3>Choose your access</h3>
+          <p>Select the available access option that fits what you need.</p>
+        </article>
+        <article class="step">
+          <div class="step-number">03</div>
+          <h3>Connect</h3>
+          <p>Sign in and use your connection while managing your account from the same service.</p>
+        </article>
+      </div>
     </section>
   </main>
 
-  <footer class="public-footer">© Br3eze Africa. Built around modular systems and practical automation.</footer>
+  <footer class="public-footer">Power Connect · A Br3eze Africa service</footer>
 </div>
 </body>
 </html>
