@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: dependency-sync-main
@@ -57,9 +58,11 @@ jobs:
         run: npm ci --ignore-scripts --prefix server
 
       - name: Commit synchronized manifests
+        id: commit
         run: |
           set -euo pipefail
           if git diff --quiet -- package.json package-lock.json server/package-lock.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
             echo 'All npm manifests and lockfiles are already synchronized.'
             exit 0
           fi
@@ -68,3 +71,12 @@ jobs:
           git add package.json package-lock.json server/package-lock.json
           git commit -m 'chore: synchronize npm manifests and lockfiles'
           git push origin HEAD:main
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+
+      - name: Re-run canonical CI after synchronization commit
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run ci.yml --ref main
+          gh workflow run cicd-contract.yml --ref main
