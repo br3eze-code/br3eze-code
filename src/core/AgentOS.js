@@ -1,7 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import EventEmitter from 'events';
+import crypto from 'node:crypto';
+import EventEmitter from 'node:events';
 import SkillRegistry from './SkillRegistry.js';
 import AgentToolbox from './agent-toolbox.js';
 import ChannelManager from './channels/ChannelManager.js';
@@ -10,158 +8,56 @@ import LLMCoordinator from './llm/LLMCoordinator.js';
 import WorkflowEngine from './WorkflowEngine.js';
 import TelemetryCollector from './TelemetryCollector.js';
 import HealthMonitor from './HealthMonitor.js';
-import AgentOSOrchestrator from './orchestrator.js';
 import CircuitBreaker from '../utils/CircuitBreaker.js';
 import { logger } from './logger.js';
-import MastercardA2AService from '../../services/mastercardA2A.js';
-import { getManager as getMikroTikManager } from './mikrotik.js';
-import { getDatabase } from './database.js';
-import { STATE_PATH } from './config.js';
-import FinancialController from './financial.js';
-import UniversalBilling from './universal-billing.js';
-import DiscoveryService from './discovery.js';
-import ServerRegistry from './server-registry.js';
 import { buildChannelExecutionContext } from './execution-context.js';
 
-
+/**
+ * AgentOS application kernel.
+ * Core is vendor/domain neutral. External capabilities are injected as adapters.
+ */
 class AgentOS extends EventEmitter {
   constructor(config = {}) {
     super();
     this.id = config.id || crypto.randomUUID();
-    this.config = {
-      skillsPath: config.skillsPath || (fs.existsSync(path.resolve(process.cwd(), 'skills')) ? './skills' : './src/skills'),
-      memoryAdapter: config.memoryAdapter || 'memory',
-      llmProvider: config.llmProvider || config.llm?.primary || 'ollama',
-      maxConcurrentSkills: config.maxConcurrentSkills || 10,
-      ...config
-    };
-
-    // Core components
+    this.config = { ...config };
     this.skills = new SkillRegistry(this.config);
     this.toolbox = new AgentToolbox(this.config, this.skills);
     this.channels = new ChannelManager(this);
-    // All channel and skill instances share this canonical server inventory.
-    this.servers = ServerRegistry;
-    this.servers.configure(this.config.servers || []);
-    this.memory = new MemoryManager(this.config.memoryAdapter);
-    this.llm = new LLMCoordinator(this.config.llmProvider);
+    this.memory = new MemoryManager(this.config.memoryAdapter || 'memory');
+    this.llm = new LLMCoordinator(this.config.llmProvider || config.llm?.primary || 'ollama');
     this.workflows = new WorkflowEngine(this);
     this.telemetry = new TelemetryCollector();
     this.health = new HealthMonitor(this);
-
-    // Legacy manager aliases for compatibility with ss35b patterns
-    this.mikrotik = config?.mikrotik || getMikroTikManager();
-    this.databasePromise = getDatabase();
-    this.database = null; // Will be set in initialize()
-    // Services (initialized in initialize() after database is ready)
-    this.mastercard = new MastercardA2AService();
-    this.financial = null;
-    this.billing = null;
-    this.discovery = null;
-    this.orchestrator = null;
-
-    // Circuit breakers for external services
-    this.breakers = {
-      llm: new CircuitBreaker(5, 60000),
-      database: new CircuitBreaker(3, 30000)
-    };
-
+    this.adapters = new Map(Object.entries(config.adapters || {}));
+    this.services = new Map(Object.entries(config.services || {}));
+    this.persistence = config.persistence || null;
+    this.breakers = { llm: new CircuitBreaker(5, 60000), persistence: new CircuitBreaker(3, 30000) };
     this.initialized = false;
     this.shutdownHandlers = [];
     this._alertState = new Map();
-    this._signalHandlers = {}; // track for removal on destroy
+    this._signalHandlers = {};
   }
 
-  // Logging aliases for legacy compatibility
-  log(msg, meta) { logger.info(msg, meta); }
-  info(msg, meta) { logger.info(msg, meta); }
-  warn(msg, meta) { logger.warn(msg, meta); }
-  error(msg, meta) { logger.error(msg, meta); }
+  log(message, meta) { logger.info(message, meta); }
+  info(message, meta) { logger.info(message, meta); }
+  warn(message, meta) { logger.warn(message, meta); }
+  error(message, meta) { logger.error(message, meta); }
+  getAdapter(id) { return this.adapters.get(id) || null; }
+  getService(id) { return this.services.get(id) || null; }
 
   async initialize() {
     if (this.initialized) return;
-
-    // ── Global Instance Lock ──────────────────────────────────────────────────
-    const lockFile = path.join(STATE_PATH, '.agentos.lock');
-
     try {
-        if (fs.existsSync(lockFile)) {
-            const pid = parseInt(fs.readFileSync(lockFile, 'utf8').trim());
-            if (pid === process.pid) {
-                logger.debug('AgentOS: Already hold global lock, proceeding');
-            } else {
-                try {
-                    process.kill(pid, 0); // Check if process alive
-                    const msg = `FATAL: AgentOS already running in PID ${pid}. Use 'agentos gateway:stop' first.`;
-                    logger.error(msg);
-                    throw new Error(msg);
-                } catch (e) {
-                    if (e.code === 'EPERM') throw new Error(`Access denied to process ${pid}`);
-                    // Stale lock
-                    logger.info(`Cleaning up stale lock for PID ${pid}`);
-                    fs.unlinkSync(lockFile);
-                }
-            }
-        }
-        fs.writeFileSync(lockFile, process.pid.toString());
-        this.onShutdown(() => {
-            try { if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile); } catch (_) {}
-        });
-    } catch (err) {
-        if (err.message.includes('FATAL')) throw err;
-        logger.warn(`Lock check failed: ${err.message}`);
-    }
-
-    try {
-      // Ensure database is ready first as other components depend on it
-      logger.info('AgentOS: Initializing Database...');
-      this.database = await this.databasePromise;
-      if (this.database && typeof this.database.initialize === 'function') {
-        await this.database.initialize();
-      }
-
-      // Initialize secondary services with resolved database
-      this.financial = new FinancialController({ database: this.database, mastercard: this.mastercard });
-      this.billing = new UniversalBilling({ database: this.database });
-      this.discovery = new DiscoveryService({ mikrotik: this.mikrotik });
-      this.orchestrator = new AgentOSOrchestrator(this.mikrotik, this.database, this.channels, this);
-
-      // Initialize memory (needed by other components)
-      logger.info('AgentOS: Initializing Memory...');
+      if (this.persistence?.initialize) await this.persistence.initialize();
       await this.memory.initialize();
-
-      // Load skills from directory
-      logger.info(`AgentOS: Loading skills from ${this.config.skillsPath}...`);
-      await this.skills.loadFromDirectory(this.config.skillsPath);
-
-      // Initialize LLM coordinator
-      logger.info('AgentOS: Initializing LLM...');
+      await this.skills.loadFromDirectory(this.config.skillsPath || './skills');
       await this.llm.initialize();
-
-      // Setup channels
-      logger.info('AgentOS: Initializing Channels...');
       await this.channels.initialize();
-
-      // Start health monitoring
       this.health.start();
-
-      // Setup graceful shutdown
       this.setupShutdownHandlers();
-
-      // Start system orchestrator for background tasks
-      logger.info('AgentOS: Starting Orchestrator...');
-      this.orchestrator.start();
-
-      this.health.on('healthCheck', (status) => {
-        if (status.status === 'degraded') {
-          const errs = status.checks.filter(c => c.status !== 'healthy').map(c => c.name).join(', ');
-          this.alertOnce(`health-degraded-${errs}`, `⚠️ *System Degraded:*\nFailing checks: ${errs}`);
-        }
-      });
-
       this.initialized = true;
       this.emit('initialized');
-
       logger.info(`AgentOS ${this.id} initialized with ${this.skills.count()} skills`);
     } catch (error) {
       logger.error(`AgentOS initialization failed: ${error.message}`);
@@ -170,360 +66,109 @@ class AgentOS extends EventEmitter {
     }
   }
 
-  // Main entry point for all interactions
   async processInteraction(input, context = {}) {
-  const startTime = Date.now();
-  const interactionId = crypto.randomUUID();
-
-  try {
-    // Validate input
-    if (!input || (!input.text && !input.action)) {
-      throw new Error('Invalid input: requires text or action');
-    }
-
-    // Build execution context
-    const execContext = await this.buildContext(input, context, interactionId);
-
-    // Determine intent using LLM or direct skill invocation
-    let result;
-    if (input.action) {
-      // Direct skill execution
-      result = await this.executeSkill(input.action, input.params, execContext);
-    } else {
-      // LLM-based intent classification
-      const intent = await this.classifyIntent(input.text, execContext);
-      result = await this.executeSkill(intent.skill, intent.params, execContext);
-    }
-
-    // Store interaction in memory
-    await this.memory.storeInteraction(interactionId, {
-      input,
-      context: execContext,
-      result,
-      duration: Date.now() - startTime
-    });
-
-    // Emit telemetry
-    this.telemetry.record('interaction', {
-      id: interactionId,
-      skill: result.skill,
-      duration: Date.now() - startTime,
-      success: true
-    });
-
-    return {
-      id: interactionId,
-      success: true,
-      result: result.output,
-      metadata: {
-        skill: result.skill,
-        duration: Date.now() - startTime,
-        context: execContext.summary
+    const startTime = Date.now();
+    const interactionId = crypto.randomUUID();
+    try {
+      if (!input || (!input.text && !input.action)) throw new Error('Invalid input: requires text or action');
+      const execContext = await this.buildContext(input, context, interactionId);
+      let result;
+      if (input.action) {
+        result = await this.executeSkill(input.action, input.params, execContext);
+      } else {
+        const intent = await this.classifyIntent(input.text, execContext);
+        result = await this.executeSkill(intent.skill, intent.params, execContext);
       }
-    };
-
-  } catch (error) {
-    this.telemetry.record('interaction_error', {
-      id: interactionId,
-      error: error.message,
-      duration: Date.now() - startTime
-    });
-
-    return {
-      id: interactionId,
-      success: false,
-      error: error.message,
-      help: await this.suggestHelp(input, error)
-    };
+      await this.memory.storeInteraction(interactionId, { input, context: execContext, result, duration: Date.now() - startTime });
+      this.telemetry.record('interaction', { id: interactionId, skill: result.skill, duration: Date.now() - startTime, success: true });
+      return { id: interactionId, success: true, result: result.output, metadata: { skill: result.skill, duration: Date.now() - startTime, context: execContext.summary } };
+    } catch (error) {
+      this.telemetry.record('interaction_error', { id: interactionId, error: error.message, duration: Date.now() - startTime });
+      return { id: interactionId, success: false, error: error.message, help: await this.suggestHelp(input || {}, error) };
+    }
   }
-}
 
   async classifyIntent(text, context) {
-  return this.breakers.llm.execute(async () => {
-    const availableSkills = this.skills.getDescriptions();
-
-    const prompt = `
-Available skills:
-${availableSkills.map(s => `- ${s.name}: ${s.description}`).join('\n')}
-
-User context: ${JSON.stringify(context.summary)}
-User message: "${text}"
-
-Determine the most appropriate skill and extract parameters.
-Respond with JSON: {"skill": "skillName", "params": {}, "confidence": 0.9}
-`;
-
-    const response = await this.llm.generate(prompt, {
-      temperature: 0.1,
-      responseFormat: 'json'
+    return this.breakers.llm.execute(async () => {
+      const skills = this.skills.getDescriptions();
+      const prompt = `Available capabilities:\n${skills.map(s => `- ${s.name}: ${s.description}`).join('\n')}\n\nContext: ${JSON.stringify(context.summary)}\nInput: "${text}"\n\nReturn JSON: {"skill":"skillName","params":{},"confidence":0.9}`;
+      const response = await this.llm.generate(prompt, { temperature: 0.1, responseFormat: 'json' });
+      if (!this.skills.has(response.skill)) throw new Error(`Unknown capability: ${response.skill}`);
+      return response;
     });
+  }
 
-    if (!this.skills.has(response.skill)) {
-      throw new Error(`Unknown skill: ${response.skill}`);
-    }
-
-    return response;
-  });
-}
-
-  async executeSkill(skillName, params, context = {}) {
-    // Support for dot-notation tool calls (e.g. 'skill.tool')
-    if (skillName && skillName.includes('.')) {
+  async executeSkill(skillName, params = {}, context = {}) {
+    if (skillName?.includes('.')) {
       const output = await this.skills.executeTool(skillName, params, context);
-      return {
-        skill: skillName.split('.')[0],
-        tool: skillName.split('.')[1],
-        output,
-        params,
-        context: context.summary || {}
-      };
+      return { skill: skillName.split('.')[0], tool: skillName.split('.')[1], output, params, context: context.summary || {} };
     }
-
     const skill = this.skills.get(skillName);
-    if (!skill) {
-      throw new Error(`Skill '${skillName}' not found`);
-    }
-
-    // Check permissions
-    if (skill.manifest && skill.manifest.permissions) {
-      await this.checkPermissions(context.userId, skill.manifest.permissions);
-    }
-
-    // Execute with timeout and error handling
-    const timeout = (skill.manifest && skill.manifest.timeout) || 30000;
-
-    const execution = Promise.race([
-      skill.execute(params, context),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Skill execution timeout')), timeout)
-      )
-    ]);
-
-    const output = await execution;
-
-    return {
-      skill: skillName,
-      output,
-      params,
-      context: context.summary || {}
-    };
+    if (!skill) throw new Error(`Capability '${skillName}' not found`);
+    if (skill.manifest?.permissions) await this.checkPermissions(context.userId, skill.manifest.permissions);
+    const timeout = skill.manifest?.timeout || 30000;
+    const output = await Promise.race([skill.execute(params, context), new Promise((_, reject) => setTimeout(() => reject(new Error('Capability execution timeout')), timeout))]);
+    return { skill: skillName, output, params, context: context.summary || {} };
   }
 
   async buildContext(input, context, interactionId) {
-  const userMemory = await this.memory.getUserContext(input.userId);
-  const session = await this.memory.getSession(input.sessionId);
-  const scoped = buildChannelExecutionContext({
-    ...context,
-    ...input,
-    message: input.message || context.message,
-    userDoc: input.userDoc || context.userDoc,
-    selection: input.selection || context.selection,
-    roaming: input.roaming || context.roaming,
-    channel: input.channel || context.channel,
-    source: 'agentos'
-  });
-
-  return {
-    ...scoped,
-    id: interactionId,
-    agentId: this.id,
-    userId: scoped.userId || input.userId,
-    sessionId: input.sessionId,
-    timestamp: new Date().toISOString(),
-    memory: userMemory,
-    session,
-    summary: {
-      userId: scoped.userId || input.userId,
-      tenantId: scoped.tenantId,
-      siteId: scoped.siteId,
-      nodeId: scoped.nodeId,
-      activeTenantId: scoped.activeTenantId,
-      activeSiteId: scoped.activeSiteId,
-      activeNodeId: scoped.activeNodeId,
-      channel: scoped.channel,
-      previousIntent: userMemory?.lastIntent,
-      skillHistory: userMemory?.recentSkills || []
-    },
-    skills: this.skills,
-    memory: this.memory,
-    llm: this.llm,
-    channels: this.channels,
-    userDoc: input.userDoc || context.userDoc
-  };
-}
+    const userMemory = await this.memory.getUserContext(input.userId);
+    const session = await this.memory.getSession(input.sessionId);
+    const scoped = await buildChannelExecutionContext({ ...context, ...input, source: 'agentos' });
+    return { ...scoped, id: interactionId, agentId: this.id, userId: scoped.userId || input.userId, sessionId: input.sessionId, timestamp: new Date().toISOString(), memory: userMemory, session, summary: { userId: scoped.userId || input.userId, tenantId: scoped.tenantId, siteId: scoped.siteId, nodeId: scoped.nodeId, channel: scoped.channel, previousIntent: userMemory?.lastIntent, skillHistory: userMemory?.recentSkills || [] }, skills: this.skills, llm: this.llm, channels: this.channels };
+  }
 
   async checkPermissions(userId, requiredPermissions) {
-  const userPerms = await this.memory.getPermissions(userId);
-  const missing = requiredPermissions.filter(p => !userPerms.includes(p));
-
-  if (missing.length > 0) {
-    throw new Error(`Missing permissions: ${missing.join(', ')}`);
+    const userPerms = await this.memory.getPermissions(userId);
+    const missing = requiredPermissions.filter(p => !userPerms.includes(p));
+    if (missing.length) throw new Error(`Missing permissions: ${missing.join(', ')}`);
   }
-}
 
   async suggestHelp(input, error) {
-  // Use LLM to suggest alternative approaches
-  const skills = this.skills.getDescriptions();
-  const prompt = `
-User tried: "${input.text || input.action}"
-Error: ${error.message}
-
-Available skills: ${skills.map(s => s.name).join(', ')}
-
-Suggest what the user might have meant or how to fix the error.
-Be concise and helpful.
-`;
-
-  try {
-    return await this.llm.generate(prompt, { maxTokens: 150 });
-  } catch {
-    return 'Try using /help to see available commands.';
-  }
-}
-
-  // Workflow execution
-  async executeWorkflow(workflowId, params, context) {
-  return this.workflows.execute(workflowId, params, context);
-}
-
-  async executeTool(toolName, params, context) {
-  return this.toolbox.execute(toolName, params, context);
+    try { return await this.llm.generate(`Input: "${input.text || input.action || ''}"\nError: ${error.message}\nAvailable capabilities: ${this.skills.getDescriptions().map(s => s.name).join(', ')}\nSuggest a concise next step.`, { maxTokens: 150 }); }
+    catch { return 'Try using help to see available capabilities.'; }
   }
 
-  // Channel management
-  async sendMessage(channel, userId, message) {
-  return this.channels.send(channel, userId, message);
-}
+  async executeWorkflow(workflowId, params, context) { return this.workflows.execute(workflowId, params, context); }
+  async executeTool(toolName, params, context) { return this.toolbox.execute(toolName, params, context); }
+  async sendMessage(channel, userId, message) { return this.channels.send(channel, userId, message); }
+  async broadcast(message, filter = null) { return this.channels.broadcast(message, filter); }
+  async sendToAll(message) { return this.broadcast(message); }
 
-  async broadcast(message, filter = null) {
-  return this.channels.broadcast(message, filter);
-}
-
-  async sendToAll(message) {
-  const tg = this.channels.channels.get('telegram');
-  if (tg && typeof tg.sendToAll === 'function') {
-    return tg.sendToAll(message);
+  async alertOnce(key, message) {
+    const last = this._alertState.get(key);
+    if (!last || Date.now() - last > 2 * 60 * 60 * 1000) { this._alertState.set(key, Date.now()); return this.broadcast(message); }
+    return { success: true, skipped: true };
   }
-  return this.broadcast(message);
-}
 
-  async alertOnce(alertKey, message) {
-  const lastSent = this._alertState.get(alertKey);
-  const now = Date.now();
-  if (!lastSent || now - lastSent > 2 * 60 * 60 * 1000) {
-    this._alertState.set(alertKey, now);
-    return this.sendToAll(message);
+  setupShutdownHandlers() {
+    const shutdown = async () => {
+      for (const handler of this.shutdownHandlers) await handler();
+      await this.channels.closeAll();
+      await this.memory.close();
+      await this.health.stop();
+      if (this.persistence?.close) await this.persistence.close();
+    };
+    this._signalHandlers.SIGTERM = () => shutdown();
+    this._signalHandlers.SIGINT = () => shutdown();
+    process.on('SIGTERM', this._signalHandlers.SIGTERM);
+    process.on('SIGINT', this._signalHandlers.SIGINT);
   }
-  return { success: true, skipped: true };
-}
 
-// Lifecycle management
-setupShutdownHandlers() {
-  const gracefulShutdown = async (signal) => {
-    console.log(`Received ${signal}, shutting down gracefully...`);
+  onShutdown(handler) { this.shutdownHandlers.push(handler); }
+  getStatus() { return { id: this.id, initialized: this.initialized, skills: this.skills.count(), adapters: [...this.adapters.keys()], services: [...this.services.keys()], channels: this.channels.getStatus(), memory: this.memory.getStatus(), health: this.health.getStatus(), uptime: process.uptime() }; }
 
-    for (const handler of this.shutdownHandlers) {
-      try {
-        await handler();
-      } catch (err) {
-        console.error('Shutdown handler error:', err);
-      }
-    }
-
-    if (this.billing && typeof this.billing.stopReaper === "function") { this.billing.stopReaper(); }
+  async destroy() {
+    if (!this.initialized) return;
+    if (this._signalHandlers.SIGTERM) process.off('SIGTERM', this._signalHandlers.SIGTERM);
+    if (this._signalHandlers.SIGINT) process.off('SIGINT', this._signalHandlers.SIGINT);
     await this.channels.closeAll();
     await this.memory.close();
     await this.health.stop();
-    if (this.orchestrator) this.orchestrator.stop();
-
-    console.log('Shutdown complete');
-    process.exit(0);
-  };
-
-  // Store references so we can remove them in destroy()
-  this._signalHandlers.SIGTERM = () => gracefulShutdown('SIGTERM');
-  this._signalHandlers.SIGINT  = () => gracefulShutdown('SIGINT');
-  process.on('SIGTERM', this._signalHandlers.SIGTERM);
-  process.on('SIGINT',  this._signalHandlers.SIGINT);
-
-  this.shutdownHandlers.push(async () => {
-    this.emit('shutdown');
-  });
-}
-
-onShutdown(handler) {
-  this.shutdownHandlers.push(handler);
-}
-
-// Health and status
-getStatus() {
-  return {
-    id: this.id,
-    initialized: this.initialized,
-    skills: this.skills.count(),
-    channels: this.channels.getStatus(),
-    memory: this.memory.getStatus(),
-    health: this.health.getStatus(),
-    uptime: process.uptime()
-  };
-}
-
-  async destroy() {
-    if (!this.initialized && !this.orchestrator) return;
-    
-    logger.info(`AgentOS ${this.id}: shutting down...`);
-
-    // Remove process signal listeners to prevent open-handle leaks in tests
-    if (this._signalHandlers.SIGTERM) {
-      process.removeListener('SIGTERM', this._signalHandlers.SIGTERM);
-      this._signalHandlers.SIGTERM = null;
-    }
-    if (this._signalHandlers.SIGINT) {
-      process.removeListener('SIGINT', this._signalHandlers.SIGINT);
-      this._signalHandlers.SIGINT = null;
-    }
-
-    // Stop background tasks first
-    if (this.orchestrator) {
-      try {
-        this.orchestrator.stop();
-      } catch (err) {
-        logger.warn(`Orchestrator stop error: ${err.message}`);
-      }
-    }
-
-    try {
-      if (this.billing && typeof this.billing.stopReaper === 'function') {
-        this.billing.stopReaper();
-      }
-      // Stop telemetry timer
-      if (this.telemetry && typeof this.telemetry.stop === 'function') {
-        this.telemetry.stop();
-      }
-      await this.skills.destroy();
-      await this.health.stop();
-      await this.channels.closeAll();
-      await this.memory.close();
-
-      // Cleanup MikroTik connection
-      if (this.mikrotik && typeof this.mikrotik.destroy === 'function') {
-        this.mikrotik.destroy();
-      }
-
-      // Close database last
-      if (this.database && typeof this.database.close === 'function') {
-        await this.database.close();
-      }
-    } catch (err) {
-      logger.error(`Error during AgentOS destruction: ${err.message}`);
-    }
-
-    this.removeAllListeners();
+    if (this.persistence?.close) await this.persistence.close();
     this.initialized = false;
-    logger.info(`AgentOS ${this.id}: shutdown complete`);
   }
 }
 
 export default AgentOS;
-// Alias for legacy ss35b compatibility
-export const AgentOSBot = AgentOS;;
+export { AgentOS };
