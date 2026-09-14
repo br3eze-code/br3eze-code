@@ -6,7 +6,7 @@ const candidates = [
   { id: 'cable-1', name: 'Network Cable', category: 'network', brand: 'Other', price: 10, stock: 8 },
 ];
 
-jest.unstable_mockModule('../../../src/core/shop.js', () => ({
+jest.unstable_mockModule('../../../src/domains/commerce/shop.js', () => ({
   listProducts: jest.fn(),
   getProduct: jest.fn(async () => seed),
   productUrl: jest.fn((id) => `https://example.test/product/${id}`),
@@ -22,6 +22,8 @@ jest.unstable_mockModule('../../../src/core/shop.js', () => ({
   getPaymentMethods: jest.fn(() => []),
   submitReview: jest.fn(),
   getReviews: jest.fn(),
+  SHIPPING_FLAT: 5,
+  subtotal: jest.fn(() => 100),
 }));
 
 const { default: ShopSkill } = await import('../../../src/skills/shop/index.js');
@@ -30,17 +32,8 @@ const { buildExecutionContext } = await import('../../../src/core/execution-cont
 describe('Linux shopping recommendations', () => {
   test('uses the vision ranker and returns a scoped WBS user loop', async () => {
     const skill = new ShopSkill({}, { warn: jest.fn() });
-    const context = buildExecutionContext({
-      channel: 'linux',
-      userId: 'user-1',
-      tenantId: 'tenant-1',
-      domain: 'shopping',
-      siteId: 'site-1',
-      wbs: [],
-    });
-
+    const context = buildExecutionContext({ channel: 'linux', userId: 'user-1', tenantId: 'tenant-1', domain: 'shopping', siteId: 'site-1', wbs: [] });
     const result = await skill.execute('shop.recommend_products', { productRef: 'printer-1', limit: 2 }, context);
-
     expect(result.success).toBe(true);
     expect(result.products[0].id).toBe('printer-2');
     expect(result.scope).toEqual({ tenantId: 'tenant-1', domain: 'shopping', siteId: 'site-1' });
