@@ -18,7 +18,7 @@ const shopMock = {
   relatedProducts: jest.fn(),
 };
 
-jest.unstable_mockModule('../../src/core/shop.js', () => shopMock);
+jest.unstable_mockModule('../../src/domains/commerce/shop.js', () => shopMock);
 
 const { CourierGateway } = await import('../../src/core/courier-gateway.js');
 const { default: ShopSkill } = await import('../../src/skills/shop/index.js');
@@ -35,10 +35,8 @@ describe('courier agent', () => {
 
   test('blocks shipment creation for anonymous callers and non-logistics roles', async () => {
     const skill = new ShopSkill({}, { warn: jest.fn() });
-    await expect(skill.execute('shop.create_shipment', { orderId: 'order-1', provider: 'dhl' }, {}))
-      .rejects.toThrow('Link your account');
-    await expect(skill.execute('shop.create_shipment', { orderId: 'order-1', provider: 'dhl' }, { userId: 'u1', role: 'customer' }))
-      .rejects.toThrow('authorized logistics role');
+    await expect(skill.execute('shop.create_shipment', { orderId: 'order-1', provider: 'dhl' }, {})).rejects.toThrow('Link your account');
+    await expect(skill.execute('shop.create_shipment', { orderId: 'order-1', provider: 'dhl' }, { userId: 'u1', role: 'customer' })).rejects.toThrow('authorized logistics role');
     expect(shopMock.createShipment).not.toHaveBeenCalled();
   });
 
