@@ -1,5 +1,6 @@
 import * as shop from './shop.js';
 import { buildExecutionContext } from './execution-context.js';
+import { executeCheckout } from '../commerce/acp/checkout-orchestrator.js';
 
 function platformFor(channel) {
   return String(channel?.constructor?.name || 'channel').replace(/Channel$/, '').toLowerCase();
@@ -7,6 +8,24 @@ function platformFor(channel) {
 
 function money(value) {
   return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function requestIdFor(message = {}) {
+  return message.requestId
+    || message.messageId
+    || message.eventId
+    || message.id
+    || message.key?.id
+    || message.message?.id
+    || null;
+}
+
+function channelScope(context) {
+  return context.scope || {
+    tenantId: context.tenantId || null,
+    siteId: context.siteId || null,
+    domain: context.domain || null,
+  };
 }
 
 function navigationButtons(extra = []) {
@@ -49,6 +68,11 @@ async function send(channel, jid, text, buttons = []) {
 /**
  * Shared shopping command for channels that do not have a dedicated shop UI.
  * It deliberately uses the same core shop service as Telegram and WhatsApp.
+ *
+ * Commerce mutations are scoped to the execution context. Checkout also uses
+ * the inbound channel event/request id as its idempotency key so a transport
+ * retry cannot create a second order, while a genuinely new message can make
+ * a new purchase.
  */
 export async function handleShop(channel, jid, msg = {}, args = []) {
   const platform = platformFor(channel);
@@ -60,11 +84,12 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
     channel: platform,
     userDoc: msg.userDoc,
   });
+  const scope = channelScope(context);
   const action = String(args[1] || 'list').toLowerCase();
 
   try {
     if (action === 'list' || action === 'catalog') {
-      const products = await shop.listProducts({ search: args.slice(2).join(' ') || undefined });
+      const products = await shop.listProducts({ search: args.slice(2).join(' ') || undefined, scope });
       if (!products.length) return send(channel, jid, '🛍️ No products matched your search. Try `/shop list`.', navigationButtons());
       const shown = products.slice(0, 8);
       const lines = shown.map((p, i) => `${i + 1}. *${p.name}* — ${money(p.price)}${p.stock === 0 ? ' — sold out' : ''}`);
@@ -77,13 +102,13 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
     }
 
     if (action === 'product' || action === 'view') {
-      const product = await shop.getProduct(args[2]);
+      const product = await shop.getProduct(args[2], scope);
       if (!product) return send(channel, jid, `❌ Product not found: ${args[2] || '(missing id)'}`, navigationButtons());
       return send(channel, jid, productText(product), productButtons(product));
     }
 
     if (action === 'add' || action === 'buy') {
-      const product = await shop.getProduct(args[2]);
+      const product = await shop.getProduct(args[2], scope);
       if (!product) return send(channel, jid, `❌ Product not found: ${args[2] || '(missing id)'}`, navigationButtons());
       let size = args[3] || null;
       if (Array.isArray(product.sizes) && product.sizes.length > 1 && !size) {
@@ -92,7 +117,7 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
       if (size && Array.isArray(product.sizes) && !product.sizes.includes(size)) {
         return send(channel, jid, `❌ Invalid size. Choose: ${product.sizes.join(', ')}`, navigationButtons());
       }
-      const result = await shop.addToCart(platform, jid, product.id, { size });
+      const result = await shop.addToCart(platform, context.channelId || jid, product.id, { size, scope });
       return send(channel, jid, `✅ Added *${result.product.name}*${size ? ` (${size})` : ''} to your cart.`, navigationButtons([
         { label: 'Checkout', action: 'shop:checkout', data: { action: 'checkout' } },
         { label: 'Continue shopping', action: 'shop:list', data: { action: 'list' } },
@@ -112,7 +137,7 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
     }
 
     if (action === 'cart') {
-      const items = await shop.getCart(platform, jid);
+      const items = await shop.getCart(platform, context.channelId || jid, scope);
       if (!items.length) return send(channel, jid, '🛒 Your cart is empty.', navigationButtons([
         { label: 'Browse catalog', action: 'shop:list', data: { action: 'list' } },
       ]));
@@ -125,7 +150,7 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
 
     if (action === 'remove') {
       if (!args[2]) return send(channel, jid, 'Usage: `/shop remove <product-id-or-cart-key>`', navigationButtons());
-      await shop.removeFromCart(platform, jid, args[2]);
+      await shop.removeFromCart(platform, context.channelId || jid, args[2], scope);
       return send(channel, jid, '🗑️ Removed from cart.', navigationButtons([
         { label: 'View cart', action: 'shop:cart', data: { action: 'cart' } },
       ]));
@@ -137,18 +162,31 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
       if (!methods.some((method) => method.id === payMethod)) {
         return send(channel, jid, `❌ Payment method ${payMethod} is unavailable. Use /shop methods to see configured options.`, navigationButtons());
       }
-      const result = await shop.checkout(platform, jid, {
-        uid: context.userId,
+
+      const requestId = requestIdFor(msg);
+      if (!requestId) {
+        return send(channel, jid, '❌ Checkout request id is missing. Please retry the checkout action.', navigationButtons());
+      }
+
+      const channelId = context.channelId || jid;
+      const result = await executeCheckout({
+        idempotencyKey: `channel-${platform}-${String(requestId)}`,
+        merchantId: context.tenantId || context.userDoc?.tenantId || 'default',
+        buyerId: context.userId,
+        platform,
+        channelId,
+        address: context.address || {},
         payMethod,
+        scope,
       });
-      return send(channel, jid, `✅ *Order placed*\nInvoice: ${result.invoiceNumber}\nTotal: ${money(result.total)}\nPayment: ${result.payMethod}`, navigationButtons([
+      return send(channel, jid, `✅ *Order placed*\nInvoice: ${result.invoiceNumber}\nTotal: ${money(result.total)}\nPayment: ${result.payMethod}${result.replayed ? '\n↩️ Already processed — this was a retry.' : ''}`, navigationButtons([
         { label: 'Shop again', action: 'shop:list', data: { action: 'list' } },
       ]));
     }
 
     if (action === 'track') {
       if (!args[2]) return send(channel, jid, 'Usage: `/shop track <order-id>`', navigationButtons());
-      const status = await shop.trackShipment(args[2]);
+      const status = await shop.trackShipment(args[2], scope);
       return send(channel, jid, `📦 *Tracking*\nStatus: ${status.status}\n${status.location ? `Location: ${status.location}\n` : ''}${status.eta ? `ETA: ${status.eta}\n` : ''}${status.trackingUrl || ''}`, navigationButtons());
     }
 
@@ -158,9 +196,9 @@ export async function handleShop(channel, jid, msg = {}, args = []) {
   }
 }
 
-export { navigationButtons, productText };
+export { navigationButtons, productText, platformFor, requestIdFor };
 
-export default { handleShop, navigationButtons, productText };
+export default { handleShop, navigationButtons, productText, platformFor, requestIdFor };
 
 // Keep this module free of transport imports so it can be unit-tested without
 // opening Discord, Slack, WhatsApp, or Telegram connections.
