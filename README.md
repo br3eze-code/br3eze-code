@@ -74,6 +74,8 @@ Commerce is an adapter/domain implementation, not a core primitive. The reposito
 
 The Agentic Commerce Protocol (ACP) integration lives under `src/commerce/acp/` and is intentionally isolated from the core. Current ACP work is **internal protocol alignment and adapter preparation; it does not mean the repository is connected to ChatGPT, certified by OpenAI, or eligible for any external commerce program.**
 
+The commerce engine, POS store, shopping agent, courier gateway/providers, invoice generation, and order notification are now outside `src/core`. Network plan sales has also moved to `src/domains/network/plan-sales.js`; concrete hotspot provisioning is supplied by `src/adapters/network/hotspot-plan-provisioner.js` rather than embedded in the domain service.
+
 ## Multi-channel operation
 
 Channels translate external messages into AgentOS execution frames. The same agent/runtime boundary is used across supported channels; channel identifiers are not business-operation idempotency keys.
@@ -85,7 +87,9 @@ Domain logic should never depend on a particular channel.
 ```text
 src/
 ├── core/                 Domain-neutral kernel/runtime primitives
-├── commerce/             Commerce domain + ACP adapter
+├── domains/              Domain implementations (commerce, network, vision, ...)
+├── adapters/             Concrete provider/channel/domain integrations
+├── commerce/             Commerce protocol boundary, including ACP
 ├── api/                  HTTP/API boundaries
 ├── channels/             External messaging/channel integrations
 ├── skills/               Agent capabilities and skill definitions
@@ -130,16 +134,16 @@ The domain-boundary check is intentionally separate from the general build while
 
 ## Current migration status
 
-AgentOS is in an architectural consolidation phase. The new domain-kernel and adapter boundary are present, but legacy domain/provider modules and the root dependency graph still contain concrete integrations. Therefore the repository should **not yet be advertised as fully removable-domain/domain-agnostic**.
+AgentOS is in an architectural consolidation phase. The core boundary and explicit ports are established, commerce has been extracted from `src/core`, and the legacy network plan-sales service has been moved behind a network-domain/provisioner boundary. Legacy compatibility shims and other provider/domain modules still exist, so the repository should **not yet be advertised as fully removable-domain/domain-agnostic**.
 
 The next architectural priorities are:
 
-1. move concrete providers and domain implementations out of `src/core`;
-2. establish explicit `src/core/ports` and adapter ownership;
-3. separate core/runtime dependencies from optional integrations;
-4. consolidate gateway/bootstrap entrypoints;
-5. add a core-only install/test acceptance suite;
-6. remove or quarantine legacy domain imports;
+1. audit and extract the remaining network/Wi-Fi domain modules from `src/core`;
+2. continue replacing direct provider imports with explicit ports and injected adapters;
+3. consolidate gateway/bootstrap entrypoints and remove stale duplicate runtime paths;
+4. add a core-only install/test acceptance suite with domain adapters absent;
+5. tighten security/identity/context boundaries around every externally callable capability;
+6. complete ACP authenticated HTTP routes, payment-handler mapping, cancellation/refund semantics, and conformance tests;
 7. keep commerce, ACP, networking and channels behind their respective boundaries.
 
 ## License
