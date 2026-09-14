@@ -9,26 +9,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [22.x]
-
     steps:
       - uses: actions/checkout@v7
-
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-
       - name: Install
-        run: npm ci --legacy-peer-deps
-
+        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
       - name: Build check
         run: npm run build:check
-
       - name: Test
         run: npm test -- --ci --forceExit --passWithNoTests
         env:
