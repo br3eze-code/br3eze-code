@@ -12,8 +12,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class BackgroundPlugin extends CordovaPlugin {
-    private boolean activityVisible = false;
-    private boolean serviceRequested = false;
+    private volatile boolean activityVisible = false;
 
     @Override
     protected void pluginInitialize() {
@@ -37,16 +36,27 @@ public class BackgroundPlugin extends CordovaPlugin {
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         switch (action) {
-            case "start": start(callbackContext); return true;
-            case "stop": stop(callbackContext); return true;
-            case "status": status(callbackContext); return true;
-            default: return false;
+            case "start":
+                start(callbackContext);
+                return true;
+            case "stop":
+                stop(callbackContext);
+                return true;
+            case "status":
+                status(callbackContext);
+                return true;
+            default:
+                callbackContext.error(error("UNKNOWN_ACTION", "Unsupported background action: " + action));
+                return true;
         }
     }
 
     private void start(CallbackContext callbackContext) {
         if (!activityVisible) {
-            callbackContext.error(error("BACKGROUND_START_NOT_ALLOWED", "Start must be requested while the Cordova activity is visible."));
+            callbackContext.error(error(
+                    "BACKGROUND_START_NOT_ALLOWED",
+                    "Start must be requested while the Cordova activity is visible."
+            ));
             return;
         }
 
@@ -54,38 +64,47 @@ public class BackgroundPlugin extends CordovaPlugin {
             try {
                 Context context = cordova.getContext();
                 Intent intent = new Intent(context, BackgroundService.class);
-                if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent);
-                else context.startService(intent);
-                serviceRequested = true;
-                callbackContext.success(statusJson(true));
+                if (Build.VERSION.SDK_INT >= 26) {
+                    context.startForegroundService(intent);
+                } else {
+                    context.startService(intent);
+                }
+                callbackContext.success(statusJson(BackgroundService.isRunning()));
             } catch (RuntimeException error) {
-                serviceRequested = false;
-                callbackContext.error(error("FOREGROUND_SERVICE_START_FAILED", error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage())));
+                callbackContext.error(error(
+                        "FOREGROUND_SERVICE_START_FAILED",
+                        error.getClass().getSimpleName() + ": " + String.valueOf(error.getMessage())
+                ));
             }
         });
     }
 
     private void stop(CallbackContext callbackContext) {
         cordova.getThreadPool().execute(() -> {
-            boolean stopped = cordova.getContext().stopService(new Intent(cordova.getContext(), BackgroundService.class));
-            serviceRequested = false;
+            boolean stopped = cordova.getContext().stopService(
+                    new Intent(cordova.getContext(), BackgroundService.class)
+            );
             callbackContext.success(statusJson(false, stopped));
         });
     }
 
     private void status(CallbackContext callbackContext) {
-        callbackContext.success(statusJson(serviceRequested));
+        callbackContext.success(statusJson(BackgroundService.isRunning()));
     }
 
-    private JSONObject statusJson(boolean active) { return statusJson(active, null); }
+    private JSONObject statusJson(boolean active) {
+        return statusJson(active, null);
+    }
 
     private JSONObject statusJson(boolean active, Boolean stopped) {
         JSONObject result = new JSONObject();
         try {
             result.put("active", active);
             result.put("activityVisible", activityVisible);
+            result.put("platform", "android");
             if (stopped != null) result.put("stopped", stopped);
-        } catch (JSONException ignored) { }
+        } catch (JSONException ignored) {
+        }
         return result;
     }
 
@@ -95,7 +114,9 @@ public class BackgroundPlugin extends CordovaPlugin {
             result.put("code", code);
             result.put("message", message);
             result.put("activityVisible", activityVisible);
-        } catch (JSONException ignored) { }
+            result.put("platform", "android");
+        } catch (JSONException ignored) {
+        }
         return result;
     }
 }
