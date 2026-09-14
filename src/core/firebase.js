@@ -5,6 +5,7 @@ export {
   getPersistenceProvider,
   initialize as initializeFirebase,
   getStore as getFirestore,
+  getDatabase,
   getApp as getFirebaseApp,
   getAuth,
   createAuthUser
