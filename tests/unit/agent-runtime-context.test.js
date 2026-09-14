@@ -1,4 +1,4 @@
-import { AgentRuntime } from '../../src/core/agent-runtime.js';
+import { AgentRuntime } from '../../src/core/agentRuntime.js';
 import { attachOnboardingWbs } from '../../src/core/onboarding-wbs.js';
 
 describe('AgentRuntime canonical execution context', () => {
@@ -85,11 +85,7 @@ describe('AgentRuntime canonical execution context', () => {
     expect(frame.wbs.length).toBeGreaterThan(0);
     expect(frame.wbsSummary.total).toBe(frame.wbs.length);
     expect(frame.nextAction).toMatchObject({ key: 'understand', requiresApproval: false });
-    expect(frame.wbs[0].context).toMatchObject({
-      tenantId: 'tenant-a',
-      userId: 'user-a',
-      siteId: 'site-1'
-    });
+    expect(frame.wbs[0].context).toMatchObject({ tenantId: 'tenant-a', userId: 'user-a', siteId: 'site-1' });
     expect(frame.location).toBeNull();
     expect(frame.locationPermission).toBe(false);
   });
