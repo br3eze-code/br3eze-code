@@ -1,10 +1,22 @@
-# cordova-plugin-background-modern
+# cordova-plugin-background-modern v2
 
-A lifecycle-aware Cordova background runtime for Android.
+A lifecycle-aware Cordova background runtime.
 
-## Why this exists
+## Android
 
-Older Cordova background plugins can call `startForeground()` as soon as their service is created. Modern Android versions restrict foreground-service startup and require a declared foreground-service type and matching permission. This plugin makes startup explicit and lifecycle-aware.
+- Android 8+ (`minSdk 26`).
+- Uses `startForegroundService()` on Android 8+.
+- Uses the three-argument `startForeground()` only on Android 14+ where the service type is required.
+- Declares `FOREGROUND_SERVICE` and `FOREGROUND_SERVICE_SPECIAL_USE` correctly.
+- Does not start a foreground service automatically during app startup.
+- Refuses `start()` while the Cordova activity is not visible.
+- Catches service-start failures and reports them to JavaScript rather than crashing the host process.
+- The service also catches foreground-promotion failures so a policy/permission failure cannot escape as a fatal service exception.
+- `status()` reports the actual in-process service state.
+
+## iOS
+
+iOS does not provide an Android-style persistent foreground service. The iOS implementation therefore uses Apple's finite background-task mechanism and reports its limited lifetime through the same API. It does not pretend that arbitrary JavaScript can run indefinitely in the background.
 
 ## API
 
@@ -19,10 +31,16 @@ cordova.plugins.backgroundModern.status(function (result) {
 });
 
 cordova.plugins.backgroundModern.stop(function (result) {
-  console.log('stopped', result);
+  console.log('stopped', result); 
+}, function (error) {
+  console.error(error);
 });
 ```
 
-`start()` must be called from a user-visible Cordova activity. If the app is already backgrounded, the plugin returns `BACKGROUND_START_NOT_ALLOWED` instead of allowing an Android foreground-service exception to crash the process.
+`start()` is explicit. The plugin never attempts to bypass Android's background-start restrictions.
 
-This plugin does not attempt to bypass Android background-start restrictions. Applications that need scheduled/background work should use the appropriate Android scheduling API for that workload.
+## Migration from the old plugin
+
+Remove the old `de.appplant.cordova.plugin.background` plugin from the generated Cordova project before rebuilding. Do not keep both background services installed.
+
+After changing the plugin set, perform a clean Cordova platform rebuild so stale generated plugin sources cannot remain in `platforms/android`.
