@@ -2,227 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="format-detection" content="telephone=no">
-  <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
-  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#050505">
-  <meta name="description" content="Prepaid WiFi that keeps working when the power doesn't. Buy a voucher by WhatsApp, USSD, or an agent near you — connect in seconds.">
+  <title>br3eze.africa · Connected</title>
+  <meta name="description" content="Prepaid WiFi that stays connected through load-shedding. Buy by WhatsApp, USSD, or through a local agent.">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="img/logo.png">
   <link rel="apple-touch-icon" href="img/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous">
   <link rel="stylesheet" href="css/index.css">
   <style>
-    html, body { overflow: auto; }
-    .home-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
-    .home-nav { gap: 24px; }
-    .home-nav a { color: var(--color-text-medium); font-size: .9rem; }
-    .home-nav a:hover { color: var(--color-text-light); }
-    .home-menu-btn { display: none; background: none; border: 0; color: var(--color-text-light); font-size: 1.3rem; cursor: pointer; }
-    .home-mobile-nav { display: none; }
-
-    .home-hero { padding: 56px 0 60px; }
-    .home-hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; align-items: center; }
-    .home-hero h1 { font-size: clamp(1.9rem, 4vw, 2.75rem); font-weight: 800; line-height: 1.15; margin: 0 0 16px; max-width: 16ch; }
-    .home-hero h1 span { color: var(--color-info-text); }
-    .home-lede { color: var(--color-text-medium); font-size: 1.02rem; max-width: 46ch; margin: 0 0 28px; }
-    .home-actions { display: flex; gap: 12px; flex-wrap: wrap; }
-
-    .home-demo { padding: 22px; }
-    .home-demo-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .home-signal { border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-sidebar); padding: 30px 20px; text-align: center; cursor: pointer; }
-    .home-bars { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 48px; margin-bottom: 14px; }
-    .home-bars i { display: block; width: 8px; border-radius: 2px; background: var(--color-success-text); box-shadow: 0 0 12px rgba(102,204,102,.5); animation: homePulse 1.8s ease-in-out infinite; }
-    .home-bars i:nth-child(1) { height: 16px; }
-    .home-bars i:nth-child(2) { height: 26px; animation-delay: .15s; }
-    .home-bars i:nth-child(3) { height: 36px; animation-delay: .3s; }
-    .home-bars i:nth-child(4) { height: 48px; animation-delay: .45s; }
-    @keyframes homePulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
-    .home-signal strong { display: block; color: var(--color-success-text); font-size: .95rem; }
-    .home-signal > span { display: block; color: var(--color-text-medium); font-size: .8rem; margin-top: 4px; }
-    .home-toggle { margin-top: 12px; width: 100%; }
-    @media (prefers-reduced-motion: reduce) { .home-bars i { animation: none; } }
-
-    .home-section { padding: 48px 0; border-top: 1px solid var(--color-border); }
-    .home-section h2 { font-size: 1.5rem; margin: 0 0 10px; }
-    .home-section-lede { color: var(--color-text-medium); max-width: 52ch; margin: 0 0 30px; }
-    .home-step-num { display: block; color: var(--color-info-text); font-weight: 700; font-size: .85rem; margin-bottom: 8px; }
-    .home-section .card h3 { margin-bottom: 6px; font-size: 1.05rem; }
-    .home-section .card p { color: var(--color-text-medium); font-size: .9rem; margin: 0; }
-    .home-plan { position: relative; display: flex; flex-direction: column; }
-    .home-plan strong { font-size: 2rem; line-height: 1.1; margin: 6px 0 10px; }
-    .home-plan ul { color: var(--color-text-medium); padding-left: 18px; flex: 1; }
-    .home-plan .btn { margin-top: auto; }
-    .home-plan-featured { border: 1px solid var(--color-info-text); }
-    .home-plan-badge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--color-info-text); color: var(--color-background); font-size: .65rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
-    .home-channel i { font-size: 1.4rem; color: var(--color-info-text); margin-bottom: 12px; display: block; }
-
-    .home-footer { border-top: 1px solid var(--color-border); padding: 32px 0 40px; text-align: center; color: var(--color-text-medium); font-size: .85rem; }
-    .home-footer-grid { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; text-align: left; }
-    .home-footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
-    .home-footer a { color: var(--color-text-medium); text-decoration: none; }
-    .home-footer a:hover { color: var(--color-text-light); }
-
-    @media (max-width: 860px) {
-      .home-hero-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 600px) {
-      .home-nav { display: none; }
-      .home-menu-btn { display: block; }
-      .home-mobile-nav { display: flex; position: fixed; inset: 70px 0 0; z-index: 99; background: var(--color-background); flex-direction: column; align-items: stretch; padding: 24px; gap: 4px; }
-      .home-mobile-nav[hidden] { display: none; }
-      .home-mobile-nav a { padding: 14px 0; border-bottom: 1px solid var(--color-border); text-decoration: none; }
-      .home-footer-grid { flex-direction: column; align-items: flex-start; }
-    }
+    html,body{overflow:auto;background:#050505}
+    .home-wrap{width:min(1180px,calc(100% - 40px));margin:auto}
+    .home-nav{display:flex;align-items:center;gap:24px}.home-nav a{color:#aaa;font-size:.88rem}.home-nav a:hover{color:#fff}
+    .home-menu{display:none;background:none;border:0;color:#fff;font-size:1.3rem}
+    .hero-photo{min-height:680px;display:flex;align-items:center;position:relative;overflow:hidden;background:#050505 url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2200&q=88') center/cover no-repeat}
+    .hero-photo:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.94) 0%,rgba(0,0,0,.75) 42%,rgba(0,0,0,.18) 100%)}
+    .hero-photo:after{content:"";position:absolute;inset:auto 0 0;height:35%;background:linear-gradient(transparent,#050505)}
+    .hero-content{position:relative;z-index:1;padding:110px 0 120px;max-width:650px}.eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:#b8c4c7;margin-bottom:18px}.eyebrow i{color:#55ffff}
+    .hero-content h1{font-size:clamp(3rem,7vw,6.5rem);line-height:.94;letter-spacing:-.055em;margin:0 0 25px;font-weight:800}.hero-content h1 span{color:#19e6df}.hero-copy{font-size:1.08rem;line-height:1.65;color:#d0d0d0;max-width:54ch}.hero-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.hero-actions .btn{border-radius:999px;padding:.75rem 1.25rem}
+    .hero-proof{display:flex;gap:28px;flex-wrap:wrap;margin-top:38px;color:#c5c5c5;font-size:.8rem}.hero-proof span{display:flex;align-items:center;gap:8px}.hero-proof i{color:#20e7df}
+    .image-section{padding:80px 0;border-top:1px solid #202020}.image-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}.image-grid.reverse .image-copy{order:2}.image-frame{min-height:390px;border-radius:18px;overflow:hidden;border:1px solid #273438;background:#0b1113}.image-frame img{width:100%;height:100%;min-height:390px;object-fit:cover;display:block}.image-copy h2{font-size:clamp(2rem,4vw,3.4rem);line-height:1;letter-spacing:-.04em;margin:0 0 18px}.image-copy h2 span{color:#19e6df}.image-copy p{color:#aaa;line-height:1.7;max-width:52ch}.mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:25px}.mini-stat{padding:15px;border:1px solid #252525;border-radius:12px;background:#0b0b0b}.mini-stat strong{display:block;font-size:1.2rem}.mini-stat span{font-size:.7rem;color:#888}
+    .section{padding:70px 0;border-top:1px solid #202020}.section h2{font-size:clamp(2rem,4vw,3rem);letter-spacing:-.035em;margin:0 0 12px}.lede{color:#999;max-width:56ch;line-height:1.6;margin:0 0 30px}.grid{gap:18px}.home-card{height:100%;transition:transform .2s ease,border-color .2s ease}.home-card:hover{transform:translateY(-3px);border-color:#31595b}.num{font-weight:800;color:#20e7df;font-size:.8rem;letter-spacing:.12em}.home-card h3{margin:10px 0 7px}.home-card p{color:#999;line-height:1.55}
+    .plans .card{height:100%;position:relative}.plan-price{font-size:2.1rem;font-weight:800;margin:15px 0}.plan-price small{font-size:.75rem;color:#888;font-weight:500}.featured{border-color:#20e7df!important}.badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#20e7df;color:#001515;padding:4px 10px;border-radius:99px;font-size:.65rem;font-weight:800}
+    .coverage-panel{position:relative;min-height:390px;border-radius:18px;overflow:hidden;background:#071113 url('https://images.unsplash.com/photo-1473445361085-b9a07f55608b?auto=format&fit=crop&w=1800&q=85') center/cover}.coverage-panel:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(2,12,14,.95),rgba(2,12,14,.35),rgba(2,12,14,.75))}.coverage-copy{position:relative;z-index:1;padding:48px;max-width:620px}.coverage-copy h2{font-size:clamp(2rem,5vw,4rem);line-height:.95;margin:0 0 18px}.coverage-copy h2 span{color:#20e7df}.coverage-copy p{color:#d0d0d0;line-height:1.6}.coverage-map{margin-top:24px;font-size:4rem;color:#20e7df;text-shadow:0 0 30px rgba(32,231,223,.5)}
+    .channels .card{min-height:170px}.channel-icon{font-size:1.5rem;color:#20e7df;margin-bottom:16px}.channel-arrow{float:right;color:#777}
+    .mission{position:relative;overflow:hidden;border-radius:18px;min-height:460px;background:url('https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=2000&q=85') center/cover}.mission:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.9),rgba(0,0,0,.35),rgba(0,0,0,.15))}.mission-copy{position:relative;z-index:1;padding:60px;max-width:560px}.mission-copy h2{font-size:clamp(2.4rem,6vw,5rem);line-height:.9;margin:0 0 20px}.mission-copy h2 span{color:#20e7df}.mission-copy p{color:#ddd;line-height:1.7}
+    .home-footer{padding:40px 0;color:#777;border-top:1px solid #202020}.footer-row{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.footer-links{display:flex;gap:20px;flex-wrap:wrap}.home-footer a{color:#999;text-decoration:none}.home-footer a:hover{color:#fff}.footer-note{margin-top:25px;font-size:.72rem;color:#666}
+    @media(max-width:860px){.image-grid{grid-template-columns:1fr}.image-grid.reverse .image-copy{order:0}.hero-photo{min-height:620px}.hero-content{padding:90px 0}.home-nav{display:none}.home-menu{display:block}.mini-stats{grid-template-columns:1fr 1fr}.mission-copy{padding:40px}}
+    @media(max-width:600px){.home-wrap{width:min(100% - 28px,1180px)}.hero-content h1{font-size:3.15rem}.hero-photo{min-height:650px}.hero-proof{gap:14px;flex-direction:column}.section,.image-section{padding:55px 0}.image-frame,.image-frame img{min-height:280px}.coverage-copy{padding:32px}.mini-stats{grid-template-columns:1fr}.mission-copy{padding:32px}.home-footer-grid{flex-direction:column;align-items:flex-start}}
+    @media(prefers-reduced-motion:reduce){.home-card{transition:none}.home-card:hover{transform:none}}
   </style>
 </head>
 <body>
-  <header class="main-header" id="mainHeader">
-    <div class="header-left">
-      <a href="home.html" class="logo" aria-label="br3eze.africa home">br3eze.africa</a>
-    </div>
-    <div class="header-right">
-      <nav class="home-nav" aria-label="Primary navigation">
-        <a href="#how">How it works</a>
-        <a href="#plans">Plans</a>
-        <a href="#coverage">Coverage</a>
-        <a href="login.html" class="btn btn-sm btn-primary">Log in</a>
-      </nav>
-      <button class="home-menu-btn" id="homeMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="homeNav"><i class="fas fa-bars" aria-hidden="true"></i></button>
-    </div>
-  </header>
-
-  <nav class="home-mobile-nav" id="homeNav" aria-label="Mobile navigation" hidden>
-    <a href="#how">How it works</a>
-    <a href="#plans">Plans</a>
-    <a href="#coverage">Coverage</a>
-    <a href="login.html" class="btn btn-primary">Log in</a>
-  </nav>
-
-  <main>
-    <section class="home-hero">
-      <div class="home-wrap home-hero-grid">
-        <div>
-          <p class="text-medium"><i class="fas fa-wifi" aria-hidden="true"></i> Community WiFi infrastructure</p>
-          <h1>WiFi that stays on <span>when the power doesn't.</span></h1>
-          <p class="home-lede">Buy a voucher over WhatsApp, USSD, or from an agent down the road. Connect in seconds, on a network built to keep running through load-shedding.</p>
-          <div class="home-actions">
-            <a href="login.html" class="btn btn-primary"><i class="fas fa-bolt" aria-hidden="true"></i> Get connected</a>
-            <a href="#coverage" class="btn"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Check coverage</a>
-          </div>
-        </div>
-
-        <div class="card home-demo" aria-label="Power resilience demonstration">
-          <div class="home-demo-top">
-            <span class="text-medium">Network status</span>
-            <span class="tag tag-success"><i class="fas fa-circle" aria-hidden="true"></i> Live</span>
-          </div>
-          <div class="home-signal" id="homeSignal" role="button" tabindex="0" aria-pressed="true" aria-label="Toggle grid power state">
-            <div class="home-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <strong id="homeStatus">Connected</strong>
-            <span id="homeSubstatus">Household is on backup power. Signal unaffected.</span>
-          </div>
-          <button class="btn btn-sm home-toggle" id="homeToggle" type="button">Simulate grid outage</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="how" class="home-section">
-      <div class="home-wrap">
-        <h2>Three steps, no technician visit</h2>
-        <p class="home-section-lede">Most people are online inside a minute of buying a voucher.</p>
-        <div class="grid grid-3">
-          <article class="card home-step"><span class="home-step-num">01</span><h3>Buy a voucher</h3><p class="text-medium">Over WhatsApp, by dialing a USSD code, or from an agent in your area. No app install required to buy.</p></article>
-          <article class="card home-step"><span class="home-step-num">02</span><h3>Connect to the hotspot</h3><p class="text-medium">Pick the network from your phone or router, enter the voucher code on the login page, and you're through.</p></article>
-          <article class="card home-step"><span class="home-step-num">03</span><h3>Stay online</h3><p class="text-medium">Top up any time from the same channel you used the first time. Your usage and balance are always a message away.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section id="plans" class="home-section">
-      <div class="home-wrap">
-        <h2>Pick a plan that matches how you use it</h2>
-        <p class="home-section-lede">Every plan runs on the same network. You're only choosing how much time you need.</p>
-        <div class="grid grid-4">
-          <article class="card home-plan"><span class="text-medium">Hourly</span><strong>Flexible</strong><ul><li>Good for a quick task</li><li>Full speed</li><li>Buy again anytime</li></ul><a href="login.html" class="btn">Choose Hourly</a></article>
-          <article class="card home-plan home-plan-featured"><span class="home-plan-badge">Most people pick this one</span><span class="text-medium">Daily</span><strong>Best value</strong><ul><li>Work, school, streaming</li><li>Full speed</li><li>Renew with one message</li></ul><a href="login.html" class="btn btn-primary">Choose Daily</a></article>
-          <article class="card home-plan"><span class="text-medium">Weekly</span><strong>Household</strong><ul><li>Shared across the family</li><li>Full speed</li><li>Easy top-up</li></ul><a href="login.html" class="btn">Choose Weekly</a></article>
-          <article class="card home-plan"><span class="text-medium">Monthly</span><strong>Committed</strong><ul><li>Lowest cost per day</li><li>Priority support</li><li>Ideal for home office</li></ul><a href="login.html" class="btn">Choose Monthly</a></article>
-        </div>
-      </div>
-    </section>
-
-    <section id="coverage" class="home-section">
-      <div class="home-wrap">
-        <h2>Three ways to buy, one network</h2>
-        <p class="home-section-lede">Choose whichever is already in your hand.</p>
-        <div class="grid grid-3">
-          <article class="card home-channel"><i class="fab fa-whatsapp" aria-hidden="true"></i><h3>WhatsApp</h3><p class="text-medium">Message our number, pick a plan, pay, and get your voucher code back in the same chat.</p></article>
-          <article class="card home-channel"><i class="fas fa-mobile-alt" aria-hidden="true"></i><h3>USSD</h3><p class="text-medium">No data needed to buy. Dial the code from any phone, follow the menu, done.</p></article>
-          <article class="card home-channel"><i class="fas fa-map-marker-alt" aria-hidden="true"></i><h3>An agent nearby</h3><p class="text-medium">Prefer cash and a person to talk to? Local agents sell vouchers and can help you get set up.</p></article>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="home-footer">
-    <div class="home-wrap home-footer-grid">
-      <a href="home.html" class="logo">br3eze.africa</a>
-      <div class="home-footer-links"><a href="login.html">Log in</a><a href="shop.html">Shop</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a></div>
-    </div>
-    <p class="text-medium">© <span id="homeYear"></span> br3eze.africa. Community WiFi infrastructure.</p>
-  </footer>
-
-  <script>
-    (function () {
-      'use strict';
-      var year = document.getElementById('homeYear');
-      if (year) year.textContent = new Date().getFullYear();
-
-      var menuButton = document.getElementById('homeMenuBtn');
-      var mobileNav = document.getElementById('homeNav');
-      if (menuButton && mobileNav) {
-        menuButton.addEventListener('click', function () {
-          var open = !mobileNav.hidden;
-          mobileNav.hidden = open;
-          menuButton.setAttribute('aria-expanded', String(!open));
-          menuButton.setAttribute('aria-label', open ? 'Open menu' : 'Close menu');
-        });
-        mobileNav.querySelectorAll('a').forEach(function (link) {
-          link.addEventListener('click', function () {
-            mobileNav.hidden = true;
-            menuButton.setAttribute('aria-expanded', 'false');
-            menuButton.setAttribute('aria-label', 'Open menu');
-          });
-        });
-      }
-
-      var signal = document.getElementById('homeSignal');
-      var toggle = document.getElementById('homeToggle');
-      var status = document.getElementById('homeStatus');
-      var substatus = document.getElementById('homeSubstatus');
-      var gridUp = true;
-
-      function renderSignal() {
-        status.textContent = gridUp ? 'Connected' : 'Still connected';
-        substatus.textContent = gridUp
-          ? 'Household is on backup power. Signal unaffected.'
-          : 'Grid is down. The hotspot is on backup power — you stay online.';
-        toggle.textContent = gridUp ? 'Simulate grid outage' : 'Restore grid';
-        signal.setAttribute('aria-pressed', String(gridUp));
-      }
-
-      function flipGrid() { gridUp = !gridUp; renderSignal(); }
-      toggle.addEventListener('click', flipGrid);
-      signal.addEventListener('click', flipGrid);
-      signal.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); flipGrid(); }
-      });
-      renderSignal();
-    }());
-  </script>
+<header class="main-header">
+  <div class="header-left"><a href="home.html" class="logo" aria-label="br3eze.africa home">br3eze.africa</a></div>
+  <div class="header-right"><nav class="home-nav" aria-label="Primary navigation"><a href="#how">How it works</a><a href="#plans">Plans</a><a href="#coverage">Coverage</a><a href="shop.html">Shop</a><a href="login.html" class="btn btn-sm btn-primary">Log in</a></nav><button class="home-menu" id="homeMenu" aria-label="Open menu" aria-expanded="false"><i class="fas fa-bars"></i></button></div>
+</header>
+<nav id="mobileNav" hidden style="position:fixed;z-index:99;inset:70px 0 0;background:#050505;padding:24px;display:flex;flex-direction:column;gap:10px"><a href="#how">How it works</a><a href="#plans">Plans</a><a href="#coverage">Coverage</a><a href="shop.html">Shop</a><a href="login.html" class="btn btn-primary">Log in</a></nav>
+<main>
+<section class="hero-photo"><div class="home-wrap"><div class="hero-content"><div class="eyebrow"><i class="fas fa-wifi"></i> PREPAID WIFI · COMMUNITY NETWORK</div><h1>WiFi that stays on <span>when the power doesn't.</span></h1><p class="hero-copy">Connect in seconds. Buy a voucher through WhatsApp, USSD, or a local agent, then stay online through load-shedding on a resilient community network.</p><div class="hero-actions"><a href="login.html" class="btn btn-primary"><i class="fas fa-bolt"></i> Get connected</a><a href="#coverage" class="btn">Check coverage <i class="fas fa-arrow-right"></i></a></div><div class="hero-proof"><span><i class="fas fa-bolt"></i> Backup-powered</span><span><i class="fas fa-signal"></i> High-speed internet</span><span><i class="fas fa-map-marker-alt"></i> Growing coverage</span></div></div></div></section>
+<section id="how" class="image-section"><div class="home-wrap image-grid"><div class="image-frame"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=85" alt="Person using a laptop while connected" loading="lazy"></div><div class="image-copy"><div class="eyebrow">HOW IT WORKS</div><h2>Three steps.<br><span>No technician visit.</span></h2><p>Choose a plan, connect to the hotspot, and keep your account topped up from the same channel you used to buy. The experience is designed around the phone you already have.</p><div class="mini-stats"><div class="mini-stat"><strong>01</strong><span>BUY A VOUCHER</span></div><div class="mini-stat"><strong>02</strong><span>CONNECT</span></div><div class="mini-stat"><strong>03</strong><span>STAY ONLINE</span></div></div></div></div></section>
+<section id="plans" class="section plans"><div class="home-wrap"><div class="eyebrow">PLANS</div><h2>Simple plans. Real connection.</h2><p class="lede">Every plan uses the same network. Pick the amount of time that fits how you use it.</p><div class="grid grid-4"><article class="card home-card"><div class="num">HOURLY</div><h3>Flexible</h3><div class="plan-price">Hourly</div><p>Good for a quick task, study session, or short visit.</p><a href="login.html" class="btn btn-block">Choose Hourly</a></article><article class="card home-card featured"><span class="badge">MOST POPULAR</span><div class="num">DAILY</div><h3>Best value</h3><div class="plan-price">Daily</div><p>Covers work, school, streaming, and everyday use.</p><a href="login.html" class="btn btn-primary btn-block">Choose Daily</a></article><article class="card home-card"><div class="num">WEEKLY</div><h3>Household</h3><div class="plan-price">Weekly</div><p>Shared across the household with easy top-ups.</p><a href="login.html" class="btn btn-block">Choose Weekly</a></article><article class="card home-card"><div class="num">MONTHLY</div><h3>Committed</h3><div class="plan-price">Monthly</div><p>Built for regular home use and longer stays online.</p><a href="login.html" class="btn btn-block">Choose Monthly</a></article></div></div></section>
+<section id="coverage" class="section"><div class="home-wrap"><div class="coverage-panel"><div class="coverage-copy"><div class="eyebrow">COVERAGE</div><h2>More than a signal.<br><span>It's a lifeline.</span></h2><p>Br3eze brings reliable community connectivity closer to homes, schools, businesses, and neighbourhoods. Coverage grows as more nodes come online.</p><div class="coverage-map"><i class="fas fa-map-marked-alt"></i></div></div></div></div></section>
+<section class="section channels"><div class="home-wrap"><div class="eyebrow">BUY A VOUCHER</div><h2>Three ways to buy. One network.</h2><p class="lede">Choose the channel that is already in your hand.</p><div class="grid grid-3"><article class="card home-card"><div class="channel-icon"><i class="fab fa-whatsapp"></i></div><h3>WhatsApp <span class="channel-arrow">→</span></h3><p>Message, choose a plan, pay, and receive your voucher in the same chat.</p></article><article class="card home-card"><div class="channel-icon"><i class="fas fa-mobile-alt"></i></div><h3>USSD <span class="channel-arrow">→</span></h3><p>No data required to buy. Dial the code, follow the menu, and you're done.</p></article><article class="card home-card"><div class="channel-icon"><i class="fas fa-store"></i></div><h3>Agent nearby <span class="channel-arrow">→</span></h3><p>Prefer cash? Local agents can sell vouchers and help you connect.</p></article></div></div></section>
+<section class="section"><div class="home-wrap"><div class="mission"><div class="mission-copy"><div class="eyebrow">OUR MISSION</div><h2>Connect <span>everyone.</span></h2><p>Br3eze Africa is building a connected future — reliable internet for homes, schools, businesses, and communities, no matter the power situation.</p><a href="login.html" class="btn btn-primary">Join the network</a></div></div></div></section>
+</main>
+<footer class="home-footer"><div class="home-wrap"><div class="footer-row"><a href="home.html" class="logo">br3eze.africa</a><div class="footer-links"><a href="login.html">Log in</a><a href="shop.html">Shop</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a></div></div><p class="footer-note">© <span id="homeYear"></span> br3eze.africa · Community WiFi infrastructure · AGENTOS powered by Br3eze Africa</p></div></footer>
+<script>(function(){'use strict';var y=document.getElementById('homeYear');if(y)y.textContent=new Date().getFullYear();var b=document.getElementById('homeMenu'),n=document.getElementById('mobileNav');if(b&&n){b.addEventListener('click',function(){var o=!n.hidden;n.hidden=o;b.setAttribute('aria-expanded',String(!o));b.setAttribute('aria-label',o?'Open menu':'Close menu')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.hidden=true;b.setAttribute('aria-expanded','false')})})}})();</script>
 </body>
 </html>
