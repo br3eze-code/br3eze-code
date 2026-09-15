@@ -1,234 +1,127 @@
 package zw.power.www;
 
-import org.apache.cordova.*;
-import org.json.*;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
+import android.util.Log;
 
-import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaPlugin;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.util.Log;
-import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
-
-// NOTE: These are for the experimental Android ML Kit GenAI
-// Actual imports might vary slightly based on the dynamic version of ML Kit
-// But this follows the Google AI Edge / ML Kit standard integration pattern
+import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.pose.Pose;
 import com.google.mlkit.vision.pose.PoseDetection;
 import com.google.mlkit.vision.pose.PoseDetector;
 import com.google.mlkit.vision.pose.PoseLandmark;
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
-import com.google.mlkit.genai.prompt.Generation; // Updated package for ML Kit Prompt API (2025 standard)
-import com.google.mlkit.genai.prompt.GenerativeModelFutures; // For async handling
-import com.google.mlkit.nl.generativeai.GenerativeModel;
-import com.google.mlkit.vision.common.InputImage;
 
-import com.google.mlkit.nl.genai.PromptRequest;
-import com.google.mlkit.nl.generativeai.GenerativeModelBuilder;
-import com.google.mlkit.nl.generativeai.model.Content;
-import com.google.mlkit.nl.generativeai.model.GenerateContentResponse;
-
-import java.util.List;
-
-public class AICorePlugin extends CordovaPlugin {
+/**
+ * Safe AI capability bridge.
+ *
+ * The previous implementation referenced unstable/placeholder GenAI Java APIs.
+ * This implementation keeps the stable Pose Detection capability and reports
+ * on-device text generation as unsupported until a pinned, verified SDK is added.
+ */
+public final class AICorePlugin extends CordovaPlugin {
     private static final String TAG = "AICorePlugin";
-    private GenerativeModel model;
     private PoseDetector poseDetector;
-    private GenerativeModelFutures generativeModelFutures;
-
-    @Override
-    protected void pluginInitialize() {
-        // Initialize Gemini Nano with your 'Librarian/Manager' instructions
-        // Assuming GenerativeModel has a standard Java Builder
-        // If not, this needs to match the specific SDK version.
-        // For now, removing the extra brace and using a cleaner setup.
-        try {
-            // Example Java Builder pattern usually used in these Google SDKs
-            // Note: Actual implementation depends on specific SDK version artifacts
-            /*
-             * model = new GenerativeModel.Builder()
-             * .setModelName("gemini-nano")
-             * .setSystemInstruction(new
-             * Content.Builder().addText("You are the Power Connect Manager...").build())
-             * .build();
-             */
-            // Leaving as placeholder comment until SDK confirmed, but fixing syntax error
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to init model", e);
-        }
-    }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        if (action.equals("checkAvailability")) {
-            this.checkAvailability(callbackContext);
-            return true;
-        }
-        if ("generateText".equals(action)) {
-            String prompt = args.getString(0);
-            generateText(prompt, callbackContext);
-            return true;
-        }
-        if ("detectPose".equals(action)) {
-            String base64Image = args.getString(0);
-            detectPose(base64Image, callbackContext);
-            return true;
-        }
-        if ("capabilities".equals(action)) {
-            // Placeholder – implement AiCapabilityDetector if needed
-            JSONObject caps = new JSONObject();
-            caps.put("geminiNano", true);
-            caps.put("poseDetection", true);
-            callbackContext.success(caps);
-            return true;
-        }
-        if ("request".equals(action)) {
-            JSONObject payload = args.getJSONObject(0);
-            AiRouter.route(cordova.getContext(), payload, callbackContext);
-            return true;
-        }
-        callbackContext.error("Unknown action: " + action);
-        return false;
-    }
-
-    private void checkAvailability(final CallbackContext callbackContext) {
-        try {
-            if (generativeModelFutures == null) {
-                generativeModelFutures = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
-            }
-
-            // Check feature status (AVAILABLE, DOWNLOADABLE, UNAVAILABLE, etc.)
-            ListenableFuture<Integer> statusFuture = generativeModelFutures.checkStatus();
-            Futures.addCallback(statusFuture, new FutureCallback<Integer>() {
-                @Override
-                public void onSuccess(Integer status) {
-                    String result;
-                    switch (status) {
-                        case FeatureStatus.AVAILABLE:
-                            result = "readily";
-                            break;
-                        case FeatureStatus.DOWNLOADABLE:
-                            result = "after_download";
-                            break;
-                        default:
-                            result = "no";
-                    }
-                    callbackContext.success(result);
+        switch (action) {
+            case "checkAvailability":
+                JSONObject status = new JSONObject();
+                status.put("textGeneration", false);
+                status.put("poseDetection", true);
+                status.put("code", "OPTIONAL_CAPABILITY_UNAVAILABLE");
+                callbackContext.success(status);
+                return true;
+            case "capabilities":
+                callbackContext.success(capabilities());
+                return true;
+            case "generateText":
+            case "request":
+                callbackContext.error("On-device text generation is not enabled in this build");
+                return true;
+            case "detectPose":
+                if (args.length() < 1 || args.isNull(0)) {
+                    callbackContext.error("INVALID_ARGUMENT: base64Image is required");
+                    return true;
                 }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    callbackContext.error("Availability check failed: " + t.getMessage());
-                }
-            }, cordova.getActivity().getMainExecutor());
-        } catch (Exception e) {
-            callbackContext.error("Availability check failed: " + e.getMessage());
+                detectPose(args.getString(0), callbackContext);
+                return true;
+            default:
+                callbackContext.error("UNKNOWN_ACTION: " + action);
+                return false;
         }
     }
 
-    private void generateText(final String prompt, final CallbackContext callbackContext) {
-        cordova.getThreadPool().execute(() -> {
-            try {
-                if (generativeModelFutures == null) {
-                    generativeModelFutures = GenerativeModelFutures.from(Generation.INSTANCE.getClient());
-                }
-
-                // Build request (text-only for Nano)
-                // Assuming Content.createText(prompt) or standard object creation for Java
-                Content content = new Content.Builder().addText(prompt).build(); // Placeholder for valid object
-                                                                                 // construction
-                // NOTE: The previous code was Kotlin DSL. Replaced with generic Java object
-                // creation.
-                // If GenerateContentRequest is a specific class, it should be instantiated
-                // normally.
-                // Below is a best-guess fix assuming 'request' is needed or we can pass content
-                // directly.
-                // If the API expects a String simply:
-                // ListenableFuture<GenerateContentResponse> responseFuture =
-                // generativeModelFutures.generateContent(prompt);
-                // But sticking to the variable name pattern:
-                GenerateContentRequest request = new GenerateContentRequest.Builder().setText(prompt).build();
-
-                ListenableFuture<GenerateContentResponse> responseFuture = generativeModelFutures
-                        .generateContent(request);
-
-                Futures.addCallback(responseFuture, new FutureCallback<GenerateContentResponse>() {
-                    @Override
-                    public void onSuccess(GenerateContentResponse response) {
-                        String result = response.getText();
-                        if (result != null) {
-                            callbackContext.success(result);
-                        } else {
-                            callbackContext.error("Empty response");
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                        callbackContext.error("Generation failed: " + t.getMessage());
-                    }
-                }, cordova.getActivity().getMainExecutor());
-
-            } catch (Exception e) {
-                callbackContext.error("Fatal AI Error: " + e.getMessage());
-            }
-        });
+    private JSONObject capabilities() throws JSONException {
+        return new JSONObject()
+                .put("supported", true)
+                .put("textGeneration", false)
+                .put("poseDetection", true)
+                .put("cloudFallback", false)
+                .put("safeDegradation", true);
     }
 
     private void detectPose(final String base64Image, final CallbackContext callbackContext) {
-        if (poseDetector == null) {
-            PoseDetectorOptions options = new PoseDetectorOptions.Builder()
-                    .setDetectorMode(PoseDetectorOptions.SINGLE_IMAGE_MODE)
-                    .build();
-            poseDetector = PoseDetection.getClient(options);
-        }
-
-        cordova.getThreadPool().execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
-                    Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-                    InputImage image = InputImage.fromBitmap(bitmap, 0);
-
-                    poseDetector.process(image)
-                            .addOnCompleteListener(new OnCompleteListener<Pose>() {
-                                @Override
-                                public void onComplete(Task<Pose> task) {
-                                    if (task.isSuccessful()) {
-                                        Pose pose = task.getResult();
-                                        JSONArray results = new JSONArray();
-                                        try {
-                                            for (PoseLandmark landmark : pose.getAllPoseLandmarks()) {
-                                                JSONObject obj = new JSONObject();
-                                                obj.put("type", landmark.getLandmarkType());
-                                                obj.put("x", landmark.getPosition().x);
-                                                obj.put("y", landmark.getPosition().y);
-                                                obj.put("z", landmark.getInFrameLikelihood()); // Likelihood instead of
-                                                                                               // Z if 2D
-                                                results.put(obj);
-                                            }
-                                            callbackContext.success(results);
-                                        } catch (JSONException e) {
-                                            callbackContext.error("JSON Error: " + e.getMessage());
-                                        }
-                                    } else {
-                                        callbackContext
-                                                .error("Pose Detection failed: " + task.getException().getMessage());
-                                    }
-                                }
-                            });
-                } catch (Exception e) {
-                    callbackContext.error("Detection fatal error: " + e.getMessage());
+        cordova.getThreadPool().execute(() -> {
+            try {
+                byte[] bytes = Base64.decode(base64Image, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (bitmap == null) {
+                    callbackContext.error("INVALID_IMAGE");
+                    return;
                 }
+
+                if (poseDetector == null) {
+                    PoseDetectorOptions options = new PoseDetectorOptions.Builder()
+                            .setDetectorMode(PoseDetectorOptions.SINGLE_IMAGE_MODE)
+                            .build();
+                    poseDetector = PoseDetection.getClient(options);
+                }
+
+                InputImage image = InputImage.fromBitmap(bitmap, 0);
+                Task<Pose> task = poseDetector.process(image);
+                task.addOnSuccessListener(pose -> {
+                    try {
+                        JSONArray results = new JSONArray();
+                        for (PoseLandmark landmark : pose.getAllPoseLandmarks()) {
+                            JSONObject item = new JSONObject();
+                            item.put("type", landmark.getLandmarkType());
+                            item.put("x", landmark.getPosition().x);
+                            item.put("y", landmark.getPosition().y);
+                            item.put("likelihood", landmark.getInFrameLikelihood());
+                            results.put(item);
+                        }
+                        callbackContext.success(results);
+                    } catch (JSONException e) {
+                        callbackContext.error("JSON_ERROR: " + e.getMessage());
+                    }
+                }).addOnFailureListener(error -> {
+                    Log.e(TAG, "Pose detection failed", error);
+                    callbackContext.error("POSE_DETECTION_FAILED: " + error.getMessage());
+                });
+            } catch (IllegalArgumentException e) {
+                callbackContext.error("INVALID_BASE64_IMAGE");
+            } catch (Exception e) {
+                Log.e(TAG, "Pose detection fatal error", e);
+                callbackContext.error("DETECTION_FAILED: " + e.getMessage());
             }
         });
+    }
+
+    @Override
+    public void onDestroy() {
+        if (poseDetector != null) {
+            poseDetector.close();
+            poseDetector = null;
+        }
+        super.onDestroy();
     }
 }
