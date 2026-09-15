@@ -11,9 +11,9 @@ if (!fs.existsSync(path.join(root, 'package-lock.json'))) {
 }
 
 // server/package.json is a legacy/standalone deployment manifest. It is not
-// installed by the root CI pipeline, so its absence of a lockfile must not
-// block validation of the root project. A future server workflow should use
-// npm ci if a server lockfile is introduced.
+// installed by the root CI pipeline, so do not make a non-existent server lock
+// a prerequisite for validating the root project. If a server lockfile is
+// introduced later, its workflow must use npm ci against that lockfile.
 
 if (packageJson.engines?.node !== '>=22.0.0') {
   errors.push(`package.json must declare Node >=22.0.0; found ${packageJson.engines?.node ?? 'missing'}`);
@@ -33,8 +33,9 @@ for (const file of workflows) {
     }
   }
 
-  // Match only an actual workflow run command. Documentation/changelog
-  // examples such as `echo "npm install ..."` are not dependency installs.
+  // Only flag npm install when it is an actual workflow `run:` command.
+  // Documentation/changelog examples such as `echo "npm install ..."` are not
+  // dependency installation steps and must not fail the contract.
   for (const match of text.matchAll(/(?:^|\n)\s*run:\s*npm\s+install\b[^\n]*/g)) {
     const command = match[0];
     const allowed = command.includes('--package-lock-only') || command.includes(' -g ') || command.includes(' --global ');

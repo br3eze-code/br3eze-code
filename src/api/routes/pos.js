@@ -1,6 +1,6 @@
 import express from 'express';
-import * as shop from '../../core/shop.js';
-import { PosStore } from '../../core/pos-store.js';
+import * as shop from '../../domains/commerce/shop.js';
+import { PosStore } from '../../domains/commerce/pos-store.js';
 
 const router = express.Router();
 const store = new PosStore();
@@ -11,17 +11,18 @@ const ok = (res, data) => res.json({ ok: true, data });
 
 function contextFromRequest(req) {
   const identity = req.firebaseUser || {};
+  const claims = identity.customClaims || {};
   const header = (name) => req.headers[`x-agentos-${name}`] || null;
-  const role = String(identity.role || header('role') || 'user').toLowerCase();
+  const role = String(identity.role || claims.role || 'user').toLowerCase();
   const context = {
-    userId: identity.uid || header('user-id'),
-    tenantId: identity.tenantId || identity.tenant || header('tenant-id'),
-    siteId: identity.siteId || header('site-id'),
-    terminalId: identity.terminalId || header('terminal-id'),
-    shiftId: identity.shiftId || header('shift-id'),
+    userId: identity.uid || null,
+    tenantId: identity.tenantId || identity.tenant || claims.tenantId || header('tenant-id'),
+    siteId: identity.siteId || claims.siteId || header('site-id'),
+    terminalId: identity.terminalId || claims.terminalId || header('terminal-id'),
+    shiftId: identity.shiftId || claims.shiftId || header('shift-id'),
     role,
     channel: header('channel') || 'pos',
-    domain: header('domain') || 'commerce',
+    domain: header('domain') || identity.domain || claims.domain || 'commerce',
   };
   if (!context.userId || !context.tenantId || !context.siteId || !context.terminalId) {
     throw Object.assign(new Error('Authenticated POS context requires user, tenant, site, and terminal'), { status: 401, code: 'POS_CONTEXT_REQUIRED' });
@@ -46,67 +47,40 @@ router.get('/context', (req, res) => {
 
 router.get('/catalog', async (req, res) => {
   try {
-    contextFromRequest(req);
-    ok(res, await shop.listProducts({ category: req.query.category, search: req.query.search }));
+    const context = contextFromRequest(req);
+    ok(res, await shop.listProducts({ category: req.query.category, search: req.query.search, scope: context }));
   } catch (error) { fail(res, error); }
 });
 
 router.post('/shifts/open', (req, res) => {
-  try {
-    const context = contextFromRequest(req);
-    ok(res, store.openShift(context, req.body?.openingFloat));
-  } catch (error) { fail(res, error); }
+  try { const context = contextFromRequest(req); ok(res, store.openShift(context, req.body?.openingFloat)); } catch (error) { fail(res, error); }
 });
-
 router.get('/shifts/current', (req, res) => {
   try { ok(res, store.getShift(contextFromRequest(req))); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales', (req, res) => {
-  try {
-    const context = contextFromRequest(req);
-    ok(res, store.createSale(context, req.body?.items, req.body?.customer));
-  } catch (error) { fail(res, error); }
+  try { const context = contextFromRequest(req); ok(res, store.createSale(context, req.body?.items, req.body?.customer)); } catch (error) { fail(res, error); }
 });
-
 router.get('/sales/:id', (req, res) => {
   try { ok(res, store.getSale(req.params.id, contextFromRequest(req))); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales/:id/hold', (req, res) => {
   try { ok(res, store.holdSale(req.params.id, contextFromRequest(req))); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales/:id/recall', (req, res) => {
   try { ok(res, store.recallSale(req.params.id, contextFromRequest(req))); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales/:id/payments', (req, res) => {
-  try {
-    const context = contextFromRequest(req);
-    const idempotencyKey = req.headers['idempotency-key'];
-    ok(res, store.startPayment(req.params.id, context, req.body?.provider, idempotencyKey));
-  } catch (error) { fail(res, error); }
+  try { const context = contextFromRequest(req); ok(res, store.startPayment(req.params.id, context, req.body?.provider, req.headers['idempotency-key'])); } catch (error) { fail(res, error); }
 });
-
 router.get('/payments/:id', (req, res) => {
   try { ok(res, store.getPayment(req.params.id, contextFromRequest(req))); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales/:id/refund-request', (req, res) => {
-  try {
-    const context = contextFromRequest(req);
-    requireApproval(req);
-    ok(res, store.requestCorrection('refund', req.params.id, context, req.body?.reason));
-  } catch (error) { fail(res, error); }
+  try { const context = contextFromRequest(req); requireApproval(req); ok(res, store.requestCorrection('refund', req.params.id, context, req.body?.reason)); } catch (error) { fail(res, error); }
 });
-
 router.post('/sales/:id/void-request', (req, res) => {
-  try {
-    const context = contextFromRequest(req);
-    requireApproval(req);
-    ok(res, store.requestCorrection('void', req.params.id, context, req.body?.reason));
-  } catch (error) { fail(res, error); }
+  try { const context = contextFromRequest(req); requireApproval(req); ok(res, store.requestCorrection('void', req.params.id, context, req.body?.reason)); } catch (error) { fail(res, error); }
 });
 
 export { contextFromRequest, requireApproval };
