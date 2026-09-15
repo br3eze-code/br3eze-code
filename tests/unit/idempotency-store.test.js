@@ -25,13 +25,19 @@ describe('payment idempotency stores', () => {
     }
   });
 
-  test('completed records are not released accidentally by the reservation cleanup path', () => {
-    const store = new FileIdempotencyStore({ filePath: tempPath('payment-idempotency.json') });
-    expect(store.reserve('key', { requestFingerprint: 'fp' })).toBe(true);
-    store.set('key', { orderId: 'order-1' });
-    expect(store.get('key')).toEqual({ orderId: 'order-1' });
-    expect(store.release('key')).toBe(true);
-    expect(store.get('key')).toBeUndefined();
-    store.close();
+  test.each([
+    ['file', () => new FileIdempotencyStore({ filePath: tempPath('payment-idempotency.json') })],
+    ['sqlite', () => new SqliteIdempotencyStore({ dbPath: tempPath('payment-ledger.sqlite') })],
+  ])('%s store preserves completed records when release is called', (_name, createStore) => {
+    const store = createStore();
+    try {
+      expect(store.reserve('key', { requestFingerprint: 'fp' })).toBe(true);
+      store.set('key', { orderId: 'order-1' });
+      expect(store.get('key')).toEqual({ orderId: 'order-1' });
+      expect(store.release('key')).toBe(false);
+      expect(store.get('key')).toEqual({ orderId: 'order-1' });
+    } finally {
+      store.close();
+    }
   });
 });
