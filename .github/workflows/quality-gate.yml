@@ -26,7 +26,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
       - name: Resolve comparison base
         id: base
