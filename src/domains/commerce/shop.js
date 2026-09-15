@@ -35,7 +35,7 @@ async function trackShipment(orderId, scope = {}) { const order = await getOrder
 
 function getPaymentMethods({ country = null, device = 'unknown', uid = null, config = {} } = {}) { const methods = [{ id: 'cod', name: 'Cash on delivery', type: 'offline', description: 'Pay when your order arrives.' }]; if (uid) methods.push({ id: 'credits', name: 'Account credits', type: 'balance', description: 'Pay from your linked AgentOS balance.' }); try { const gateway = new PaymentGateway(config); methods.push(...gateway.getAvailableMethods({ country, device })); } catch (error) { logger.warn(`[Shop] Payment discovery unavailable: ${error.message}`); } return methods; }
 
-const EXTERNAL_PAYMENT_METHODS = new Set(['card', 'ecocash', 'netone', 'paynow', 'apple_pay', 'google_pay', 'pesapay']);
+const EXTERNAL_PAYMENT_METHODS = new Set(['card', 'stripe', 'ecocash', 'netone', 'paynow', 'apple_pay', 'google_pay', 'pesapay']);
 function assertCheckoutPaymentMethod(payMethod) { const method = String(payMethod || 'cod').trim().toLowerCase(); if (method === 'cod' || method === 'credits' || EXTERNAL_PAYMENT_METHODS.has(method)) return method; throw new Error(`Unsupported payment method: ${method}`); }
 function isExternalPaymentMethod(method) { return EXTERNAL_PAYMENT_METHODS.has(method); }
 
@@ -45,7 +45,7 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
   const sub = subtotal(items); const shipping = SHIPPING_FLAT; const total = sub + shipping; const number = 'INV-' + Date.now().toString(36).toUpperCase();
   const orderRef = fs.collection('orders').doc(); const invoiceRef = fs.collection('invoices').doc(); const transactionRef = fs.collection('transactions').doc();
   if (isExternalPaymentMethod(method)) {
-    if (!payment || payment.provider !== method) throw new Error(`Payment authorization is required for ${method}.`);
+    if (!payment || String(payment.provider || '').trim().toLowerCase() !== method) throw new Error(`Payment authorization is required for ${method}.`);
     if (payment.status && !['succeeded', 'successful', 'completed', 'paid'].includes(String(payment.status).toLowerCase())) throw new Error(`Payment is not settled for ${method}.`);
     if (payment.amount != null && Math.abs(Number(payment.amount) - total) > 0.000001) throw new Error('Payment amount does not match the order total.');
     if (payment.currency && String(payment.currency).toUpperCase() !== 'USD') throw new Error('Payment currency does not match the order currency.');
@@ -63,8 +63,8 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
     const settled = method === 'credits' || method === 'cash' || method === 'cod' || (isExternalPaymentMethod(method) && payment);
     const status = settled ? 'paid' : 'pending_payment';
     const paymentTransactionId = payment?.transactionId || transactionRef.id;
-    tx.set(orderRef, { userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod: method, paymentTransactionId, shippingAddress: address, billingAddress: address, invoiceId: invoiceRef.id, invoiceNumber: number, fulfillmentStatus: 'unfulfilled', createdAt: new Date().toISOString() });
-    tx.set(transactionRef, { id: transactionRef.id, type: 'commerce_order', orderId: orderRef.id, invoiceId: invoiceRef.id, userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), amount: total, currency: 'USD', paymentMethod: method, providerTransactionId: payment?.transactionId || null, status, idempotencyKey: payment?.idempotencyKey || `order:${orderRef.id}`, createdAt: new Date().toISOString() });
+    tx.set(orderRef, { userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), items, subtotal: sub, shipping, total, currency: 'USD', status, payMethod: method, paymentTransactionId, shippingAddress: address, billingAddress: address, invoiceId: invoiceRef.id, invoiceNumber: number, fulfillmentStatus: 'unfulfilled', stockReservationStatus: isExternalPaymentMethod(method) ? 'reserved' : 'settled', createdAt: new Date().toISOString() });
+    tx.set(transactionRef, { id: transactionRef.id, type: 'commerce_order', orderId: orderRef.id, invoiceId: invoiceRef.id, userId: uid || null, channel: platform, channelId: String(channelId), ...normalizeScope(scope), amount: total, currency: 'USD', paymentMethod: method, providerTransactionId: payment?.transactionId || null, status, stockReserved: isExternalPaymentMethod(method), stockReservationSettled: !isExternalPaymentMethod(method), stockReservationReleased: false, idempotencyKey: payment?.idempotencyKey || `order:${orderRef.id}`, createdAt: new Date().toISOString() });
     tx.set(invoiceRef, { userId: uid || null, orderId: orderRef.id, ...normalizeScope(scope), number, lineItems: items.map((i) => ({ description: `${i.name}${i.size ? ' (' + i.size + ')' : ''}`, qty: i.qty, unitPrice: i.price, amount: +(i.price * i.qty).toFixed(2) })), subtotal: sub, shipping, total, currency: 'USD', billingAddress: address, status: settled ? 'paid' : 'unpaid', createdAt: new Date().toISOString() });
   });
   await clearCart(platform, channelId, scope);
