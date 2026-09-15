@@ -82,9 +82,27 @@ export async function reconcileCommercePayment(event, { db: database = null, sco
     if (!orderDoc.exists) throw new Error(`Commerce order ${transaction.orderId} was not found.`);
     if (!invoiceDoc.exists) throw new Error(`Commerce invoice ${transaction.invoiceId} was not found.`);
 
-    const alreadySettled = transaction.status === 'paid' && SUCCESS_STATUSES.has(status);
-    const alreadyFailed = transaction.status === 'failed' && FAILURE_STATUSES.has(status);
     const successful = SUCCESS_STATUSES.has(status);
+    const terminalPaid = transaction.status === 'paid';
+    const alreadySettled = terminalPaid && successful && (!transaction.stockReserved || transaction.stockReservationSettled);
+    const alreadyFailed = transaction.status === 'failed' && !successful;
+
+    // Never let a late failure webhook roll a completed payment back to failed.
+    if (terminalPaid && !successful) {
+      return {
+        reconciled: false,
+        replay: true,
+        ignored: true,
+        reason: 'payment_already_settled',
+        transactionId,
+        provider,
+        orderId: transaction.orderId,
+        invoiceId: transaction.invoiceId,
+        status: 'paid',
+        orderStatus: 'paid',
+      };
+    }
+
     const nextTransactionStatus = successful ? 'paid' : 'failed';
     const nextOrderStatus = successful ? 'paid' : 'payment_failed';
     const nextInvoiceStatus = successful ? 'paid' : 'unpaid';
