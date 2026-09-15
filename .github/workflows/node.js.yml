@@ -20,7 +20,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - name: Install
-        run: npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
       - name: Build check
         run: npm run build:check
       - name: Test
