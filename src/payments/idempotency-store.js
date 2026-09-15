@@ -54,6 +54,14 @@ export class FileIdempotencyStore {
     return value;
   }
 
+  release(key) {
+    this.cleanup();
+    if (!this.records[key]) return false;
+    delete this.records[key];
+    this.persist();
+    return true;
+  }
+
   close() {}
 }
 
@@ -93,6 +101,10 @@ export class SqliteIdempotencyStore {
     const now = Date.now();
     this.db.prepare(`INSERT INTO payment_idempotency (idempotency_key,state,result_json,created_at,updated_at,expires_at) VALUES (?, 'completed', ?, ?, ?, ?) ON CONFLICT(idempotency_key) DO UPDATE SET state='completed', result_json=excluded.result_json, updated_at=excluded.updated_at, expires_at=excluded.expires_at`).run(key, JSON.stringify(value), now, now, now + this.ttlMs);
     return value;
+  }
+
+  release(key) {
+    return this.db.prepare('DELETE FROM payment_idempotency WHERE idempotency_key = ?').run(key).changes === 1;
   }
 
   close() { this.db.close(); }
