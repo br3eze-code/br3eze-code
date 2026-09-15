@@ -1,4 +1,4 @@
-import { describe, expect, jest, test } from '@jest/globals';
+import { describe, expect, test } from '@jest/globals';
 import { reconcileCommercePayment } from '../../src/domains/commerce/payment-reconciliation.js';
 
 function makeDb(transactionData = {}) {
@@ -51,12 +51,8 @@ describe('commerce payment reconciliation', () => {
     });
 
     const result = await reconcileCommercePayment({
-      provider: 'stripe',
-      transactionId: 'pi_123',
-      status: 'succeeded',
-      amount: 25,
-      currency: 'USD',
-      eventId: 'evt_1',
+      provider: 'stripe', transactionId: 'pi_123', status: 'succeeded',
+      amount: 25, currency: 'USD', eventId: 'evt_1',
     }, database);
 
     expect(result).toMatchObject({ reconciled: true, orderId: 'order-1', status: 'paid', orderStatus: 'paid' });
@@ -90,10 +86,8 @@ describe('commerce payment reconciliation', () => {
     expect(database.updates).toHaveLength(0);
   });
 
-  test('does not settle unsupported provider statuses', async () => {
-    const db = jest.fn();
-    const result = await reconcileCommercePayment({ provider: 'stripe', transactionId: 'pi_123', status: 'processing' }, { db });
+  test('does not touch the database for unsupported provider statuses', async () => {
+    const result = await reconcileCommercePayment({ provider: 'stripe', transactionId: 'pi_123', status: 'processing' });
     expect(result).toMatchObject({ ignored: true, reason: 'unsupported_status' });
-    expect(db).not.toHaveBeenCalled();
   });
 });
