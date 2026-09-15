@@ -1,0 +1,36 @@
+name: Refresh npm lockfile
+
+on:
+  push:
+    branches:
+      - merge/acp-filewise-20260915
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - name: Commit refreshed lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo 'Lockfile already synchronized.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'chore: synchronize npm lockfile'
+          git push origin HEAD:merge/acp-filewise-20260915
