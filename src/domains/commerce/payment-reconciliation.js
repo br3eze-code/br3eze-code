@@ -18,7 +18,7 @@ function normalizeScope(scope = {}) {
 function scopeMatches(record, scope = {}) {
   const requested = normalizeScope(scope);
   return ['tenantId', 'domain', 'siteId'].every((key) => (
-    !requested[key] || !record[key] || record[key] === requested[key]
+    !requested[key] || record[key] === requested[key]
   ));
 }
 
