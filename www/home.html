@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Prepaid WiFi that keeps working when the power doesn't. Buy a voucher by WhatsApp, USSD, or an agent near you — connect in seconds.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="img/logo.png">
+  <link rel="apple-touch-icon" href="img/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="css/index.css">
+  <title>br3eze.africa — WiFi that stays on</title>
+</head>
+<body>
+  <header class="main-header" id="mainHeader">
+    <div class="header-left">
+      <a href="home.html" class="logo" aria-label="br3eze.africa home">br3eze.africa</a>
+    </div>
+    <nav class="home-nav" aria-label="Primary navigation">
+      <a href="#how">How it works</a>
+      <a href="#plans">Plans</a>
+      <a href="#coverage">Coverage</a>
+      <a href="login.html" class="btn btn-sm btn-primary">Log in</a>
+    </nav>
+    <button class="home-menu-btn" id="homeMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="homeNav">
+      <i class="fas fa-bars" aria-hidden="true"></i>
+    </button>
+  </header>
+
+  <nav class="home-mobile-nav" id="homeNav" aria-label="Mobile navigation" hidden>
+    <a href="#how">How it works</a>
+    <a href="#plans">Plans</a>
+    <a href="#coverage">Coverage</a>
+    <a href="login.html" class="btn btn-primary">Log in</a>
+  </nav>
+
+  <main>
+    <section class="home-hero">
+      <div class="home-wrap home-hero-grid">
+        <div>
+          <p class="home-eyebrow"><i class="fas fa-wifi" aria-hidden="true"></i> Community WiFi infrastructure</p>
+          <h1>WiFi that stays on <span>when the power doesn't.</span></h1>
+          <p class="home-lede">Buy a voucher over WhatsApp, USSD, or from an agent down the road. Connect in seconds, on a network built to keep running through load-shedding.</p>
+          <div class="home-actions">
+            <a href="login.html" class="btn btn-primary"><i class="fas fa-bolt" aria-hidden="true"></i> Get connected</a>
+            <a href="#coverage" class="btn"><i class="fas fa-map-marker-alt" aria-hidden="true"></i> Check coverage</a>
+          </div>
+        </div>
+
+        <div class="card home-demo" aria-label="Power resilience demonstration">
+          <div class="home-demo-top">
+            <span class="text-medium">Network status</span>
+            <span class="tag tag-success"><i class="fas fa-circle" aria-hidden="true"></i> Live</span>
+          </div>
+          <div class="home-signal" id="homeSignal" role="button" tabindex="0" aria-pressed="true" aria-label="Toggle grid power state">
+            <div class="home-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            <strong id="homeStatus">Connected</strong>
+            <span id="homeSubstatus">Household is on backup power. Signal unaffected.</span>
+          </div>
+          <button class="btn btn-sm home-toggle" id="homeToggle" type="button">Simulate grid outage</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="home-section">
+      <div class="home-wrap">
+        <h2>Three steps, no technician visit</h2>
+        <p class="home-section-lede">Most people are online inside a minute of buying a voucher.</p>
+        <div class="grid grid-3">
+          <article class="card home-step">
+            <span class="home-step-num">01</span>
+            <h3>Buy a voucher</h3>
+            <p class="text-medium">Over WhatsApp, by dialing a USSD code, or from an agent in your area. No app install required to buy.</p>
+          </article>
+          <article class="card home-step">
+            <span class="home-step-num">02</span>
+            <h3>Connect to the hotspot</h3>
+            <p class="text-medium">Pick the network from your phone or router, enter the voucher code on the login page, and you're through.</p>
+          </article>
+          <article class="card home-step">
+            <span class="home-step-num">03</span>
+            <h3>Stay online</h3>
+            <p class="text-medium">Top up any time from the same channel you used the first time. Your usage and balance are always a message away.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="plans" class="home-section">
+      <div class="home-wrap">
+        <h2>Pick a plan that matches how you use it</h2>
+        <p class="home-section-lede">Every plan runs on the same network. You're only choosing how much time you need.</p>
+        <div class="grid grid-4">
+          <article class="card home-plan">
+            <span class="text-medium">Hourly</span>
+            <strong>Flexible</strong>
+            <ul><li>Good for a quick task</li><li>Full speed</li><li>Buy again anytime</li></ul>
+            <a href="login.html" class="btn">Choose Hourly</a>
+          </article>
+          <article class="card home-plan home-plan-featured">
+            <span class="home-plan-badge">Most people pick this one</span>
+            <span class="text-medium">Daily</span>
+            <strong>Best value</strong>
+            <ul><li>Work, school, streaming</li><li>Full speed</li><li>Renew with one message</li></ul>
+            <a href="login.html" class="btn btn-primary">Choose Daily</a>
+          </article>
+          <article class="card home-plan">
+            <span class="text-medium">Weekly</span>
+            <strong>Household</strong>
+            <ul><li>Shared across the family</li><li>Full speed</li><li>Easy top-up</li></ul>
+            <a href="login.html" class="btn">Choose Weekly</a>
+          </article>
+          <article class="card home-plan">
+            <span class="text-medium">Monthly</span>
+            <strong>Committed</strong>
+            <ul><li>Lowest cost per day</li><li>Priority support</li><li>Ideal for home office</li></ul>
+            <a href="login.html" class="btn">Choose Monthly</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="coverage" class="home-section">
+      <div class="home-wrap">
+        <h2>Three ways to buy, one network</h2>
+        <p class="home-section-lede">Choose whichever is already in your hand.</p>
+        <div class="grid grid-3">
+          <article class="card home-channel"><i class="fab fa-whatsapp" aria-hidden="true"></i><h3>WhatsApp</h3><p class="text-medium">Message our number, pick a plan, pay, and get your voucher code back in the same chat.</p></article>
+          <article class="card home-channel"><i class="fas fa-mobile-alt" aria-hidden="true"></i><h3>USSD</h3><p class="text-medium">No data needed to buy. Dial the code from any phone, follow the menu, done.</p></article>
+          <article class="card home-channel"><i class="fas fa-map-marker-alt" aria-hidden="true"></i><h3>An agent nearby</h3><p class="text-medium">Prefer cash and a person to talk to? Local agents sell vouchers and can help you get set up.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="home-footer">
+    <div class="home-wrap home-footer-grid">
+      <a href="home.html" class="logo">br3eze.africa</a>
+      <div class="home-footer-links">
+        <a href="login.html">Log in</a>
+        <a href="shop.html">Shop</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+      </div>
+    </div>
+    <p class="text-medium">© <span id="homeYear"></span> br3eze.africa. Community WiFi infrastructure.</p>
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+
+      var year = document.getElementById('homeYear');
+      if (year) year.textContent = new Date().getFullYear();
+
+      var menuButton = document.getElementById('homeMenuBtn');
+      var mobileNav = document.getElementById('homeNav');
+      if (menuButton && mobileNav) {
+        menuButton.addEventListener('click', function () {
+          var open = !mobileNav.hidden;
+          mobileNav.hidden = open;
+          menuButton.setAttribute('aria-expanded', String(!open));
+        });
+        mobileNav.querySelectorAll('a').forEach(function (link) {
+          link.addEventListener('click', function () {
+            mobileNav.hidden = true;
+            menuButton.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+
+      var signal = document.getElementById('homeSignal');
+      var toggle = document.getElementById('homeToggle');
+      var status = document.getElementById('homeStatus');
+      var substatus = document.getElementById('homeSubstatus');
+      var gridUp = true;
+
+      function renderSignal() {
+        if (gridUp) {
+          status.textContent = 'Connected';
+          substatus.textContent = 'Household is on backup power. Signal unaffected.';
+          toggle.textContent = 'Simulate grid outage';
+        } else {
+          status.textContent = 'Still connected';
+          substatus.textContent = 'Grid is down. The hotspot is on backup power — you stay online.';
+          toggle.textContent = 'Restore grid';
+        }
+        signal.setAttribute('aria-pressed', String(gridUp));
+      }
+
+      function flipGrid() {
+        gridUp = !gridUp;
+        renderSignal();
+      }
+
+      if (toggle) toggle.addEventListener('click', flipGrid);
+      if (signal) signal.addEventListener('click', flipGrid);
+      if (signal) signal.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          flipGrid();
+        }
+      });
+      renderSignal();
+    }());
+  </script>
+</body>
+</html>
