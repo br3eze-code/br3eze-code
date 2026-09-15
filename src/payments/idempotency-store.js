@@ -56,7 +56,7 @@ export class FileIdempotencyStore {
 
   release(key) {
     this.cleanup();
-    if (!this.records[key]) return false;
+    if (!this.records[key] || this.records[key].state !== 'pending') return false;
     delete this.records[key];
     this.persist();
     return true;
@@ -104,7 +104,7 @@ export class SqliteIdempotencyStore {
   }
 
   release(key) {
-    return this.db.prepare('DELETE FROM payment_idempotency WHERE idempotency_key = ?').run(key).changes === 1;
+    return this.db.prepare("DELETE FROM payment_idempotency WHERE idempotency_key = ? AND state = 'pending'").run(key).changes === 1;
   }
 
   close() { this.db.close(); }
