@@ -43,7 +43,11 @@ function assertMoney(event, transaction) {
 export async function reconcileCommercePayment(event, { db: database = null, scope = {} } = {}) {
   const transactionId = String(event?.transactionId || '').trim();
   const provider = String(event?.provider || '').trim().toLowerCase();
-  const status = normalizeStatus(event?.status || event?.type === 'payment_success' ? 'succeeded' : event?.type === 'payment_failed' ? 'failed' : '');
+  const status = normalizeStatus(
+    event?.status
+      || (event?.type === 'payment_success' ? 'succeeded'
+        : event?.type === 'payment_failed' ? 'failed' : '')
+  );
 
   if (!transactionId) throw new TypeError('Verified payment transactionId is required.');
   if (!provider) throw new TypeError('Verified payment provider is required.');
@@ -59,13 +63,15 @@ export async function reconcileCommercePayment(event, { db: database = null, sco
   return fs.runTransaction(async (tx) => {
     const query = fs.collection('transactions')
       .where('providerTransactionId', '==', transactionId)
-      .where('paymentMethod', '==', provider)
-      .limit(2);
+      .limit(10);
     const matches = await tx.get(query);
-    if (matches.empty) throw new Error(`Commerce transaction for provider payment ${transactionId} was not found.`);
-    if (matches.size > 1) throw new Error(`Multiple commerce transactions reference provider payment ${transactionId}.`);
+    const providerMatches = matches.docs.filter((doc) => (
+      String(doc.data()?.paymentMethod || '').toLowerCase() === provider
+    ));
+    if (!providerMatches.length) throw new Error(`Commerce transaction for provider payment ${transactionId} was not found.`);
+    if (providerMatches.length > 1) throw new Error(`Multiple commerce transactions reference provider payment ${transactionId}.`);
 
-    const transactionDoc = matches.docs[0];
+    const transactionDoc = providerMatches[0];
     const transaction = transactionDoc.data();
     if (!scopeMatches(transaction, requestedScope)) throw new Error('Payment scope does not match the commerce transaction.');
     assertMoney(event, transaction);
