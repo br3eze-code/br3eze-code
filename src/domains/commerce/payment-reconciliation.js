@@ -83,14 +83,38 @@ export async function reconcileCommercePayment(event, { db: database = null, sco
     if (!invoiceDoc.exists) throw new Error(`Commerce invoice ${transaction.invoiceId} was not found.`);
 
     const alreadySettled = transaction.status === 'paid' && SUCCESS_STATUSES.has(status);
-    const nextTransactionStatus = SUCCESS_STATUSES.has(status) ? 'paid' : 'failed';
-    const nextOrderStatus = SUCCESS_STATUSES.has(status) ? 'paid' : 'payment_failed';
-    const nextInvoiceStatus = SUCCESS_STATUSES.has(status) ? 'paid' : 'unpaid';
+    const alreadyFailed = transaction.status === 'failed' && FAILURE_STATUSES.has(status);
+    const successful = SUCCESS_STATUSES.has(status);
+    const nextTransactionStatus = successful ? 'paid' : 'failed';
+    const nextOrderStatus = successful ? 'paid' : 'payment_failed';
+    const nextInvoiceStatus = successful ? 'paid' : 'unpaid';
 
-    if (!alreadySettled) {
+    // External checkout reserves stock before payment settlement. On a
+    // definitive failure, return that reservation atomically. The guard makes
+    // repeated failure webhooks harmless and prevents double-restocking.
+    if (!successful && !alreadyFailed && transaction.stockReserved && !transaction.stockReservationReleased) {
+      const items = Array.isArray(orderDoc.data()?.items) ? orderDoc.data().items : [];
+      const quantities = {};
+      for (const item of items) {
+        const productId = String(item?.productId || '').trim();
+        const qty = Number(item?.qty || 0);
+        if (productId && Number.isFinite(qty) && qty > 0) quantities[productId] = (quantities[productId] || 0) + qty;
+      }
+      for (const [productId, qty] of Object.entries(quantities)) {
+        const productRef = fs.collection('products').doc(productId);
+        const productDoc = await tx.get(productRef);
+        if (!productDoc.exists) throw new Error(`Product ${productId} was removed before payment failure reconciliation.`);
+        const currentStock = Number(productDoc.data()?.stock || 0);
+        tx.update(productRef, { stock: currentStock + qty, salesCount: Math.max(0, Number(productDoc.data()?.salesCount || 0) - qty) });
+      }
+    }
+
+    if (!alreadySettled && !alreadyFailed) {
       tx.update(transactionDoc.ref, {
         status: nextTransactionStatus,
         providerStatus: status,
+        stockReservationSettled: successful && Boolean(transaction.stockReserved),
+        stockReservationReleased: !successful && Boolean(transaction.stockReserved),
         reconciledAt: new Date().toISOString(),
         reconciliationEvent: event.eventId || null,
       });
@@ -98,6 +122,8 @@ export async function reconcileCommercePayment(event, { db: database = null, sco
         status: nextOrderStatus,
         paymentTransactionId: transactionId,
         paymentProvider: provider,
+        ...(successful && transaction.stockReserved ? { stockReservationStatus: 'settled' } : {}),
+        ...(!successful && transaction.stockReserved ? { stockReservationStatus: 'released' } : {}),
         updatedAt: new Date().toISOString(),
       });
       tx.update(invoiceRef, {
@@ -107,14 +133,15 @@ export async function reconcileCommercePayment(event, { db: database = null, sco
     }
 
     return {
-      reconciled: !alreadySettled,
-      replay: alreadySettled,
+      reconciled: !alreadySettled && !alreadyFailed,
+      replay: alreadySettled || alreadyFailed,
       transactionId,
       provider,
       orderId: transaction.orderId,
       invoiceId: transaction.invoiceId,
       status: nextTransactionStatus,
       orderStatus: nextOrderStatus,
+      stockReservationReleased: !successful && Boolean(transaction.stockReserved) && !alreadyFailed,
     };
   });
 }
