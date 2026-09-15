@@ -15,22 +15,84 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
   <link rel="stylesheet" href="css/index.css">
-  <title>br3eze.africa — WiFi that stays on</title>
+  <style>
+    html, body { overflow: auto; }
+    .home-wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    .home-nav { gap: 24px; }
+    .home-nav a { color: var(--color-text-medium); font-size: .9rem; }
+    .home-nav a:hover { color: var(--color-text-light); }
+    .home-menu-btn { display: none; background: none; border: 0; color: var(--color-text-light); font-size: 1.3rem; cursor: pointer; }
+    .home-mobile-nav { display: none; }
+
+    .home-hero { padding: 56px 0 60px; }
+    .home-hero-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 36px; align-items: center; }
+    .home-hero h1 { font-size: clamp(1.9rem, 4vw, 2.75rem); font-weight: 800; line-height: 1.15; margin: 0 0 16px; max-width: 16ch; }
+    .home-hero h1 span { color: var(--color-info-text); }
+    .home-lede { color: var(--color-text-medium); font-size: 1.02rem; max-width: 46ch; margin: 0 0 28px; }
+    .home-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .home-demo { padding: 22px; }
+    .home-demo-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .home-signal { border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-sidebar); padding: 30px 20px; text-align: center; cursor: pointer; }
+    .home-bars { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 48px; margin-bottom: 14px; }
+    .home-bars i { display: block; width: 8px; border-radius: 2px; background: var(--color-success-text); box-shadow: 0 0 12px rgba(102,204,102,.5); animation: homePulse 1.8s ease-in-out infinite; }
+    .home-bars i:nth-child(1) { height: 16px; }
+    .home-bars i:nth-child(2) { height: 26px; animation-delay: .15s; }
+    .home-bars i:nth-child(3) { height: 36px; animation-delay: .3s; }
+    .home-bars i:nth-child(4) { height: 48px; animation-delay: .45s; }
+    @keyframes homePulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+    .home-signal strong { display: block; color: var(--color-success-text); font-size: .95rem; }
+    .home-signal > span { display: block; color: var(--color-text-medium); font-size: .8rem; margin-top: 4px; }
+    .home-toggle { margin-top: 12px; width: 100%; }
+    @media (prefers-reduced-motion: reduce) { .home-bars i { animation: none; } }
+
+    .home-section { padding: 48px 0; border-top: 1px solid var(--color-border); }
+    .home-section h2 { font-size: 1.5rem; margin: 0 0 10px; }
+    .home-section-lede { color: var(--color-text-medium); max-width: 52ch; margin: 0 0 30px; }
+    .home-step-num { display: block; color: var(--color-info-text); font-weight: 700; font-size: .85rem; margin-bottom: 8px; }
+    .home-section .card h3 { margin-bottom: 6px; font-size: 1.05rem; }
+    .home-section .card p { color: var(--color-text-medium); font-size: .9rem; margin: 0; }
+    .home-plan { position: relative; display: flex; flex-direction: column; }
+    .home-plan strong { font-size: 2rem; line-height: 1.1; margin: 6px 0 10px; }
+    .home-plan ul { color: var(--color-text-medium); padding-left: 18px; flex: 1; }
+    .home-plan .btn { margin-top: auto; }
+    .home-plan-featured { border: 1px solid var(--color-info-text); }
+    .home-plan-badge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--color-info-text); color: var(--color-background); font-size: .65rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+    .home-channel i { font-size: 1.4rem; color: var(--color-info-text); margin-bottom: 12px; display: block; }
+
+    .home-footer { border-top: 1px solid var(--color-border); padding: 32px 0 40px; text-align: center; color: var(--color-text-medium); font-size: .85rem; }
+    .home-footer-grid { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; text-align: left; }
+    .home-footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+    .home-footer a { color: var(--color-text-medium); text-decoration: none; }
+    .home-footer a:hover { color: var(--color-text-light); }
+
+    @media (max-width: 860px) {
+      .home-hero-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .home-nav { display: none; }
+      .home-menu-btn { display: block; }
+      .home-mobile-nav { display: flex; position: fixed; inset: 70px 0 0; z-index: 99; background: var(--color-background); flex-direction: column; align-items: stretch; padding: 24px; gap: 4px; }
+      .home-mobile-nav[hidden] { display: none; }
+      .home-mobile-nav a { padding: 14px 0; border-bottom: 1px solid var(--color-border); text-decoration: none; }
+      .home-footer-grid { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
 </head>
 <body>
   <header class="main-header" id="mainHeader">
     <div class="header-left">
       <a href="home.html" class="logo" aria-label="br3eze.africa home">br3eze.africa</a>
     </div>
-    <nav class="home-nav" aria-label="Primary navigation">
-      <a href="#how">How it works</a>
-      <a href="#plans">Plans</a>
-      <a href="#coverage">Coverage</a>
-      <a href="login.html" class="btn btn-sm btn-primary">Log in</a>
-    </nav>
-    <button class="home-menu-btn" id="homeMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="homeNav">
-      <i class="fas fa-bars" aria-hidden="true"></i>
-    </button>
+    <div class="header-right">
+      <nav class="home-nav" aria-label="Primary navigation">
+        <a href="#how">How it works</a>
+        <a href="#plans">Plans</a>
+        <a href="#coverage">Coverage</a>
+        <a href="login.html" class="btn btn-sm btn-primary">Log in</a>
+      </nav>
+      <button class="home-menu-btn" id="homeMenuBtn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="homeNav"><i class="fas fa-bars" aria-hidden="true"></i></button>
+    </div>
   </header>
 
   <nav class="home-mobile-nav" id="homeNav" aria-label="Mobile navigation" hidden>
@@ -44,7 +106,7 @@
     <section class="home-hero">
       <div class="home-wrap home-hero-grid">
         <div>
-          <p class="home-eyebrow"><i class="fas fa-wifi" aria-hidden="true"></i> Community WiFi infrastructure</p>
+          <p class="text-medium"><i class="fas fa-wifi" aria-hidden="true"></i> Community WiFi infrastructure</p>
           <h1>WiFi that stays on <span>when the power doesn't.</span></h1>
           <p class="home-lede">Buy a voucher over WhatsApp, USSD, or from an agent down the road. Connect in seconds, on a network built to keep running through load-shedding.</p>
           <div class="home-actions">
@@ -73,21 +135,9 @@
         <h2>Three steps, no technician visit</h2>
         <p class="home-section-lede">Most people are online inside a minute of buying a voucher.</p>
         <div class="grid grid-3">
-          <article class="card home-step">
-            <span class="home-step-num">01</span>
-            <h3>Buy a voucher</h3>
-            <p class="text-medium">Over WhatsApp, by dialing a USSD code, or from an agent in your area. No app install required to buy.</p>
-          </article>
-          <article class="card home-step">
-            <span class="home-step-num">02</span>
-            <h3>Connect to the hotspot</h3>
-            <p class="text-medium">Pick the network from your phone or router, enter the voucher code on the login page, and you're through.</p>
-          </article>
-          <article class="card home-step">
-            <span class="home-step-num">03</span>
-            <h3>Stay online</h3>
-            <p class="text-medium">Top up any time from the same channel you used the first time. Your usage and balance are always a message away.</p>
-          </article>
+          <article class="card home-step"><span class="home-step-num">01</span><h3>Buy a voucher</h3><p class="text-medium">Over WhatsApp, by dialing a USSD code, or from an agent in your area. No app install required to buy.</p></article>
+          <article class="card home-step"><span class="home-step-num">02</span><h3>Connect to the hotspot</h3><p class="text-medium">Pick the network from your phone or router, enter the voucher code on the login page, and you're through.</p></article>
+          <article class="card home-step"><span class="home-step-num">03</span><h3>Stay online</h3><p class="text-medium">Top up any time from the same channel you used the first time. Your usage and balance are always a message away.</p></article>
         </div>
       </div>
     </section>
@@ -97,31 +147,10 @@
         <h2>Pick a plan that matches how you use it</h2>
         <p class="home-section-lede">Every plan runs on the same network. You're only choosing how much time you need.</p>
         <div class="grid grid-4">
-          <article class="card home-plan">
-            <span class="text-medium">Hourly</span>
-            <strong>Flexible</strong>
-            <ul><li>Good for a quick task</li><li>Full speed</li><li>Buy again anytime</li></ul>
-            <a href="login.html" class="btn">Choose Hourly</a>
-          </article>
-          <article class="card home-plan home-plan-featured">
-            <span class="home-plan-badge">Most people pick this one</span>
-            <span class="text-medium">Daily</span>
-            <strong>Best value</strong>
-            <ul><li>Work, school, streaming</li><li>Full speed</li><li>Renew with one message</li></ul>
-            <a href="login.html" class="btn btn-primary">Choose Daily</a>
-          </article>
-          <article class="card home-plan">
-            <span class="text-medium">Weekly</span>
-            <strong>Household</strong>
-            <ul><li>Shared across the family</li><li>Full speed</li><li>Easy top-up</li></ul>
-            <a href="login.html" class="btn">Choose Weekly</a>
-          </article>
-          <article class="card home-plan">
-            <span class="text-medium">Monthly</span>
-            <strong>Committed</strong>
-            <ul><li>Lowest cost per day</li><li>Priority support</li><li>Ideal for home office</li></ul>
-            <a href="login.html" class="btn">Choose Monthly</a>
-          </article>
+          <article class="card home-plan"><span class="text-medium">Hourly</span><strong>Flexible</strong><ul><li>Good for a quick task</li><li>Full speed</li><li>Buy again anytime</li></ul><a href="login.html" class="btn">Choose Hourly</a></article>
+          <article class="card home-plan home-plan-featured"><span class="home-plan-badge">Most people pick this one</span><span class="text-medium">Daily</span><strong>Best value</strong><ul><li>Work, school, streaming</li><li>Full speed</li><li>Renew with one message</li></ul><a href="login.html" class="btn btn-primary">Choose Daily</a></article>
+          <article class="card home-plan"><span class="text-medium">Weekly</span><strong>Household</strong><ul><li>Shared across the family</li><li>Full speed</li><li>Easy top-up</li></ul><a href="login.html" class="btn">Choose Weekly</a></article>
+          <article class="card home-plan"><span class="text-medium">Monthly</span><strong>Committed</strong><ul><li>Lowest cost per day</li><li>Priority support</li><li>Ideal for home office</li></ul><a href="login.html" class="btn">Choose Monthly</a></article>
         </div>
       </div>
     </section>
@@ -142,12 +171,7 @@
   <footer class="home-footer">
     <div class="home-wrap home-footer-grid">
       <a href="home.html" class="logo">br3eze.africa</a>
-      <div class="home-footer-links">
-        <a href="login.html">Log in</a>
-        <a href="shop.html">Shop</a>
-        <a href="terms.html">Terms</a>
-        <a href="privacy.html">Privacy</a>
-      </div>
+      <div class="home-footer-links"><a href="login.html">Log in</a><a href="shop.html">Shop</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a></div>
     </div>
     <p class="text-medium">© <span id="homeYear"></span> br3eze.africa. Community WiFi infrastructure.</p>
   </footer>
@@ -155,7 +179,6 @@
   <script>
     (function () {
       'use strict';
-
       var year = document.getElementById('homeYear');
       if (year) year.textContent = new Date().getFullYear();
 
@@ -166,11 +189,13 @@
           var open = !mobileNav.hidden;
           mobileNav.hidden = open;
           menuButton.setAttribute('aria-expanded', String(!open));
+          menuButton.setAttribute('aria-label', open ? 'Open menu' : 'Close menu');
         });
         mobileNav.querySelectorAll('a').forEach(function (link) {
           link.addEventListener('click', function () {
             mobileNav.hidden = true;
             menuButton.setAttribute('aria-expanded', 'false');
+            menuButton.setAttribute('aria-label', 'Open menu');
           });
         });
       }
@@ -182,30 +207,19 @@
       var gridUp = true;
 
       function renderSignal() {
-        if (gridUp) {
-          status.textContent = 'Connected';
-          substatus.textContent = 'Household is on backup power. Signal unaffected.';
-          toggle.textContent = 'Simulate grid outage';
-        } else {
-          status.textContent = 'Still connected';
-          substatus.textContent = 'Grid is down. The hotspot is on backup power — you stay online.';
-          toggle.textContent = 'Restore grid';
-        }
+        status.textContent = gridUp ? 'Connected' : 'Still connected';
+        substatus.textContent = gridUp
+          ? 'Household is on backup power. Signal unaffected.'
+          : 'Grid is down. The hotspot is on backup power — you stay online.';
+        toggle.textContent = gridUp ? 'Simulate grid outage' : 'Restore grid';
         signal.setAttribute('aria-pressed', String(gridUp));
       }
 
-      function flipGrid() {
-        gridUp = !gridUp;
-        renderSignal();
-      }
-
-      if (toggle) toggle.addEventListener('click', flipGrid);
-      if (signal) signal.addEventListener('click', flipGrid);
-      if (signal) signal.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          flipGrid();
-        }
+      function flipGrid() { gridUp = !gridUp; renderSignal(); }
+      toggle.addEventListener('click', flipGrid);
+      signal.addEventListener('click', flipGrid);
+      signal.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); flipGrid(); }
       });
       renderSignal();
     }());
