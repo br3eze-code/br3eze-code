@@ -1,18 +1,18 @@
 import { verifySupabaseAccessToken } from '../../adapters/auth/supabase.js';
 
-async function requireSupabaseUser(req, res, next) {
+async function resolveSupabaseUser(req) {
   const header = String(req.get('authorization') || '');
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) return res.status(401).json({ error: 'Supabase Bearer token required' });
-  try {
-    const user = await verifySupabaseAccessToken(match[1]);
-    if (!user) return res.status(401).json({ error: 'Invalid or expired Supabase token' });
-    req.user = user;
-    req.supabaseUser = user;
-    return next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired Supabase token' });
-  }
+  if (!match) return null;
+  return verifySupabaseAccessToken(match[1]);
+}
+
+async function requireSupabaseUser(req, res, next) {
+  const user = await resolveSupabaseUser(req);
+  if (!user) return res.status(401).json({ error: 'Invalid or expired Supabase token' });
+  req.user = user;
+  req.supabaseUser = user;
+  return next();
 }
 
 function requireRole(...roles) {
@@ -23,4 +23,4 @@ function requireRole(...roles) {
   };
 }
 
-export { requireSupabaseUser, requireRole };
+export { requireSupabaseUser, requireRole, resolveSupabaseUser };
