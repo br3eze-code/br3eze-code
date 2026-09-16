@@ -5,3 +5,4 @@ export { SpecialistRuntime } from './SpecialistRuntime.js';
 export { createSpecialistContext } from './SpecialistContext.js';
 export { specialistResult } from './SpecialistResult.js';
 export { createHandoff, assertHandoffScope } from './Handoff.js';
+export { SpecialistToolRegistry } from './SpecialistToolRegistry.js';
