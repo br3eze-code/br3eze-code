@@ -36,7 +36,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Lint
         run: npm run lint --if-present
@@ -50,7 +50,7 @@ jobs:
           NODE_ENV: test
 
       - name: Build application
-        run: npm run build
+        run: npm run vercel:build
         env:
           NODE_ENV: production
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
@@ -65,6 +65,7 @@ jobs:
           set -euo pipefail
           test -d www
           test -f www/index.html
+          test -f api/index.js
           du -sh www
 
       - name: Validate deployment configuration
