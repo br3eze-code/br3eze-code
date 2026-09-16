@@ -4,7 +4,7 @@
   "name": "br3eze-agentos",
   "buildCommand": "npm run vercel:build",
   "outputDirectory": "www",
-  "installCommand": "npm install --legacy-peer-deps --no-audit --no-fund",
+  "installCommand": "npm cache clean --force && npm install --legacy-peer-deps --prefer-online --no-audit --no-fund",
   "framework": null,
   "functions": {
     "api/**/*.js": {
