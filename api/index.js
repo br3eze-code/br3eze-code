@@ -1,4 +1,5 @@
 import express from 'express';
+import '../src/host/bootstrap.js';
 import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/core/missionDispatch.js';
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
@@ -17,10 +18,7 @@ async function requireFirebaseUser(req, res, next) {
   return next();
 }
 
-// Webhook handlers must be mounted before the JSON parser if/when provider
-// adapters need the raw request body for cryptographic verification.
 app.use(express.json({ limit: '256kb' }));
-
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
 
 app.use('/api/tasks', requireFirebaseUser);
@@ -59,7 +57,6 @@ app.post('/api/tasks/:taskId/wbs/:stepId/complete', (req, res) => {
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
-// Commerce routes use the same trusted Firebase identity and tenant scope.
 app.use('/api/v1/shop', requireFirebaseUser, shopRouter);
 
 export default app;
