@@ -6,7 +6,7 @@
 
   "buildCommand": "npm run build",
   "outputDirectory": "www",
-  "installCommand": "npm install",
+  "installCommand": "npm install --legacy-peer-deps",
   "framework": null,
 
   "functions": {
