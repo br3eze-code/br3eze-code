@@ -3,39 +3,19 @@ import '../src/host/bootstrap.js';
 import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/core/missionDispatch.js';
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
-import { verifyFirebaseIdToken } from '../src/core/firebase-auth.js';
-import { resolveSupabaseUser } from '../src/api/middleware/supabase-auth.js';
+import { requireUser } from '../src/api/middleware/auth-provider.js';
 import shopRouter from '../src/api/routes/shop.js';
+import v1Router from '../src/api/routes/v1.js';
+import v2Router from '../src/api/routes/v2.js';
+import v3Router from '../src/api/routes/v3.js';
 
 const app = express();
-
-async function requireFirebaseUser(req, res, next) {
-  const header = String(req.get('authorization') || '');
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) return res.status(401).json({ error: 'Bearer token required' });
-  const user = await verifyFirebaseIdToken(match[1]);
-  if (!user) return res.status(401).json({ error: 'Invalid or expired Firebase token' });
-  req.firebaseUser = user;
-  req.user = user;
-  return next();
-}
-
-async function requireUser(req, res, next) {
-  const header = String(req.get('authorization') || '');
-  if (!/^Bearer\s+/i.test(header)) return res.status(401).json({ error: 'Bearer token required' });
-  const supabaseUser = await resolveSupabaseUser(req);
-  if (supabaseUser) {
-    req.user = supabaseUser;
-    req.firebaseUser = supabaseUser;
-    req.supabaseUser = supabaseUser;
-    return next();
-  }
-  return requireFirebaseUser(req, res, next);
-}
 
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
 
+// Human/client API authentication is provider-neutral (Firebase or Supabase).
+// Machine-to-machine authentication remains a separate concern and must not use req.user.
 app.use('/api/tasks', requireUser);
 app.post('/api/tasks', handleSubmitMission);
 app.get('/api/tasks/:taskId', (req, res) => {
@@ -72,6 +52,10 @@ app.post('/api/tasks/:taskId/wbs/:stepId/complete', requireUser, (req, res) => {
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
+// Versioned APIs share the same human-auth boundary. Route modules remain focused on capabilities.
+app.use('/api/v1', requireUser, v1Router);
+app.use('/api/v2', requireUser, v2Router);
+app.use('/api/v3', requireUser, v3Router);
 app.use('/api/v1/shop', requireUser, shopRouter);
 
 export default app;
