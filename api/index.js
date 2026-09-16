@@ -2,11 +2,28 @@ import express from 'express';
 import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/core/missionDispatch.js';
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
+import { verifyFirebaseIdToken } from '../src/core/firebase-auth.js';
+import shopRouter from '../src/api/routes/shop.js';
 
 const app = express();
+
+async function requireFirebaseUser(req, res, next) {
+  const header = String(req.get('authorization') || '');
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) return res.status(401).json({ error: 'Firebase Bearer token required' });
+  const user = await verifyFirebaseIdToken(match[1]);
+  if (!user) return res.status(401).json({ error: 'Invalid or expired Firebase token' });
+  req.firebaseUser = user;
+  return next();
+}
+
+// Webhook handlers must be mounted before the JSON parser if/when provider
+// adapters need the raw request body for cryptographic verification.
 app.use(express.json({ limit: '256kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
+
+app.use('/api/tasks', requireFirebaseUser);
 app.post('/api/tasks', handleSubmitMission);
 app.get('/api/tasks/:taskId', (req, res) => {
   const task = getTaskRegistry().get(req.params.taskId);
@@ -27,6 +44,8 @@ app.post('/api/tasks/:taskId/team/start', (req, res) => {
   try { return res.json(startAgentTeam(req.params.taskId)); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
+
+app.use('/api/a2a', requireFirebaseUser);
 app.post('/api/a2a/message', async (req, res) => {
   try {
     const message = createA2AMessage(req.body);
@@ -34,9 +53,13 @@ app.post('/api/a2a/message', async (req, res) => {
     return res.status(202).json(result);
   } catch (error) { return res.status(400).json({ error: error.message, code: error.code, details: error.details }); }
 });
+
 app.post('/api/tasks/:taskId/wbs/:stepId/complete', (req, res) => {
   try { return res.json(completeAgentWbsStep({ taskId: req.params.taskId, stepId: req.params.stepId, ...req.body })); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
+
+// Commerce routes use the same trusted Firebase identity and tenant scope.
+app.use('/api/v1/shop', requireFirebaseUser, shopRouter);
 
 export default app;
