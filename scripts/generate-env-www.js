@@ -19,7 +19,8 @@ const BROWSER_KEYS = [
     'FIREBASE_API_KEY',
     'GEMINI_API_KEY',
     'SUPABASE_URL',
-    'SUPABASE_PUBLISHABLE_KEY'
+    'SUPABASE_PUBLISHABLE_KEY',
+    'SUPABASE_OAUTH_REDIRECT'
 ];
 
 if (!fs.existsSync(ENV_PATH)) {
@@ -37,13 +38,17 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
     env[m[1]] = value;
 }
 
-const missing = BROWSER_KEYS.filter((k) => !env[k]);
+const required = ['FIREBASE_API_KEY', 'GEMINI_API_KEY', 'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'];
+const missing = required.filter((k) => !env[k]);
 if (missing.length) {
     console.error(`[env:www] Missing in .env: ${missing.join(', ')}`);
     process.exit(1);
 }
 
-const body = BROWSER_KEYS.map((k) => `    ${k}: ${JSON.stringify(env[k])}`).join(',\n');
+const body = BROWSER_KEYS
+    .filter((k) => env[k])
+    .map((k) => `    ${k}: ${JSON.stringify(env[k])}`)
+    .join(',\n');
 const out = `// AUTO-GENERATED from .env by scripts/generate-env-www.js — do not edit.\nwindow.ENV = {\n${body}\n};\n`;
 fs.writeFileSync(OUT_PATH, out, 'utf8');
-console.log(`[env:www] Wrote ${path.relative(ROOT, OUT_PATH)} (${BROWSER_KEYS.join(', ')})`);
+console.log(`[env:www] Wrote ${path.relative(ROOT, OUT_PATH)} (${BROWSER_KEYS.filter((k) => env[k]).join(', ')})`);
