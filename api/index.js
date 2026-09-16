@@ -4,6 +4,7 @@ import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
 import { verifyFirebaseIdToken } from '../src/core/firebase-auth.js';
+import { requireSupabaseUser } from '../src/api/middleware/supabase-auth.js';
 import shopRouter from '../src/api/routes/shop.js';
 
 const app = express();
@@ -18,10 +19,16 @@ async function requireFirebaseUser(req, res, next) {
   return next();
 }
 
+async function requireUser(req, res, next) {
+  const supabaseHeader = String(req.get('authorization') || '');
+  if (/^Bearer\s+/i.test(supabaseHeader)) return requireSupabaseUser(req, res, next);
+  return requireFirebaseUser(req, res, next);
+}
+
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
 
-app.use('/api/tasks', requireFirebaseUser);
+app.use('/api/tasks', requireUser);
 app.post('/api/tasks', handleSubmitMission);
 app.get('/api/tasks/:taskId', (req, res) => {
   const task = getTaskRegistry().get(req.params.taskId);
@@ -43,7 +50,7 @@ app.post('/api/tasks/:taskId/team/start', (req, res) => {
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
-app.use('/api/a2a', requireFirebaseUser);
+app.use('/api/a2a', requireUser);
 app.post('/api/a2a/message', async (req, res) => {
   try {
     const message = createA2AMessage(req.body);
@@ -52,11 +59,11 @@ app.post('/api/a2a/message', async (req, res) => {
   } catch (error) { return res.status(400).json({ error: error.message, code: error.code, details: error.details }); }
 });
 
-app.post('/api/tasks/:taskId/wbs/:stepId/complete', (req, res) => {
+app.post('/api/tasks/:taskId/wbs/:stepId/complete', requireUser, (req, res) => {
   try { return res.json(completeAgentWbsStep({ taskId: req.params.taskId, stepId: req.params.stepId, ...req.body })); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
-app.use('/api/v1/shop', requireFirebaseUser, shopRouter);
+app.use('/api/v1/shop', requireUser, shopRouter);
 
 export default app;
