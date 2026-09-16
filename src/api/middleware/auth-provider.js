@@ -2,6 +2,10 @@ import { verifyFirebaseIdToken } from '../../core/firebase-auth.js';
 import { verifySupabaseAccessToken } from '../../adapters/auth/supabase.js';
 
 const AUTH_PROVIDER = String(process.env.AUTH_PROVIDER || 'auto').trim().toLowerCase();
+const VALID_PROVIDERS = new Set(['auto', 'firebase', 'supabase']);
+if (!VALID_PROVIDERS.has(AUTH_PROVIDER)) {
+  throw new Error(`Invalid AUTH_PROVIDER '${AUTH_PROVIDER}'. Expected auto, firebase, or supabase.`);
+}
 
 function extractBearer(req) {
   const header = String(req.get('authorization') || '');
@@ -10,25 +14,26 @@ function extractBearer(req) {
 }
 
 async function verifyWithProvider(provider, token) {
-  if (provider === 'supabase') return verifySupabaseAccessToken(token);
-  if (provider === 'firebase') return verifyFirebaseIdToken(token);
+  try {
+    if (provider === 'supabase') return await verifySupabaseAccessToken(token);
+    if (provider === 'firebase') return await verifyFirebaseIdToken(token);
+  } catch {
+    // Authentication failures are deliberately normalized to null.
+  }
   return null;
 }
 
 async function resolveUser(req) {
   const token = extractBearer(req);
   if (!token) return null;
-
   if (AUTH_PROVIDER === 'supabase' || AUTH_PROVIDER === 'firebase') {
     const user = await verifyWithProvider(AUTH_PROVIDER, token);
     return user ? { ...user, authProvider: AUTH_PROVIDER } : null;
   }
-
-  // auto: accept either provider, but normalize to one req.user contract.
   const supabaseUser = await verifyWithProvider('supabase', token);
   if (supabaseUser) return supabaseUser;
   const firebaseUser = await verifyWithProvider('firebase', token);
-  return firebaseUser || null;
+  return firebaseUser ? { ...firebaseUser, authProvider: 'firebase' } : null;
 }
 
 async function requireUser(req, res, next) {
@@ -48,4 +53,4 @@ function requireRole(...roles) {
   };
 }
 
-export { AUTH_PROVIDER, extractBearer, resolveUser, requireUser, requireRole };
+export { AUTH_PROVIDER, VALID_PROVIDERS, extractBearer, resolveUser, requireUser, requireRole };
