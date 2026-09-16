@@ -4,7 +4,7 @@ import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
 import { verifyFirebaseIdToken } from '../src/core/firebase-auth.js';
-import { requireSupabaseUser } from '../src/api/middleware/supabase-auth.js';
+import { resolveSupabaseUser } from '../src/api/middleware/supabase-auth.js';
 import shopRouter from '../src/api/routes/shop.js';
 
 const app = express();
@@ -12,16 +12,23 @@ const app = express();
 async function requireFirebaseUser(req, res, next) {
   const header = String(req.get('authorization') || '');
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) return res.status(401).json({ error: 'Firebase Bearer token required' });
+  if (!match) return res.status(401).json({ error: 'Bearer token required' });
   const user = await verifyFirebaseIdToken(match[1]);
   if (!user) return res.status(401).json({ error: 'Invalid or expired Firebase token' });
   req.firebaseUser = user;
+  req.user = user;
   return next();
 }
 
 async function requireUser(req, res, next) {
-  const supabaseHeader = String(req.get('authorization') || '');
-  if (/^Bearer\s+/i.test(supabaseHeader)) return requireSupabaseUser(req, res, next);
+  const header = String(req.get('authorization') || '');
+  if (!/^Bearer\s+/i.test(header)) return res.status(401).json({ error: 'Bearer token required' });
+  const supabaseUser = await resolveSupabaseUser(req);
+  if (supabaseUser) {
+    req.user = supabaseUser;
+    req.supabaseUser = supabaseUser;
+    return next();
+  }
   return requireFirebaseUser(req, res, next);
 }
 
