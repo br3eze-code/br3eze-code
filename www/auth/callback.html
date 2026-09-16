@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Signing in…</title>
+</head>
+<body>
+  <p id="status">Completing sign-in…</p>
+  <script>
+    const KEY = 'agentos_supabase_session';
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const error = params.get('error_description') || params.get('error');
+    if (error) {
+      document.getElementById('status').textContent = 'Sign-in failed: ' + decodeURIComponent(error);
+    } else if (params.get('access_token')) {
+      const session = {
+        access_token: params.get('access_token'),
+        refresh_token: params.get('refresh_token'),
+        expires_in: Number(params.get('expires_in') || 3600),
+        token_type: params.get('token_type') || 'bearer',
+        expires_at: Math.floor(Date.now() / 1000) + Number(params.get('expires_in') || 3600)
+      };
+      localStorage.setItem(KEY, JSON.stringify(session));
+      window.location.replace('/');
+    } else {
+      document.getElementById('status').textContent = 'No authentication session was returned.';
+    }
+  </script>
+</body>
+</html>
