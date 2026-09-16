@@ -26,6 +26,7 @@ async function requireUser(req, res, next) {
   const supabaseUser = await resolveSupabaseUser(req);
   if (supabaseUser) {
     req.user = supabaseUser;
+    req.firebaseUser = supabaseUser;
     req.supabaseUser = supabaseUser;
     return next();
   }
