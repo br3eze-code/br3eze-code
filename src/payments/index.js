@@ -1,4 +1,3 @@
-import { PaymentGateway } from './payment-gateway.js';
 import PaymentService from './payment-service.js';
 import PaymentPlatform, { createPaymentPlatform, createPaymentProviderRegistry } from './payment-platform.js';
 import webhookHandler from './webhook-handler.js';
@@ -17,7 +16,6 @@ import { PAYMENT_RAILS, providersForRail } from './provider-rails.js';
 import { applyPaymentProviderPolicy, assertProviderAllowed, isProviderAllowed } from './payment-provider-policy.js';
 
 export default {
-  PaymentGateway,
   PaymentPlatform,
   PaymentService,
   PaymentProviderRegistry,
@@ -43,9 +41,32 @@ export default {
   assertProviderAllowed,
   isProviderAllowed,
 
-  createPaymentService: (config = {}) => {
-    const gatewayConfig = applyPaymentProviderPolicy(config);
-    const gateway = new PaymentGateway(gatewayConfig);
-    return new PaymentService(gateway);
-  },
+  createPaymentService: (config = {}) => new PaymentService(createPaymentPlatform(config)),
+};
+
+export {
+  PaymentPlatform,
+  PaymentService,
+  PaymentProviderRegistry,
+  PaymentProviderAdapter,
+  LegacyProviderAdapter,
+  normalizePaymentResult,
+  PAYMENT_PROVIDER_CATALOG,
+  PAYMENT_RAILS,
+  getProviderCatalog,
+  listZimbabweProviders,
+  providersForRail,
+  createPaymentPlatform,
+  createPaymentProviderRegistry,
+  FinivexProvider,
+  ZimswitchOnlineProvider,
+  SmilePayProvider,
+  webhookHandler,
+  PesaPalIntegration,
+  PesaPalProvider,
+  setupPesaPalRoutes,
+  setupPesaPalCommands,
+  applyPaymentProviderPolicy,
+  assertProviderAllowed,
+  isProviderAllowed,
 };

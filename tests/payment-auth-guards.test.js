@@ -2,7 +2,8 @@ import { describe, expect, test, jest } from '@jest/globals';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import { PaymentGateway } from '../src/payments/payment-gateway.js';
+import { createPaymentPlatform } from '../src/payments/payment-platform.js';
+import { PaymentProviderAdapter } from '../src/payments/provider-adapter.js';
 import {
   normalizePaymentRequest,
   createIdempotencyKey,
@@ -22,27 +23,28 @@ describe('payment guards', () => {
 
   test('deduplicates provider create requests by reference', async () => {
     const testState = fs.mkdtempSync(path.join(os.tmpdir(), 'agentos-payment-test-'));
-    const gateway = new PaymentGateway({
+    const provider = new PaymentProviderAdapter({ id: 'test', capabilities: { createPayment: true } });
+    provider.createPayment = jest.fn().mockResolvedValue({ success: true, status: 'succeeded', transactionId: 'tx-1' });
+    const platform = createPaymentPlatform({
       defaultCurrency: 'USD',
-      idempotencyOptions: { dbPath: path.join(testState, 'payment-ledger.sqlite') }
+      idempotencyOptions: { dbPath: path.join(testState, 'payment-ledger.sqlite') },
+      adapters: [provider],
     });
-    const provider = { createPayment: jest.fn().mockResolvedValue({ success: true, status: 'succeeded', transactionId: 'tx-1' }) };
-    gateway.providers.set('test', provider);
-    const first = await gateway.createPayment('test', { amount: 10, reference: 'order-1' });
-    const second = await gateway.createPayment('test', { amount: 10, reference: 'order-1' });
+    const first = await platform.createPayment('test', { amount: 10, reference: 'order-1' });
+    const second = await platform.createPayment('test', { amount: 10, reference: 'order-1' });
     expect(first).toEqual(second);
     expect(provider.createPayment).toHaveBeenCalledTimes(1);
+    platform.close();
   });
 
   test('requires webhook verification and a refund reason', async () => {
-    const gateway = new PaymentGateway();
-    gateway.providers.set('test', {
-      verifyWebhook: jest.fn().mockResolvedValue(false),
-      processWebhook: jest.fn(),
-      refund: jest.fn(),
-    });
-    await expect(gateway.handleWebhook('test', {}, {})).rejects.toThrow(/signature/);
-    await expect(gateway.refund('test', 'tx-1', 2)).rejects.toThrow(/reason/);
+    const provider = new PaymentProviderAdapter({ id: 'test', capabilities: { webhooks: true, refunds: true } });
+    provider.verifyWebhook = jest.fn().mockResolvedValue(false);
+    provider.processWebhook = jest.fn();
+    provider.refund = jest.fn();
+    const platform = createPaymentPlatform({ adapters: [provider] });
+    await expect(platform.webhook({ provider: 'test', payload: {}, headers: {} })).rejects.toThrow(/verification/);
+    await expect(platform.refund('test', 'tx-1', 2)).rejects.toThrow(/reason/);
   });
 
   test('redacts sensitive nested metadata', () => {
