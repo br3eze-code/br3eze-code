@@ -25,7 +25,7 @@ jobs:
       - name: Validate Core boundary
         run: node scripts/core-boundary-gate.mjs
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps
       - name: Lint maintained pipeline and plugin code
         run: npx eslint src/core/WorkflowEngine.js src/plugins/custom/*.js src/plugins/*.js scripts/check-syntax.mjs --quiet
       - name: Test
