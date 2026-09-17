@@ -32,15 +32,9 @@ function configured(key, config) {
   return Boolean(config[key] || process.env[envName(key)]);
 }
 
-function providerMethods(adapter, context = {}) {
+async function providerMethods(adapter, context = {}) {
   if (typeof adapter.getAvailableMethods === 'function') return adapter.getAvailableMethods(context);
-  return [{
-    id: adapter.id,
-    provider: adapter.id,
-    type: 'provider',
-    name: adapter.id,
-    capabilities: adapter.capabilities,
-  }];
+  return [{ id: adapter.id, provider: adapter.id, type: 'provider', name: adapter.id, capabilities: adapter.capabilities }];
 }
 
 /** Build the canonical provider registry from merchant adapters and configured built-ins. */
@@ -101,26 +95,32 @@ export function createPaymentPlatform(config = {}) {
     return adapter.processWebhook(payload, { headers });
   };
 
+  const getAvailableMethods = async (context = {}) => {
+    const methods = [];
+    for (const adapter of registry.adapters.values()) {
+      const providerCountry = adapter.country;
+      if (context.country && providerCountry && !providerCountry.includes(context.country)) continue;
+      methods.push(...await providerMethods(adapter, context));
+    }
+    return methods;
+  };
+
+  const refund = async (id, transactionId, amount, reason = '') => {
+    if (!String(reason || '').trim()) throw new Error('Refund reason is required');
+    const adapter = registry.require(id);
+    if (typeof adapter.refundPayment === 'function') return adapter.refundPayment(transactionId, { amount, reason });
+    return adapter.refund(transactionId, { amount, reason });
+  };
+
   return Object.freeze({
     registry,
     providers: () => registry.list(),
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
-    getAvailableMethods: async (context = {}) => {
-      const methods = [];
-      for (const adapter of registry.adapters.values()) {
-        if (context.country && adapter.country && !adapter.country.includes(context.country)) continue;
-        methods.push(...await providerMethods(adapter, context));
-      }
-      return methods;
-    },
+    getAvailableMethods,
     createPayment,
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
-    refund: async (id, transactionId, amount, reason = '') => {
-      const adapter = registry.require(id);
-      if (typeof adapter.refundPayment === 'function') return adapter.refundPayment(transactionId, { amount, reason });
-      return adapter.refund(transactionId, { amount, reason });
-    },
+    refund,
     webhook: handleWebhook,
     handleWebhook,
     reconcile: (id, data) => registry.require(id).reconcile(data),
