@@ -22,6 +22,14 @@ const PROVIDER_COUNTRY_RULES = Object.freeze({
   zuripay: Object.freeze({ allowed: [ZIMBABWE] }),
 });
 
+const PROVIDER_CREDENTIALS = Object.freeze({
+  stripe: ['stripeSecretKey', 'stripeWebhookSecret', 'stripePublishableKey'],
+  paynow: ['paynowIntegrationId', 'paynowIntegrationKey'],
+  ecocash: ['ecocashMerchantCode', 'ecocashApiKey'],
+  netone: ['netoneApiKey', 'netoneMerchantId'],
+  pesapay: ['pesapayConsumerKey'],
+});
+
 export function normalizeCountry(country) {
   return String(country || '').trim().toUpperCase() || ZIMBABWE;
 }
@@ -31,8 +39,6 @@ export function isProviderAllowed(provider, country = ZIMBABWE) {
   const normalizedCountry = normalizeCountry(country);
   const rule = PROVIDER_COUNTRY_RULES[normalizedProvider];
 
-  // Unknown providers remain extensible; their adapter must enforce its own
-  // eligibility. Known providers use explicit rules above.
   if (!rule) return true;
   if (rule.denied?.includes(normalizedCountry)) return false;
   if (rule.allowed) return rule.allowed.includes(normalizedCountry);
@@ -64,14 +70,18 @@ export function applyPaymentProviderPolicy(config = {}) {
     if (!isProviderAllowed(provider, country)) disabledProviders.add(provider);
   }
 
-  return {
-    ...config,
-    merchantCountry: country,
-    disabledPaymentProviders: [...disabledProviders],
-  };
+  // The existing gateway initializes providers from credential presence. Remove
+  // credentials for policy-disabled providers so the legacy gateway cannot
+  // accidentally expose a blocked provider without requiring a risky rewrite.
+  const effectiveConfig = { ...config, merchantCountry: country, disabledPaymentProviders: [...disabledProviders] };
+  for (const provider of disabledProviders) {
+    for (const key of PROVIDER_CREDENTIALS[provider] || []) delete effectiveConfig[key];
+  }
+
+  return effectiveConfig;
 }
 
-export { PROVIDER_COUNTRY_RULES, ZIMBABWE };
+export { PROVIDER_COUNTRY_RULES, PROVIDER_CREDENTIALS, ZIMBABWE };
 
 export default {
   normalizeCountry,
@@ -79,5 +89,6 @@ export default {
   assertProviderAllowed,
   applyPaymentProviderPolicy,
   PROVIDER_COUNTRY_RULES,
+  PROVIDER_CREDENTIALS,
   ZIMBABWE,
 };
