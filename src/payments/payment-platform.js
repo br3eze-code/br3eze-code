@@ -2,6 +2,7 @@ import PaymentProviderRegistry from './provider-registry.js';
 import LegacyProviderAdapter from './legacy-provider-adapter.js';
 import { createPaymentIdempotencyStore } from './idempotency-store.js';
 import { createPaymentEvent } from './payment-event.js';
+import { createSupabasePaymentPersistence } from './supabase-payment-persistence.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
 import FinivexProvider from './providers/finivex-provider.js';
 import SmilePayProvider from './providers/smilepay-provider.js';
@@ -50,12 +51,26 @@ function normalizedWebhookEvent(provider, result = {}) {
   return createPaymentEvent({ ...result, provider, type, transactionId: result.transactionId || result.id, reference: result.reference || result.orderId || result.transactionId, metadata: result.metadata || {} });
 }
 
+function eventStatus(type) {
+  return ({
+    'payment.pending': 'pending',
+    'payment.succeeded': 'succeeded',
+    'payment.failed': 'failed',
+    'payment.cancelled': 'cancelled',
+    'payment.refunded': 'refunded',
+    'payment.reversed': 'reversed',
+    'payment.settled': 'settled',
+  })[type] || 'pending';
+}
+
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
   const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
+  const persistence = config.persistence || createSupabasePaymentPersistence();
   const platform = {
     registry,
     idempotency,
+    persistence,
     providers: (options = {}) => registry.list(options),
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
@@ -73,6 +88,23 @@ export function createPaymentPlatform(config = {}) {
       }
       try {
         const result = await registry.require(providerId).createPayment({ ...data, idempotencyKey: key });
+        if (persistence) {
+          await persistence.upsertTransaction({
+            transactionId: String(result.transactionId || result.id || reference),
+            provider: providerId,
+            reference: String(result.reference || reference),
+            orderId: result.orderId || data.orderId,
+            invoiceId: result.invoiceId || data.invoiceId,
+            tenantId: result.tenantId || data.tenantId,
+            amount: result.amount ?? data.amount ?? 0,
+            currency: result.currency || data.currency || 'USD',
+            status: eventStatus(result.status === 'success' ? 'payment.succeeded' : 'payment.pending'),
+            paymentMethod: result.paymentMethod || data.paymentMethod,
+            idempotencyKey: key,
+            providerTransactionId: result.providerTransactionId || result.transactionId || result.id,
+            metadata: result.metadata || {},
+          });
+        }
         return idempotency.set(key, result);
       } catch (error) {
         if (typeof idempotency.release === 'function') idempotency.release(key);
@@ -85,7 +117,25 @@ export function createPaymentPlatform(config = {}) {
       const adapter = registry.require(id);
       const valid = await adapter.verifyWebhook(payload, headers);
       if (!valid) throw new Error(`Payment provider '${id}' webhook verification failed`);
-      return normalizedWebhookEvent(id, await adapter.processWebhook(payload, { headers }));
+      const event = normalizedWebhookEvent(id, await adapter.processWebhook(payload, { headers }));
+      if (persistence) {
+        await persistence.insertEvent(event);
+        await persistence.upsertTransaction({
+          transactionId: event.transactionId,
+          provider: event.provider,
+          reference: event.reference,
+          orderId: event.orderId,
+          invoiceId: event.invoiceId,
+          tenantId: event.tenantId,
+          amount: event.amount ?? 0,
+          currency: event.currency || 'USD',
+          status: eventStatus(event.type),
+          idempotencyKey: event.idempotencyKey,
+          providerTransactionId: event.transactionId,
+          metadata: event.metadata,
+        });
+      }
+      return event;
     },
     reconcile: (id, data) => registry.require(id).reconcile(data),
   };
