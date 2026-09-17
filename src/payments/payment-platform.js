@@ -30,7 +30,7 @@ function configured(key, config) {
   return Boolean(config[key] || process.env[envName(key)]);
 }
 
-/** Build the canonical provider registry from configured merchant adapters. */
+/** Build the canonical provider registry from merchant adapters and configured built-ins. */
 export function createPaymentProviderRegistry(config = {}) {
   const country = String(config.merchantCountry || process.env.MERCHANT_COUNTRY || 'ZW').toUpperCase();
   const disabled = new Set(
@@ -42,13 +42,17 @@ export function createPaymentProviderRegistry(config = {}) {
   );
   const registry = new PaymentProviderRegistry({ merchantCountry: country });
 
+  for (const adapter of config.adapters || []) {
+    if (!adapter?.id || disabled.has(String(adapter.id).toLowerCase())) continue;
+    try { registry.register(adapter); } catch { /* invalid/ineligible adapter stays unavailable */ }
+  }
+
   for (const [id, factory] of Object.entries(FACTORIES)) {
-    if (disabled.has(id)) continue;
+    if (disabled.has(id) || registry.get(id)) continue;
     const required = REQUIRED[id] || [];
     if (required.some((key) => !configured(key, config))) continue;
     try {
-      const provider = factory(config);
-      registry.register(new LegacyProviderAdapter(id, provider));
+      registry.register(new LegacyProviderAdapter(id, factory(config)));
     } catch {
       // Missing/invalid merchant configuration makes only this provider unavailable.
     }
