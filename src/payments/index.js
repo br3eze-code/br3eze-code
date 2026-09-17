@@ -5,15 +5,19 @@ import PesaPalIntegration from './pesapay-integration.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
 import setupPesaPalRoutes from './routes/pesapal-webhooks.js';
 import setupPesaPalCommands from './commands/pesapal-commands.js';
+import PaymentProviderRegistry from './provider-registry.js';
+import { PaymentProviderAdapter, normalizePaymentResult } from './provider-adapter.js';
+import { PAYMENT_PROVIDER_CATALOG, getProviderCatalog } from './provider-catalog.js';
 import { applyPaymentProviderPolicy, assertProviderAllowed, isProviderAllowed } from './payment-provider-policy.js';
-
-// src/payments/index.js
-// Payment module entry point for AgentOS.
-// Merchant eligibility is kept separate from provider credentials.
 
 export default {
   PaymentGateway,
   PaymentService,
+  PaymentProviderRegistry,
+  PaymentProviderAdapter,
+  normalizePaymentResult,
+  PAYMENT_PROVIDER_CATALOG,
+  getProviderCatalog,
   webhookHandler,
   PesaPalIntegration,
   PesaPalProvider,
@@ -23,9 +27,6 @@ export default {
   assertProviderAllowed,
   isProviderAllowed,
 
-  // Factory function for easy initialization. The policy is applied before
-  // credentials reach the payment gateway so known jurisdiction/provider
-  // conflicts are disabled centrally.
   createPaymentService: (config = {}) => {
     const gatewayConfig = applyPaymentProviderPolicy(config);
     const gateway = new PaymentGateway(gatewayConfig);
