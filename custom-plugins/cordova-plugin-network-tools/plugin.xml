@@ -2,12 +2,12 @@
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
         xmlns:android="http://schemas.android.com/apk/res/android"
         id="cordova-plugin-network-tools"
-        version="1.0.0">
+        version="1.0.1">
     <name>AgentOS Network Tools</name>
-    <description>Secure Cordova bridge for local network capabilities, connectivity, interface inventory, and AgentOS network-tool requests.</description>
+    <description>Domain-agnostic Cordova bridge for local network capabilities, connectivity, interface inventory, and authorized network-tool requests.</description>
     <author>AgentOS</author>
     <license>Apache-2.0</license>
-    <keywords>cordova, network, diagnostics, connectivity, agentos, router</keywords>
+    <keywords>cordova, network, diagnostics, connectivity, agentos</keywords>
 
     <js-module src="www/NetworkTools.js" name="NetworkTools">
         <clobbers target="window.AgentOSNetworkTools" />
@@ -17,6 +17,8 @@
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
             <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+            <!-- Declared for capability-aware Wi-Fi identity reads; the app must still request runtime access when needed. -->
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
         </config-file>
         <config-file target="res/xml/config.xml" parent="/*">
             <feature name="AgentOSNetworkTools">
@@ -24,6 +26,9 @@
             </feature>
         </config-file>
         <source-file src="src/android/com/agentos/network/AgentOSNetworkToolsPlugin.java" target-dir="src/com/agentos/network" />
+        <source-file src="src/android/com/agentos/network/IpInfoUtils.java" target-dir="src/com/agentos/network" />
+        <source-file src="src/android/com/agentos/network/WifiDetailsUtils.java" target-dir="src/com/agentos/network" />
+        <source-file src="src/android/com/agentos/network/WifiUtils.java" target-dir="src/com/agentos/network" />
     </platform>
 
     <platform name="ios">
