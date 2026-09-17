@@ -1,4 +1,5 @@
 import PaymentProviderRegistry from './provider-registry.js';
+import LegacyProviderAdapter from './legacy-provider-adapter.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
 import FinivexProvider from './providers/finivex-provider.js';
 import SmilePayProvider from './providers/smilepay-provider.js';
@@ -13,35 +14,45 @@ const FACTORIES = Object.freeze({
   paynow: (config) => new PaynowProvider(config),
 });
 
-/**
- * Build the normalized payment provider registry from configured credentials.
- * Missing credentials are skipped; no provider is marked live merely by being catalogued.
- */
+const REQUIRED = Object.freeze({
+  paynow: ['paynowIntegrationId', 'paynowIntegrationKey'],
+  pesapay: ['pesapayConsumerKey'],
+  finivex: ['finivexApiKey', 'finivexApiSecret'],
+  smilepay: ['smilepayApiKey'],
+  zimswitch_online: ['zimswitchEntityId', 'zimswitchAuthorizationBearer'],
+});
+
+function envName(key) {
+  return String(key).replace(/[A-Z]/g, (m) => `_${m}`).toUpperCase();
+}
+
+function configured(key, config) {
+  return Boolean(config[key] || process.env[envName(key)]);
+}
+
+/** Build the canonical provider registry from configured merchant adapters. */
 export function createPaymentProviderRegistry(config = {}) {
   const country = String(config.merchantCountry || process.env.MERCHANT_COUNTRY || 'ZW').toUpperCase();
-  const disabled = new Set([
-    ...(Array.isArray(config.disabledPaymentProviders) ? config.disabledPaymentProviders : String(config.disabledPaymentProviders || '').split(',')),
-  ].map((id) => String(id).trim().toLowerCase()).filter(Boolean));
+  const disabled = new Set(
+    (Array.isArray(config.disabledPaymentProviders)
+      ? config.disabledPaymentProviders
+      : String(config.disabledPaymentProviders || '').split(','))
+      .map((id) => String(id).trim().toLowerCase())
+      .filter(Boolean),
+  );
   const registry = new PaymentProviderRegistry({ merchantCountry: country });
 
   for (const [id, factory] of Object.entries(FACTORIES)) {
     if (disabled.has(id)) continue;
+    const required = REQUIRED[id] || [];
+    if (required.some((key) => !configured(key, config))) continue;
     try {
-      const adapter = factory(config);
-      const required = {
-        paynow: ['paynowIntegrationId', 'paynowIntegrationKey'],
-        pesapay: ['pesapayConsumerKey'],
-        finivex: ['finivexApiKey', 'finivexApiSecret'],
-        smilepay: ['smilepayApiKey'],
-        zimswitch_online: ['zimswitchEntityId', 'zimswitchAuthorizationBearer'],
-      }[id] || [];
-      if (required.some((key) => !(config[key] || process.env[key.replace(/[A-Z]/g, (m) => `_${m}`).toUpperCase()]))) continue;
-      registry.register(adapter);
+      const provider = factory(config);
+      registry.register(new LegacyProviderAdapter(id, provider));
     } catch {
-      // A provider with incomplete merchant configuration is unavailable, not broken globally.
+      // Missing/invalid merchant configuration makes only this provider unavailable.
     }
   }
-
   return registry;
 }
 
@@ -54,8 +65,13 @@ export function createPaymentPlatform(config = {}) {
     capabilities: (id) => registry.capabilities(id),
     createPayment: (id, data) => registry.require(id).createPayment(data),
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
-    refund: (id, data) => registry.require(id).refund(data),
-    webhook: (id, payload, headers) => registry.require(id).processWebhook(payload, headers),
+    refund: async (id, transactionId, amount, reason = '') => registry.require(id).refundPayment(transactionId, { amount, reason }),
+    webhook: async (id, payload, headers = {}) => {
+      const adapter = registry.require(id);
+      const valid = await adapter.verifyWebhook(payload, headers);
+      if (!valid) throw new Error(`Payment provider '${id}' webhook verification failed`);
+      return adapter.processWebhook(payload, { headers });
+    },
     reconcile: (id, data) => registry.require(id).reconcile(data),
   });
 }
