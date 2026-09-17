@@ -1,6 +1,7 @@
 import PaymentProviderRegistry from './provider-registry.js';
 import LegacyProviderAdapter from './legacy-provider-adapter.js';
 import { createPaymentIdempotencyStore } from './idempotency-store.js';
+import { createPaymentEvent } from './payment-event.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
 import FinivexProvider from './providers/finivex-provider.js';
 import SmilePayProvider from './providers/smilepay-provider.js';
@@ -23,49 +24,35 @@ const REQUIRED = Object.freeze({
   zimswitch_online: ['zimswitchEntityId', 'zimswitchAuthorizationBearer'],
 });
 
-function envName(key) {
-  return String(key).replace(/[A-Z]/g, (m) => `_${m}`).toUpperCase();
-}
-
-function configured(key, config) {
-  return Boolean(config[key] || process.env[envName(key)]);
-}
+function envName(key) { return String(key).replace(/[A-Z]/g, (m) => `_${m}`).toUpperCase(); }
+function configured(key, config) { return Boolean(config[key] || process.env[envName(key)]); }
 
 export function createPaymentProviderRegistry(config = {}) {
   const country = String(config.merchantCountry || process.env.MERCHANT_COUNTRY || 'ZW').toUpperCase();
-  const disabled = new Set(
-    (Array.isArray(config.disabledPaymentProviders)
-      ? config.disabledPaymentProviders
-      : String(config.disabledPaymentProviders || '').split(','))
-      .map((id) => String(id).trim().toLowerCase())
-      .filter(Boolean),
-  );
+  const disabled = new Set((Array.isArray(config.disabledPaymentProviders) ? config.disabledPaymentProviders : String(config.disabledPaymentProviders || '').split(','))
+    .map((id) => String(id).trim().toLowerCase()).filter(Boolean));
   const registry = new PaymentProviderRegistry({ merchantCountry: country });
-
   for (const [id, factory] of Object.entries(FACTORIES)) {
     if (disabled.has(id)) continue;
-    const required = REQUIRED[id] || [];
-    if (required.some((key) => !configured(key, config))) continue;
-    try {
-      registry.register(new LegacyProviderAdapter(id, factory(config)));
-    } catch {
-      // Invalid merchant configuration makes only this provider unavailable.
-    }
+    if ((REQUIRED[id] || []).some((key) => !configured(key, config))) continue;
+    try { registry.register(new LegacyProviderAdapter(id, factory(config))); } catch { /* isolate invalid provider config */ }
   }
   return registry;
 }
 
 function methodsFromCapabilities(registry) {
-  return registry.list().flatMap(({ id, capabilities = {} }) => {
-    const methods = Array.isArray(capabilities.methods) ? capabilities.methods : [];
-    return methods.map((method) => ({ ...method, provider: id }));
-  });
+  return registry.list().flatMap(({ id, capabilities = {} }) => (Array.isArray(capabilities.methods) ? capabilities.methods : []).map((method) => ({ ...method, provider: id })));
+}
+
+function normalizedWebhookEvent(provider, result = {}) {
+  const status = String(result.status || (result.success === false ? 'failed' : 'pending')).toLowerCase();
+  const type = result.type || (['succeeded', 'completed', 'paid', 'success'].includes(status) ? 'payment.succeeded' : ['failed', 'cancelled'].includes(status) ? `payment.${status}` : 'payment.pending');
+  return createPaymentEvent({ ...result, provider, type, transactionId: result.transactionId || result.id, reference: result.reference || result.orderId || result.transactionId, metadata: result.metadata || {} });
 }
 
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
   const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
-
   const platform = {
     registry,
     idempotency,
@@ -73,7 +60,6 @@ export function createPaymentPlatform(config = {}) {
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
     getAvailablePaymentMethods: () => methodsFromCapabilities(registry),
-
     async createPayment(providerId, data = {}) {
       const reference = data.reference || data.paymentId || data.idempotencyKey;
       if (!reference) throw new TypeError('payment reference or idempotencyKey is required');
@@ -93,18 +79,16 @@ export function createPaymentPlatform(config = {}) {
         throw error;
       }
     },
-
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
     refund: async (id, transactionId, amount, reason = '') => registry.require(id).refundPayment(transactionId, { amount, reason }),
     webhook: async (id, payload, headers = {}) => {
       const adapter = registry.require(id);
       const valid = await adapter.verifyWebhook(payload, headers);
       if (!valid) throw new Error(`Payment provider '${id}' webhook verification failed`);
-      return adapter.processWebhook(payload, { headers });
+      return normalizedWebhookEvent(id, await adapter.processWebhook(payload, { headers }));
     },
     reconcile: (id, data) => registry.require(id).reconcile(data),
   };
-
   return Object.freeze(platform);
 }
 
