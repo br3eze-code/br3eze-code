@@ -1,5 +1,6 @@
 import PaymentProviderRegistry from './provider-registry.js';
 import LegacyProviderAdapter from './legacy-provider-adapter.js';
+import { createPaymentIdempotencyStore } from './idempotency-store.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
 import FinivexProvider from './providers/finivex-provider.js';
 import SmilePayProvider from './providers/smilepay-provider.js';
@@ -63,13 +64,36 @@ function methodsFromCapabilities(registry) {
 
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
-  return Object.freeze({
+  const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
+
+  const platform = {
     registry,
+    idempotency,
     providers: (options = {}) => registry.list(options),
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
     getAvailablePaymentMethods: () => methodsFromCapabilities(registry),
-    createPayment: (id, data) => registry.require(id).createPayment(data),
+
+    async createPayment(providerId, data = {}) {
+      const reference = data.reference || data.paymentId || data.idempotencyKey;
+      if (!reference) throw new TypeError('payment reference or idempotencyKey is required');
+      const key = data.idempotencyKey || `payment:${providerId}:${reference}`;
+      const previous = idempotency.get(key);
+      if (previous) return previous;
+      if (typeof idempotency.reserve === 'function' && !idempotency.reserve(key, { provider: providerId, reference })) {
+        const concurrent = idempotency.get(key);
+        if (concurrent) return concurrent;
+        throw new Error('Payment request is already being processed');
+      }
+      try {
+        const result = await registry.require(providerId).createPayment({ ...data, idempotencyKey: key });
+        return idempotency.set(key, result);
+      } catch (error) {
+        if (typeof idempotency.release === 'function') idempotency.release(key);
+        throw error;
+      }
+    },
+
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
     refund: async (id, transactionId, amount, reason = '') => registry.require(id).refundPayment(transactionId, { amount, reason }),
     webhook: async (id, payload, headers = {}) => {
@@ -79,7 +103,9 @@ export function createPaymentPlatform(config = {}) {
       return adapter.processWebhook(payload, { headers });
     },
     reconcile: (id, data) => registry.require(id).reconcile(data),
-  });
+  };
+
+  return Object.freeze(platform);
 }
 
 export default createPaymentPlatform;
