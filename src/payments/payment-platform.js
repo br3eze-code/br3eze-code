@@ -63,6 +63,15 @@ function eventStatus(type) {
   })[type] || 'pending';
 }
 
+export function webhookIdempotencyKey(event) {
+  const provider = String(event?.provider || '').trim().toLowerCase();
+  const eventId = String(event?.eventId || '').trim();
+  if (eventId) return `webhook:${provider}:event:${eventId}`;
+  const transactionId = String(event?.transactionId || '').trim();
+  const type = String(event?.type || 'unknown').trim().toLowerCase();
+  return `webhook:${provider}:transaction:${transactionId || 'unknown'}:${type}`;
+}
+
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
   const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
@@ -118,24 +127,49 @@ export function createPaymentPlatform(config = {}) {
       const valid = await adapter.verifyWebhook(payload, headers);
       if (!valid) throw new Error(`Payment provider '${id}' webhook verification failed`);
       const event = normalizedWebhookEvent(id, await adapter.processWebhook(payload, { headers }));
-      if (persistence) {
-        await persistence.insertEvent(event);
-        await persistence.upsertTransaction({
-          transactionId: event.transactionId,
-          provider: event.provider,
-          reference: event.reference,
-          orderId: event.orderId,
-          invoiceId: event.invoiceId,
-          tenantId: event.tenantId,
-          amount: event.amount ?? 0,
-          currency: event.currency || 'USD',
-          status: eventStatus(event.type),
-          idempotencyKey: event.idempotencyKey,
-          providerTransactionId: event.transactionId,
-          metadata: event.metadata,
-        });
+      const key = webhookIdempotencyKey(event);
+
+      if (persistence?.claimIdempotency) {
+        const claim = await persistence.claimIdempotency(key, 'webhook', null);
+        if (!claim.claimed) {
+          if (claim.record?.status === 'completed' && claim.record.response) return claim.record.response;
+          return { ...event, idempotencyKey: key, duplicate: true, processing: true };
+        }
+      } else {
+        const previous = idempotency.get(key);
+        if (previous) return previous;
+        if (typeof idempotency.reserve === 'function' && !idempotency.reserve(key, { provider: id, eventId: event.eventId, transactionId: event.transactionId })) {
+          const concurrent = idempotency.get(key);
+          if (concurrent) return concurrent;
+          throw new Error('Webhook event is already being processed');
+        }
       }
-      return event;
+
+      try {
+        const completed = { ...event, idempotencyKey: key };
+        if (persistence) {
+          await persistence.insertEvent(completed);
+          await persistence.upsertTransaction({
+            transactionId: event.transactionId,
+            provider: event.provider,
+            reference: event.reference,
+            orderId: event.orderId,
+            invoiceId: event.invoiceId,
+            tenantId: event.tenantId,
+            amount: event.amount ?? 0,
+            currency: event.currency || 'USD',
+            status: eventStatus(event.type),
+            idempotencyKey: key,
+            providerTransactionId: event.transactionId,
+            metadata: event.metadata,
+          });
+          if (persistence.completeIdempotency) await persistence.completeIdempotency(key, completed);
+        }
+        return idempotency.set(key, completed);
+      } catch (error) {
+        if (!persistence?.claimIdempotency && typeof idempotency.release === 'function') idempotency.release(key);
+        throw error;
+      }
     },
     reconcile: (id, data) => registry.require(id).reconcile(data),
   };
