@@ -30,7 +30,6 @@ function configured(key, config) {
   return Boolean(config[key] || process.env[envName(key)]);
 }
 
-/** Build the canonical provider registry from configured merchant adapters. */
 export function createPaymentProviderRegistry(config = {}) {
   const country = String(config.merchantCountry || process.env.MERCHANT_COUNTRY || 'ZW').toUpperCase();
   const disabled = new Set(
@@ -47,22 +46,29 @@ export function createPaymentProviderRegistry(config = {}) {
     const required = REQUIRED[id] || [];
     if (required.some((key) => !configured(key, config))) continue;
     try {
-      const provider = factory(config);
-      registry.register(new LegacyProviderAdapter(id, provider));
+      registry.register(new LegacyProviderAdapter(id, factory(config)));
     } catch {
-      // Missing/invalid merchant configuration makes only this provider unavailable.
+      // Invalid merchant configuration makes only this provider unavailable.
     }
   }
   return registry;
+}
+
+function methodsFromCapabilities(registry) {
+  return registry.list().flatMap(({ id, capabilities = {} }) => {
+    const methods = Array.isArray(capabilities.methods) ? capabilities.methods : [];
+    return methods.map((method) => ({ ...method, provider: id }));
+  });
 }
 
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
   return Object.freeze({
     registry,
-    providers: () => registry.list(),
+    providers: (options = {}) => registry.list(options),
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
+    getAvailablePaymentMethods: () => methodsFromCapabilities(registry),
     createPayment: (id, data) => registry.require(id).createPayment(data),
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
     refund: async (id, transactionId, amount, reason = '') => registry.require(id).refundPayment(transactionId, { amount, reason }),
