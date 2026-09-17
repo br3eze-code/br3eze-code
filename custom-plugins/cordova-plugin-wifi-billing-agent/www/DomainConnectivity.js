@@ -18,21 +18,34 @@
     }
 
     var bridge = {
-        version: '1.0.0',
+        version: '1.0.1',
         capabilities: [
             'connect', 'disconnect', 'scan', 'suggestConnection',
-            'getConnectionInfo', 'getNetworkDiagnostics',
-            'isWifiEnabled', 'canConnectToInternet', 'canConnectToRouter'
+            'getConnectionInfo', 'isWifiEnabled',
+            'canConnectToInternet', 'canConnectToRouter'
         ],
         connect: function (connection) { return native('connect', [connection || {}]); },
         disconnect: function (options) { return native('disconnect', [options || {}]); },
         scan: function (options) { return native('scan', [options || {}]); },
         suggestConnection: function (request) { return native('suggestConnection', [request || {}]); },
         getConnectionInfo: function () { return native('getConnectionInfo'); },
-        getNetworkDiagnostics: function () { return native('getNetworkDiagnostics'); },
         isWifiEnabled: function () { return native('isWifiEnabled'); },
         canConnectToInternet: function () { return native('canConnectToInternet'); },
         canConnectToRouter: function () { return native('canConnectToRouter'); },
+        getNetworkDiagnostics: async function () {
+            var values = await Promise.allSettled([
+                this.getConnectionInfo(),
+                this.isWifiEnabled(),
+                this.canConnectToInternet(),
+                this.canConnectToRouter()
+            ]);
+            return {
+                connection: values[0].status === 'fulfilled' ? values[0].value : null,
+                wifiEnabled: values[1].status === 'fulfilled' ? values[1].value : null,
+                internetReachable: values[2].status === 'fulfilled' ? values[2].value : null,
+                routerReachable: values[3].status === 'fulfilled' ? values[3].value : null
+            };
+        },
         deviceContext: function () {
             return {
                 platform: global.device?.platform || 'unknown',
