@@ -72,6 +72,28 @@ export function webhookIdempotencyKey(event) {
   return `webhook:${provider}:transaction:${transactionId || 'unknown'}:${type}`;
 }
 
+function stableSerialize(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(',')}}`;
+}
+
+function requestHash(value) {
+  const input = stableSerialize(value);
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) hash = Math.imul(hash ^ input.charCodeAt(i), 16777619);
+  return `fnv1a:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+async function claimPersistent(persistence, key, operation, hash) {
+  if (!persistence?.claimIdempotency) return null;
+  const claim = await persistence.claimIdempotency(key, operation, hash);
+  if (!claim.claimed && claim.record?.request_hash && hash && claim.record.request_hash !== hash) {
+    throw new Error('Idempotency key was reused with a different request');
+  }
+  return claim;
+}
+
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
   const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
@@ -84,19 +106,29 @@ export function createPaymentPlatform(config = {}) {
     provider: (id) => registry.require(id),
     capabilities: (id) => registry.capabilities(id),
     getAvailablePaymentMethods: () => methodsFromCapabilities(registry),
+
     async createPayment(providerId, data = {}) {
       const reference = data.reference || data.paymentId || data.idempotencyKey;
       if (!reference) throw new TypeError('payment reference or idempotencyKey is required');
       const key = data.idempotencyKey || `payment:${providerId}:${reference}`;
+      const hash = requestHash({ providerId, data: { ...data, idempotencyKey: undefined } });
       const previous = idempotency.get(key);
       if (previous) return previous;
-      if (typeof idempotency.reserve === 'function' && !idempotency.reserve(key, { provider: providerId, reference })) {
+
+      const claim = await claimPersistent(persistence, key, 'payment', hash);
+      if (claim && !claim.claimed) {
+        if (claim.record?.status === 'completed' && claim.record.response) return claim.record.response;
+        return { status: 'processing', idempotencyKey: key, duplicate: true };
+      }
+      if (!claim && typeof idempotency.reserve === 'function' && !idempotency.reserve(key, { provider: providerId, reference })) {
         const concurrent = idempotency.get(key);
         if (concurrent) return concurrent;
         throw new Error('Payment request is already being processed');
       }
+
       try {
         const result = await registry.require(providerId).createPayment({ ...data, idempotencyKey: key });
+        const response = result;
         if (persistence) {
           await persistence.upsertTransaction({
             transactionId: String(result.transactionId || result.id || reference),
@@ -113,16 +145,67 @@ export function createPaymentPlatform(config = {}) {
             providerTransactionId: result.providerTransactionId || result.transactionId || result.id,
             metadata: result.metadata || {},
           });
+          if (persistence.completeIdempotency) await persistence.completeIdempotency(key, response);
         }
-        return idempotency.set(key, result);
+        return idempotency.set(key, response);
       } catch (error) {
-        if (typeof idempotency.release === 'function') idempotency.release(key);
+        if (persistence?.releaseIdempotency) await persistence.releaseIdempotency(key);
+        else if (typeof idempotency.release === 'function') idempotency.release(key);
         throw error;
       }
     },
+
     verifyPayment: (id, data) => registry.require(id).verifyPayment(data),
-    refund: async (id, transactionId, amount, reason = '') => registry.require(id).refundPayment(transactionId, { amount, reason }),
-    webhook: async (id, payload, headers = {}) => {
+
+    async refund(id, transactionId, amount, reason = '', options = {}) {
+      if (!transactionId) throw new TypeError('transactionId is required');
+      if (!(Number(amount) > 0)) throw new TypeError('refund amount must be positive');
+      const providerId = String(id).toLowerCase();
+      const normalizedReason = String(reason || '').trim();
+      const key = options.idempotencyKey || `refund:${providerId}:${transactionId}:${amount}:${normalizedReason}`;
+      const hash = requestHash({ providerId, transactionId, amount, reason: normalizedReason });
+      const previous = idempotency.get(key);
+      if (previous) return previous;
+
+      const claim = await claimPersistent(persistence, key, 'refund', hash);
+      if (claim && !claim.claimed) {
+        if (claim.record?.status === 'completed' && claim.record.response) return claim.record.response;
+        return { status: 'processing', idempotencyKey: key, duplicate: true };
+      }
+      if (!claim && typeof idempotency.reserve === 'function' && !idempotency.reserve(key, { provider: providerId, transactionId })) {
+        const concurrent = idempotency.get(key);
+        if (concurrent) return concurrent;
+        throw new Error('Refund request is already being processed');
+      }
+
+      try {
+        const result = await registry.require(providerId).refundPayment(transactionId, { amount, reason: normalizedReason, idempotencyKey: key });
+        const response = { ...result, idempotencyKey: key };
+        if (persistence) {
+          if (result.success) {
+            await persistence.upsertTransaction({
+              transactionId: String(transactionId),
+              provider: providerId,
+              reference: String(result.reference || transactionId),
+              amount: result.amount ?? amount,
+              currency: result.currency || 'USD',
+              status: 'refunded',
+              idempotencyKey: key,
+              providerTransactionId: result.providerTransactionId || result.transactionId || transactionId,
+              metadata: { ...(result.metadata || {}), refundReason: normalizedReason || null },
+            });
+          }
+          if (persistence.completeIdempotency) await persistence.completeIdempotency(key, response);
+        }
+        return idempotency.set(key, response);
+      } catch (error) {
+        if (persistence?.releaseIdempotency) await persistence.releaseIdempotency(key);
+        else if (typeof idempotency.release === 'function') idempotency.release(key);
+        throw error;
+      }
+    },
+
+    async webhook(id, payload, headers = {}) {
       const adapter = registry.require(id);
       const valid = await adapter.verifyWebhook(payload, headers);
       if (!valid) throw new Error(`Payment provider '${id}' webhook verification failed`);
@@ -172,6 +255,7 @@ export function createPaymentPlatform(config = {}) {
         throw error;
       }
     },
+
     reconcile: (id, data) => registry.require(id).reconcile(data),
   };
   return Object.freeze(platform);
