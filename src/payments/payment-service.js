@@ -1,10 +1,9 @@
-
 // src/payments/payment-service.js
-// High-level payment service for AgentOS business logic
+// High-level payment service for business logic. Provider transport is owned by PaymentPlatform.
 
 class PaymentService {
-  constructor(paymentGateway) {
-    this.gateway = paymentGateway;
+  constructor(paymentPlatform) {
+    this.platform = paymentPlatform;
     this.db = null; // Set via setDatabase()
   }
 
@@ -12,12 +11,6 @@ class PaymentService {
     this.db = database;
   }
 
-  /**
-   * Create an idempotent provider payment record. This is domain-neutral and
-   * can be used by checkout, ask-engine, or external API adapters.
-   * @param {Object} params
-   * @returns {Promise<Object>} normalized payment record
-   */
   async createPayment({ provider, paymentId, amountMinor, currency, customer, metadata = {} }) {
     if (!provider) throw new TypeError('provider is required');
     if (!paymentId) throw new TypeError('paymentId is required');
@@ -31,7 +24,7 @@ class PaymentService {
       if (existing?.exists) return existing.data();
     }
 
-    const result = await this.gateway.createPayment(provider, {
+    const result = await this.platform.createPayment(provider, {
       amount: amountMinor / 100,
       amountMinor,
       currency,
@@ -54,11 +47,8 @@ class PaymentService {
     return payment;
   }
 
-  /**
-   * Verify and persist a provider webhook using the existing gateway contract.
-   */
   async handleWebhook(provider, payload, headers = {}) {
-    const result = await this.gateway.handleWebhook(provider, payload, headers);
+    const result = await this.platform.webhook(provider, payload, headers);
     const paymentId = result?.paymentId || result?.transactionId || result?.id;
     if (this.db && paymentId) {
       await this.db.collection('payments').doc(paymentId).set({
@@ -71,11 +61,6 @@ class PaymentService {
     return result;
   }
 
-  /**
-   * Create a voucher purchase transaction
-   * @param {Object} params - Purchase parameters
-   * @returns {Promise<Object>} Purchase result
-   */
   async purchaseVoucher(params) {
     const {
       userId,
@@ -85,28 +70,20 @@ class PaymentService {
       paymentMethod,
       customerPhone,
       customerEmail,
-      metadata = {}
+      metadata = {},
     } = params;
 
-    // Generate unique reference
     const reference = `VOUCHER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Create payment
-    const paymentResult = await this.gateway.createPayment(paymentMethod, {
+    const paymentResult = await this.platform.createPayment(paymentMethod, {
       amount,
       currency,
       description: `WiFi Voucher: ${voucherType}`,
       reference,
       phoneNumber: customerPhone,
       email: customerEmail,
-      metadata: {
-        userId,
-        voucherType,
-        ...metadata
-      }
+      metadata: { userId, voucherType, ...metadata },
     });
 
-    // Store transaction in database
     if (this.db) {
       await this.db.collection('transactions').doc(paymentResult.transactionId).set({
         userId,
@@ -118,40 +95,25 @@ class PaymentService {
         reference,
         transactionId: paymentResult.transactionId,
         createdAt: new Date(),
-        metadata: paymentResult
+        metadata: paymentResult,
       });
     }
 
-    return {
-      ...paymentResult,
-      reference
-    };
+    return { ...paymentResult, reference };
   }
 
-  /**
-   * Handle successful payment and generate voucher
-   * @param {string} transactionId - Payment transaction ID
-   * @param {string} provider - Payment provider
-   * @returns {Promise<Object>} Voucher details
-   */
   async processSuccessfulPayment(transactionId, provider) {
-    // Get transaction details
-    const transaction = await this.gateway.verifyPayment(provider, transactionId);
-    
-    if (!transaction.success) {
-      throw new Error('Payment not completed');
-    }
+    const transaction = await this.platform.verifyPayment(provider, transactionId);
+    if (!transaction.success) throw new Error('Payment not completed');
 
-    // Update transaction status
     if (this.db) {
       await this.db.collection('transactions').doc(transactionId).update({
         status: 'completed',
         completedAt: new Date(),
-        paymentDetails: transaction
+        paymentDetails: transaction,
       });
     }
 
-    // Generate voucher code
     const voucherCode = this.generateVoucherCode();
     const voucher = {
       code: voucherCode,
@@ -161,46 +123,26 @@ class PaymentService {
       transactionId,
       createdAt: new Date(),
       expiresAt: this.calculateExpiry(transaction.metadata?.voucherType),
-      used: false
+      used: false,
     };
 
-    // Store voucher
     if (this.db) {
       await this.db.collection('vouchers').doc(voucherCode).set(voucher);
-      
-      // Update user wallet
       if (transaction.metadata?.userId) {
         await this.db.collection('users').doc(transaction.metadata.userId)
           .collection('vouchers').add(voucher);
       }
     }
 
-    return {
-      success: true,
-      voucher,
-      transaction
-    };
+    return { success: true, voucher, transaction };
   }
 
-  /**
-   * Get payment methods available for a user
-   * @param {Object} context - User context
-   * @returns {Array} Available methods
-   */
-  async getAvailablePaymentMethods(context) {
-    return this.gateway.getAvailableMethods(context);
+  async getAvailablePaymentMethods(context = {}) {
+    return this.platform.getAvailablePaymentMethods(context);
   }
 
-  /**
-   * Process refund for a transaction
-   * @param {string} transactionId - Transaction to refund
-   * @param {string} provider - Payment provider
-   * @param {number} amount - Amount to refund
-   * @param {string} reason - Refund reason
-   * @returns {Promise<Object>} Refund result
-   */
   async processRefund(transactionId, provider, amount, reason) {
-    const result = await this.gateway.refund(provider, transactionId, amount, reason);
+    const result = await this.platform.refund(provider, transactionId, amount, reason);
 
     if (this.db) {
       await this.db.collection('transactions').doc(transactionId).update({
@@ -208,24 +150,17 @@ class PaymentService {
         refundAmount: amount,
         refundReason: reason,
         refundId: result.refundId,
-        refundedAt: new Date()
+        refundedAt: new Date(),
       });
     }
 
     return result;
   }
 
-  /**
-   * Get transaction history for a user
-   * @param {string} userId - User ID
-   * @param {Object} options - Query options
-   * @returns {Promise<Array>} Transaction history
-   */
   async getTransactionHistory(userId, options = {}) {
     if (!this.db) return [];
 
     const { limit = 50, offset = 0 } = options;
-    
     const snapshot = await this.db.collection('transactions')
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
@@ -233,42 +168,20 @@ class PaymentService {
       .offset(offset)
       .get();
 
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   }
 
-  /**
-   * Generate random voucher code
-   * @returns {string} Voucher code
-   */
   generateVoucherCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
-    for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    // Add hyphens for readability: XXXX-XXXX
+    for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
     return `${code.substr(0, 4)}-${code.substr(4, 4)}`;
   }
 
-  /**
-   * Calculate voucher expiry date
-   * @param {string} type - Voucher type
-   * @returns {Date} Expiry date
-   */
   calculateExpiry(type) {
     const now = new Date();
-    const multipliers = {
-      '1Hour': 1,
-      '1Day': 24,
-      '1Week': 24 * 7,
-      '1Month': 24 * 30
-    };
-    
-    const hours = multipliers[type] || 24;
-    return new Date(now.getTime() + hours * 60 * 60 * 1000);
+    const multipliers = { '1Hour': 1, '1Day': 24, '1Week': 24 * 7, '1Month': 24 * 30 };
+    return new Date(now.getTime() + (multipliers[type] || 24) * 60 * 60 * 1000);
   }
 }
 
