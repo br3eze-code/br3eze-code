@@ -21,22 +21,16 @@ import java.util.Collections;
 public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        if ("capabilities".equals(action)) {
-            callbackContext.success(capabilities());
-            return true;
-        }
-        if ("connectivity".equals(action)) {
-            callbackContext.success(connectivity());
-            return true;
-        }
-        if ("interfaces".equals(action)) {
-            callbackContext.success(interfaces());
-            return true;
-        }
-        if ("agentRequest".equals(action)) {
-            callbackContext.error("AgentOS network-tool execution must be authorized by the gateway");
-            return true;
-        }
+        if ("capabilities".equals(action)) { callbackContext.success(capabilities()); return true; }
+        if ("connectivity".equals(action)) { callbackContext.success(connectivity()); return true; }
+        if ("interfaces".equals(action)) { callbackContext.success(interfaces()); return true; }
+        if ("wifiSignalStrength".equals(action)) { WifiUtils.getSignalStrength(cordova.getContext(), callbackContext); return true; }
+        if ("wifiStrength".equals(action)) { WifiUtils.getWifiStrength(cordova.getContext(), callbackContext); return true; }
+        if ("wifiList".equals(action)) { WifiUtils.getWifiList(cordova, callbackContext); return true; }
+        if ("wifiDetails".equals(action)) { WifiDetailsUtils.getAllWifiDetails(cordova, callbackContext); return true; }
+        if ("ipInfo".equals(action)) { IpInfoUtils.getIpInfo(cordova, callbackContext); return true; }
+        if ("connectedDevices".equals(action)) { WifiUtils.getConnectedDevices(cordova.getContext(), cordova, callbackContext); return true; }
+        if ("agentRequest".equals(action)) { callbackContext.error("AgentOS network-tool execution must be authorized by the gateway"); return true; }
         callbackContext.error("Unknown action: " + action);
         return false;
     }
@@ -47,19 +41,17 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
         result.put("platform", "android");
         result.put("localTelemetry", true);
         result.put("agentGatewayRequests", false);
-        result.put("actions", new JSONArray().put("capabilities").put("connectivity").put("interfaces"));
+        result.put("actions", new JSONArray()
+                .put("capabilities").put("connectivity").put("interfaces")
+                .put("wifiSignalStrength").put("wifiStrength").put("wifiList")
+                .put("wifiDetails").put("ipInfo").put("connectedDevices"));
         return result;
     }
 
     private JSONObject connectivity() throws JSONException {
         JSONObject result = new JSONObject();
-        ConnectivityManager manager = (ConnectivityManager) cordova.getContext()
-                .getSystemService(Context.CONNECTIVITY_SERVICE);
-
-        if (manager == null) {
-            return result.put("connected", false).put("transport", "offline").put("validated", false);
-        }
-
+        ConnectivityManager manager = (ConnectivityManager) cordova.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (manager == null) return result.put("connected", false).put("transport", "offline").put("validated", false);
         NetworkCapabilities capabilities = null;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Network network = manager.getActiveNetwork();
@@ -71,48 +63,29 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
             result.put("validated", false);
             return result;
         }
-
         result.put("connected", capabilities != null);
         result.put("transport", transport(capabilities));
-        result.put("validated", capabilities != null
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
-
+        result.put("validated", capabilities != null && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED));
         if (capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-            WifiManager wifi = (WifiManager) cordova.getContext().getApplicationContext()
-                    .getSystemService(Context.WIFI_SERVICE);
+            WifiManager wifi = (WifiManager) cordova.getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             WifiInfo info = wifi == null ? null : wifi.getConnectionInfo();
-            if (info != null) {
-                result.put("ssid", sanitizeSsid(info.getSSID()));
-                result.put("linkSpeedMbps", info.getLinkSpeed());
-            }
+            if (info != null) { result.put("ssid", sanitizeSsid(info.getSSID())); result.put("linkSpeedMbps", info.getLinkSpeed()); }
         }
         return result;
     }
 
     private String legacyTransport(int type) {
-        switch (type) {
-            case 1: return "wifi";
-            case 9: return "ethernet";
-            case 0: return "cellular";
-            default: return "other";
-        }
+        switch (type) { case 1: return "wifi"; case 9: return "ethernet"; case 0: return "cellular"; default: return "other"; }
     }
-
     private String transport(NetworkCapabilities capabilities) {
         if (capabilities == null) return "offline";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return "wifi";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return "ethernet";
         if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) return "cellular";
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return "vpn";
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return "vpn";
         return "other";
     }
-
-    private String sanitizeSsid(String ssid) {
-        if (ssid == null || "<unknown ssid>".equals(ssid)) return "unknown";
-        return ssid.replace("\"", "");
-    }
+    private String sanitizeSsid(String ssid) { return ssid == null || "<unknown ssid>".equals(ssid) ? "unknown" : ssid.replace("\"", ""); }
 
     private JSONArray interfaces() throws JSONException {
         JSONArray result = new JSONArray();
@@ -125,14 +98,11 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
                 item.put("loopback", networkInterface.isLoopback());
                 item.put("mtu", networkInterface.getMTU());
                 JSONArray addresses = new JSONArray();
-                Collections.list(networkInterface.getInetAddresses())
-                        .forEach(address -> addresses.put(address.getHostAddress()));
+                Collections.list(networkInterface.getInetAddresses()).forEach(address -> addresses.put(address.getHostAddress()));
                 item.put("addresses", addresses);
                 result.put(item);
             }
-        } catch (Exception error) {
-            throw new JSONException("Unable to enumerate network interfaces: " + error.getMessage());
-        }
+        } catch (Exception error) { throw new JSONException("Unable to enumerate network interfaces: " + error.getMessage()); }
         return result;
     }
 }
