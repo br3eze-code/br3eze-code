@@ -44,13 +44,13 @@ jobs:
         run: npm install --package-lock-only --legacy-peer-deps --ignore-scripts
 
       - name: Verify root immutable install
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps
 
       - name: Generate Firebase Functions lockfile
         run: npm install --package-lock-only --legacy-peer-deps --ignore-scripts --prefix server
 
       - name: Verify Firebase Functions immutable install
-        run: npm ci --ignore-scripts --prefix server
+        run: npm ci --ignore-scripts --legacy-peer-deps --prefix server
 
       - name: Commit synchronized manifests
         id: commit
