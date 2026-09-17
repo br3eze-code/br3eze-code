@@ -8,18 +8,18 @@
 
 const ZIMBABWE = 'ZW';
 
-// Stripe Payments is not currently available for merchants whose business
-// country is Zimbabwe. Keep Stripe as an adapter for supported jurisdictions;
-// never use a foreign account/address as a workaround.
-const PROVIDER_COUNTRY_ALLOWLIST = Object.freeze({
-  stripe: Object.freeze(['AE', 'AT', 'AU', 'BE', 'BG', 'BR', 'CA', 'CH', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GB', 'GI', 'GR', 'HK', 'HR', 'HU', 'IE', 'IN', 'IT', 'JP', 'LI', 'LT', 'LU', 'LV', 'MT', 'MX', 'MY', 'NL', 'NO', 'NZ', 'PL', 'PT', 'RO', 'SE', 'SG', 'SI', 'SK', 'TH', 'US']),
-  paynow: Object.freeze([ZIMBABWE]),
-  ecocash: Object.freeze([ZIMBABWE]),
-  netone: Object.freeze([ZIMBABWE]),
-  pesapay: Object.freeze([ZIMBABWE]),
-  smilepay: Object.freeze([ZIMBABWE]),
-  contipay: Object.freeze([ZIMBABWE]),
-  zuripay: Object.freeze([ZIMBABWE]),
+// Zimbabwe is intentionally explicit here: Stripe Payments is not currently
+// available to Zimbabwe-based merchants. Stripe remains a valid adapter for
+// merchants in supported jurisdictions; this is not a workaround mechanism.
+const PROVIDER_COUNTRY_RULES = Object.freeze({
+  stripe: Object.freeze({ denied: [ZIMBABWE] }),
+  paynow: Object.freeze({ allowed: [ZIMBABWE] }),
+  ecocash: Object.freeze({ allowed: [ZIMBABWE] }),
+  netone: Object.freeze({ allowed: [ZIMBABWE] }),
+  pesapay: Object.freeze({ allowed: [ZIMBABWE] }),
+  smilepay: Object.freeze({ allowed: [ZIMBABWE] }),
+  contipay: Object.freeze({ allowed: [ZIMBABWE] }),
+  zuripay: Object.freeze({ allowed: [ZIMBABWE] }),
 });
 
 export function normalizeCountry(country) {
@@ -29,12 +29,14 @@ export function normalizeCountry(country) {
 export function isProviderAllowed(provider, country = ZIMBABWE) {
   const normalizedProvider = String(provider || '').trim().toLowerCase();
   const normalizedCountry = normalizeCountry(country);
-  const allowlist = PROVIDER_COUNTRY_ALLOWLIST[normalizedProvider];
+  const rule = PROVIDER_COUNTRY_RULES[normalizedProvider];
 
-  // Unknown providers are not blocked by this registry; their own adapter is
-  // responsible for credentials and eligibility. Known providers are explicit.
-  if (!allowlist) return true;
-  return allowlist.includes(normalizedCountry);
+  // Unknown providers remain extensible; their adapter must enforce its own
+  // eligibility. Known providers use explicit rules above.
+  if (!rule) return true;
+  if (rule.denied?.includes(normalizedCountry)) return false;
+  if (rule.allowed) return rule.allowed.includes(normalizedCountry);
+  return true;
 }
 
 export function assertProviderAllowed(provider, country = ZIMBABWE) {
@@ -46,8 +48,10 @@ export function assertProviderAllowed(provider, country = ZIMBABWE) {
 }
 
 export function applyPaymentProviderPolicy(config = {}) {
-  const country = normalizeCountry(config.merchantCountry || config.country || process.env.MERCHANT_COUNTRY || ZIMBABWE);
-  const blockedProviders = new Set(
+  const country = normalizeCountry(
+    config.merchantCountry || config.country || process.env.MERCHANT_COUNTRY || ZIMBABWE
+  );
+  const disabledProviders = new Set(
     Array.isArray(config.disabledPaymentProviders)
       ? config.disabledPaymentProviders.map((provider) => String(provider).toLowerCase())
       : String(config.disabledPaymentProviders || process.env.DISABLED_PAYMENT_PROVIDERS || '')
@@ -56,24 +60,24 @@ export function applyPaymentProviderPolicy(config = {}) {
           .filter(Boolean)
   );
 
-  for (const provider of Object.keys(PROVIDER_COUNTRY_ALLOWLIST)) {
-    if (!isProviderAllowed(provider, country)) blockedProviders.add(provider);
+  for (const provider of Object.keys(PROVIDER_COUNTRY_RULES)) {
+    if (!isProviderAllowed(provider, country)) disabledProviders.add(provider);
   }
 
   return {
     ...config,
     merchantCountry: country,
-    disabledPaymentProviders: [...blockedProviders],
+    disabledPaymentProviders: [...disabledProviders],
   };
 }
 
-export { PROVIDER_COUNTRY_ALLOWLIST, ZIMBABWE };
+export { PROVIDER_COUNTRY_RULES, ZIMBABWE };
 
 export default {
   normalizeCountry,
   isProviderAllowed,
   assertProviderAllowed,
   applyPaymentProviderPolicy,
-  PROVIDER_COUNTRY_ALLOWLIST,
+  PROVIDER_COUNTRY_RULES,
   ZIMBABWE,
 };
