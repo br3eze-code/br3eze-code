@@ -7,25 +7,53 @@
 </head>
 <body>
   <p id="status">Completing sign-in…</p>
+  <script src="../js/env.js"></script>
   <script>
     const KEY = 'agentos_supabase_session';
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const error = params.get('error_description') || params.get('error');
-    if (error) {
-      document.getElementById('status').textContent = 'Sign-in failed: ' + decodeURIComponent(error);
-    } else if (params.get('access_token')) {
-      const session = {
-        access_token: params.get('access_token'),
-        refresh_token: params.get('refresh_token'),
-        expires_in: Number(params.get('expires_in') || 3600),
-        token_type: params.get('token_type') || 'bearer',
-        expires_at: Math.floor(Date.now() / 1000) + Number(params.get('expires_in') || 3600)
-      };
-      localStorage.setItem(KEY, JSON.stringify(session));
-      window.location.replace('/');
-    } else {
-      document.getElementById('status').textContent = 'No authentication session was returned.';
+    const VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
+    const STATE_KEY = 'agentos_oauth_state';
+    const status = document.getElementById('status');
+    const runtime = window.ENV || {};
+    const supabaseUrl = String(runtime.SUPABASE_URL || '').replace(/\/$/, '');
+
+    async function exchangeCode(code, verifier) {
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`, {
+        method: 'POST',
+        headers: { apikey: runtime.SUPABASE_PUBLISHABLE_KEY || runtime.SUPABASE_ANON_KEY || '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_code: code, code_verifier: verifier })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.msg || body.error_description || body.error || 'OAuth token exchange failed.');
+      return body;
     }
+
+    (async function () {
+      try {
+        const query = new URLSearchParams(window.location.search);
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const error = query.get('error_description') || query.get('error') || hash.get('error_description') || hash.get('error');
+        if (error) throw new Error(error);
+
+        const returnedState = query.get('state') || hash.get('state');
+        const expectedState = localStorage.getItem(STATE_KEY);
+        if (!returnedState || !expectedState || returnedState !== expectedState) throw new Error('OAuth state validation failed.');
+
+        const code = query.get('code');
+        const verifier = localStorage.getItem(VERIFIER_KEY);
+        if (!code || !verifier) throw new Error('OAuth authorization code or PKCE verifier is missing.');
+        if (!supabaseUrl) throw new Error('Supabase Auth is not configured.');
+
+        const session = await exchangeCode(code, verifier);
+        localStorage.setItem(KEY, JSON.stringify(session));
+        localStorage.removeItem(VERIFIER_KEY);
+        localStorage.removeItem(STATE_KEY);
+        window.location.replace('../');
+      } catch (e) {
+        localStorage.removeItem(VERIFIER_KEY);
+        localStorage.removeItem(STATE_KEY);
+        status.textContent = 'Sign-in failed: ' + (e.message || 'Unknown authentication error.');
+      }
+    })();
   </script>
 </body>
 </html>
