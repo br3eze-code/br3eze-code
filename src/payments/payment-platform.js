@@ -167,7 +167,8 @@ export function createPaymentPlatform(config = {}) {
         }
         return idempotency.set(key, completed);
       } catch (error) {
-        if (!persistence?.claimIdempotency && typeof idempotency.release === 'function') idempotency.release(key);
+        if (persistence?.releaseIdempotency) await persistence.releaseIdempotency(key);
+        else if (typeof idempotency.release === 'function') idempotency.release(key);
         throw error;
       }
     },

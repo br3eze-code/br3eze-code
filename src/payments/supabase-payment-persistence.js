@@ -118,7 +118,13 @@ export function createSupabasePaymentPersistence({ client = getSupabaseAdmin() }
     return data;
   }
 
-  return Object.freeze({ insertEvent, upsertTransaction, appendLedgerEntry, upsertSettlement, recordReconciliation, claimIdempotency, completeIdempotency });
+  async function releaseIdempotency(key) {
+    const { error } = await client.from('payment_idempotency').delete().eq('idempotency_key', key).eq('status', 'processing');
+    if (error) throw error;
+    return true;
+  }
+
+  return Object.freeze({ insertEvent, upsertTransaction, appendLedgerEntry, upsertSettlement, recordReconciliation, claimIdempotency, completeIdempotency, releaseIdempotency });
 }
 
 export default createSupabasePaymentPersistence;
