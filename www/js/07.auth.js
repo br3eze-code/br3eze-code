@@ -1,6 +1,6 @@
 /* ==========================================================
-   07.auth.js — Canonical Supabase Auth for Cordova/Web
-   Firebase is data-only compatibility during migration.
+   07.auth.js — Provider-neutral Supabase Auth boundary
+   www is a client boundary: no provider secrets or domain rules.
    ========================================================== */
 
 const supabaseRuntime = window.ENV || {};
@@ -9,6 +9,8 @@ const SUPABASE_KEY = supabaseRuntime.SUPABASE_PUBLISHABLE_KEY || supabaseRuntime
 const SUPABASE_OAUTH_REDIRECT = String(supabaseRuntime.SUPABASE_OAUTH_REDIRECT || '').trim();
 const SUPABASE_SESSION_KEY = 'agentos_supabase_session';
 const SUPABASE_PROFILE_KEY = 'agentos_supabase_profile';
+const PKCE_VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
+const OAUTH_STATE_KEY = 'agentos_oauth_state';
 
 function supabaseHeaders(accessToken = '') {
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
@@ -46,17 +48,14 @@ async function refreshSession() {
     refreshPromise = (async () => {
         try {
             const next = await supabaseRequest('/auth/v1/token?grant_type=refresh_token', {
-                method: 'POST',
-                body: JSON.stringify({ refresh_token: session.refresh_token })
+                method: 'POST', body: JSON.stringify({ refresh_token: session.refresh_token })
             });
             setSession(next);
             return next;
         } catch {
             setSession(null);
             return null;
-        } finally {
-            refreshPromise = null;
-        }
+        } finally { refreshPromise = null; }
     })();
     return refreshPromise;
 }
@@ -65,8 +64,7 @@ async function getProfile(user) {
     if (!user?.id || !getSession()?.access_token) return null;
     try {
         const rows = await supabaseRequest(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,full_name,username,phone,role,tenant_id,site_id,domain,address`, {
-            method: 'GET',
-            accessToken: getSession().access_token
+            method: 'GET', accessToken: getSession().access_token
         });
         const profile = rows?.[0] || null;
         if (profile) localStorage.setItem(SUPABASE_PROFILE_KEY, JSON.stringify(profile));
@@ -74,14 +72,55 @@ async function getProfile(user) {
     } catch { return null; }
 }
 
+function randomBytes(length) {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    return bytes;
+}
+
+function base64Url(bytes) {
+    let binary = '';
+    bytes.forEach(b => binary += String.fromCharCode(b));
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function createPkce() {
+    const verifier = base64Url(randomBytes(32));
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+    return base64Url(new Uint8Array(digest));
+}
+
+async function loginWithProvider(provider) {
+    provider = String(provider || '').trim().toLowerCase();
+    if (!provider) throw new Error('Authentication provider is required.');
+    if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase Auth is not configured.');
+
+    const redirect = SUPABASE_OAUTH_REDIRECT ||
+        ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
+            ? `${window.location.origin}/auth/callback` : '');
+    if (!redirect) throw new Error('OAuth login needs SUPABASE_OAUTH_REDIRECT for this native build.');
+
+    const state = base64Url(randomBytes(24));
+    const challenge = await createPkce();
+    localStorage.setItem(OAUTH_STATE_KEY, state);
+    const params = new URLSearchParams({
+        provider,
+        redirect_to: redirect,
+        code_challenge: challenge,
+        code_challenge_method: 's256',
+        state
+    });
+    window.location.assign(`${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`);
+}
+
 window.SupabaseAuth = {
     getSession,
-    async getUser() {
+    getUser: async function () {
         let session = getSession();
         if (!session?.access_token) return null;
-        try {
-            return await supabaseRequest('/auth/v1/user', { method: 'GET', accessToken: session.access_token });
-        } catch {
+        try { return await supabaseRequest('/auth/v1/user', { method: 'GET', accessToken: session.access_token }); }
+        catch {
             session = await refreshSession();
             if (!session?.access_token) return null;
             try { return await supabaseRequest('/auth/v1/user', { method: 'GET', accessToken: session.access_token }); }
@@ -89,11 +128,13 @@ window.SupabaseAuth = {
         }
     },
     getProfile,
-    async apiFetch(url, options = {}) {
+    loginWithProvider,
+    apiFetch: async function (url, options = {}) {
         let session = getSession();
         let headers = { ...(options.headers || {}) };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        let response = await fetch(url, { ...options, headers });
+        const responseOptions = { ...options, headers };
+        let response = await fetch(url, responseOptions);
         if (response.status === 401 && session?.refresh_token) {
             session = await refreshSession();
             if (session?.access_token) {
@@ -107,12 +148,11 @@ window.SupabaseAuth = {
 
 window.Auth = {
     _listeners: [],
-    _emit(session) { this._listeners.slice().forEach(fn => { try { fn(session); } catch (e) { console.error('[Supabase Auth]', e); } }); },
+    _emit(session) { this._listeners.slice().forEach(fn => { try { fn(session); } catch (e) { console.error('[Auth]', e); } }); },
     onAuthStateChanged(fn) {
         this._listeners.push(fn);
         return () => { this._listeners = this._listeners.filter(x => x !== fn); };
     },
-
     async login(identifier, password) {
         Loading.show('Logging in...');
         try {
@@ -120,63 +160,49 @@ window.Auth = {
             const session = await supabaseRequest('/auth/v1/token?grant_type=password', {
                 method: 'POST', body: JSON.stringify({ email: identifier.trim(), password })
             });
-            setSession(session);
-            showToast('Logged in!', 'success');
+            setSession(session); showToast('Logged in!', 'success');
         } catch (e) { showToast(e.message, 'error'); }
         finally { Loading.hide(); }
     },
-
     async signup(email, password, fullname, username, confirm) {
         if (password !== confirm) return showToast('Passwords do not match.', 'error');
         Loading.show('Creating account...');
         try {
             const session = await supabaseRequest('/auth/v1/signup', {
-                method: 'POST',
-                body: JSON.stringify({
-                    email: email.trim(),
-                    password,
-                    data: { full_name: fullname?.trim() || '', username: username?.trim() || '' }
-                })
+                method: 'POST', body: JSON.stringify({ email: email.trim(), password, data: { full_name: fullname?.trim() || '', username: username?.trim() || '' } })
             });
             if (session?.access_token) setSession(session);
             showToast(session?.access_token ? 'Account created!' : 'Account created. Check your email to confirm.', 'success');
         } catch (e) { showToast(e.message, 'error'); }
         finally { Loading.hide(); }
     },
-
     async logout() {
         const session = getSession();
-        try {
-            if (session?.access_token) await supabaseRequest('/auth/v1/logout', { method: 'POST', accessToken: session.access_token });
-        } catch {}
-        setSession(null);
-        localStorage.removeItem(SUPABASE_PROFILE_KEY);
-        window.location.reload();
+        try { if (session?.access_token) await supabaseRequest('/auth/v1/logout', { method: 'POST', accessToken: session.access_token }); } catch {}
+        setSession(null); localStorage.removeItem(SUPABASE_PROFILE_KEY); window.location.reload();
     },
-
     async requestPasswordReset(email) {
         if (!email) return showToast('Enter your email first.', 'error');
         Loading.show('Sending reset link...');
         try {
-            await supabaseRequest('/auth/v1/recover', {
-                method: 'POST', body: JSON.stringify({ email: email.trim() })
-            });
-            showToast('If that email has an account, a reset link is on its way.', 'success');
-            toggleForgotPassword();
+            await supabaseRequest('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
+            showToast('If that email has an account, a reset link is on its way.', 'success'); toggleForgotPassword();
         } catch (e) { showToast(e.message, 'error'); }
         finally { Loading.hide(); }
     },
-
     async loginWithGoogle() {
-        if (!SUPABASE_URL || !SUPABASE_KEY) return showToast('Supabase Auth is not configured.', 'error');
-        const redirect = SUPABASE_OAUTH_REDIRECT ||
-            (window.location.protocol === 'http:' || window.location.protocol === 'https:'
-                ? `${window.location.origin}/auth/callback`
-                : '');
-        if (!redirect) return showToast('Google login needs SUPABASE_OAUTH_REDIRECT for this native build.', 'error');
-        const params = new URLSearchParams({ provider: 'google', redirect_to: redirect });
-        window.location.href = `${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`;
-    }
+        try { await loginWithProvider('google'); } catch (e) { showToast(e.message, 'error'); }
+    },
+    async loginWithGitHub() {
+        try { await loginWithProvider('github'); } catch (e) { showToast(e.message, 'error'); }
+    },
+    async loginWithMicrosoft() {
+        try { await loginWithProvider('azure'); } catch (e) { showToast(e.message, 'error'); }
+    },
+    async loginWithApple() {
+        try { await loginWithProvider('apple'); } catch (e) { showToast(e.message, 'error'); }
+    },
+    loginWithProvider
 };
 
 (async () => {
