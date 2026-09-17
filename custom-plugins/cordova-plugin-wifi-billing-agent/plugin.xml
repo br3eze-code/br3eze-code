@@ -11,6 +11,10 @@
         <clobbers target="WiFiBillingAgent" />
         <clobbers target="cordova.plugins.WiFiBillingAgent" />
     </js-module>
+    <js-module src="www/DomainConnectivity.js" name="DomainConnectivity">
+        <clobbers target="AgentOSConnectivity" />
+        <clobbers target="cordova.plugins.AgentOSConnectivity" />
+    </js-module>
     <js-module src="www/WiFiWizard2Compat.js" name="WiFiWizard2Compat">
         <clobbers target="WifiWizard2" />
         <clobbers target="cordova.plugins.WifiWizard2" />
