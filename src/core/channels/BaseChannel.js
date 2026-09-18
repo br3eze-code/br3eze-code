@@ -68,21 +68,17 @@ class BaseChannel extends EventEmitter {
 
     isAuthorized(userId, secondaryId = null) {
         if (!userId && !secondaryId) return false;
-        const allowed = this.config.allowed_ids || [];
-        if (allowed.length === 0) return true;
+    const allowed = (this.config.allowed_ids || this.config.allowedIds || []).map((id) => String(id).toLowerCase());
+    const idsToCheck = [userId, secondaryId].filter(Boolean).map(id => String(id).trim().toLowerCase());
+    const anonymousAllowed = this.config.allowAnonymous === true || this.config.allow_anonymous === true;
+    if (idsToCheck.length === 0) return anonymousAllowed;
+    if (allowed.length === 0) return anonymousAllowed;
 
-        const idsToCheck = [userId, secondaryId].filter(Boolean).map(id => String(id).toLowerCase());
-        
-        for (const idStr of idsToCheck) {
-            if (allowed.includes(idStr)) return true;
-
-            if (idStr.includes('@')) {
-                const number = idStr.split('@')[0];
-                if (allowed.some(a => a === number || a === `${number}@s.whatsapp.net` || a === `${number}@lid`)) return true;
-            }
-        }
-
-        return false;
+    return idsToCheck.some((idStr) => {
+      if (allowed.includes(idStr)) return true;
+      const bare = idStr.split('@')[0];
+      return allowed.includes(bare) || allowed.includes(`${bare}@s.whatsapp.net`) || allowed.includes(`${bare}@lid`);
+    });
     }
 
     /**
