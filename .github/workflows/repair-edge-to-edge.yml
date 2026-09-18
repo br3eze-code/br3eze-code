@@ -17,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Restore intact index.html and apply stylesheet
+      - name: Restore intact index.html, apply stylesheet, remove repair workflow
         shell: bash
         run: |
           set -euo pipefail
@@ -37,9 +37,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add www/index.html
-          if git diff --cached --quiet; then
-            echo 'No repair required.'
-            exit 0
-          fi
+          git rm .github/workflows/repair-edge-to-edge.yml
           git commit -m 'fix(android): restore index and apply edge-to-edge layer'
           git push origin HEAD:main
