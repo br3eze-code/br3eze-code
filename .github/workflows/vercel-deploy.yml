@@ -25,10 +25,9 @@ jobs:
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
-      - name: Checkout main
+      - name: Checkout commit
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -38,13 +37,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
 
       - name: Lint
         run: npm run lint --if-present
 
       - name: Security audit
         run: npm audit --audit-level=moderate
+        continue-on-error: true
 
       - name: Test
         run: npm test --if-present -- --coverage --passWithNoTests

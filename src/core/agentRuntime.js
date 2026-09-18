@@ -11,7 +11,13 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
   { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'system.status', keywords: ['status', 'health', 'state'] }
+  { name: 'system.status', keywords: ['status', 'health', 'state'] },
+  { name: 'users.active', keywords: ['active', 'users', 'user'] },
+  { name: 'users.all', keywords: ['all', 'users', 'user'] },
+  { name: 'system.stats', keywords: ['system', 'stats', 'statistics', 'resource', 'resources', 'memory', 'cpu'] },
+  { name: 'system.logs', keywords: ['system', 'logs', 'log'] },
+  { name: 'system.reboot', keywords: ['reboot', 'restart'] },
+  { name: 'user.add', keywords: ['create', 'new', 'user', 'add', 'register', 'account'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
