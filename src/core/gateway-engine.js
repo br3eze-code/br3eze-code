@@ -31,4 +31,17 @@ export class Gateway extends EventEmitter {
   async close() { return this.stop(); }
   getApp() { return this.app; }
 }
+let sharedGateway = null;
+
+export function getGateway() {
+  if (!sharedGateway) {
+    sharedGateway = {
+      config: {},
+      logger,
+      workspace: process.cwd(),
+    };
+  }
+  return sharedGateway;
+}
+
 export default Gateway;
