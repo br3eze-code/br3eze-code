@@ -1,5 +1,5 @@
 {
-  "name": "br3eze-code",
+  "name": "@br3eze-code/agentos",
   "version": "2026.9.23",
   "description": "AgentOS — domain-neutral agent orchestration and execution platform",
   "main": "src/core/gateway.js",
@@ -52,7 +52,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com/"
   },
   "repository": {
     "type": "git",
