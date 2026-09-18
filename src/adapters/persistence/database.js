@@ -1941,8 +1941,14 @@ class Database {
     }
 
     // Stable provider-neutral CRUD contract shared with Supabase.
+    _resourceName(resource) {
+        const aliases = { paymentTransactions: 'payments', paymentEvents: 'payment_events', paymentLedger: 'ledger_entries', paymentSettlements: 'payment_settlements', paymentReconciliation: 'payment_reconciliation', paymentIdempotency: 'payment_idempotency' };
+        return aliases[resource] || resource;
+    }
+
     async get(resource, id) {
-        const snap = this.db ? await this.db.collection(resource).doc(String(id)).get() : null;
+        const collection = this._resourceName(resource);
+        const snap = this.db ? await this.db.collection(collection).doc(String(id)).get() : null;
         if (snap) return snap.exists ? { id: snap.id, ...snap.data() } : null;
         const key = String(id);
         if (resource === 'users') return this.getUser(key);
@@ -1953,7 +1959,7 @@ class Database {
 
     async set(resource, id, data, options = {}) {
         if (this.db) {
-            await this.db.collection(resource).doc(String(id)).set({ ...data, id: String(id) }, { merge: Boolean(options.merge) });
+            await this.db.collection(this._resourceName(resource)).doc(String(id)).set({ ...data, id: String(id) }, { merge: Boolean(options.merge) });
             return this.get(resource, id);
         }
         if (resource === 'users') return this.updateUser(String(id), data);
@@ -1962,7 +1968,7 @@ class Database {
 
     async update(resource, id, data) {
         if (this.db) {
-            await this.db.collection(resource).doc(String(id)).update(data);
+            await this.db.collection(this._resourceName(resource)).doc(String(id)).update(data);
             return this.get(resource, id);
         }
         if (resource === 'users') return this.updateUser(String(id), data);
@@ -1971,13 +1977,13 @@ class Database {
 
     async delete(resource, id) {
         if (!this.db) throw new Error('Delete requires the Firebase fallback backend');
-        await this.db.collection(resource).doc(String(id)).delete();
+        await this.db.collection(this._resourceName(resource)).doc(String(id)).delete();
         return true;
     }
 
     async query(resource, filters = {}, options = {}) {
         if (!this.db) throw new Error('Query requires the Firebase fallback backend');
-        let q = this.db.collection(resource);
+        let q = this.db.collection(this._resourceName(resource));
         for (const [field, value] of Object.entries(filters || {})) q = Array.isArray(value) ? q.where(field, 'in', value) : q.where(field, '==', value);
         if (options.orderBy) q = q.orderBy(options.orderBy, options.direction === 'desc' ? 'desc' : 'asc');
         if (options.limit) q = q.limit(Number(options.limit));
