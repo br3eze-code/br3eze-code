@@ -47,13 +47,14 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
 }
 
 // Firebase Hosting must not fail because an unrelated optional provider is disabled.
-// Firebase can initialize with the API key; the remaining web config is copied when present.
-const required = ['FIREBASE_API_KEY'];
-const missing = required.filter((k) => !env[k]);
-if (missing.length) {
-    console.error(`[env:www] Missing in .env: ${missing.join(', ')}`);
+// Firebase web config commonly names the same public key either API_KEY or WEB_API_KEY.
+const firebaseApiKey = env.FIREBASE_API_KEY || env.FIREBASE_WEB_API_KEY;
+if (!firebaseApiKey) {
+    console.error('[env:www] Missing in .env: FIREBASE_API_KEY or FIREBASE_WEB_API_KEY');
     process.exit(1);
 }
+env.FIREBASE_API_KEY = firebaseApiKey;
+env.FIREBASE_WEB_API_KEY = firebaseApiKey;
 
 const body = BROWSER_KEYS
     .filter((k) => env[k])

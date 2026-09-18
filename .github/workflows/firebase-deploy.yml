@@ -40,7 +40,7 @@ jobs:
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           ref: main
 
@@ -79,8 +79,8 @@ jobs:
         # Optional Supabase/AI values are included when configured but do not block Firebase Hosting.
         run: |
           {
-            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}"
-            echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY }}"
+            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY || secrets.FIREBASE_WEB_API_KEY }}"
+            echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY || secrets.FIREBASE_API_KEY }}"
             echo "FIREBASE_AUTH_DOMAIN=${{ secrets.FIREBASE_AUTH_DOMAIN }}"
             echo "FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}"
             echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID || 'br3eze-africa-312df' }}"
