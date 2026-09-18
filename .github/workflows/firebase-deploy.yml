@@ -7,6 +7,8 @@ name: Firebase Deploy
 # Kubernetes (deploy.yml) — those are separate, unrelated targets.
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ['Release']
     types: [completed]
@@ -30,12 +32,13 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    # Only proceed if this was triggered manually, or the Release workflow
-    # actually ran on main and succeeded (it no-ops without failing when
-    # there's nothing new to release, so also guard on it having produced one).
+    # Deploy from main pushes, manual dispatches, or successful releases.
+    # A failed Release workflow must not silently suppress Firebase deployment.
     if: >
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     environment: production
     steps:
