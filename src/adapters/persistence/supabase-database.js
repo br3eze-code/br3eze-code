@@ -17,8 +17,98 @@ const normalizeUser = row => row ? ({
   credits: Number(row.credits || 0), ...row
 }) : null;
 
+const RESOURCE_TABLES = Object.freeze({
+  users: 'profiles', plans: 'app_plans', vouchers: 'app_vouchers',
+  transactions: 'app_transactions', products: 'products', services: 'services',
+  inventory: 'product_inventory', carts: 'carts', orders: 'orders', invoices: 'invoices',
+  paymentEvents: 'payment_events', paymentTransactions: 'payment_transactions',
+  paymentLedger: 'payment_ledger_entries', paymentSettlements: 'payment_settlements',
+  paymentReconciliation: 'payment_reconciliation', paymentIdempotency: 'payment_idempotency'
+});
+const RESOURCE_KEYS = Object.freeze({
+  users:'id', plans:'id', vouchers:'code', transactions:'id', products:'id',
+  services:'id', inventory:'product_id', carts:'id', orders:'id', invoices:'id',
+  paymentEvents:'event_id', paymentTransactions:'transaction_id', paymentLedger:'entry_id',
+  paymentSettlements:'settlement_id', paymentReconciliation:'reconciliation_id',
+  paymentIdempotency:'idempotency_key'
+});
+const tableFor = resource => RESOURCE_TABLES[resource] || resource;
+const keyFor = resource => RESOURCE_KEYS[resource] || 'id';
+const mapFields = (resource, value = {}) => {
+  const out = { ...value };
+  if (resource === 'users') {
+    if ('fullname' in out) { out.full_name = out.fullname; delete out.fullname; }
+    if ('tenantId' in out) { out.tenant_id = out.tenantId; delete out.tenantId; }
+    if ('siteId' in out) { out.site_id = out.siteId; delete out.siteId; }
+  }
+  return out;
+};
+
 const provider = {
   async getDatabase() { return this; },
+
+  // Stable provider-neutral CRUD contract. Domain code must use this surface,
+  // never .from(), .collection(), or a vendor SDK.
+  async get(resource, id) {
+    const table = tableFor(resource), key = keyFor(resource);
+    const { data, error } = await getClient().from(table).select('*').eq(key, id).maybeSingle();
+    if (error) throw error;
+    return resource === 'users' ? normalizeUser(data) : data;
+  },
+  async set(resource, id, value, options = {}) {
+    const table = tableFor(resource), key = keyFor(resource);
+    const payload = { ...mapFields(resource, value), [key]: id };
+    const { data, error } = await getClient().from(table).upsert(payload, { onConflict: key }).select('*').single();
+    if (error) throw error;
+    return resource === 'users' ? normalizeUser(data) : data;
+  },
+  async update(resource, id, value) {
+    const table = tableFor(resource), key = keyFor(resource);
+    const { data, error } = await getClient().from(table).update(mapFields(resource, value)).eq(key, id).select('*').maybeSingle();
+    if (error) throw error;
+    return resource === 'users' ? normalizeUser(data) : data;
+  },
+  async delete(resource, id) {
+    const table = tableFor(resource), key = keyFor(resource);
+    const { error } = await getClient().from(table).delete().eq(key, id);
+    if (error) throw error;
+    return true;
+  },
+  async query(resource, filters = {}, options = {}) {
+    const table = tableFor(resource);
+    let q = getClient().from(table).select('*');
+    for (const [field, value] of Object.entries(filters || {})) q = Array.isArray(value) ? q.in(field, value) : q.eq(field, value);
+    if (options.orderBy) q = q.order(options.orderBy, { ascending: options.direction !== 'desc' });
+    if (options.limit) q = q.limit(Number(options.limit));
+    if (options.offset) q = q.range(Number(options.offset), Number(options.offset) + Number(options.limit || 50) - 1);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(row => resource === 'users' ? normalizeUser(row) : row);
+  },
+  async createCommerceOrder(input) {
+    const { data, error } = await getClient().rpc('create_commerce_order', {
+      p_order_id: input.orderId,
+      p_invoice_id: input.invoiceId,
+      p_invoice_number: input.invoiceNumber,
+      p_user_id: input.userId,
+      p_items: input.items || [],
+      p_subtotal: input.subtotal,
+      p_shipping: input.shipping || 0,
+      p_total: input.total,
+      p_currency: input.currency || 'USD',
+      p_payment_method: input.paymentMethod || 'cod',
+      p_payment_transaction_id: input.paymentTransactionId || null,
+      p_shipping_address: input.shippingAddress || {},
+      p_billing_address: input.billingAddress || {},
+      p_channel: input.channel || 'web',
+      p_channel_id: input.channelId || null,
+      p_tenant_id: input.tenantId || null,
+      p_site_id: input.siteId || null,
+      p_domain: input.domain || null
+    });
+    if (error) throw error;
+    return data;
+  },
   async getUser(uid) {
     const { data, error } = await getClient().from('profiles').select('*').eq('id', uid).maybeSingle();
     if (error) throw error;
