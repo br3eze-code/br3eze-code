@@ -7,6 +7,8 @@ name: Firebase Deploy
 # Kubernetes (deploy.yml) — those are separate, unrelated targets.
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ['Release']
     types: [completed]
@@ -30,17 +32,18 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    # Only proceed if this was triggered manually, or the Release workflow
-    # actually ran on main and succeeded (it no-ops without failing when
-    # there's nothing new to release, so also guard on it having produced one).
+    # Deploy from main pushes, manual dispatches, or successful releases.
+    # A failed Release workflow must not silently suppress Firebase deployment.
     if: >
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           ref: main
 
@@ -75,13 +78,23 @@ jobs:
         # firebase.json's hosting.predeploy runs scripts/generate-env-www.js,
         # which reads a root .env for the browser-safe keys it copies into
         # www/js/env.js. There's no .env checked into the repo, so build a
-        # minimal one here from secrets. Only add keys generate-env-www.js's
-        # BROWSER_KEYS allowlist actually reads (FIREBASE_API_KEY, GEMINI_API_KEY) -
-        # nothing else belongs in a file destined for the client bundle.
+        # Build only the browser-safe runtime configuration consumed by www/js/env.js.
+        # Optional Supabase/AI values are included when configured but do not block Firebase Hosting.
         run: |
           {
-            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}"
+            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY || secrets.FIREBASE_WEB_API_KEY }}"
+            echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY || secrets.FIREBASE_API_KEY }}"
+            echo "FIREBASE_AUTH_DOMAIN=${{ secrets.FIREBASE_AUTH_DOMAIN }}"
+            echo "FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}"
+            echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID || 'br3eze-africa-312df' }}"
+            echo "FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }}"
+            echo "FIREBASE_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"
+            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
+            echo "FIREBASE_MEASUREMENT_ID=${{ secrets.FIREBASE_MEASUREMENT_ID }}"
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
+            echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
+            echo "SUPABASE_OAUTH_REDIRECT=${{ secrets.SUPABASE_OAUTH_REDIRECT }}"
           } > .env
 
       - name: Deploy

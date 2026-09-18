@@ -68,10 +68,11 @@ npm run onboard
 
 # Or manual configuration
 cp .env.example .env
-# Edit .env with your MikroTik credentials
+# Edit a private environment file with only the features you use.
+# Never commit .env or place server secrets in browser code.
 ```
 
-Environment variables (examples):
+Environment variables (minimal examples):
 
 ```env
 # MikroTik
@@ -181,7 +182,9 @@ tail -f logs/agentos.log
 | 7Day | 7 days  | 21 GB |
 | 30Day | 30 days | 60 GB |
 
-Payment flow: **Mastercard A2A → Firebase → Voucher Generation → MikroTik Hotspot User**
+Payment flow: **Provider adapter → payment persistence interface → idempotent settlement → voucher/order fulfillment → MikroTik hotspot access**
+
+Firebase and Supabase are infrastructure adapters, not core dependencies. Payment persistence, user data, shop data, and authentication must be accessed through provider-neutral ports.
 
 ---
 
@@ -195,10 +198,19 @@ br3eze-code/
 ├── bin/agentos.js           CLI entry point
 ├── src/
 │   ├── core/
-│   │   ├── mikrotik.js      RouterOS manager
-│   │   ├── gateway.js       WebSocket server
-│   │   ├── database.js      Firebase/local DB
-│   │   └── logger.js        Winston logger
+│   │   ├── mikrotik.js       RouterOS manager
+│   │   ├── gateway.js        WebSocket server
+│   │   ├── database.js       Provider-neutral database port
+│   │   ├── persistence.js    Persistence provider port
+│   │   ├── notification-port.js Notification delivery port
+│   │   └── logger.js         Winston logger
+│   ├── adapters/
+│   │   ├── auth/             Firebase/Supabase auth adapters
+│   │   ├── persistence/      Database and payment persistence adapters
+│   │   └── commerce/         Orders, couriers, notifications
+│   ├── domains/commerce/     Provider-neutral commerce logic
+│   ├── payments/             Payment rails and settlement
+│   ├── api/                  Authenticated API routes and middleware
 │   └── cli/
 │       ├── program.js       Commander setup
 │       └── commands/        CLI subcommands
@@ -235,7 +247,7 @@ agentos
 │   ├── firewall              List firewall rules
 │   ├── block <ip|mac>        Add drop rule
 │   └── unblock <ip|mac>      Remove drop rule
-├── users (user)
+��── users (user)
 │   ├── list [--all]          Active / all hotspot users
 │   ├── kick <username>       Disconnect user
 │   ├── add <username>        Create hotspot user
@@ -287,7 +299,7 @@ agentos
 | AI Engine | Google Gemini 2.5 / other providers |
 | Messaging | node-telegram-bot-api + Baileys |
 | Payments | Mastercard A2A · OAuth 1.0a RSA-SHA256 |
-| Database | Firebase Firestore / Local JSON |
+| Data providers | Provider-neutral adapters with Firebase, Supabase, PHP fallback, and local persistence implementations |
 | Gateway | WebSocket (ws) + Express |
 | CLI | Commander.js |
 | Logging | Winston |
@@ -353,6 +365,91 @@ The installer does **not** enable a network daemon or system service automatical
 ```
 
 ---
+
+## Current System Context
+
+AgentOS is a multi-surface network, commerce, billing, and automation platform. The repository includes a Node.js/ESM runtime, a browser/PWA portal, a Cordova Android application shell, PHP fallback endpoints, RouterOS scripts, custom native plugins, payment rails, channel adapters, and reusable skills.
+
+### Provider-neutral architecture
+
+Core and domain code must not import Firebase, Supabase, PHP, Vercel, or a specific payment provider directly. Integrations are registered behind ports and adapters:
+
+- `src/core/database.js` — database capability boundary.
+- `src/core/persistence.js` — provider-neutral persistence registration and access.
+- `src/core/notification-port.js` — email, PWA, and channel notification boundary.
+- `src/adapters/auth/` — authentication providers.
+- `src/adapters/persistence/` — Firebase, Supabase, SQLite, and payment persistence.
+- `src/adapters/commerce/` — orders, couriers, invoices, and notifications.
+- `www/js/05.provider-adapter.js` — frontend provider registry.
+- `www/js/06.firebase.js` and `www/js/07.auth.js` — frontend Firebase/Supabase adapter registration.
+
+The browser preserves compatibility APIs such as `DataStore`, but new callers should use the provider registry or authenticated API client. Do not put service-role keys, provider SDK credentials, or payment secrets in browser code.
+
+### Data and PHP fallback coverage
+
+`www/data_api.php` provides authenticated, tenant-scoped fallback endpoints for users, plans, tickets, products, and orders. Order creation validates quantities, recomputes totals from server-side product data, enforces stock limits, uses transactions, and requires an idempotency key. `www/api.php` and the PHP domain adapters cover legacy billing, MikroTik, voucher, and payment fallback workflows.
+
+The PHP layer is a fallback adapter, not a second source of truth. Any new data capability must be added to the provider-neutral contract and then implemented consistently for the active backend adapters.
+
+### Payments and commerce
+
+Payment providers live under `src/payments/providers/` and are selected through provider rails and persistence interfaces. Payment callbacks must be authenticated, idempotent, tenant-scoped, and reconciled before fulfillment. Shop logic covers products, inventory, carts, orders, fulfillment, invoices, and courier tracking. Never trust client-supplied prices, quantities, totals, status transitions, or user identifiers.
+
+### Notifications, email, channels, and tracking
+
+Order lifecycle notifications use `src/core/notification-port.js` and `src/adapters/commerce/order-notifier.js`. Supported delivery surfaces include PWA/event-bus notifications and existing Telegram/WhatsApp channel paths. Email is intentionally disabled until a transactional provider or SMTP adapter is configured. The canonical sender is `no-reply@br3eze.africa`; configure a verified domain and provider before enabling delivery. Notification events should use stable idempotency keys such as `order.created:<order-id>`.
+
+Password-reset email remains owned by the configured authentication adapter. Do not implement password-reset tokens in PHP or send them through a generic notification route.
+
+### PWA and Cordova
+
+The browser shell is under `www/`. `www/manifest.json` defines install metadata, while `www/sw.js` caches the app shell and falls back to `./index.html` for offline navigation. Cordova uses `config.xml` plus the local plugins under `custom-plugins/`:
+
+- `cordova-plugin-aicore`
+- `cordova-plugin-background-modern`
+- `cordova-plugin-network-tools`
+- `cordova-plugin-wifi-billing-agent`
+
+Plugin-owned Android permissions belong in each plugin's `plugin.xml`; app-wide permissions should remain minimal in `config.xml`. The background plugin exposes both `backgroundModern` and the compatibility `backgroundMode` bridge. Generated `plugins/` and `platforms/` directories are build output and should not be treated as source.
+
+### Environment contract
+
+Copy `.env.example` to a private environment file and enable only the features you use. The template documents auth/provider selection, Firebase/Supabase adapters, email/SMTP/Resend, tenant and site scope, payment rails, courier tracking, channels, and infrastructure providers. It is a contract, not a secret store. Never commit real credentials, private keys, service-role keys, webhook secrets, or production passwords.
+
+Important rules:
+
+- Browser-safe values use `NEXT_PUBLIC_` or generated frontend configuration only.
+- `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, payment keys, SMTP passwords, and private keys are server-only.
+- Use one canonical variable name per feature; legacy aliases exist only for compatibility.
+- Keep production, preview, development, and local environments separate.
+- Validate required variables by enabled feature rather than requiring every optional integration.
+
+### Security and tenancy
+
+Every user-data, payment, order, voucher, channel, and device operation must carry authenticated identity and tenant/site scope. Apply authorization before provider calls, use parameterized queries, enable RLS for exposed Supabase tables, and use `(select auth.uid())` in policies. Never authorize from user-editable metadata. Log audit events without secrets or payment credentials.
+
+### Tests and validation
+
+The repository includes unit, integration, PHP contract, provider-boundary, PWA asset, notification, and production test suites. Common checks are:
+
+```bash
+npm run test:production
+npm run vercel:build
+npm run check:ci-quality
+git diff --check
+```
+
+When PHP is available, also run:
+
+```bash
+find www scripts tests -name '*.php' -print0 | xargs -0 -n1 php -l
+```
+
+Native Cordova validation requires a clean Android platform regeneration in an Android-capable build environment. Do not hand-edit generated native files.
+
+### Release and deployment
+
+The production candidate must come from the repository's canonical protected branch and verified deployment path. Do not treat arbitrary `v0/*` branches or previews as production releases. Verify environment separation, build output, domains, webhook routes, and rollback readiness before promotion.
 
 ## 🤝 Contributing
 

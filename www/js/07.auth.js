@@ -114,7 +114,13 @@ async function loginWithProvider(provider) {
     window.location.assign(`${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`);
 }
 
-window.SupabaseAuth = {
+  window.AgentOSProviders?.registerAuth({
+    provider: 'supabase',
+    getSession,
+    getUser: async () => window.SupabaseAuth?.getUser?.()
+  });
+
+  window.SupabaseAuth = {
     getSession,
     getUser: async function () {
         let session = getSession();

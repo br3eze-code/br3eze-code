@@ -2,20 +2,16 @@
  * Domain-neutral persistence capability boundary.
  * Concrete providers are registered by the host; Core never imports one.
  */
-let provider = null;
+import {
+  registerPersistenceProvider,
+  clearPersistenceProvider,
+  getPersistenceProvider,
+  requirePersistenceProvider
+} from './persistence.js';
 
-function requireProvider() {
-  if (!provider) throw new Error('No persistence provider registered');
-  return provider;
-}
+function requireProvider() { return requirePersistenceProvider(); }
 
-export function registerPersistenceProvider(nextProvider) {
-  if (!nextProvider || typeof nextProvider !== 'object') throw new TypeError('A persistence provider is required');
-  provider = nextProvider;
-  return provider;
-}
-export function clearPersistenceProvider() { provider = null; }
-export function getPersistenceProvider() { return provider; }
+export { registerPersistenceProvider, clearPersistenceProvider, getPersistenceProvider };
 export function initializeFirebase() { return requireProvider().initializeFirebase(); }
 export function getFirestore() { return requireProvider().getFirestore(); }
 export function getFirebaseApp() { return requireProvider().getFirebaseApp(); }

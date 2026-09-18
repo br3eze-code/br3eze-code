@@ -191,8 +191,7 @@ const Shop = {
     async loadProducts() {
         const grid = document.getElementById('shopGrid');
         try {
-            const snap = await db.collection('products').where('active', '==', true).get();
-            this.products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.products = await DataStore.getProducts();
             this._loaded = true;
         } catch (e) {
             console.warn('[Shop] load failed:', e);

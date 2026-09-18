@@ -17,6 +17,14 @@ const OUT_PATH = path.join(ROOT, 'www', 'js', 'env.js');
 
 const BROWSER_KEYS = [
     'FIREBASE_API_KEY',
+    'FIREBASE_WEB_API_KEY',
+    'FIREBASE_AUTH_DOMAIN',
+    'FIREBASE_DATABASE_URL',
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_STORAGE_BUCKET',
+    'FIREBASE_MESSAGING_SENDER_ID',
+    'FIREBASE_APP_ID',
+    'FIREBASE_MEASUREMENT_ID',
     'GEMINI_API_KEY',
     'SUPABASE_URL',
     'SUPABASE_PUBLISHABLE_KEY',
@@ -38,12 +46,15 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
     env[m[1]] = value;
 }
 
-const required = ['FIREBASE_API_KEY', 'GEMINI_API_KEY', 'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'];
-const missing = required.filter((k) => !env[k]);
-if (missing.length) {
-    console.error(`[env:www] Missing in .env: ${missing.join(', ')}`);
+// Firebase Hosting must not fail because an unrelated optional provider is disabled.
+// Firebase web config commonly names the same public key either API_KEY or WEB_API_KEY.
+const firebaseApiKey = env.FIREBASE_API_KEY || env.FIREBASE_WEB_API_KEY;
+if (!firebaseApiKey) {
+    console.error('[env:www] Missing in .env: FIREBASE_API_KEY or FIREBASE_WEB_API_KEY');
     process.exit(1);
 }
+env.FIREBASE_API_KEY = firebaseApiKey;
+env.FIREBASE_WEB_API_KEY = firebaseApiKey;
 
 const body = BROWSER_KEYS
     .filter((k) => env[k])

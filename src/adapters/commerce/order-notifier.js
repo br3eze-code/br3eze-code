@@ -1,4 +1,8 @@
 import { logger } from '../../core/logger.js';
+import { dispatchNotification, createNoopEmailAdapter, createPwaAdapter, registerNotificationAdapter } from '../../core/notification-port.js';
+
+registerNotificationAdapter(createNoopEmailAdapter());
+registerNotificationAdapter(createPwaAdapter());
 
 function money(n) { return `$${Number(n || 0).toFixed(2)}`; }
 
@@ -9,6 +13,15 @@ function buildMessage(order) {
 }
 
 async function notifyNewOrder(order) {
+  const trackingUrl = `${process.env.PUBLIC_URL || 'https://br3eze.africa'}/order/${encodeURIComponent(order.orderId)}`;
+  await dispatchNotification({
+    eventId: `order.created:${order.orderId}`,
+    idempotencyKey: `order.created:${order.orderId}`,
+    type: 'order.created',
+    to: order.email ? [order.email] : [],
+    subject: `Order ${order.invoiceNumber || order.orderId} received`,
+    data: { orderId: order.orderId, invoiceNumber: order.invoiceNumber, status: order.status, total: order.total, trackingUrl },
+  });
   const channelManager = global.gateway?.channelManager;
   if (!channelManager) { logger.debug('[order-notifier] no channelManager available — skipping admin notify'); return; }
   const text = buildMessage(order);
