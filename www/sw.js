@@ -1,10 +1,11 @@
 /* AgentOS offline-first service worker. Server mutations are never fabricated locally. */
 'use strict';
 
-const CACHE_NAME = 'agentos-shell-v8';
+const CACHE_NAME = 'agentos-shell-v9';
+const OFFLINE_DOCUMENT = './index.html';
 const APP_SHELL = [
     './', 'index.html', 'manifest.json', 'sw.js',
-    'css/index.css', 'js/env.js', 'js/offline-runtime.js', 'js/03.notifications.js',
+    'css/index.css', 'js/offline-runtime.js', 'js/03.notifications.js',
     'js/vendor-qrcode.js', 'js/shop.js', 'js/chat.js', 'js/index.js',
     'js/15.hardware.print.js', 'js/app.js', 'js/forgot-password.js', 'js/payments.js',
     'img/logo.png', 'img/icon-192.png', 'img/icon-512.png'
@@ -27,12 +28,14 @@ self.addEventListener('fetch', (event) => {
     if (url.origin !== self.location.origin) return;
 
     event.respondWith(fetch(request).then((response) => {
-        if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone())).catch(() => {});
+        if (response.ok && response.type !== 'opaque') {
+            event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone())).catch(() => {}));
+        }
         return response;
     }).catch(async () => {
         const cached = await caches.match(request);
         if (cached) return cached;
-        if (request.mode === 'navigate') return caches.match('index.html');
+        if (request.mode === 'navigate') return caches.match(OFFLINE_DOCUMENT);
         return Response.error();
     }));
 });
