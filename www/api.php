@@ -11,6 +11,12 @@ $context = agentos_context(true);
 
 try {
     switch ($action) {
+        case 'request_otp':
+            handle_request_otp();
+            break;
+        case 'verify_otp':
+            handle_verify_otp();
+            break;
         case 'check_user':
             handle_check_user();
             break;
@@ -38,6 +44,54 @@ try {
 }
 
 // --- ACTION HANDLER FUNCTIONS ---
+// OTP compatibility bridge. PHP does not generate or store OTPs.
+// The canonical Node auth service owns generation, delivery, expiry and verification.
+function otp_backend_request(string $path, array $payload): array {
+    $base = rtrim((string)(getenv('AGENTOS_API_BASE_URL') ?: ''), '/');
+    if ($base === '') throw new Exception('OTP backend is not configured.');
+
+    $ch = curl_init($base . '/api/auth/otp/' . ltrim($path, '/'));
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR),
+        CURLOPT_TIMEOUT => 15,
+    ]);
+    $raw = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    if ($raw === false || $error) throw new Exception('OTP backend unavailable.');
+    $decoded = json_decode($raw, true);
+    if (!is_array($decoded)) throw new Exception('Invalid OTP backend response.');
+    if ($status >= 400) throw new Exception((string)($decoded['error'] ?? 'OTP request failed.'));
+    return $decoded;
+}
+
+function handle_request_otp(): void {
+    $email = filter_var(trim((string)($_POST['email'] ?? '')), FILTER_VALIDATE_EMAIL);
+    $purpose = trim((string)($_POST['purpose'] ?? 'login'));
+    if (!$email) throw new Exception('Invalid email address.');
+    echo json_encode(otp_backend_request('request', [
+        'email' => $email,
+        'purpose' => $purpose,
+    ]));
+}
+
+function handle_verify_otp(): void {
+    $challengeId = trim((string)($_POST['challengeId'] ?? ''));
+    $code = trim((string)($_POST['code'] ?? ''));
+    if (!preg_match('/^[0-9a-fA-F-]{36}$/', $challengeId)) throw new Exception('Invalid verification request.');
+    if (!preg_match('/^[0-9]{6}$/', $code)) throw new Exception('Invalid verification code.');
+    echo json_encode(otp_backend_request('verify', [
+        'challengeId' => $challengeId,
+        'code' => $code,
+    ]));
+}
+
+
 /**
  * Checks if a user exists in the database based on their email.
  * The email is used as the username.
