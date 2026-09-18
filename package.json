@@ -9,10 +9,10 @@
   },
   "scripts": {
     "start": "node bin/agentos.js gateway",
-    "prestart": "npm run build:product-query",
+    "prestart": "npm run build:product-query && node scripts/ensure-agentos-profile.mjs",
     "start:modern": "node agentos.mjs",
-    "prestart:modern": "npm run build:product-query",
-    "predev": "npm run build:product-query",
+    "prestart:modern": "npm run build:product-query && node scripts/ensure-agentos-profile.mjs",
+    "predev": "npm run build:product-query && node scripts/ensure-agentos-profile.mjs --dev",
     "desktop": "electron desktop/main.js",
     "desktop:dev": "electron desktop/main.js",
     "desktop:pack": "electron-builder --dir",
