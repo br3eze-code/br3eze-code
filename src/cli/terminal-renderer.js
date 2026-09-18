@@ -4,7 +4,7 @@ const ANSI = Object.freeze({
 
 export function renderMarkdown(input, { color = true } = {}) {
     const text = String(input ?? '').replace(/\r\n/g, '\n');
-    if (!color) return text;
+    if (!color) return text.replace(/^\s*[-*]\s+/gm, '• ');
     return text
         .replace(/^```([^\n]*)\n([\s\S]*?)\n```/gm, (_m, lang, code) => `${ANSI.dim}[${lang || 'code'}]${ANSI.reset}\n${code}`)
         .replace(/^#{1,6}\s+(.+)$/gm, (_m, title) => `${ANSI.bold}${title}${ANSI.reset}`)

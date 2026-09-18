@@ -4,6 +4,10 @@ import crypto from 'node:crypto';
 import { getDatabase } from '../core/database.js';
 
 class VoucherService {
+  constructor() {
+    this.generated = new Map();
+  }
+
   get _config() {
     const config = getConfig();
     return config.vouchers || config.tools?.voucher || { prefix: 'STAR', format: 'XXXX-XXXX', alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' };
@@ -28,7 +32,16 @@ class VoucherService {
       if (!(await db.getVoucher(code))) break;
     }
     if (!code) throw new Error('Unable to generate a unique voucher');
-    eventBus.emit('voucher.created', { code, plan: match, createdAt: new Date().toISOString() });
+    const createdAt = new Date().toISOString();
+    this.generated.set(code, { code, plan: match, status: 'active', used: false, createdAt });
+    await db.createVoucher(code, {
+      plan: match,
+      status: 'active',
+      used: false,
+      createdAt,
+      createdBy: 'voucher-service'
+    });
+    eventBus.emit('voucher.created', { code, plan: match, createdAt });
     return code;
   }
   async createVoucher(plan = 'default') {
@@ -52,10 +65,23 @@ class VoucherService {
   async create(plan = 'default') { return this.createVoucher(plan); }
   async redeem(code, user) {
     if (!code || !user) throw new Error('code and user are required');
-    const db = await getDatabase(); const voucher = await db.getVoucher(code);
+    const cached = this.generated.get(code);
+    if (cached) {
+      if (cached.used) throw new Error('Already used');
+      const updates = { used: true, user, redeemedByUsername: user, status: 'used' };
+      this.generated.set(code, { ...cached, ...updates });
+      eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
+      const db = await getDatabase();
+      if (typeof db.updateVoucher === 'function') await db.updateVoucher(code, updates);
+      return { ...cached, ...updates };
+    }
+    const db = await getDatabase();
+    const voucher = await db.getVoucher(code);
     if (!voucher) throw new Error('Invalid voucher'); if (voucher.used) throw new Error('Already used');
     const updates = { used: true, user, redeemedByUsername: user, status: 'used' };
-    await db.updateVoucher(code, updates); eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
+    this.generated.set(code, { ...voucher, ...updates });
+    if (typeof db.updateVoucher === 'function') await db.updateVoucher(code, updates);
+    eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
     return { ...voucher, ...updates };
   }
 }

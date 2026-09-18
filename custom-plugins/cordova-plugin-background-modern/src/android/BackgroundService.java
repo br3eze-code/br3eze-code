@@ -75,7 +75,7 @@ public class BackgroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        return START_STICKY;
+        return running ? START_STICKY : START_NOT_STICKY;
     }
 
     @Override

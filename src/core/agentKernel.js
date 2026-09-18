@@ -1,8 +1,6 @@
 import EventEmitter from 'events';
 import crypto from 'crypto';
 import path from 'path';
-import sdk from '../plugin-sdk/index.js';
-
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
@@ -127,7 +125,12 @@ class AgentKernel extends EventEmitter {
 
   // ── Domain registration ────────────────────────────────────────────────────
   registerDomain(domainId, adapter) {
-    const entry = sdk.registerDomain(domainId, adapter);
+    if (!domainId || typeof domainId !== 'string') throw new TypeError('domainId is required');
+    if (!adapter || typeof adapter !== 'object') throw new TypeError('adapter is required');
+    const capabilities = typeof adapter.getCapabilities === 'function'
+      ? adapter.getCapabilities()
+      : Array.isArray(adapter.capabilities) ? adapter.capabilities : [];
+    const entry = { id: domainId, domainId, adapter, capabilities: [...capabilities] };
     this.domains.set(domainId, entry);
     this.emit('domain:registered', { domainId, capabilities: entry.capabilities });
     log('debug', `[AgentKernel] domain registered: ${domainId}`);
@@ -202,7 +205,7 @@ class AgentKernel extends EventEmitter {
     return {
       ready: this._ready,
       domains: [...this.domains.keys()],
-      sdk: sdk.snapshot(),
+      capabilities: [...this.domains.values()].flatMap((entry) => entry.capabilities || []),
     };
   }
 

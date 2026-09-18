@@ -12,7 +12,7 @@
     <hook src="scripts/minify-and-obfuscate.js" type="after_prepare" />
     <hook src="scripts/ensure-signing.js" type="before_compile" />
 
-    <preference name="Orientation" value="portrait" />
+    <preference name="Orientation" value="default" />
     <preference name="DisallowOverscroll" value="true" />
     <preference name="Fullscreen" value="false" />
     <preference name="BackgroundColor" value="#FFFFFF" />

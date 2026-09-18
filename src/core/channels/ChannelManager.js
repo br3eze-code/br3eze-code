@@ -7,24 +7,28 @@ import { logger } from '../logger.js';
  * Slack, email, SMS, or any other messaging SDK.
  */
 export class ChannelManager extends EventEmitter {
-  constructor(agent, { adapters = [] } = {}) {
+  constructor(agent, { adapters = [], maxAdapters = Infinity, maxChannels = Infinity } = {}) {
     super();
     this.agent = agent;
+    this.maxAdapters = Number.isFinite(maxAdapters) ? Math.max(1, maxAdapters) : Infinity;
+    this.maxChannels = Number.isFinite(maxChannels) ? Math.max(1, maxChannels) : Infinity;
     this.channels = new Map();
     this.adapters = new Map();
     for (const adapter of adapters) this.registerAdapter(adapter);
   }
   registerAdapter(adapter) {
     if (!adapter?.type || typeof adapter.create !== 'function') throw new TypeError('Channel adapter requires type and create()');
+    if (!this.adapters.has(adapter.type) && this.adapters.size >= this.maxAdapters) throw new Error('Channel adapter limit reached');
     this.adapters.set(adapter.type, adapter);
     return adapter.type;
   }
   unregisterAdapter(type) { this.adapters.delete(type); return this; }
   async register(spec = {}) {
-    const type = spec.type;
+    const type = String(spec.type || '').trim().toLowerCase();
     const adapter = this.adapters.get(type);
     if (!adapter) throw new Error(`No channel adapter registered for '${type}'`);
-    const instance = await adapter.create(spec.config || {}, this.agent);
+    if (!this.channels.has(type) && this.channels.size >= this.maxChannels) throw new Error('Channel limit reached');
+    const instance = await adapter.create({ ...(spec.config || {}), domain: spec.domain || spec.config?.domain || null }, this.agent);
     if (!instance || typeof instance.send !== 'function') throw new Error(`Channel adapter '${type}' returned an invalid channel`);
     this.channels.set(type, instance);
     this.emit('channel:registered', { type });
@@ -39,6 +43,9 @@ export class ChannelManager extends EventEmitter {
   }
   get(type) { return this.channels.get(type) || null; }
   list() { return [...this.channels.keys()]; }
+  status() {
+    return { adapters: [...this.adapters.keys()], channels: this.list(), adapterCount: this.adapters.size, channelCount: this.channels.size, maxAdapters: this.maxAdapters, maxChannels: this.maxChannels };
+  }
   async send(type, target, payload) {
     const channel = this.get(type);
     if (!channel) throw new Error(`Channel not registered: ${type}`);

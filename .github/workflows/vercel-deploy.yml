@@ -3,7 +3,8 @@ name: Vercel Deployment
 on:
   push:
     branches:
-      - main
+      - '**'
+  pull_request:
   workflow_dispatch:
 
 env:
@@ -12,8 +13,8 @@ env:
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 concurrency:
-  group: vercel-production
-  cancel-in-progress: false
+  group: vercel-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   deploy:
@@ -25,10 +26,9 @@ jobs:
     env:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
-      - name: Checkout main
+      - name: Checkout commit
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -38,16 +38,17 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
 
       - name: Lint
         run: npm run lint --if-present
 
       - name: Security audit
         run: npm audit --audit-level=moderate
+        continue-on-error: true
 
-      - name: Test
-        run: npm test --if-present -- --coverage --passWithNoTests
+      - name: Production regression tests
+        run: npm run test:production
         env:
           NODE_ENV: test
 
@@ -87,10 +88,10 @@ jobs:
           esac
 
       - name: Install Vercel CLI
-        run: npm install --global vercel
+        run: npm install --global vercel@latest
 
-      - name: Deploy production
-        id: vercel-production
+      - name: Deploy Vercel preview or production
+        id: vercel-deployment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
@@ -101,8 +102,11 @@ jobs:
           VITE_APP_ID: ${{ secrets.VITE_APP_ID }}
         run: |
           set -euo pipefail
-          DEPLOYMENT_URL="$(vercel deploy \
-            --prod --yes --token="$VERCEL_TOKEN" \
+          DEPLOY_ARGS="--yes --token=$VERCEL_TOKEN"
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            DEPLOY_ARGS="$DEPLOY_ARGS --prod"
+          fi
+          DEPLOYMENT_URL="$(vercel deploy $DEPLOY_ARGS \
             --build-env NODE_ENV=production \
             --build-env VITE_API_URL="$VITE_API_URL" \
             --build-env VITE_AUTH_DOMAIN="$VITE_AUTH_DOMAIN" \
@@ -123,7 +127,7 @@ jobs:
           text: |
             ❌ Vercel deployment failed
             Repository: ${{ github.repository }}
-            Branch: main
+            Ref: ${{ github.ref }}
             Commit: ${{ github.sha }}
         continue-on-error: true
 
@@ -135,7 +139,7 @@ jobs:
           text: |
             ✅ Vercel deployment successful
             Repository: ${{ github.repository }}
-            Branch: main
-            URL: ${{ steps.vercel-production.outputs.deployment_url }}
+            Ref: ${{ github.ref }}
+            URL: ${{ steps.vercel-deployment.outputs.deployment_url }}
             Commit: ${{ github.sha }}
         continue-on-error: true

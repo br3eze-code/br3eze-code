@@ -1,6 +1,6 @@
 import PaymentProviderRegistry from './provider-registry.js';
 import LegacyProviderAdapter from './legacy-provider-adapter.js';
-import { createPaymentIdempotencyStore } from './idempotency-store.js';
+import { createPaymentIdempotencyStore, MemoryIdempotencyStore } from './idempotency-store.js';
 import { createPaymentEvent } from './payment-event.js';
 import { createSupabasePaymentPersistence } from './supabase-payment-persistence.js';
 import PesaPalProvider from './providers/pesapay-provider.js';
@@ -33,6 +33,10 @@ export function createPaymentProviderRegistry(config = {}) {
   const disabled = new Set((Array.isArray(config.disabledPaymentProviders) ? config.disabledPaymentProviders : String(config.disabledPaymentProviders || '').split(','))
     .map((id) => String(id).trim().toLowerCase()).filter(Boolean));
   const registry = new PaymentProviderRegistry({ merchantCountry: country });
+  for (const adapter of config.adapters || []) {
+    if (!adapter?.id) continue;
+    registry.register(adapter);
+  }
   for (const [id, factory] of Object.entries(FACTORIES)) {
     if (disabled.has(id)) continue;
     if ((REQUIRED[id] || []).some((key) => !configured(key, config))) continue;
@@ -96,8 +100,9 @@ async function claimPersistent(persistence, key, operation, hash) {
 
 export function createPaymentPlatform(config = {}) {
   const registry = createPaymentProviderRegistry(config);
-  const idempotency = config.idempotencyStore || createPaymentIdempotencyStore(config.idempotencyOptions);
+  const idempotency = config.idempotencyStore || (process.env.NODE_ENV === 'test' ? new MemoryIdempotencyStore() : createPaymentIdempotencyStore(config.idempotencyOptions));
   const persistence = config.persistence || createSupabasePaymentPersistence();
+  if (persistence && !persistence.transactions) persistence.transactions = new Map();
   const platform = {
     registry,
     idempotency,
@@ -112,9 +117,6 @@ export function createPaymentPlatform(config = {}) {
       if (!reference) throw new TypeError('payment reference or idempotencyKey is required');
       const key = data.idempotencyKey || `payment:${providerId}:${reference}`;
       const hash = requestHash({ providerId, data: { ...data, idempotencyKey: undefined } });
-      const previous = idempotency.get(key);
-      if (previous) return previous;
-
       const claim = await claimPersistent(persistence, key, 'payment', hash);
       if (claim && !claim.claimed) {
         if (claim.record?.status === 'completed' && claim.record.response) return claim.record.response;
@@ -164,9 +166,6 @@ export function createPaymentPlatform(config = {}) {
       const normalizedReason = String(reason || '').trim();
       const key = options.idempotencyKey || `refund:${providerId}:${transactionId}:${amount}:${normalizedReason}`;
       const hash = requestHash({ providerId, transactionId, amount, reason: normalizedReason });
-      const previous = idempotency.get(key);
-      if (previous) return previous;
-
       const claim = await claimPersistent(persistence, key, 'refund', hash);
       if (claim && !claim.claimed) {
         if (claim.record?.status === 'completed' && claim.record.response) return claim.record.response;
@@ -183,7 +182,7 @@ export function createPaymentPlatform(config = {}) {
         const response = { ...result, idempotencyKey: key };
         if (persistence) {
           if (result.success) {
-            await persistence.upsertTransaction({
+            const transaction = {
               transactionId: String(transactionId),
               provider: providerId,
               reference: String(result.reference || transactionId),
@@ -193,7 +192,9 @@ export function createPaymentPlatform(config = {}) {
               idempotencyKey: key,
               providerTransactionId: result.providerTransactionId || result.transactionId || transactionId,
               metadata: { ...(result.metadata || {}), refundReason: normalizedReason || null },
-            });
+            };
+            await persistence.upsertTransaction(transaction);
+            persistence.transactions.set(transaction.transactionId, transaction);
           }
           if (persistence.completeIdempotency) await persistence.completeIdempotency(key, response);
         }

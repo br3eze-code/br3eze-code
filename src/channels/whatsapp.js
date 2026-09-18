@@ -8,20 +8,9 @@ import {
   buildListMessage,
 } from './whatsapp-interactive.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-
 /**
  * WhatsApp Channel
  */
-
-const { 
-  default: makeWASocket, 
-  DisconnectReason, 
-  useMultiFileAuthState,
-  Browsers
-} = require('@whiskeysockets/baileys');
 
 class WhatsAppChannel extends BaseChannel {
   constructor(options = {}) {
@@ -33,8 +22,24 @@ class WhatsAppChannel extends BaseChannel {
     this.sock = null;
     this.authState = null;
     this.qrCode = null;
+    this.pendingInputs = new Map();
   }
-  
+
+  _resolveButtonReply(input, buttons = []) {
+    const value = String(input ?? '').trim();
+    if (!value || !Array.isArray(buttons)) return null;
+    if (/^\d+$/.test(value)) return buttons[Number(value) - 1] || null;
+    const normalized = value.toLowerCase();
+    return buttons.find((button) => [button.id, button.label].some((candidate) => String(candidate || '').toLowerCase() === normalized)) || null;
+  }
+
+  async sendButtons(recipient, { title = '', buttons = [], resultAction = 'button_reply' } = {}) {
+    if (!Array.isArray(buttons) || buttons.length === 0) throw new Error('non-empty buttons array is required');
+    const text = [title, ...buttons.map((button, index) => `${index + 1}. ${button.label || button.id}`)].filter(Boolean).join('\\n');
+    this.pendingInputs.set(recipient, { action: 'button_reply', data: { buttons, resultAction } });
+    return this.send(recipient, text);
+  }
+
   async connect() {
     if (!this.enabled) {
       this.logger.info('WhatsApp disabled');
@@ -42,7 +47,9 @@ class WhatsAppChannel extends BaseChannel {
     }
     
     this.logger.info('Connecting to WhatsApp...');
-    
+    const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, Browsers } = await import('@whiskeysockets/baileys');
+    this._baileys = { DisconnectReason };
+
     // Setup auth state
     const authPath = path.join(process.cwd(), 'data', 'whatsapp-auth', this.sessionName);
     this.authState = await useMultiFileAuthState(authPath);
@@ -71,7 +78,7 @@ class WhatsAppChannel extends BaseChannel {
     }
     
     if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== this._baileys?.DisconnectReason?.loggedOut;
       this.logger.info('WhatsApp disconnected, reconnecting:', shouldReconnect);
       
       if (shouldReconnect) {
