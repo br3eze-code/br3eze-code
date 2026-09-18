@@ -25,6 +25,13 @@ const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.au
 const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
 const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
 
+window.AgentOSProviders?.registerAuth({
+    provider: 'firebase',
+    auth,
+    storage,
+    getCurrentUser: () => auth?.currentUser || null
+});
+
 // Enable offline persistence (Firestore)
 if (db) {
     db.enablePersistence({ synchronizeTabs: true })
@@ -35,7 +42,7 @@ if (db) {
 window.currentUser = null;
 
 // ── DataStore — Firestore queries ───────────────────────────
-window.DataStore = {
+const firebaseDataAdapter = {
 
     async getUser(uid) {
         const doc = await db.collection('users').doc(uid).get();
@@ -72,3 +79,6 @@ window.DataStore = {
         return doc.exists ? doc.data() : { ssid: '', password: '' };
     }
 };
+
+window.AgentOSProviders?.registerData(firebaseDataAdapter);
+window.DataStore = firebaseDataAdapter;

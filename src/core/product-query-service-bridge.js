@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { getSQLite } from './sqlite-db.js';
-import { getFirestore } from './firebase.js';
+import { getPersistenceProvider } from './persistence.js';
 
 let cachedService = null;
 let attemptedLoad = false;
@@ -40,7 +40,8 @@ async function getProductQueryService() {
 
   let firebase;
   try {
-    const firestore = getFirestore();
+    const persistence = getPersistenceProvider();
+    const firestore = persistence?.getFirestore?.();
     if (firestore) firebase = new module.FirebaseProductAdapter(firestore);
   } catch {
     firebase = undefined;
