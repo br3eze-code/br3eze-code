@@ -1,9 +1,12 @@
 <?php
 require_once __DIR__ . '/agentos_fallback.php';
 
-require 'vendor/autoload.php';
-require_once 'database_config.php'; // Provides $pdo
-require_once 'mikrotik_functions.php'; // Provides MikroTik functions
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (is_file($autoload)) {
+    require_once $autoload;
+}
+require_once __DIR__ . '/database_config.php'; // Provides $pdo
+require_once __DIR__ . '/mikrotik_functions.php'; // Provides MikroTik functions
 
 // --- Main API Router ---
 $action = (string) agentos_input('action', '');
@@ -97,13 +100,18 @@ function handle_register() {
     'username' => $reg_username]);
 
     } catch (PDOException $e) {
-        // If DB insert fails (e.g., duplicate username/email), we should try to remove the user from MikroTik
-        // to keep systems in sync. This is advanced error recovery. For now, we'll just show the error.
-        if ($e->getCode() == '23000') { // 23000 is the SQLSTATE for an integrity constraint violation
-            throw new Exception('This username or email is already taken.');
-        } else {
-            throw new Exception('A database error occurred during registration.');
+        // Compensate the remote router mutation when local persistence fails.
+        try {
+            if (function_exists('removeUserFromMikroTik')) {
+                removeUserFromMikroTik($reg_username);
+            }
+        } catch (Throwable $rollbackError) {
+            error_log('[AgentOS PHP fallback] registration rollback failed: ' . $rollbackError->getMessage());
         }
+        if ($e->getCode() == '23000') {
+            throw new Exception('This username or email is already taken.');
+        }
+        throw new Exception('A database error occurred during registration.');
     }
 }
 
