@@ -47,7 +47,8 @@
     "test:production": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --coverage=false tests/audit-event.test.js tests/payment-auth-guards.test.js tests/resource-governance.test.js tests/unit/agent-runtime-context.test.js tests/unit/capability-policy.test.js tests/unit/domain-kernel.test.js tests/unit/execution-context.test.js tests/unit/permissions.test.js tests/unit/safetyEnvelope.test.js tests/unit/websocket-authority-context.test.js tests/unit/whatsapp-interactive.test.js tests/runtime-config.test.js"
   },
   "jest": {
-    "modulePathIgnorePatterns": ["<rootDir>/plugins/"]
+    "roots": ["<rootDir>/src", "<rootDir>/tests"],
+    "modulePathIgnorePatterns": ["<rootDir>/plugins/", "<rootDir>/platforms/"]
   },
   "publishConfig": {
     "access": "public",

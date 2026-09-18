@@ -6,6 +6,7 @@
 
     <js-module src="www/background.js" name="Background">
         <clobbers target="cordova.plugins.backgroundModern" />
+        <clobbers target="cordova.plugins.backgroundMode" />
     </js-module>
 
     <feature name="BackgroundPlugin">
