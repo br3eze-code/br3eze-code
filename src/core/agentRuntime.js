@@ -17,7 +17,15 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'system.stats', keywords: ['system', 'stats', 'statistics', 'resource', 'resources', 'memory', 'cpu'] },
   { name: 'system.logs', keywords: ['system', 'logs', 'log'] },
   { name: 'system.reboot', keywords: ['reboot', 'restart'] },
-  { name: 'user.add', keywords: ['create', 'new', 'user', 'add', 'register', 'account'] }
+  { name: 'user.add', keywords: ['create', 'new', 'user', 'add', 'register', 'account'] },
+  { name: 'user.remove', keywords: ['remove', 'delete', 'user', 'account'] },
+  { name: 'user.status', keywords: ['status', 'user', 'account', 'session'] },
+  { name: 'ping', keywords: ['ping', 'latency', 'reach', 'reachable'] },
+  { name: 'traceroute', keywords: ['trace', 'traceroute', 'route', 'path', 'hop'] },
+  { name: 'firewall.list', keywords: ['firewall', 'rules', 'filter', 'list'] },
+  { name: 'firewall.block', keywords: ['block', 'ban', 'blacklist', 'deny'] },
+  { name: 'firewall.unblock', keywords: ['unblock', 'unban', 'whitelist', 'allow'] },
+  { name: 'interface.list', keywords: ['interface', 'port', 'network'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
