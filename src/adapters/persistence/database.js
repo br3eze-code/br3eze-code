@@ -2021,4 +2021,10 @@ async function getDatabase() {
     return initPromise;
 }
 
-export { getDatabase, DEFAULT_PLANS };
+async function get(resource, id, options) { return (await getDatabase()).get(resource, id, options); }
+async function set(resource, id, data, options) { return (await getDatabase()).set(resource, id, data, options); }
+async function update(resource, id, data, options) { return (await getDatabase()).update(resource, id, data, options); }
+async function remove(resource, id, options) { return (await getDatabase()).delete(resource, id, options); }
+async function query(resource, filters, options) { return (await getDatabase()).query(resource, filters, options); }
+
+export { getDatabase, get, set, update, remove as delete, query, DEFAULT_PLANS };
