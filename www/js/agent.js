@@ -54,7 +54,7 @@ const Agent = (() => {
   }
 
   function _buildReActPrompt(userPrompt, context) {
-    return [`You are AgentOS Hermes, an AI agent for MikroTik hotspot network management in Zimbabwe.`, `You run a ReAct loop: think step by step, then call ONE tool if needed, then answer.`, ``, `FORMAT (strict):`, `Thought: <your reasoning>`, `Action: <tool_id>  [or FINAL_ANSWER if no tool needed]`, `Action Input: {"key":"value"}`, `  -- after seeing the Observation, continue --`, `Final Answer: <your natural language response>`, ``, `AVAILABLE TOOLS:\n${Tools.getAgentSpec()}`, ``, context ? `CONTEXT FROM PREVIOUS STEPS:\n${context}\n` : '', `USER REQUEST: ${userPrompt}`].filter(Boolean).join('\n');
+    return [`You are AgentOS Hermes, a governed, domain-neutral operations agent. Use only the capabilities and tools explicitly available to this tenant and channel.`, `You run a ReAct loop: think step by step, then call ONE tool if needed, then answer.`, ``, `FORMAT (strict):`, `Thought: <your reasoning>`, `Action: <tool_id>  [or FINAL_ANSWER if no tool needed]`, `Action Input: {"key":"value"}`, `  -- after seeing the Observation, continue --`, `Final Answer: <your natural language response>`, ``, `AVAILABLE TOOLS:\n${Tools.getAgentSpec()}`, ``, context ? `CONTEXT FROM PREVIOUS STEPS:\n${context}\n` : '', `USER REQUEST: ${userPrompt}`].filter(Boolean).join('\n');
   }
   function _localFallback(prompt) {
     const p = prompt.toLowerCase();

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin id="cordova-plugin-background-modern" version="2.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0">
+<plugin id="cordova-plugin-background-modern" version="2.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
     <name>Modern Background</name>
     <description>Lifecycle-aware Cordova background runtime with modern Android foreground-service handling and iOS limited background-task support.</description>
     <license>Apache-2.0</license>
