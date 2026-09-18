@@ -1,0 +1,74 @@
+/* Android 15+ edge-to-edge compatibility layer.
+ * Keep system-bar insets at the WebView/CSS boundary; do not use deprecated
+ * Android window flags from application code.
+ */
+:root {
+  --pc-safe-top: env(safe-area-inset-top, 0px);
+  --pc-safe-right: env(safe-area-inset-right, 0px);
+  --pc-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --pc-safe-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  min-height: 100%;
+  background: var(--color-background, #050505);
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-left: var(--pc-safe-left);
+  padding-right: var(--pc-safe-right);
+  padding-bottom: var(--pc-safe-bottom);
+}
+
+/* The header is the primary top-edge collision surface. */
+.main-header {
+  padding-top: calc(15px + var(--pc-safe-top));
+  padding-left: calc(30px + var(--pc-safe-left));
+  padding-right: calc(30px + var(--pc-safe-right));
+}
+
+/* Sticky sidebar must account for the taller inset-aware header. */
+.sidebar {
+  height: calc(100dvh - 70px - var(--pc-safe-top) - var(--pc-safe-bottom));
+  padding-bottom: var(--pc-safe-bottom);
+}
+
+.content-panel {
+  padding-bottom: calc(80px + var(--pc-safe-bottom));
+}
+
+/* Full-screen auth layouts must remain usable around system bars. */
+.auth-container {
+  min-height: calc(100dvh - var(--pc-safe-top) - var(--pc-safe-bottom));
+  padding-top: var(--pc-safe-top);
+  padding-bottom: var(--pc-safe-bottom);
+}
+
+/* Landscape/foldable safety: never force a minimum width that clips content. */
+.dashboard-container,
+.content-panel,
+.auth-container {
+  min-width: 0;
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .main-header {
+    padding-top: calc(8px + var(--pc-safe-top));
+    padding-bottom: 8px;
+    min-height: calc(56px + var(--pc-safe-top));
+  }
+
+  .sidebar {
+    top: calc(56px + var(--pc-safe-top));
+    height: calc(100dvh - 56px - var(--pc-safe-top) - var(--pc-safe-bottom));
+  }
+}
+
+@media (min-width: 900px) {
+  .content-panel {
+    padding-left: max(40px, calc(40px + var(--pc-safe-left)));
+    padding-right: max(40px, calc(40px + var(--pc-safe-right)));
+  }
+}
