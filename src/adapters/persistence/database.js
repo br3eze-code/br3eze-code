@@ -1940,6 +1940,51 @@ class Database {
             .map(([id, data]) => ({ id, ...data }));
     }
 
+    // Stable provider-neutral CRUD contract shared with Supabase.
+    async get(resource, id) {
+        const snap = this.db ? await this.db.collection(resource).doc(String(id)).get() : null;
+        if (snap) return snap.exists ? { id: snap.id, ...snap.data() } : null;
+        const key = String(id);
+        if (resource === 'users') return this.getUser(key);
+        if (resource === 'plans') return this.getPlan(key);
+        if (resource === 'vouchers') return this.getVoucher(key);
+        return null;
+    }
+
+    async set(resource, id, data, options = {}) {
+        if (this.db) {
+            await this.db.collection(resource).doc(String(id)).set({ ...data, id: String(id) }, { merge: Boolean(options.merge) });
+            return this.get(resource, id);
+        }
+        if (resource === 'users') return this.updateUser(String(id), data);
+        throw new Error(`Resource ${resource} is not writable through the local fallback contract yet`);
+    }
+
+    async update(resource, id, data) {
+        if (this.db) {
+            await this.db.collection(resource).doc(String(id)).update(data);
+            return this.get(resource, id);
+        }
+        if (resource === 'users') return this.updateUser(String(id), data);
+        throw new Error(`Resource ${resource} is not writable through the local fallback contract yet`);
+    }
+
+    async delete(resource, id) {
+        if (!this.db) throw new Error('Delete requires the Firebase fallback backend');
+        await this.db.collection(resource).doc(String(id)).delete();
+        return true;
+    }
+
+    async query(resource, filters = {}, options = {}) {
+        if (!this.db) throw new Error('Query requires the Firebase fallback backend');
+        let q = this.db.collection(resource);
+        for (const [field, value] of Object.entries(filters || {})) q = Array.isArray(value) ? q.where(field, 'in', value) : q.where(field, '==', value);
+        if (options.orderBy) q = q.orderBy(options.orderBy, options.direction === 'desc' ? 'desc' : 'asc');
+        if (options.limit) q = q.limit(Number(options.limit));
+        const snap = await q.get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
     async close() {
         try {
             if (admin.apps && admin.apps.length > 0) {
