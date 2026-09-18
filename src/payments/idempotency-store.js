@@ -6,6 +6,15 @@ function ensureParent(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+export class MemoryIdempotencyStore {
+  constructor() { this.records = new Map(); }
+  get(key) { const record = this.records.get(key); return record?.state === 'completed' ? record.result : record ? { pending: true, state: record.state, metadata: record.metadata || {} } : undefined; }
+  reserve(key, metadata = {}) { if (this.records.has(key)) return false; this.records.set(key, { state: 'pending', metadata }); return true; }
+  set(key, result) { this.records.set(key, { state: 'completed', result }); return result; }
+  release(key) { return this.records.delete(key); }
+  close() {}
+}
+
 export class FileIdempotencyStore {
   constructor({ filePath } = {}) {
     this.filePath = filePath || path.join(process.cwd(), 'state', 'payment-idempotency.json');
