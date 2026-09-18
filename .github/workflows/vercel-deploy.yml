@@ -47,8 +47,8 @@ jobs:
         run: npm audit --audit-level=moderate
         continue-on-error: true
 
-      - name: Test
-        run: npm test --if-present -- --coverage --passWithNoTests
+      - name: Production regression tests
+        run: npm run test:production
         env:
           NODE_ENV: test
 
