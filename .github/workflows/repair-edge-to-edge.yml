@@ -1,0 +1,45 @@
+name: Repair edge-to-edge patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.sha != 'f0f560eafcd48a7513fee4c1da0372d1b69b662c'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore intact index.html and apply stylesheet
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout f0f560eafcd48a7513fee4c1da0372d1b69b662c -- www/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('www/index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '<link rel="stylesheet" href="css/index.css">'
+          addition = marker + '\n        <!-- Android 15+ edge-to-edge safe-area compatibility. -->\n        <link rel="stylesheet" href="css/android15-edge-to-edge.css">'
+          if 'css/android15-edge-to-edge.css' not in s:
+              if marker not in s:
+                  raise SystemExit('index.html stylesheet insertion point not found')
+              s = s.replace(marker, addition, 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add www/index.html
+          if git diff --cached --quiet; then
+            echo 'No repair required.'
+            exit 0
+          fi
+          git commit -m 'fix(android): restore index and apply edge-to-edge layer'
+          git push origin HEAD:main
