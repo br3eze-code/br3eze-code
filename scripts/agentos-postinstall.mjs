@@ -41,10 +41,28 @@ function ensureUnixPath(binPath) {
   const rcFile = shellConfigPath();
   const marker = '# AgentOS PATH';
   const current = fs.existsSync(rcFile) ? fs.readFileSync(rcFile, 'utf8') : '';
-  if (current.includes(marker)) return;
+  const pathLine = `export PATH="${binPath}:$PATH"`;
+  if (current.includes(pathLine)) return;
   fs.mkdirSync(path.dirname(rcFile), { recursive: true });
-  fs.appendFileSync(rcFile, `\n${marker}\nexport PATH="${binPath}:$PATH"\n`);
+  fs.appendFileSync(rcFile, `${current.endsWith('\\n') || !current ? '' : '\\n'}${marker}\\n${pathLine}\\n`);
   console.log(`[AgentOS] PATH configured in ${rcFile}; run: source ${rcFile}`);
+}
+
+function installLocalWrapper() {
+  if (isWindows || isCI || isDocker) return null;
+  const binPath = path.join(os.homedir(), '.local', 'bin');
+  const wrapper = path.join(binPath, 'agentos');
+  const entrypoint = path.resolve(process.cwd(), 'bin', 'agentos.js');
+  if (!fs.existsSync(entrypoint)) return null;
+  fs.mkdirSync(binPath, { recursive: true, mode: 0o700 });
+  const script = `#!/usr/bin/env bash\\nset -Eeuo pipefail\\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(entrypoint)} "$@"\\n`;
+  if (!fs.existsSync(wrapper) || fs.readFileSync(wrapper, 'utf8') !== script) {
+    fs.writeFileSync(wrapper, script, { mode: 0o755 });
+    fs.chmodSync(wrapper, 0o755);
+    console.log(`[AgentOS] Local CLI wrapper installed at ${wrapper}`);
+  }
+  ensureUnixPath(binPath);
+  return binPath;
 }
 
 function repairCordovaBrowser() {
@@ -93,8 +111,8 @@ function ensureWindowsPath(binPath) {
 
 try {
   const isGlobalInstall = !process.env.INIT_CWD || process.cwd().includes('node_modules');
-  if (!isCI && !isDocker && isGlobalInstall) {
-    const binPath = npmBinPath();
+  if (!isCI && !isDocker) {
+    const binPath = isGlobalInstall ? npmBinPath() : installLocalWrapper();
     if (binPath) {
       if (isWindows) ensureWindowsPath(binPath);
       else ensureUnixPath(binPath);
