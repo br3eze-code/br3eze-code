@@ -176,6 +176,45 @@ window.Auth = {
         } catch (e) { showToast(e.message, 'error'); }
         finally { Loading.hide(); }
     },
+    async requestEmailOtp(email) {
+        email = String(email || '').trim().toLowerCase();
+        if (!email) throw new Error('Enter your email address.');
+        Loading.show('Sending verification code...');
+        try {
+            await supabaseRequest('/auth/v1/otp', {
+                method: 'POST',
+                body: JSON.stringify({ email, create_user: false })
+            });
+            showToast('Verification code sent. Check your email.', 'success');
+            return { email };
+        } finally {
+            Loading.hide();
+        }
+    },
+    async verifyEmailOtp(email, token) {
+        email = String(email || '').trim().toLowerCase();
+        token = String(token || '').trim();
+        if (!email || !/^\\d{6}$/.test(token)) throw new Error('Enter the 6-digit verification code.');
+        Loading.show('Verifying code...');
+        try {
+            const session = await supabaseRequest('/auth/v1/verify', {
+                method: 'POST',
+                body: JSON.stringify({ email, token, type: 'email' })
+            });
+            if (!session?.access_token) throw new Error('Verification succeeded but no session was returned.');
+            setSession(session);
+            showToast('Logged in!', 'success');
+            return session;
+        } catch (e) {
+            showToast(e.message, 'error');
+            throw e;
+        } finally {
+            Loading.hide();
+        }
+    },
+    async loginWithOtp(email) {
+        return this.requestEmailOtp(email);
+    },
     async logout() {
         const session = getSession();
         try { if (session?.access_token) await supabaseRequest('/auth/v1/logout', { method: 'POST', accessToken: session.access_token }); } catch {}
