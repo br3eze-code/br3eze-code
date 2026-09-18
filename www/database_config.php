@@ -100,6 +100,17 @@ try {
     agentos_add_column($pdo, 'transactions', 'site_id', 'TEXT');
     agentos_add_column($pdo, 'transactions', 'currency', "TEXT NOT NULL DEFAULT 'USD'");
     agentos_add_column($pdo, 'transactions', 'provider_event_id', 'TEXT');
+    foreach ([
+        "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, site_id TEXT, username TEXT, email TEXT, fullname TEXT, role TEXT NOT NULL DEFAULT 'user', credits REAL NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS plans (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, price_cents INTEGER NOT NULL DEFAULT 0, duration_value INTEGER NOT NULL DEFAULT 1, duration_unit TEXT NOT NULL DEFAULT 'days', active INTEGER NOT NULL DEFAULT 1)",
+        "CREATE TABLE IF NOT EXISTS tickets (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT NOT NULL, subject TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', last_update TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, tenant_id TEXT NOT NULL, site_id TEXT, user_id TEXT NOT NULL, items_json TEXT NOT NULL, subtotal_cents INTEGER NOT NULL, shipping_cents INTEGER NOT NULL DEFAULT 0, total_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'USD', status TEXT NOT NULL, idempotency_key TEXT NOT NULL UNIQUE, created_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+    ] as $statement) $pdo->exec($statement);
+    agentos_add_column($pdo, 'products', 'description', 'TEXT');
+    agentos_add_column($pdo, 'products', 'category', 'TEXT');
+    agentos_add_column($pdo, 'products', 'stock', 'INTEGER NOT NULL DEFAULT 0');
+    agentos_add_column($pdo, 'products', 'image_url', 'TEXT');
+    agentos_add_column($pdo, 'products', 'sizes', 'TEXT');
 } catch (Throwable $error) {
     error_log('[AgentOS PHP fallback] database bootstrap: ' . $error->getMessage());
 }
