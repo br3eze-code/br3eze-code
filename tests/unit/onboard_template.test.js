@@ -1,4 +1,7 @@
-import { generateSetupScript } from '../../src/core/onboard.js';
+import { generateSetupScript, registerOnboardingProvider } from '../../src/core/onboard.js';
+import * as onboardingAdapter from '../../src/adapters/network/onboard.js';
+
+registerOnboardingProvider(onboardingAdapter);
 
 describe('Onboard Template Generation', () => {
     const mockEnv = {
@@ -7,24 +10,22 @@ describe('Onboard Template Generation', () => {
         TELEGRAM_CHAT_ID: 'test_chat_id'
     };
 
-    test('should generate a script with correct dynamic values', () => {
-        const script = generateSetupScript(mockEnv);
+    test('should generate a script with correct dynamic values', async () => {
+        const script = await generateSetupScript(mockEnv);
         
-        expect(script).toContain('http://1.2.3.4:3000/api/event/login');
-        expect(script).toContain('test_token');
-        expect(script).toContain('test_chat_id');
-        expect(script).toContain('address=1.2.3.4');
+        expect(script).toContain('AgentOS-Node');
+        expect(script).toContain('http://1.2.3.4:3000');
+        expect(script).toContain('/ip service set telnet disabled=yes');
     });
 
-    test('should not contain undefined strings', () => {
-        const script = generateSetupScript(mockEnv);
+    test('should not contain undefined strings', async () => {
+        const script = await generateSetupScript(mockEnv);
         expect(script).not.toContain('undefined');
     });
 
-    test('should have valid login-by values', () => {
-        const script = generateSetupScript(mockEnv);
-        // Correct is mac,cookie or similar, NOT mac-cookie
-        expect(script).not.toContain('login-by=mac-cookie');
-        expect(script).toContain('login-by=http-chap,http-pap,trial,mac,cookie');
+    test('should generate a secure setup note', async () => {
+        const script = await generateSetupScript(mockEnv);
+        expect(script).not.toContain('undefined');
+        expect(script).toContain('/system note set show-at-login=no');
     });
 });

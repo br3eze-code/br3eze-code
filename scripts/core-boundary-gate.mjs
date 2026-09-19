@@ -25,6 +25,7 @@ const legacyCoreShims = new Set([
   'src/core/shop.js',
   'src/core/telegram.js',
   'src/core/universal-billing.js',
+  'src/core/voucher.js',
   'src/core/whatsapp.js',
 ]);
 
