@@ -1,0 +1,37 @@
+name: Podman Container Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - package.json
+      - package-lock.json
+      - src/**
+      - bin/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build with Podman
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes podman
+      - name: Build image
+        run: podman build --tag agentos:ci .
+      - name: Inspect image
+        run: podman image inspect agentos:ci >/dev/null
+      - name: Smoke test image metadata
+        run: podman run --rm --entrypoint node agentos:ci --version
+      - name: Remove image
+        if: always()
+        run: podman rmi agentos:ci || true

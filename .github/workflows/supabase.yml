@@ -1,0 +1,32 @@
+name: Supabase Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - supabase/**
+      - .github/workflows/supabase.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Supabase migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Validate local Supabase configuration
+        run: |
+          if [ -d supabase ]; then
+            supabase db lint --local
+          else
+            echo 'No supabase/ directory is present; configuration validation is skipped.'
+          fi

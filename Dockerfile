@@ -8,8 +8,7 @@ ENV NODE_ENV=production \
     NPM_CONFIG_FUND=false
 
 COPY package.json package-lock.json ./
-# package-lock.json is currently stale relative to package.json; resolve from the manifest.
-RUN npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+RUN npm ci --ignore-scripts --no-audit --no-fund
 
 COPY . .
 RUN npm run build:product-query

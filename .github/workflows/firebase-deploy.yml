@@ -77,8 +77,8 @@ jobs:
       - name: Write CI .env for the hosting predeploy step
         # firebase.json's hosting.predeploy runs scripts/generate-env-www.js,
         # which reads a root .env for the browser-safe keys it copies into
-        # www/js/env.js. There's no .env checked into the repo, so build a
-        # Build only the browser-safe runtime configuration consumed by www/js/env.js.
+        # www/js/env.js. There's no .env checked into the repo, so build only the
+        # browser-safe runtime configuration consumed by www/js/env.js.
         # Optional Supabase/AI values are included when configured but do not block Firebase Hosting.
         run: |
           {

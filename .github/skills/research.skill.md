@@ -68,4 +68,15 @@ For each research item, use web_search to get current data, then output:
   ]
 }
 ```
+## Deployment compatibility checklist
+
+When reviewing deployment changes, verify every target independently:
+
+- Docker and Podman must build the same `Dockerfile`; use `npm ci --ignore-scripts` with the committed lockfile.
+- GHCR workflows must use `packages: write`, authenticate with `GITHUB_TOKEN`, and tag images with immutable SHA or release tags.
+- Helm and Kubernetes workflows must install pinned tool versions, validate `KUBECONFIG`, use an explicit namespace, and wait for rollout status.
+- Firebase workflows must install both root and `server/` dependencies, validate `FIREBASE_SERVICE_ACCOUNT`, and remove temporary credentials.
+- Supabase workflows must use the official CLI setup action and skip safely when no `supabase/` project exists.
+- Never place provider credentials in images, browser bundles, repository files, or workflow logs.
+
 Output ONLY the JSON. Use web_search before answering each item — do not guess versions.
