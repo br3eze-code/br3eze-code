@@ -6,10 +6,8 @@
         <meta name="format-detection" content="telephone=no">
         <meta name="msapplication-tap-highlight" content="no">
         <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
-        <meta name="color-scheme" content="dark">
-        <meta name="theme-color" content="#0b0d12">
-        <meta name="description" content="A calm, secure control surface for connected operations across web, CLI, and mobile.">
-        <meta name="application-name" content="Power Connect">
+        <meta name="color-scheme" content="light dark">
+        <meta name="theme-color" content="#050505">
         <link rel="manifest" href="manifest.json">
         <link rel="icon" href="img/logo.png">
         <link rel="apple-touch-icon" href="img/logo.png">
@@ -34,7 +32,6 @@
 </style>
     </head>
     <body>
-    <a class="skip-link" href="#mainApp">Skip to main content</a>
 
 <!-- Power Hotspot Header -->
 <header class="main-header" id="mainHeader" style="display: none;">
@@ -73,7 +70,7 @@
         <div class="card auth-card" id="loginForm">
             <div class="auth-header">
                 <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
-                <h2>Welcome back</h2><p>Sign in to manage your connected services</p>
+                <h2>Welcome Back!</h2><p>Login to access your hotspot</p>
             </div>
             <form id="loginFormElement">
                 <div class="form-group">
@@ -90,7 +87,7 @@
                         <input type="password" placeholder="Password" id="loginPassword" required autocomplete="current-password">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+                <button type="submit" class="btn btn-primary btn-block">🔐 Login </button>
             </form>
             <div class="auth-divider"><hr><span>or continue with</span><hr></div>
             <button type="button" class="google-btn" onclick="Auth.loginWithGoogle()">
@@ -131,7 +128,7 @@
         <div class="card auth-card hidden" id="signupForm">
             <div class="auth-header">
                 <img src="img/logo.png" alt="Power Connect Logo" class="auth-logo">
-                <h2>Create your account</h2><p>One secure workspace for every connected channel</p>
+                <h2>Create Account</h2><p>Join Power Hotspot today</p>
             </div>
             <form id="signupFormElement">
                 <div class="form-group">
@@ -158,7 +155,7 @@
                     <label>Confirm Password</label>
                     <div class="input-wrapper"><i class="fas fa-shield-alt"></i><input type="password" id="signupConfirmPassword" required autocomplete="new-password" minlength="6"></div>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Create account</button>
+                <button type="submit" class="btn btn-primary btn-block">✨ Create Account</button>
             </form>
             <div class="auth-toggle">Already have an account? <a onclick="toggleAuthForm()">Login</a></div>
         </div>
@@ -181,9 +178,9 @@
     </aside>
 
     <!-- Main Content Panel -->
-    <main class="content-panel" id="main-content">
-        <section id="home-section" class="dashboard-section" aria-labelledby="dashboard-title">
-            <h1 id="dashboard-title">Overview</h1>
+    <main class="content-panel">
+        <section id="home-section" class="dashboard-section">
+            <h1>Dashboard</h1>
             <p class="account-info text-medium">Welcome, <span id="navUsername">User</span></p>
             
             <!-- Active Plan Status Card -->
@@ -741,18 +738,10 @@
 
 <!-- CDN Libraries -->
 <script src="js/offline-runtime.js"></script>
-<<<<<<< HEAD
-<script src="js/05.provider-adapter.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-=======
 
 
 
 
->>>>>>> origin/main
 <script src="js/env.js"></script>
 <script src="js/03.notifications.js"></script>
 <script src="js/06.firebase.js"></script>

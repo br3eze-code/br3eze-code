@@ -12,13 +12,9 @@
     <hook src="scripts/minify-and-obfuscate.js" type="after_prepare" />
     <hook src="scripts/ensure-signing.js" type="before_compile" />
 
-<<<<<<< HEAD
-    <preference name="Orientation" value="default" />
-=======
     <!-- Do not lock the app to portrait. Android 16+ may ignore orientation
          restrictions on large screens; allowing responsive layouts avoids a
          forced orientation and lets foldables/tablets choose their natural size. -->
->>>>>>> origin/main
     <preference name="DisallowOverscroll" value="true" />
     <preference name="Fullscreen" value="false" />
     <preference name="BackgroundColor" value="#FFFFFF" />
@@ -42,11 +38,27 @@
 
         <config-file parent="/manifest" target="app/src/main/AndroidManifest.xml" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
             <uses-permission android:name="android.permission.INTERNET" />
-            <!-- Connectivity, location, foreground-service, and wake-lock permissions are declared by the owning plugins. -->
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+            <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+            <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+            <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+            <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+            <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+            <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+            <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+            <uses-permission android:minSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+            <uses-permission android:name="android.permission.WAKE_LOCK" />
 
             <uses-permission android:maxSdkVersion="28" android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="replace" />
             <uses-permission android:maxSdkVersion="28" android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="replace" />
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.CAMERA" />
             <uses-permission android:name="android.permission.USE_BIOMETRIC" />
             <uses-permission android:name="android.permission.USE_FINGERPRINT" />
             <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
@@ -99,7 +111,6 @@
         <allow-intent href="itms-apps:*" />
     </platform>
 
-    <!-- Local capability plugins. Keep provider-specific permissions inside their owning plugin.xml; this file owns only app-wide baseline permissions. -->
     <!-- NETWORK TOOLS -->
     <plugin name="cordova-plugin-network-tools" spec="file:custom-plugins/cordova-plugin-network-tools" />
     <plugin name="cordova-plugin-aicore" spec="file:custom-plugins/cordova-plugin-aicore" />
