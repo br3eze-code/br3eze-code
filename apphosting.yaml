@@ -11,7 +11,7 @@ runConfig:
 
 scripts:
   buildCommand: npm run build
-  runCommand: npm run start:modern
+  runCommand: node scripts/apphosting-server.mjs
 
 env:
   - variable: NODE_ENV
