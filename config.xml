@@ -12,7 +12,13 @@
     <hook src="scripts/minify-and-obfuscate.js" type="after_prepare" />
     <hook src="scripts/ensure-signing.js" type="before_compile" />
 
+<<<<<<< HEAD
     <preference name="Orientation" value="default" />
+=======
+    <!-- Do not lock the app to portrait. Android 16+ may ignore orientation
+         restrictions on large screens; allowing responsive layouts avoids a
+         forced orientation and lets foldables/tablets choose their natural size. -->
+>>>>>>> origin/main
     <preference name="DisallowOverscroll" value="true" />
     <preference name="Fullscreen" value="false" />
     <preference name="BackgroundColor" value="#FFFFFF" />

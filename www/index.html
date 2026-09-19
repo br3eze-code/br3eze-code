@@ -24,6 +24,8 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="css/index.css">
+        <!-- Android 15+ edge-to-edge safe-area compatibility. -->
+        <link rel="stylesheet" href="css/android15-edge-to-edge.css">
         <title>Power Connect</title>
         <style>
     #authScreen, #mainApp, #mainHeader {
@@ -739,13 +741,22 @@
 
 <!-- CDN Libraries -->
 <script src="js/offline-runtime.js"></script>
+<<<<<<< HEAD
 <script src="js/05.provider-adapter.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+=======
+
+
+
+
+>>>>>>> origin/main
 <script src="js/env.js"></script>
 <script src="js/03.notifications.js"></script>
+<script src="js/06.firebase.js"></script>
+<script src="js/07.auth.js"></script>
 <script>
     // Cordova: only load in the real native WebView/file:// context -- avoids a
     // 404 (and the cordova.* undefined-global bugs it used to mask) when this
