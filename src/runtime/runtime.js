@@ -53,9 +53,10 @@ export class Runtime {
             correlationId: context.correlationId || context.interactionId || null,
             taskId: context.taskId || context.ticketId || null,
         });
-        return execution.success
-            ? { type: 'tool', tool: name, result: execution.data, execution }
-            : { type: 'error', tool: name, result: execution.error?.message || 'Tool execution failed', execution };
+        const succeeded = execution.status === 'success' || execution.status === 'replayed';
+        return succeeded
+            ? { type: 'tool', tool: name, result: execution.output, execution }
+            : { type: 'error', tool: name, result: execution.error || 'Tool execution failed', execution };
     }
 
     async run(input, context = {}) {

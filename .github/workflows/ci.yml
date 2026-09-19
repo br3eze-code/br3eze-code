@@ -22,6 +22,8 @@ jobs:
           cache: npm
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
+      - name: Validate workflow contracts
+        run: npm run check:workflows
       - name: Validate Core boundary
         run: node scripts/core-boundary-gate.mjs
       - name: Install dependencies
@@ -50,6 +52,8 @@ jobs:
           GATEWAY_PORT: 19876
       - name: Type check (jsconfig + tsconfig)
         run: npm run build:check
+      - name: Verify App Hosting runtime
+        run: npm run apphosting:smoke
       - name: Security check script
         run: npm run security:audit
         env:
