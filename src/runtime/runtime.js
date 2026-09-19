@@ -44,12 +44,17 @@ export class Runtime {
         const tool = this.registry.getTool(name);
         if (!tool) return { type: 'error', tool: name, result: `Unknown tool: ${name}` };
         const specialist = this._specialist(context, tool);
+        const executionContext = {
+            ...context,
+            tenantId: context.tenantId || context.scope?.tenantId,
+            userId: context.userId || context.scope?.userId,
+        };
         const execution = await this.toolExecutor.execute({
             specialist,
             tool,
             args,
-            context,
-            ticketType: context.ticketType || null,
+            context: executionContext,
+            ticketType: executionContext.ticketType || null,
             correlationId: context.correlationId || context.interactionId || null,
             taskId: context.taskId || context.ticketId || null,
         });

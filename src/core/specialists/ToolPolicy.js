@@ -4,11 +4,11 @@ export class ToolPolicy {
     if (!tool) throw new Error('tool not found');
     const role = String(specialist.role || specialist.id || '').toLowerCase();
     if (tool.specialist && ![role, String(specialist.id || '').toLowerCase()].includes(String(tool.specialist).toLowerCase())) {
-      throw new Error(`Tool ${tool.name} is not owned by specialist ${specialist.id || specialist.role}`);
+      throw new Error(`Specialist role required for ${tool.name}: ${tool.specialist}`);
     }
     const permissions = new Set(context.authorizedCapabilities || context.permissions || []);
     for (const permission of tool.permissions || []) {
-      if (!permissions.has(permission)) throw new Error(`Permission denied for ${tool.name}: ${permission}`);
+      if (!permissions.has(permission)) throw new Error(`Permission denied for ${tool.name}`);
     }
     if (ticketType && tool.ticketTypes?.length && !tool.ticketTypes.includes(ticketType)) {
       throw new Error(`Tool ${tool.name} cannot service ticket type ${ticketType}`);

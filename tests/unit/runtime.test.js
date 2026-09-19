@@ -60,15 +60,17 @@ describe('domain-agnostic runtime (ESM)', () => {
 
     test('tier-1 fast path for arbitrary and network skills', async () => {
         const rt = build();
-        expect(await rt.run('say hello world')).toMatchObject({ tier: 1, result: 'echo: hello world' });
-        expect((await rt.run('who')).result.count).toBe(2);
-        expect((await rt.run('kick alice')).result).toEqual({ kicked: 'alice' });
+        const context = { tenantId: 'tenant-a', userId: 'user-1', permissions: ['network:read', 'network:write'] };
+        expect(await rt.run('say hello world', context)).toMatchObject({ tier: 1, result: 'echo: hello world' });
+        expect((await rt.run('who', context)).result.count).toBe(2);
+        expect((await rt.run('kick alice', context)).result).toEqual({ kicked: 'alice' });
     });
 
     test('tier-3 LLM routing to registered tools', async () => {
         const rt = build();
-        expect(await rt.run('please add 2 and 3')).toMatchObject({ tier: 3, result: 5 });
-        expect((await rt.run('router status')).result['cpu-load']).toBe(7);
+        const context = { tenantId: 'tenant-a', userId: 'user-1', permissions: ['network:read', 'network:write'] };
+        expect(await rt.run('please add 2 and 3', context)).toMatchObject({ tier: 3, result: 5 });
+        expect((await rt.run('router status', context)).result['cpu-load']).toBe(7);
         expect(await rt.run('hello there')).toMatchObject({ type: 'chat' });
     });
 
@@ -82,7 +84,11 @@ describe('domain-agnostic runtime (ESM)', () => {
         const core = fs.readFileSync(path.join(RT_DIR, 'runtime.js'), 'utf8');
         const reg = fs.readFileSync(path.join(RT_DIR, 'registry.js'), 'utf8');
         const imports = (core.match(/from ['"][^'"]+['"]/g) || []);
-        expect(imports).toEqual(["from './registry.js'"]);
+        expect(imports).toEqual([
+            "from './registry.js'",
+            "from '../core/specialists/ToolPolicy.js'",
+            "from '../core/specialists/ToolExecutor.js'",
+        ]);
         const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
         expect(/mikrotik|hotspot|\brouter\b|voucher|firebase/i.test(strip(core) + strip(reg))).toBe(false);
     });

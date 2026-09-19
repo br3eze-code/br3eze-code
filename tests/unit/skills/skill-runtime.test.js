@@ -186,6 +186,8 @@ describe('AgentOS skill runtime', () => {
     const allowed = await runtime._invoke('inventory.reserve', { sku: 'SKU-1' }, {
       agentRole: 'inventory',
       authorizedCapabilities: ['inventory:write'],
+      tenantId: 'tenant-a',
+      userId: 'user-1',
       ticketType: 'reserve-stock',
     });
     expect(allowed).toMatchObject({ type: 'tool', result: { reservationId: 'r-SKU-1' } });

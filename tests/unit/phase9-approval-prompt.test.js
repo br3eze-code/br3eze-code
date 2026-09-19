@@ -1,9 +1,14 @@
-import test from 'node:test';
+import nodeTest from 'node:test';
+import { test as jestTest } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { createApprovalPrompt } from '../../src/cli/approval-prompt.js';
 
-test('Phase 9 approval prompt accepts yes', async () => {
+jestTest('Phase 9 approval prompt module loads', () => {
+    expect(typeof createApprovalPrompt).toBe('function');
+});
+
+nodeTest('Phase 9 approval prompt accepts yes', async () => {
     const input = new EventEmitter();
     const output = { write() {} };
     const promise = createApprovalPrompt({ input, output, color: false })({ action: 'restart service' });
@@ -11,7 +16,7 @@ test('Phase 9 approval prompt accepts yes', async () => {
     assert.equal(await promise, true);
 });
 
-test('Phase 9 approval prompt rejects no', async () => {
+nodeTest('Phase 9 approval prompt rejects no', async () => {
     const input = new EventEmitter();
     const output = { write() {} };
     const promise = createApprovalPrompt({ input, output, color: false })({ action: 'delete resource' });
@@ -19,7 +24,7 @@ test('Phase 9 approval prompt rejects no', async () => {
     assert.equal(await promise, false);
 });
 
-test('Phase 9 approval prompt aborts safely', async () => {
+nodeTest('Phase 9 approval prompt aborts safely', async () => {
     const input = new EventEmitter();
     const output = { write() {} };
     const controller = new AbortController();

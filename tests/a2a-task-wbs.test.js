@@ -8,7 +8,7 @@ describe('AgentOS A2A task/WBS protocol', () => {
     const registry = new TaskRegistry();
     const task = registry.create('test mission', {
       action: 'assist.task',
-      context: { tenantId: 'tenant-1', projectId: 'project-1', domain: 'test', userId: 'user-1' }
+      context: { tenantId: 'tenant-1', domainId: 'project-1', userId: 'user-1' }
     });
     const orchestrator = new AgentTeamOrchestrator({ registry });
     orchestrator.form({
@@ -37,7 +37,8 @@ describe('AgentOS A2A task/WBS protocol', () => {
       taskId: task.taskId,
       sender: 'a', recipient: 'b', capability: 'catalog.read',
       fromRole: 'cpo', toRole: 'cfo', wbsId: task.wbs[0].id,
-      scope: { tenantId: 't', projectId: 'p', domain: 'd' }
+      scope: { tenantId: 't', projectId: 'p', domain: 'd' },
+      registry
     })).toThrow(/Invalid A2A message/);
   });
 });

@@ -19,6 +19,17 @@ export class Gateway extends EventEmitter {
     this.app.disable('x-powered-by');
     this.app.use(express.json({ limit: this.config.bodyLimit || '1mb' }));
     for (const middleware of this.config.middleware) this.app.use(middleware);
+    this.app.use('/api', async (req, res, next) => {
+      if (!req.authContext && !req.user) return res.status(401).json({ error: 'Unauthorized' });
+      req.authContext = req.authContext || req.user;
+      next();
+    });
+    this.app.get('/api/v1/capabilities', (req, res) => {
+      const manifest = typeof this.config.capabilityManifest === 'function'
+        ? this.config.capabilityManifest(req.authContext)
+        : (this.config.capabilityManifest || { tools: [] });
+      res.json(manifest);
+    });
     this.app.get('/health', async (req, res) => { try { res.json(await this.config.health(req)); } catch (error) { res.status(503).json({ ok: false, error: error.message }); } });
     this.app.get('/health/live', (req, res) => res.json({ ok: true, live: true }));
     this.app.get('/health/ready', async (req, res) => { try { const value = await this.config.health(req); res.status(value?.ok === false ? 503 : 200).json(value); } catch (error) { res.status(503).json({ ok: false, error: error.message }); } });

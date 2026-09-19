@@ -58,6 +58,8 @@ class TaskRegistry extends EventEmitter {
             } : null,
             scope: {
                 tenantId: context.tenantId || null,
+                projectId: context.projectId || context.domainId || null,
+                domain: context.domain || context.domainId || null,
                 domainId: context.domainId || null,
                 siteId: context.siteId || null,
                 userId: context.userId || owner?.userId || null,

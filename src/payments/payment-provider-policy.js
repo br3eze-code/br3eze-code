@@ -22,7 +22,7 @@ const PROVIDER_COUNTRY_RULES = Object.freeze({
   linkwa: Object.freeze({ allowed: [ZIMBABWE] }),
   finivex: Object.freeze({ allowed: [ZIMBABWE] }),
   payonify: Object.freeze({ allowed: [ZIMBABWE] }),
-  zuripay: Object.freeze({ denied: ['*'] }),
+  zuripay: Object.freeze({ allowed: [ZIMBABWE] }),
 });
 
 const PROVIDER_CREDENTIALS = Object.freeze({

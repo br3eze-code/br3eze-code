@@ -9,8 +9,8 @@ function id(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
-function requireTask(taskId) {
-  const task = getTaskRegistry().get(taskId);
+function requireTask(taskId, registry = getTaskRegistry()) {
+  const task = registry.get(taskId);
   if (!task) {
     const error = new Error(`Task not found: ${taskId}`);
     error.code = 'A2A_TASK_NOT_FOUND';
@@ -23,8 +23,8 @@ function currentWbsStep(task) {
   return (task.wbs || []).find(step => step.status === 'running') || null;
 }
 
-export function createAgentTeam({ taskId, members = [], name = null } = {}) {
-  const task = requireTask(taskId);
+export function createAgentTeam({ taskId, members = [], name = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   if (!Array.isArray(members) || members.length === 0) {
     throw new Error('Agent team requires at least one member');
   }
@@ -43,8 +43,8 @@ export function createAgentTeam({ taskId, members = [], name = null } = {}) {
   return task.team;
 }
 
-export function startAgentTeam(taskId) {
-  const task = requireTask(taskId);
+export function startAgentTeam(taskId, registry = getTaskRegistry()) {
+  const task = requireTask(taskId, registry);
   if (!task.team) throw new Error('Task has no agent team');
   task.team.state = 'running';
   task.status = 'running';
@@ -53,8 +53,8 @@ export function startAgentTeam(taskId) {
   return task.team;
 }
 
-export function createA2AMessage({ taskId, sender, recipient, capability, type = 'delegate', fromRole, toRole, scope, wbsId, handoffId = null, payload = {}, approval = null } = {}) {
-  const task = requireTask(taskId);
+export function createA2AMessage({ taskId, sender, recipient, capability, type = 'delegate', fromRole, toRole, scope, wbsId, handoffId = null, payload = {}, approval = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   if (!MESSAGE_TYPES.includes(type)) throw new Error(`Unsupported A2A message type: ${type}`);
   const step = (task.wbs || []).find(item => item.id === wbsId) || currentWbsStep(task);
   const message = {

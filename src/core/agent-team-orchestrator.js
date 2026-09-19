@@ -13,11 +13,11 @@ export class AgentTeamOrchestrator {
   }
 
   form({ taskId, members, name }) {
-    return createAgentTeam({ taskId, members, name });
+    return createAgentTeam({ taskId, members, name, registry: this.registry });
   }
 
   start(taskId) {
-    return startAgentTeam(taskId);
+    return startAgentTeam(taskId, this.registry);
   }
 
   async delegate({ taskId, sender, recipient, capability, payload = {}, approval = null }) {
@@ -36,7 +36,8 @@ export class AgentTeamOrchestrator {
       scope: task.scope,
       wbsId: step.id,
       payload,
-      approval
+      approval,
+      registry: this.registry
     });
     return dispatchA2A({ message, transport: this.transport });
   }
