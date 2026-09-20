@@ -47,7 +47,8 @@ class ChannelPairingService extends EventEmitter {
      * @returns {PairingSession}
      */
     async generateCode(context) {
-        const { channel, userId, username, metadata = {} } = context;
+        const { channel, userId, username, tenantId, siteId, metadata = {} } = context;
+        if (!tenantId || !siteId) throw new AgentOSError(ErrorCodes.VALIDATION_ERROR, 'Pairing requires tenantId and siteId');
 
         // Validate channel exists
         if (!this.channels.has(channel) && channel !== 'api') {
@@ -66,6 +67,8 @@ class ChannelPairingService extends EventEmitter {
             id: crypto.randomUUID(),
             code,
             channel,           // Origin channel
+            tenantId,
+            siteId,
             userId,            // Channel-specific ID for notifications
             username,
             metadata: {
@@ -105,7 +108,8 @@ class ChannelPairingService extends EventEmitter {
      */
     async completePairing(pairingData, routerInfo) {
         const { code } = pairingData;
-        const { identity, macAddress, version, model, ipAddress, serial } = routerInfo;
+        const { identity, macAddress, version, model, ipAddress, serial, tenantId, siteId } = routerInfo;
+        if (!tenantId || !siteId) throw new AgentOSError(ErrorCodes.VALIDATION_ERROR, 'Router pairing requires tenantId and siteId');
 
         // Validate code exists
         const session = this.pending.get(code);
@@ -135,6 +139,10 @@ class ChannelPairingService extends EventEmitter {
                 'Too many failed attempts. Generate new code.',
                 { code, attempts: session.attempts }
             );
+        }
+
+        if (session.tenantId !== tenantId || session.siteId !== siteId) {
+            throw new AgentOSError(ErrorCodes.AUTH_FAILED, 'Pairing scope does not match tenant/site');
         }
 
         // Validate required router info

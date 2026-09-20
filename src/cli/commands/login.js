@@ -206,7 +206,8 @@ export default (program) => {
             let provider = options.provider;
             if (!provider) {
                 const choice = await select({
-                    message: 'Select login provider:',
+                    message: 'Select login provider (Google is recommended):',
+                    initialValue: 'google',
                     options: [
                         { value: 'github', label: 'GitHub (OAuth device flow)' },
                         { value: 'google', label: 'Google (OAuth browser flow)' },

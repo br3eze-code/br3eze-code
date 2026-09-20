@@ -6,7 +6,19 @@ import { logger } from '../../core/logger.js';
 /** Concrete network onboarding adapter. Core only receives these capabilities through registration. */
 export function templateRsc(content, extra = {}) {
   const vars = { ...process.env, ...extra, TELEGRAM_BOT_TOKEN: extra.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_TOKEN };
-  return String(content).replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (match, key) => vars[key] === undefined ? match : String(vars[key]));
+  const rendered = String(content).replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (match, key) => vars[key] === undefined ? match : String(vars[key]));
+  const unresolved = [...rendered.matchAll(/\{\{([A-Za-z0-9_]+)\}\}/g)].map(match => match[1]);
+  if (unresolved.length) throw new Error(`Unresolved setup.rsc variables: ${[...new Set(unresolved)].join(', ')}`);
+  return rendered;
+}
+
+export function validateSetupScript(script) {
+  const source = String(script);
+  if (/check-certificate\s*=\s*no/i.test(source)) throw new Error('setup.rsc must not disable certificate verification');
+  if (/\/ip service set\s+(www|ssh|telnet)\s+[^\n]*disabled\s*=\s*no/i.test(source)) {
+    throw new Error('setup.rsc enables an insecure management service');
+  }
+  return source;
 }
 
 export function generateSetupScript(config = {}) {
@@ -34,11 +46,17 @@ export async function onboardRouter(options = {}) {
   try {
     if (!await manager.connect()) throw new Error('Unable to connect to network device');
     if (options.dryRun) return { success: true, dryRun: true, message: 'Onboarding plan validated' };
-    const script = await loadTemplate('setup.rsc', options);
+    const script = validateSetupScript(await loadTemplate('setup.rsc', options));
+    const scriptName = `agentos_setup_${Date.now()}`;
     if (script && manager.conn) {
-      await manager.conn.write(['/system/script/add', `=name=agentos_setup_${Date.now()}`, `=source=${script}`]);
+      await manager.conn.write(['/system/script/add', `=name=${scriptName}`, `=source=${script}`]);
+      if (options.apply !== false) {
+        await manager.conn.write(['/system/script/run', `=.id=${scriptName}`]);
+      }
+      const identity = await manager.conn.write(['/system/identity/print']);
+      return { success: true, applied: options.apply !== false, scriptName, identity };
     }
-    return { success: true, message: 'Network device onboarding completed' };
+    return { success: true, dryRun: true, applied: false, scriptName, message: 'Network device onboarding plan validated' };
   } catch (error) {
     logger.error(`Network onboarding failed: ${error.message}`);
     return { success: false, error: error.message };

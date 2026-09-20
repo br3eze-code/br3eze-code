@@ -11,12 +11,12 @@
 # Secure default services
 /ip service set telnet disabled=yes
 /ip service set ftp disabled=yes
-/ip service set www port=80 disabled=no
-/ip service set ssh port=2222 disabled=no
-/ip service set www-ssl port=443 disabled=no
-/ip service set api port=8728 disabled=no
+/ip service set www disabled=yes
+/ip service set ssh disabled=yes
+/ip service set www-ssl disabled=yes
+/ip service set api disabled=yes
 /ip service set api-ssl port=8729 disabled=no
-/ip service set winbox port=8291 disabled=no
+/ip service set winbox disabled=yes
 
 # Strong admin password reminder (stored as note)
 /system note set note="AgentOS PowerConnect\nChange: agentos-api-admin password after deploy\nSSH port: 2222\nAPI port: 8728"
@@ -212,7 +212,7 @@
     :local freeMem [/system resource get free-memory]
     :local totalMem [/system resource get total-memory]
     :local memPercent (($totalMem - $freeMem) * 100 / $totalMem)
-    
+
     # Check WAN connectivity (as-value lets do/on-error detect failure)
     :do {
         :local pingResult [/ping address=1.1.1.1 count=2 as-value]
@@ -225,40 +225,40 @@
         :set wanOK false
         :log warning "[SENTINEL] WAN connectivity lost"
     }
-    
+
     # Check Starlink dish (if accessible)
     :if ($wanOK) do={
         :do {
-            /tool fetch url="https://www.starlink.com" mode=https check-certificate=no
+            /tool fetch url="https://www.starlink.com" mode=https keep-result=no
             :log info "[SENTINEL] Starlink check OK"
         } on-error={
             :log warning "[SENTINEL] Starlink web unreachable (CGNAT issue?)"
         }
     }
-    
+
     # Memory alert
     :if ($memPercent > 85) do={
         :log warning "[SENTINEL] High memory usage: $memPercent%"
     }
-    
+
     # CPU alert
     :if ($cpuLoad > 80) do={
         :log warning "[SENTINEL] High CPU load: $cpuLoad%"
     }
-    
+
     # Hotspot health
     :local activeUsers [/ip hotspot active print count-only]
     :if ($activeUsers > 0) do={
         :log info "[SENTINEL] Active users: $activeUsers"
     }
-    
+
     # Auto-cleanup expired sessions — only short-plan profiles (1Hour, basic, trial)
     # Long-plan users (1Day/7Day/30Day/premium) are managed by AgentOS reaper
     # Note: RouterOS ~ regex does not support | alternation; use separate conditions
     /ip hotspot active remove [find where uptime > "1h" && profile="1Hour"]
     /ip hotspot active remove [find where uptime > "1h" && profile="basic"]
     /ip hotspot active remove [find where uptime > "15m" && profile="trial"]
-    
+
     :log info "[SENTINEL] Health check complete | CPU: $cpuLoad% | MEM: $memPercent% | WAN: $wanOK | Users: $activeUsers"
 }
 
@@ -281,31 +281,31 @@
         :log error "[VOUCHER] vgPlan global not set"
         :return "ERROR: Set :global vgPlan before running"
     }
-    
+
     :local plans {"1Hour"; "1Day"; "7Day"; "30Day"; "trial"}
     :local planFound false
-    
+
     :foreach plan in=$plans do={
         :if ($plan = $planName) do={ :set planFound true }
     }
-    
+
     :if (!$planFound) do={
         :log error "[VOUCHER] Invalid plan: $planName"
         :return "ERROR: Valid plans: 1Hour, 1Day, 7Day, 30Day, trial"
     }
-    
+
     :local results ""
     :for i from=1 to=$count do={
         :local code [:pick ([/certificate scep-server otp generate minutes-valid=0 as-value]->"password") 0 8]
         :local username "V-$code"
         :local password [:pick ([/certificate scep-server otp generate minutes-valid=0 as-value]->"password") 0 12]
         :local timeNow [/system clock get time]
-        
+
         /ip hotspot user add name=$username password=$password profile=$planName comment="Voucher $code | Generated: $timeNow" disabled=no
-        
+
         :set results ($results . "$username:$password:$planName\n")
     }
-    
+
     :log info "[VOUCHER] Generated $count $planName voucher(s)"
     :return $results
 }
@@ -317,28 +317,28 @@
 /system script add name="agentos-sync" source={
     :local apiUrl "{{FIREBASE_URL}}/api/sync"
     :local apiKey "{{FIREBASE_API_KEY}}"
-    
+
     # Fetch pending users from Firebase
     :do {
         :local fetchResult [/tool fetch url="$apiUrl/pending" mode=https http-header-field="Authorization: Bearer $apiKey" output=user as-value]
         :local status ($fetchResult->"status")
-        
+
         :if ($status = "finished") do={
             :local data ($fetchResult->"data")
             :log info "[SYNC] Fetched pending users"
-            
+
             # Parse and create users ( use JSON parser)
         }
     } on-error={
         :log error "[SYNC] Failed to fetch from Firebase"
     }
-    
+
     # Upload current status
     :local activeCount [/ip hotspot active print count-only]
     :local totalUsers [/ip hotspot user print count-only]
-    
+
     :do {
-        /tool fetch url="$apiUrl/status" mode=https http-method=post http-header-field="Content-Type: application/json,Authorization: Bearer $apiKey" http-data="{\"router\":\"AgentOS\",\"activeUsers\":$activeCount,\"totalUsers\":$totalUsers,\"timestamp\":\"[/system clock get time]\"}" check-certificate=no
+        /tool fetch url="$apiUrl/status" mode=https http-method=post http-header-field="Content-Type: application/json,Authorization: Bearer $apiKey" http-data="{\"router\":\"AgentOS\",\"activeUsers\":$activeCount,\"totalUsers\":$totalUsers,\"timestamp\":\"[/system clock get time]\"}" keep-result=no
         :log info "[SYNC] Status uploaded"
     } on-error={
         :log error "[SYNC] Failed to upload status"

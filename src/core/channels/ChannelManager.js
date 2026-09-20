@@ -13,6 +13,7 @@ export class ChannelManager extends EventEmitter {
     this.maxAdapters = Number.isFinite(maxAdapters) ? Math.max(1, maxAdapters) : Infinity;
     this.maxChannels = Number.isFinite(maxChannels) ? Math.max(1, maxChannels) : Infinity;
     this.channels = new Map();
+    this.bindings = new Map();
     this.adapters = new Map();
     for (const adapter of adapters) this.registerAdapter(adapter);
   }
@@ -27,11 +28,17 @@ export class ChannelManager extends EventEmitter {
     const type = String(spec.type || '').trim().toLowerCase();
     const adapter = this.adapters.get(type);
     if (!adapter) throw new Error(`No channel adapter registered for '${type}'`);
-    if (!this.channels.has(type) && this.channels.size >= this.maxChannels) throw new Error('Channel limit reached');
-    const instance = await adapter.create({ ...(spec.config || {}), domain: spec.domain || spec.config?.domain || null }, this.agent);
+    const tenantId = String(spec.tenantId || spec.config?.tenantId || '').trim();
+    const siteId = String(spec.siteId || spec.config?.siteId || '').trim();
+    const accountId = String(spec.accountId || spec.config?.accountId || type).trim();
+    if (!tenantId || !siteId) throw new Error('Channel registration requires tenantId and siteId');
+    const bindingKey = `${tenantId}:${siteId}:${type}:${accountId}`;
+    if (!this.bindings.has(bindingKey) && this.bindings.size >= this.maxChannels) throw new Error('Channel limit reached');
+    const instance = await adapter.create({ ...(spec.config || {}), tenantId, siteId, accountId, domain: spec.domain || spec.config?.domain || null }, this.agent);
     if (!instance || typeof instance.send !== 'function') throw new Error(`Channel adapter '${type}' returned an invalid channel`);
-    this.channels.set(type, instance);
-    this.emit('channel:registered', { type });
+    this.channels.set(bindingKey, instance);
+    this.bindings.set(bindingKey, { tenantId, siteId, type, accountId });
+    this.emit('channel:registered', { type, tenantId, siteId, accountId, bindingKey });
     return instance;
   }
   async initialize() {
@@ -41,14 +48,24 @@ export class ChannelManager extends EventEmitter {
     }
     return this.channels;
   }
-  get(type) { return this.channels.get(type) || null; }
-  list() { return [...this.channels.keys()]; }
+  get(type, scope = {}) {
+    const tenantId = String(scope.tenantId || '').trim();
+    const siteId = String(scope.siteId || '').trim();
+    const accountId = String(scope.accountId || type).trim();
+    if (!tenantId || !siteId) return null;
+    return this.channels.get(`${tenantId}:${siteId}:${type}:${accountId}`) || null;
+  }
+  list(scope = {}) {
+    const tenantId = String(scope.tenantId || '').trim();
+    const siteId = String(scope.siteId || '').trim();
+    return [...this.bindings.entries()].filter(([, binding]) => (!tenantId || binding.tenantId === tenantId) && (!siteId || binding.siteId === siteId)).map(([key]) => key);
+  }
   status() {
     return { adapters: [...this.adapters.keys()], channels: this.list(), adapterCount: this.adapters.size, channelCount: this.channels.size, maxAdapters: this.maxAdapters, maxChannels: this.maxChannels };
   }
-  async send(type, target, payload) {
-    const channel = this.get(type);
-    if (!channel) throw new Error(`Channel not registered: ${type}`);
+  async send(type, target, payload, scope = {}) {
+    const channel = this.get(type, scope);
+    if (!channel) throw new Error(`Channel not registered for tenant/site scope: ${type}`);
     return channel.send(target, payload);
   }
   async shutdown() {
