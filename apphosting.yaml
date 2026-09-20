@@ -38,6 +38,12 @@ env:
   - variable: FIREBASE_PROJECT_ID
     value: br3eze-africa-312df
     availability: [RUNTIME]
+  - variable: FIREBASE_AUTH_DOMAIN
+    value: br3eze.africa
+    availability: [RUNTIME]
+  - variable: PUBLIC_APP_URL
+    value: https://br3eze.africa
+    availability: [RUNTIME]
   - variable: LOG_LEVEL
     value: info
     availability: [RUNTIME]

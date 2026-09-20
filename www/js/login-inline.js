@@ -12,7 +12,7 @@
 const runtime = window.ENV || {};
 const firebaseConfig = {
     apiKey: runtime.FIREBASE_WEB_API_KEY || runtime.FIREBASE_API_KEY || '',
-    authDomain: runtime.FIREBASE_AUTH_DOMAIN || '',
+    authDomain: runtime.FIREBASE_AUTH_DOMAIN || 'br3eze.africa',
     projectId: runtime.FIREBASE_PROJECT_ID || '',
     storageBucket: runtime.FIREBASE_STORAGE_BUCKET || '',
     messagingSenderId: runtime.FIREBASE_MESSAGING_SENDER_ID || '',

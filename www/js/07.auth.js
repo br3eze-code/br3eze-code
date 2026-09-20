@@ -96,9 +96,11 @@ async function loginWithProvider(provider) {
     if (!provider) throw new Error('Authentication provider is required.');
     if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase Auth is not configured.');
 
+    const configuredOrigin = String(supabaseRuntime.PUBLIC_APP_URL || '').replace(/\/$/, '');
+    const browserOrigin = window.location.protocol === 'http:' || window.location.protocol === 'https:'
+        ? window.location.origin : '';
     const redirect = SUPABASE_OAUTH_REDIRECT ||
-        ((window.location.protocol === 'http:' || window.location.protocol === 'https:')
-            ? `${window.location.origin}/auth/callback` : '');
+        `${configuredOrigin || browserOrigin}/auth/callback`;
     if (!redirect) throw new Error('OAuth login needs SUPABASE_OAUTH_REDIRECT for this native build.');
 
     const state = base64Url(randomBytes(24));
