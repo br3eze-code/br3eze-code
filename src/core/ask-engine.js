@@ -350,7 +350,7 @@ class AskEngine {
             const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
             const workspace = config.adapters?.cctv || {};
             if (!Object.keys(workspace.dahua_devices || {}).length) { this._dahua = null; return null; }
-            const DahuaSkillModule = require('../skills/dahua/index.js');
+            const DahuaSkillModule = require('../adapters/registry.js');
             const DahuaSkill = DahuaSkillModule?.default || DahuaSkillModule;
             this._dahua = new DahuaSkill(config, logger, workspace);
         } catch (e) {

@@ -1,4 +1,4 @@
-import { getAuth } from './firebase.js';
+import { getAuth } from '../adapters/registry.js';
 import { logger } from './logger.js';
 import { getDatabase } from './database.js';
 

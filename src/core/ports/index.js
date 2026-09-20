@@ -5,7 +5,7 @@
  */
 export * from './provider-registry.js';
 export * from './network-device.js';
-export * from './billing.js';
+export * from './provider-port.js';
 export * from './finance.js';
 export * from './persistence.js';
 export * from './database.js';

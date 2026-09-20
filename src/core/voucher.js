@@ -1,1 +1,1 @@
-export { default } from '../services/vouchers.js';
+export { Vouchers as default } from '../adapters/registry.js';

@@ -6,6 +6,13 @@ import { MikroTikManager } from './mikrotik.js';
  * The driver owns RouterOS details; this class exposes the common adapter
  * lifecycle expected by the plugin registry.
  */
+let sharedClient = null;
+
+export function getMikroTikClient(config = {}) {
+  if (!sharedClient) sharedClient = new MikroTikManager(config);
+  return sharedClient;
+}
+
 export default class MikroTikAdapter extends EventEmitter {
   constructor(config = {}) {
     super();

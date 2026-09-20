@@ -1,4 +1,4 @@
-import * as shop from './shop.js';
+import shop from './ports/interaction.js';
 import { buildExecutionContext } from './execution-context.js';
 
 function platformFor(channel) {

@@ -1,7 +1,7 @@
 import { getDatabase } from './database.js';
 import { logger } from './logger.js';
 import { createPaymentPlatform } from '../payments/payment-platform.js';
-import { getCourierGateway } from './courier-gateway.js';
+import { getCourierGateway } from '../adapters/commerce/gateway.js';
 import { notifyNewOrder } from './order-notifier.js';
 
 const SHIPPING_FLAT = 5;

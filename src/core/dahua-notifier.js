@@ -50,7 +50,7 @@ class DahuaNotifier {
     if (!deviceIds.length) return;
     if (this.workspace.notify?.enabled === false) { this.enabled = false; return; }
 
-    const DahuaSkill = require('../skills/dahua/index.js');
+    const DahuaSkill = require('../adapters/registry.js');
     this.skill = new DahuaSkill({}, logger, this.workspace);
 
     for (const deviceId of deviceIds) this._connect(deviceId);
@@ -75,7 +75,7 @@ class DahuaNotifier {
     this.enabled = true;
     const deviceIds = Object.keys(this.workspace.dahua_devices || {});
     if (!this.skill) {
-      const DahuaSkill = require('../skills/dahua/index.js');
+      const DahuaSkill = require('../adapters/registry.js');
       this.skill = new DahuaSkill({}, logger, this.workspace);
     }
     for (const deviceId of deviceIds) this._connect(deviceId);

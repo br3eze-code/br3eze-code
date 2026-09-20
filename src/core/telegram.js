@@ -2,7 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import QRCode from 'qrcode';
 import { logger } from './logger.js';
 import { getConfig } from './config.js';
-import { getMikroTikClient } from './mikrotik.js';
+import { getMikroTikClient } from '../adapters/registry.js';
 import { getDatabase } from './database.js';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
@@ -833,7 +833,7 @@ class AgentOSBot {
                 let warnings = [];
 
                 if (user.uid) {
-                    const { getAuth } = require('./firebase');
+                    const { getAuth } = require('../adapters/registry.js');
                     const firebaseAuth = getAuth();
                     if (firebaseAuth) {
                         try {

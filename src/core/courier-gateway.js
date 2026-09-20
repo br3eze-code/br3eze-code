@@ -1,7 +1,5 @@
 import { logger } from './logger.js';
-import DhlProvider from './couriers/dhl-provider.js';
-import PargoProvider from './couriers/pargo-provider.js';
-import CourierGuyProvider from './couriers/courier-guy-provider.js';
+import { DhlProvider, PargoProvider, CourierGuyProvider } from '../adapters/registry.js';
 
 /**
  * Pluggable courier/delivery gateway — mirrors src/payments/payment-gateway.js's
