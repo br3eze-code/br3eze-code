@@ -56,6 +56,12 @@ export default class MikroTikAdapter extends EventEmitter {
     return this.driver.getSystemStats();
   }
 
+  getState() { return this.driver.getState?.() || { isConnected: this.connected, host: this.config.host || null, availableTools: this.listActions().length }; }
+  getAvailableTools() { return this.listActions(); }
+  getSystemStats() { return this.driver.getSystemStats(); }
+  getArpTable() { return this.driver.executeTool('arp.table'); }
+  reboot() { return this.driver.executeTool('system.reboot'); }
+
   listActions() {
     return [
       'ping', 'user.add', 'user.remove', 'user.kick', 'users.active', 'users.all',

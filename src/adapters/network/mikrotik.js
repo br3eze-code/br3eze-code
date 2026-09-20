@@ -85,6 +85,9 @@ export class MikroTikManager {
         case 'users.active': return this._get('/ip/hotspot/active');
         case 'mikrotik.hotspot.user.getAll':
         case 'users.all': return this._get('/ip/hotspot/user');
+        case 'system.reboot':
+          await this.connect();
+          return this._menu('/system').call('reboot', {});
         case 'system.stats': return this._get('/system/resource');
         case 'system.resources': return this._get('/system/resource');
         case 'system.uptime': { const r = await this._get('/system/resource'); return r[0]?.uptime || null; }
