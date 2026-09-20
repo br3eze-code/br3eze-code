@@ -1,5 +1,9 @@
 // src/core/heartbeat.js
-class HeartbeatScheduler {
+import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
+export class Heartbeat {
   constructor(agentRuntime) {
     this.interval = process.env.HEARTBEAT_INTERVAL || 1800000; // 30min
     this.checklistPath = path.join(process.cwd(), 'HEARTBEAT.md');
@@ -11,7 +15,7 @@ class HeartbeatScheduler {
   }
 
   async tick() {
-    if (!fs.existsSync(this.checklistPath)) return;
+    if (!existsSync(this.checklistPath)) return;
 
     const checklist = await fs.readFile(this.checklistPath, 'utf8');
 
@@ -24,7 +28,7 @@ class HeartbeatScheduler {
       tools: [{ name: 'noop', description: 'No action needed' }],
     });
 
-    if (decision.action !== 'noop') {
+    if (decision.action !== 'noop' && typeof this.notifyUser === 'function') {
       await this.notifyUser(decision);
     }
   }
