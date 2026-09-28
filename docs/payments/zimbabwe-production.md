@@ -2,14 +2,22 @@
 
 ## Decision
 
-Power Connect/AgentOS should treat payment providers as adapters behind the domain-neutral payment gateway. For a Zimbabwe-based merchant, Stripe Payments must not be used as a production rail because Zimbabwe is not currently a supported Stripe Payments merchant country.
+AgentOS treats payment providers as adapters behind the domain-neutral `PaymentPlatform`. A Zimbabwe merchant must only use production providers/rails for which the merchant has completed the required onboarding, KYC, credentials, settlement setup and production approval.
 
-## Recommended provider order
+Stripe remains subject to its current merchant-country eligibility rules and must not be treated as a Zimbabwe production rail unless eligibility changes and the merchant is approved.
 
-1. **Paynow** — multi-rail Zimbabwe gateway and the first integration to production-test.
-2. **EcoCash** — direct local mobile-money rail where direct merchant/API approval is obtained.
-3. **Smile&Pay** — bank-backed multi-rail gateway to evaluate as a second aggregator.
-4. Other approved Zimbabwe gateways can be added as adapters without changing the billing core.
+## Provider selection
+
+Use the provider registry and capability catalog to select an available gateway/rail. Do not hard-code provider names in commerce, billing, voucher or connectivity domains.
+
+Provider status must distinguish at minimum:
+
+- `implemented`
+- `configured`
+- `contract-required`
+- `sandbox-only`
+- `discontinued`
+- `unavailable`
 
 ## Configuration
 
@@ -19,24 +27,23 @@ Set:
 MERCHANT_COUNTRY=ZW
 ```
 
-The payment factory applies the merchant/provider policy before constructing the existing gateway. For `ZW`, Stripe credentials are removed from the effective configuration and Stripe is therefore not registered by the legacy gateway.
-
-Do not put live payment credentials in source control. Merchant onboarding, KYC, settlement account details, webhook URLs, transaction limits, fees, and production approval remain provider-specific and must be completed with the provider.
+Provider credentials belong only in deployment/runtime secrets. Merchant onboarding, KYC, settlement account details, webhook URLs, transaction limits, fees and production approval remain provider-specific.
 
 ## Architecture
 
 ```text
-PaymentService
-    -> PaymentGateway
-        -> provider adapter
-            -> provider webhook
-                -> normalized payment event
-                    -> ledger/billing
-                        -> service fulfillment
+Domain
+  -> PaymentPlatform
+      -> ProviderRegistry
+          -> ProviderAdapter
+              -> Payment Rail / Method
+                  -> normalized payment event
+                      -> ledger / reconciliation
+                          -> domain fulfillment
 ```
 
-The core should not assume Stripe, EcoCash, Paynow, or any other provider. Adding a provider should be an adapter/configuration change, not a rewrite of billing or voucher logic.
+The payment core must not assume Stripe, EcoCash, Paynow, Wi-Fi, Starlink, vouchers or any other business domain. Adding or changing a provider is an adapter/configuration change.
 
-## Important merchant-model boundary
+## Merchant-model boundary
 
-A customer paying Power Connect for connectivity is a merchant transaction. A transferable stored-value wallet or money-transfer service is a different regulatory model. Partner revenue share should therefore remain an accounting/settlement capability unless the required regulated payment/wallet structure has been approved.
+A customer payment for goods or services is a merchant transaction. Transferable stored value, wallet issuance, money transfer and partner revenue sharing can have different regulatory and accounting requirements. Keep those concerns outside the payment transport adapters unless the required legal and provider arrangements are in place.
