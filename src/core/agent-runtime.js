@@ -3,6 +3,7 @@ import { buildExecutionContext } from './execution-context.js';
 import { attachOnboardingWbs } from './onboarding-wbs.js';
 import { logger as defaultLogger } from './logger.js';
 import { resolveAgentRole, getAgentRoleProfile, isApprovalRequired } from './agent-role-profiles.js';
+import { AGENT_RUNTIME_CONTRACT_VERSION, createRuntimeRequest, validateRuntime } from './agentKernel.js';
 
 /**
  * Agent Runtime
@@ -21,6 +22,28 @@ class AgentRuntime {
     
     this.logger = options.logger || defaultLogger;
     this.maxIterations = options.maxIterations || 10;
+    this.runtimeId = options.runtimeId || 'agent-runtime';
+    validateRuntime(this);
+  }
+
+  /** Execute one contract-bound agent turn. Framework/provider details remain behind this runtime. */
+  async executeTurn(request) {
+    const normalized = createRuntimeRequest(request);
+    const frame = {
+      ...(normalized.context || {}),
+      content: normalized.input,
+      sessionId: normalized.sessionId,
+      checkpoint: normalized.checkpoint,
+      runtimeContractVersion: AGENT_RUNTIME_CONTRACT_VERSION,
+    };
+    const result = await this.execute(frame);
+    return {
+      contractVersion: AGENT_RUNTIME_CONTRACT_VERSION,
+      runtimeId: this.runtimeId,
+      sessionId: normalized.sessionId,
+      checkpoint: { completedAt: Date.now(), iterations: result.iterations },
+      result,
+    };
   }
   
   /**
