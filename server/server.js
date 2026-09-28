@@ -24,6 +24,7 @@ import winston from 'winston';
 import helmet from 'helmet';
 import cors from 'cors';
 import QRCode from 'qrcode';
+import otpRouter from './src/routes/otp.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1383,7 +1384,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// API routes
+// Canonical email OTP authentication routes\napp.use('/api/auth/otp', otpRouter);\n\n// API routes
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
     const user = database.validateUser(username, password);

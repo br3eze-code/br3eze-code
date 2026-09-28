@@ -3,6 +3,13 @@
    Depends on: ALL prior modules (01–12)
    ========================================================== */
 
+window.toggleOtpLogin = function () {
+    document.getElementById('loginForm')?.classList.toggle('hidden');
+    document.getElementById('otpLoginForm')?.classList.toggle('hidden');
+    document.getElementById('forgotPasswordForm')?.classList.add('hidden');
+    document.getElementById('signupForm')?.classList.add('hidden');
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
     Auth.onAuthStateChanged(async session => {
@@ -62,6 +69,32 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         Auth.requestPasswordReset(document.getElementById('forgotPasswordEmail').value);
     });
+
+    document.getElementById('otpRequestForm')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const email = document.getElementById('otpLoginEmail').value.trim();
+        try {
+            await Auth.requestEmailOtp(email);
+            document.getElementById('otpRequestForm').classList.add('hidden');
+            document.getElementById('otpVerifyForm').classList.remove('hidden');
+            document.getElementById('otpLoginCode').focus();
+        } catch (error) {
+            console.error('[Auth] OTP request failed:', error);
+        }
+    });
+
+    document.getElementById('otpVerifyForm')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const email = document.getElementById('otpLoginEmail').value.trim();
+        const code = document.getElementById('otpLoginCode').value.trim();
+        try {
+            await Auth.verifyEmailOtp(email, code);
+        } catch (error) {
+            console.error('[Auth] OTP verification failed:', error);
+        }
+    });
+
+
 
     document.getElementById('unifiedChatForm')?.addEventListener('submit', e => {
         e.preventDefault();

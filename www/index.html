@@ -100,9 +100,35 @@
                 Continue with Google
             </button>
             <div class="auth-toggle">
+                <a onclick="toggleOtpLogin()">Login with email code</a>
+            </div>
+            <div class="auth-toggle">
                 <a onclick="toggleForgotPassword()">Forgot password?</a>
             </div>
             <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
+        </div>
+
+        <!-- Email OTP Login Card -->
+        <div class="card auth-card hidden" id="otpLoginForm">
+            <div class="auth-header">
+                <h2>Email Code Login</h2>
+                <p>We'll send a one-time verification code to your email.</p>
+            </div>
+            <form id="otpRequestForm" autocomplete="on">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="otpLoginEmail" autocomplete="email" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Send Code</button>
+            </form>
+            <form id="otpVerifyForm" class="hidden" autocomplete="one-time-code">
+                <div class="form-group">
+                    <label>6-digit verification code</label>
+                    <input type="text" id="otpLoginCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Verify &amp; Login</button>
+            </form>
+            <div class="auth-toggle"><a onclick="toggleOtpLogin()">Back to Login</a></div>
         </div>
 
         <!-- Forgot Password Card -->
