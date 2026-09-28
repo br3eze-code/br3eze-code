@@ -225,4 +225,31 @@ class AgentKernel extends EventEmitter {
   }
 }
 
+
+/**
+ * Runtime contract boundary.
+ * A runtime implementation prepares and executes one agent turn; the kernel
+ * owns lifecycle, state, policy, and verification around that execution.
+ */
+export const AGENT_RUNTIME_CONTRACT_VERSION = '1.0';
+
+export function createRuntimeRequest({ sessionId, input, context = {}, capabilities = [], checkpoint = null } = {}) {
+  if (!sessionId) throw new TypeError('sessionId is required');
+  if (input === undefined || input === null) throw new TypeError('input is required');
+  return Object.freeze({
+    contractVersion: AGENT_RUNTIME_CONTRACT_VERSION,
+    sessionId,
+    input,
+    context: Object.freeze({ ...context }),
+    capabilities: Object.freeze([...capabilities]),
+    checkpoint,
+  });
+}
+
+export function validateRuntime(runtime) {
+  if (!runtime || typeof runtime !== 'object') throw new TypeError('runtime must be an object');
+  if (typeof runtime.executeTurn !== 'function') throw new TypeError('runtime must implement executeTurn(request)');
+  return runtime;
+}
+
 export default AgentKernel;
