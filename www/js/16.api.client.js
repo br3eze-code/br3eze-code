@@ -1,17 +1,24 @@
 /* ==========================================================
-   16.api.client.js — thin fetch wrapper for the gateway's
-                      /api/v1/* REST routes (Firebase-auth aware)
-   Depends on: 06.firebase.js (bare `auth`), js/env.js (window.ENV)
+   16.api.client.js — canonical authenticated gateway client
+   Supabase is the primary PWA identity; Firebase token remains
+   compatibility fallback during migration.
    ========================================================== */
 
 window.ApiClient = {
     async _authHeaders(extra = {}) {
-        const headers = { ...extra };
+        const headers = { 'X-AgentOS-Client': 'pwa', ...extra };
+        if (window.SupabaseAuth?.getSession) {
+            const session = window.SupabaseAuth.getSession();
+            if (session?.access_token) {
+                headers.Authorization = `Bearer ${session.access_token}`;
+                return headers;
+            }
+        }
         if (typeof auth !== 'undefined' && auth.currentUser) {
             const idToken = await auth.currentUser.getIdToken();
-            headers['Authorization'] = `Bearer ${idToken}`;
+            headers.Authorization = `Bearer ${idToken}`;
         } else if (window.ENV?.GATEWAY_TOKEN) {
-            headers['Authorization'] = `Bearer ${window.ENV.GATEWAY_TOKEN}`;
+            headers.Authorization = `Bearer ${window.ENV.GATEWAY_TOKEN}`;
         }
         return headers;
     },
@@ -25,7 +32,6 @@ window.ApiClient = {
         return body;
     },
 
-    // For binary responses (e.g. PDFs) — returns a Blob instead of parsing JSON.
     async fetchBlob(path, opts = {}) {
         const headers = await this._authHeaders(opts.headers || {});
         const base = window.ENV?.GATEWAY_URL || '';
