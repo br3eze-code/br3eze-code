@@ -141,6 +141,66 @@ window.DataStore = {
     isAvailable: () => Boolean(SUPABASE_URL && SUPABASE_KEY),
     getCurrentUserId: () => window.currentUser?.id || session()?.user?.id || null,
 
+    async get(resource, id) {
+        const table = TABLES[resource] || resource;
+        const key = ID_FIELDS[resource] || 'id';
+        const rows = await request('/rest/v1/' + table + '?' + key + '=eq.' + encode(id) + '&select=*');
+        return rows?.[0] ? mapRow(resource, rows[0]) : null;
+    },
+    async set(resource, id, data, options = {}) {
+        const table = TABLES[resource] || resource;
+        const key = ID_FIELDS[resource] || 'id';
+        const payload = { ...data, [key]: id };
+        return request('/rest/v1/' + table + '?on_conflict=' + encode(key), {
+            method:'POST',
+            headers:{Prefer: options.merge === false ? 'return=representation' : 'resolution=merge-duplicates,return=representation'},
+            body:JSON.stringify(payload)
+        });
+    },
+    async update(resource, id, data) {
+        const table = TABLES[resource] || resource;
+        const key = ID_FIELDS[resource] || 'id';
+        return request('/rest/v1/' + table + '?' + key + '=eq.' + encode(id), {
+            method:'PATCH', headers:{Prefer:'return=representation'}, body:JSON.stringify(data)
+        });
+    },
+    async remove(resource, id) {
+        const table = TABLES[resource] || resource;
+        const key = ID_FIELDS[resource] || 'id';
+        return request('/rest/v1/' + table + '?' + key + '=eq.' + encode(id), { method:'DELETE' });
+    },
+    async query(resource, filters = {}, options = {}) {
+        const table = TABLES[resource] || resource;
+        const params = new URLSearchParams({select:'*'});
+        for (const [field, value] of Object.entries(filters || {})) {
+            params.set(field, Array.isArray(value) ? 'in.(' + value.map(encode).join(',') + ')' : 'eq.' + encode(value);
+        }
+        if (options.orderBy) params.set('order', options.orderBy + '.' + (options.direction === 'desc' ? 'desc' : 'asc'));
+        if (options.limit) params.set('limit', String(options.limit));
+        const rows = await request('/rest/v1/' + table + '?' + params);
+        return (rows || []).map(row => mapRow(resource, row));
+    },
+    async getProduct(id) { return this.get('products', id); },
+    async listProducts(filters = {}) { return this.query('products', { active:true, ...(filters.category ? {category:filters.category} : {}) }, { orderBy:'created_at', direction:'desc', limit:filters.limit || 100 }); },
+    async getCart(cartId) { return this.get('carts', cartId); },
+    async setCart(cartId, data) { return this.set('carts', cartId, data, { merge:true }); },
+    async getOrder(orderId) { return this.get('orders', orderId); },
+    async listOrders(userId = this.getCurrentUserId()) { return this.query('orders', { user_id:userId }, { orderBy:'created_at', direction:'desc', limit:100 }); },
+    async getInvoice(invoiceId) { return this.get('invoices', invoiceId); },
+    async createCommerceOrder(input) {
+        return request('/rest/v1/rpc/create_commerce_order', {
+            method:'POST',
+            body:JSON.stringify({
+                p_order_id:input.orderId, p_invoice_id:input.invoiceId, p_invoice_number:input.invoiceNumber,
+                p_user_id:input.userId, p_items:input.items || [], p_subtotal:input.subtotal,
+                p_shipping:input.shipping || 0, p_total:input.total, p_currency:input.currency || 'USD',
+                p_payment_method:input.paymentMethod || 'cod', p_payment_transaction_id:input.paymentTransactionId || null,
+                p_shipping_address:input.shippingAddress || {}, p_billing_address:input.billingAddress || {},
+                p_channel:input.channel || 'web', p_channel_id:input.channelId || null,
+                p_tenant_id:input.tenantId || null, p_site_id:input.siteId || null, p_domain:input.domain || null
+            })
+        });
+    },
     async getUser(uid) {
         const id = uid || this.getCurrentUserId();
         if (!id) return null;
