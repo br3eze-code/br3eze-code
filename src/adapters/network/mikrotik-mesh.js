@@ -18,6 +18,7 @@ export class MikroTikMeshRegistry extends EventEmitter {
     const id = site.id || site.routerId;
     if (!id || typeof id !== 'string') throw new TypeError('A stable site id is required');
     if (!site.host && !site.ip) throw new TypeError(`Site ${id} requires a host or IP`);
+    if (site.publicAddress === true) throw new Error(`Site ${id} rejects public router exposure`);
     if (this.sites.has(id)) throw new Error(`Site already registered: ${id}`);
     const managerConfig = { host: site.host || site.ip, port: site.port || 8728, user: site.user, password: site.password, timeout: site.timeout || 10000, tls: site.tls === true, tenantId: site.tenantId || null, siteId: id, domain: 'network' };
     this.sites.set(id, { id, name: site.name || id, tenantId: site.tenantId || null, overlay: site.overlay || null, managerConfig, manager: null, status: 'registered', lastError: null, lastSeenAt: null });
