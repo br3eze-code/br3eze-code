@@ -4,6 +4,9 @@ import { PermissionMode, PermissionDenial } from './permissions.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
+import { WorkGraph, WorkStatus } from '../workgraph/workGraph.js';
+import { ExecutionRecord } from '../workgraph/executionRecord.js';
+import { VerificationEngine } from '../verification/verificationEngine.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -41,6 +44,7 @@ class AgentRuntime extends EventEmitter {
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
     this.toolExecutor = typeof config.toolExecutor === 'function' ? config.toolExecutor : null;
+    this.verificationEngine = config.verificationEngine || new VerificationEngine(config.verificationChecks || {});
   }
 
   routePrompt(prompt, limit = 5) {
@@ -74,6 +78,43 @@ class AgentRuntime extends EventEmitter {
     }
     const sessionPath = engine.persistSession();
     return { results, session, sessionPath };
+  }
+
+  async executeWorkGraph(graph, { agentId = null, executor = null, verify = true } = {}) {
+    if (!(graph instanceof WorkGraph)) throw new TypeError('executeWorkGraph requires a WorkGraph');
+    const records = [];
+    let progressed = true;
+    while (progressed) {
+      progressed = false;
+      for (const task of graph.ready()) {
+        progressed = true;
+        graph.transition(task.id, WorkStatus.RUNNING);
+        const record = new ExecutionRecord({ taskId: task.id, agentId });
+        record.start();
+        try {
+          const run = executor || (async current => {
+            if (current.tool) return this.executeTool(current.tool, current.args || {});
+            if (typeof current.run === 'function') return current.run(current);
+            return { status: 'completed', taskId: current.id };
+          });
+          const result = await run(task);
+          if (result?.evidence) record.addEvidence(result.evidence);
+          if (result?.artifacts) for (const artifact of result.artifacts) record.addArtifact(artifact);
+          const verification = verify && task.verification?.length
+            ? await this.verificationEngine.verify(result, task.verification)
+            : null;
+          if (verification && !verification.passed) throw Object.assign(new Error('Task verification failed'), { verification });
+          record.succeed(result);
+          if (record.evidence.length) graph.attachEvidence(task.id, record.evidence);
+          graph.transition(task.id, WorkStatus.COMPLETED, { result });
+        } catch (error) {
+          record.fail(error);
+          graph.transition(task.id, WorkStatus.FAILED, { reason: error.message });
+        }
+        records.push(record);
+      }
+    }
+    return { graph, records, summary: graph.summary() };
   }
 
   async dispatchTask(prompt, opts = {}) {
