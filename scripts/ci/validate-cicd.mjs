@@ -15,8 +15,10 @@ if (!fs.existsSync(path.join(root, 'package-lock.json'))) {
 // a prerequisite for validating the root project. If a server lockfile is
 // introduced later, its workflow must use npm ci against that lockfile.
 
-if (packageJson.engines?.node !== '>=22.0.0') {
-  errors.push(`package.json must declare Node >=22.0.0; found ${packageJson.engines?.node ?? 'missing'}`);
+const nodeEngine = packageJson.engines?.node;
+const supportsNode22 = nodeEngine === '>=22.0.0' || /^22(?:\.x)?$/.test(String(nodeEngine || ''));
+if (!supportsNode22) {
+  errors.push(`package.json must declare Node 22.x or >=22.0.0; found ${nodeEngine ?? 'missing'}`);
 }
 
 const workflows = fs.readdirSync(workflowDir).filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'));
