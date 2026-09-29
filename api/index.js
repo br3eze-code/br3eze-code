@@ -8,11 +8,15 @@ import shopRouter from '../src/api/routes/shop.js';
 import v1Router from '../src/api/routes/v1.js';
 import v2Router from '../src/api/routes/v2.js';
 import v3Router from '../src/api/routes/v3.js';
+import authHandoffRouter from '../src/api/routes/auth-handoff.js';
 
 const app = express();
 
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
+
+// Provider-neutral authentication handoff; legacy from/type aliases remain accepted by the route.
+app.use('/api/auth/handoff', authHandoffRouter);
 
 // Human/client API authentication is provider-neutral (Firebase or Supabase).
 // Machine-to-machine authentication remains a separate concern and must not use req.user.
