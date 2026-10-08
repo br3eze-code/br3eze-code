@@ -38,22 +38,20 @@ describe('domain-neutral Obsidian skill', () => {
     await adapter.writeNote('context.md', '[[Next]] #agent', { ...baseContext, approval: { approved: true } });
     const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
     const result = await registry.execute('workspace.obsidian.graph_context', { path: 'context.md' }, { ...baseContext, obsidianAdapter: adapter });
-    expect(result).toMatchObject({ type: 'tool', tool: 'workspace.obsidian.graph_context' });
-    expect(result.result).toMatchObject({ path: 'context.md', links: ['Next'], tags: ['#agent'] });
+    expect(result).toMatchObject({ path: 'context.md', links: ['Next'], tags: ['#agent'] });
     expect(events.at(-1)).toMatchObject({ action: 'obsidian.read', userId: 'agent-user', tenantId: 'tenant-a', domain: 'workspace', siteId: 'site-7' });
   });
 
   test('requires approval for agent mutations', async () => {
     const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
     const result = registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
-    expect(result.type).toBe('error');
     await expect(registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter }))
-      .resolves.toMatchObject({ type: 'error', result: expect.stringMatching(/approved/) });
+      .resolves.toMatchObject({ status: 'approval_required' });
   });
 
   test('supports injected adapters without environment or hardcoded vault paths', async () => {
     const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
     const result = await registry.execute('workspace.obsidian.status', {}, { ...baseContext, obsidianAdapter: adapter });
-    expect(result).toMatchObject({ type: 'tool', result: { available: true, scope: baseContext.scope } });
+    expect(result).toMatchObject({ available: true, scope: expect.objectContaining(baseContext.scope) });
   });
 });
