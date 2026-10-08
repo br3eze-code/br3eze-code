@@ -152,7 +152,7 @@ class AgentHarness extends EventEmitter {
       }));
 
       if (toolDefs.length) {
-        for (const tool of toolDefs) this._runtime.registerTool({ ...tool, fullName: id + '.' + tool.name, domain: id });
+        for (const tool of toolDefs) this._runtime.registerTool({ ...tool, fullName: tool.name.includes('.') ? tool.name : id + '.' + tool.name, domain: id });
       } else if (typeof adapter.execute === 'function') {
         for (const capability of adapter.getCapabilities()) {
           const name = capability.name || capability.id;
