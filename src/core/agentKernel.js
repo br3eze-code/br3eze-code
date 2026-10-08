@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import crypto from 'node:crypto';
 import { SessionEventStore } from './session/SessionEventStore.js';
+import { AgentRegistry } from './agent-registry.js';
 import { logger } from './logger.js';
 
 const log = (level, ...args) => logger[level]?.(...args);
@@ -10,7 +11,7 @@ class AgentKernel extends EventEmitter {
   constructor(opts = {}) {
     super();
     this.domains  = new Map();
-    this.agents   = new Map();
+    this.agentRegistry = opts.agentRegistry || new AgentRegistry();
     this.sessionEventStore = opts.sessionEventStore || new SessionEventStore();
     this._opts    = opts;
     this._ready   = false;
@@ -24,6 +25,19 @@ class AgentKernel extends EventEmitter {
     this.emit('kernel:ready', { domains: this.domains.size });
     log('info', `[AgentKernel] ready — ${this.domains.size} domain(s)`);
     return this;
+  }
+
+  // ── Agent identity registration ───────────────────────────────────────────
+  registerAgent(definition) {
+    return this.agentRegistry.register(definition);
+  }
+
+  getAgent(ref) {
+    return this.agentRegistry.get(ref);
+  }
+
+  listAgents() {
+    return this.agentRegistry.list();
   }
 
   // ── Domain registration ────────────────────────────────────────────────────
