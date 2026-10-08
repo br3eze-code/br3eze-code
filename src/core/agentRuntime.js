@@ -160,6 +160,29 @@ class AgentRuntime extends EventEmitter {
 
   async execute(frame = {}) {
     if (!frame || frame.content == null) throw new TypeError('AgentRuntime.execute requires frame.content');
+
+    // Canonical direct-dispatch path: every caller still crosses this execution
+    // boundary, including harness/domain adapters. No adapter owns execution.
+    if (Array.isArray(frame.toolCalls) && frame.toolCalls.length) {
+      const results = [];
+      for (const call of frame.toolCalls) {
+        const name = String(call?.name || '').replace(/__/g, '.');
+        if (!name) throw new TypeError('AgentRuntime.execute received a tool call without a name');
+        let args = call?.arguments ?? {};
+        if (typeof args === 'string') {
+          try { args = JSON.parse(args); } catch { args = {}; }
+        }
+        results.push({ name, result: await this.executeTool(name, args, frame.context || frame) });
+      }
+      return {
+        response: results.length === 1 ? results[0].result : results,
+        sessionId: frame.sessionId || null,
+        iterations: 1,
+        toolsUsed: results.map((entry) => entry.name),
+        toolCalls: results,
+      };
+    }
+
     if (!this.model) {
       const { results } = await this.runTurnLoop(String(frame.content), {
         sessionId: frame.sessionId || null,
