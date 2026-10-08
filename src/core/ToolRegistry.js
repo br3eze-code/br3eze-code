@@ -32,7 +32,15 @@ const hooks = {
   runAfter: async () => {},
 };
 
-export class ToolNotFoundError extends Error {\n  constructor(name) { super(`Tool not found: "${name}"`); this.name = 'ToolNotFoundError'; this.toolName = name; }\n}\n\nexport class SkillDisabledError extends Error {\n  constructor(skill, tool) { super(`Skill "${skill}" is disabled — cannot execute tool "${tool}"`); this.name = 'SkillDisabledError'; this.skillName = skill; this.toolName = tool; }\n}\n\nclass ToolRegistry {
+export class ToolNotFoundError extends Error {
+  constructor(name) { super(`Tool not found: "${name}"`); this.name = 'ToolNotFoundError'; this.toolName = name; }
+}
+
+export class SkillDisabledError extends Error {
+  constructor(skill, tool) { super(`Skill "${skill}" is disabled — cannot execute tool "${tool}"`); this.name = 'SkillDisabledError'; this.skillName = skill; this.toolName = tool; }
+}
+
+class ToolRegistry {
   /**
    * @param {object} opts
    * @param {string} [opts.skillsPath] Path to load skill manifests from (optional)
@@ -64,7 +72,101 @@ export class ToolNotFoundError extends Error {\n  constructor(name) { super(`Too
     this.logger.info(`ToolRegistry: registered domain "${domainName}" with ${toolDefs.length} tool(s)`);
   }
 
-  registerTool(toolDef) {\n    if (!toolDef || !toolDef.name) throw new TypeError('registerTool requires { name, execute|handler }');\n    const handler = typeof toolDef.handler === 'function' ? toolDef.handler : toolDef.execute;\n    if (typeof handler !== 'function') throw new TypeError(`Tool "${toolDef.name}" requires execute or handler`);\n    const entry = { ...toolDef, execute: handler, handler, fullName: toolDef.fullName || toolDef.name, domain: toolDef.domain || null };\n    if (this.tools.has(entry.fullName)) throw new Error(`Tool "${entry.fullName}" already registered`);\n    this.tools.set(entry.fullName, entry);\n    if (entry.domain) this.domains.add(entry.domain);\n    this._manifestCache = null;\n    return this;\n  }\n\n  registerSkill(skill) {\n    if (!skill?.name) throw new TypeError('registerSkill requires { name }');\n    if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);\n    this.skills.set(skill.name, skill);\n    for (const tool of skill.tools || []) this.registerTool({ ...tool, skill: skill.name, fullName: tool.fullName || `${skill.name}.${tool.name}` });\n    this._manifestCache = null;\n    return this;\n  }\n\n  getSkillNames() { return Array.from(this.skills.keys()); }\n  getToolCount() { return this.tools.size; }\n  getToolsBySkill(skillName) { return Array.from(this.tools.values()).filter((tool) => tool.skill === skillName || tool.fullName?.startsWith(`${skillName}.`)); }\n  setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this.invalidateManifest(); } }\n  getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...(skill.manifest || skill), toolCount: this.getToolsBySkill(skillName).length, enabled: skill.enabled !== false } : null; }\n\n  async loadSkills() {\n    if (!this._skillsPath) return false;\n    const entries = await fsp.readdir(this._skillsPath, { withFileTypes: true });\n    await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => this.loadSkill(entry.name)));\n    return true;\n  }\n\n  async loadSkill(skillName) {\n    if (!this._skillsPath) return false;\n    const skillPath = path.join(this._skillsPath, skillName);\n    const manifest = await this._loadManifest(skillPath, skillName);\n    if (!manifest) return false;\n    const skill = { ...manifest, manifest, name: manifest.name || skillName, enabled: true, tools: [] };\n    const toolsDir = path.join(skillPath, 'tools');\n    const hasToolsDir = fsSync.existsSync(toolsDir) && fsSync.statSync(toolsDir).isDirectory();\n    const indexPath = path.join(skillPath, 'index.js');\n    let indexModule = null;\n    if (!hasToolsDir && fsSync.existsSync(indexPath)) {\n      delete require.cache[require.resolve(indexPath)];\n      const mod = require(indexPath);\n      indexModule = mod?.default || mod;\n      if (typeof indexModule === 'function') indexModule = new indexModule({}, this.logger);\n    }\n    for (const def of manifest.tools || []) {\n      const fullName = `${skill.name}.${def.name}`;\n      let handler = null;\n      if (hasToolsDir) {\n        const file = path.join(toolsDir, `${def.name.replace(/\\./g, '-')}.js`);\n        if (fsSync.existsSync(file)) {\n          delete require.cache[require.resolve(file)];\n          const mod = require(file);\n          handler = mod?.handler || mod?.default || mod;\n        }\n      } else if (indexModule?.execute) {\n        handler = (args = {}, ctx = {}) => indexModule.execute(def.name, args, ctx);\n      }\n      if (typeof handler !== 'function') continue;\n      const entry = { ...def, schema: def, name: fullName, fullName, skill: skill.name, handler, execute: handler };\n      this.tools.set(fullName, entry);\n      skill.tools.push(entry);\n    }\n    this.skills.set(skill.name, skill);\n    this.invalidateManifest();\n    return true;\n  }\n\n  async _loadManifest(skillPath, skillName) {\n    for (const candidate of ['manifest.yaml', 'manifest.yml', 'skill.json']) {\n      const file = path.join(skillPath, candidate);\n      try {\n        const raw = await fsp.readFile(file, 'utf8');\n        return candidate.endsWith('.json') ? JSON.parse(raw) : yaml.load(raw);\n      } catch {}\n    }\n    this.logger.warn(`No manifest found for skill "${skillName}"`);\n    return null;\n  }\n\n  getToolsForLLM(skillFilter = null) {\n    return this.getAllTools().filter((tool) => !skillFilter || tool.skill === skillFilter).map((tool) => ({ type: 'function', function: { name: tool.fullName.replace(/\\./g, '__'), description: tool.description || tool.schema?.description || tool.fullName, parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} } } }));\n  }\n\n  getMetrics(toolName = null) {\n    if (toolName) return this._metrics.get(toolName) || null;\n    return Object.fromEntries([...this._metrics].map(([name, metric]) => [name, { ...metric, avgMs: metric.calls ? Math.round(metric.totalMs / metric.calls) : 0 }]));\n  }\n\n  register(fullName, toolDef) {
+  registerTool(toolDef) {
+    if (!toolDef || !toolDef.name) throw new TypeError('registerTool requires { name, execute|handler }');
+    const handler = typeof toolDef.handler === 'function' ? toolDef.handler : toolDef.execute;
+    if (typeof handler !== 'function') throw new TypeError(`Tool "${toolDef.name}" requires execute or handler`);
+    const entry = { ...toolDef, execute: handler, handler, fullName: toolDef.fullName || toolDef.name, domain: toolDef.domain || null };
+    if (this.tools.has(entry.fullName)) throw new Error(`Tool "${entry.fullName}" already registered`);
+    this.tools.set(entry.fullName, entry);
+    if (entry.domain) this.domains.add(entry.domain);
+    this._manifestCache = null;
+    return this;
+  }
+
+  registerSkill(skill) {
+    if (!skill?.name) throw new TypeError('registerSkill requires { name }');
+    if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);
+    this.skills.set(skill.name, skill);
+    for (const tool of skill.tools || []) this.registerTool({ ...tool, skill: skill.name, fullName: tool.fullName || `${skill.name}.${tool.name}` });
+    this._manifestCache = null;
+    return this;
+  }
+
+  getSkillNames() { return Array.from(this.skills.keys()); }
+  getToolCount() { return this.tools.size; }
+  getToolsBySkill(skillName) { return Array.from(this.tools.values()).filter((tool) => tool.skill === skillName || tool.fullName?.startsWith(`${skillName}.`)); }
+  setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this.invalidateManifest(); } }
+  getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...(skill.manifest || skill), toolCount: this.getToolsBySkill(skillName).length, enabled: skill.enabled !== false } : null; }
+
+  async loadSkills() {
+    if (!this._skillsPath) return false;
+    const entries = await fsp.readdir(this._skillsPath, { withFileTypes: true });
+    await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => this.loadSkill(entry.name)));
+    return true;
+  }
+
+  async loadSkill(skillName) {
+    if (!this._skillsPath) return false;
+    const skillPath = path.join(this._skillsPath, skillName);
+    const manifest = await this._loadManifest(skillPath, skillName);
+    if (!manifest) return false;
+    const skill = { ...manifest, manifest, name: manifest.name || skillName, enabled: true, tools: [] };
+    const toolsDir = path.join(skillPath, 'tools');
+    const hasToolsDir = fsSync.existsSync(toolsDir) && fsSync.statSync(toolsDir).isDirectory();
+    const indexPath = path.join(skillPath, 'index.js');
+    let indexModule = null;
+    if (!hasToolsDir && fsSync.existsSync(indexPath)) {
+      delete require.cache[require.resolve(indexPath)];
+      const mod = require(indexPath);
+      indexModule = mod?.default || mod;
+      if (typeof indexModule === 'function') indexModule = new indexModule({}, this.logger);
+    }
+    for (const def of manifest.tools || []) {
+      const fullName = `${skill.name}.${def.name}`;
+      let handler = null;
+      if (hasToolsDir) {
+        const file = path.join(toolsDir, `${def.name.replace(/\\./g, '-')}.js`);
+        if (fsSync.existsSync(file)) {
+          delete require.cache[require.resolve(file)];
+          const mod = require(file);
+          handler = mod?.handler || mod?.default || mod;
+        }
+      } else if (indexModule?.execute) {
+        handler = (args = {}, ctx = {}) => indexModule.execute(def.name, args, ctx);
+      }
+      if (typeof handler !== 'function') continue;
+      const entry = { ...def, schema: def, name: fullName, fullName, skill: skill.name, handler, execute: handler };
+      this.tools.set(fullName, entry);
+      skill.tools.push(entry);
+    }
+    this.skills.set(skill.name, skill);
+    this.invalidateManifest();
+    return true;
+  }
+
+  async _loadManifest(skillPath, skillName) {
+    for (const candidate of ['manifest.yaml', 'manifest.yml', 'skill.json']) {
+      const file = path.join(skillPath, candidate);
+      try {
+        const raw = await fsp.readFile(file, 'utf8');
+        return candidate.endsWith('.json') ? JSON.parse(raw) : yaml.load(raw);
+      } catch {}
+    }
+    this.logger.warn(`No manifest found for skill "${skillName}"`);
+    return null;
+  }
+
+  getToolsForLLM(skillFilter = null) {
+    return this.getAllTools().filter((tool) => !skillFilter || tool.skill === skillFilter).map((tool) => ({ type: 'function', function: { name: tool.fullName.replace(/\\./g, '__'), description: tool.description || tool.schema?.description || tool.fullName, parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} } } }));
+  }
+
+  getMetrics(toolName = null) {
+    if (toolName) return this._metrics.get(toolName) || null;
+    return Object.fromEntries([...this._metrics].map(([name, metric]) => [name, { ...metric, avgMs: metric.calls ? Math.round(metric.totalMs / metric.calls) : 0 }]));
+  }
+
+  register(fullName, toolDef) {
     if (!fullName || typeof fullName !== 'string' || typeof toolDef?.execute !== 'function') {
       throw new TypeError('ToolRegistry.register requires a name and executable tool definition');
     }
