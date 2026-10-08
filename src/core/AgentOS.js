@@ -116,7 +116,7 @@ class AgentOS extends EventEmitter {
   async buildContext(input, context, interactionId) {
     const userMemory = await this.memory.getUserContext(input.userId);
     const session = await this.memory.getSession(input.sessionId);
-    const scoped = await buildChannelExecutionContext({ ...context, ...input, source: 'agentos' });
+    const scoped = this.contextEngine.build({ ...context, ...input, source: 'agentos' });
     return { ...scoped, id: interactionId, agentId: this.id, userId: scoped.userId || input.userId, sessionId: input.sessionId, timestamp: new Date().toISOString(), memory: userMemory, session, summary: { userId: scoped.userId || input.userId, tenantId: scoped.tenantId, siteId: scoped.siteId, nodeId: scoped.nodeId, channel: scoped.channel, previousIntent: userMemory?.lastIntent, skillHistory: userMemory?.recentSkills || [] }, skills: this.skills, llm: this.llm, channels: this.channels };
   }
 
