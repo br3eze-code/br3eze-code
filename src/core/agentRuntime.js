@@ -52,7 +52,7 @@ class TurnResult {
 class RuntimeSession {
   constructor({ prompt, matchedTools, permissionDenials, taskId = null, loop = null, config = {}, sessionId = null, stored = null }) {
     this.prompt = prompt; this.sessionId = sessionId || crypto.randomUUID().replace(/-/g, ''); this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = new Date().toISOString();
-    this.config = Object.freeze({ maxTurns: 8, maxBudgetTokens: 4000, compactAfterTurns: 12, ...config });
+    this.config = Object.freeze({ permissionMode: PermissionMode.PROMPT, maxTurns: 8, maxBudgetTokens: 4000, compactAfterTurns: 12, ...config });
     this.messages = [...(stored?.messages || [])]; this.totalUsage = new UsageSummary(stored?.inputTokens || 0, stored?.outputTokens || 0);
     this.transcriptStore = new TranscriptStore({ entries: [...this.messages] }); this.enforcer = new PermissionEnforcer(this.config.permissionMode);
   }
