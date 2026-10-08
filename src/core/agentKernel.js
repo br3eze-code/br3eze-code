@@ -1,5 +1,9 @@
 import EventEmitter from 'events';
+import crypto from 'node:crypto';
 import { SessionEventStore } from './session/SessionEventStore.js';
+import { logger } from './logger.js';
+
+const log = (level, ...args) => logger[level]?.(...args);
 
 // ── AgentKernel ──────────────────────────────────────────────────────────────
 class AgentKernel extends EventEmitter {
@@ -131,7 +135,7 @@ class AgentKernel extends EventEmitter {
 /**
  * Runtime contract boundary.
  * A runtime implementation prepares and executes one agent turn; the kernel
- * owns lifecycle, state, policy, and verification around that execution.
+ * exposes the stable request/validation contract without owning runtime state.
  */
 export const AGENT_RUNTIME_CONTRACT_VERSION = '1.0';
 
