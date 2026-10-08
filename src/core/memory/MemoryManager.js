@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import MemoryAdapter from './adapters/MemoryAdapter.js';
-import { SessionStore } from '../../runtime/session/SessionStore.js';
+import { SessionStore } from '../session/SessionStore.js';
 
 class MemoryManager {
   constructor(adapter = 'memory', options = {}) {
