@@ -38,14 +38,13 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   test('inventory rejects a cross-tenant provider result', async () => {
     const registry = new ToolRegistry();
     registry.registerSkill(inventorySkill);
-    const result = await registry.execute('inventory.get', { itemId: 'item-1' }, {
+    await expect(registry.execute('inventory.get', { itemId: 'item-1' }, {
       agentRole: 'inventory',
       permissions: ['inventory:read'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       inventory: { async get() { return { tenantId: 'tenant-b', itemId: 'item-1' }; } },
-    });
-    expect(result).toBeUndefined();
+    })).rejects.toThrow('Inventory result is outside the authorized tenant scope');
   });
 
   test('inventory mutations return proposals until matching approval is present', async () => {
