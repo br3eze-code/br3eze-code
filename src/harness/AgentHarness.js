@@ -1,5 +1,7 @@
 import path from 'path';
 import { EventEmitter } from 'node:events';
+import AgentRuntime from '../core/agentRuntime.js';
+import { ToolRegistry } from '../core/ToolRegistry.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -94,8 +96,9 @@ class AgentHarness extends EventEmitter {
     this._domains  = new Map();   // domainId → adapter
     this._hooks    = { before: [], after: [], error: [] };
     this._started  = false;
-    this._kernel   = null;        // lazy AgentKernel
-    this._registry = null;        // lazy ToolRegistry
+    // AgentRuntime is the sole execution owner; this harness only adapts domains/transports.
+    this._runtime  = opts.runtime || null;
+    this._registry = opts.toolRegistry || null;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -130,39 +133,43 @@ class AgentHarness extends EventEmitter {
   async start() {
     if (this._started) return this;
 
-    // Lazy-load AgentKernel & ToolRegistry to avoid circular deps at require time
-    const AgentKernel = (await import('../core/agentKernel.js')).default;
-    const { ToolRegistry } = await import('../core/ToolRegistry.js');
+    this._registry = this._registry || new ToolRegistry();
+    this._runtime = this._runtime || new AgentRuntime({
+      toolRegistry: this._registry,
+      ...(this._opts.runtimeConfig || {}),
+    });
 
-    this._kernel   = new AgentKernel({ dbPath: this._opts.dbPath });
-    this._registry = new ToolRegistry();
-
-    // Register all domains on the kernel
     for (const [id, adapter] of this._domains) {
-      this._kernel.registerDomain(id, adapter);
-
-      // Also register individual tool functions on the flat ToolRegistry
       const tools = typeof adapter.getTools === 'function' ? adapter.getTools() : {};
       const toolDefs = Object.entries(tools).map(([tName, spec]) => ({
-        name:        tName,
+        name: tName,
         description: spec.description || '',
-        parameters:  spec.parameters  || {},
-        risk:        spec.risk        || 'low',
-        execute:     spec.execute     || (async (ctx, ...p) => adapter.execute({ tool: tName, params: p, ...ctx })),
+        parameters: spec.parameters || {},
+        risk: spec.risk || 'low',
+        execute: typeof spec.execute === 'function'
+          ? async (params, ctx) => spec.execute(ctx, params)
+          : async (params, ctx) => adapter.execute({ tool: tName, params, ...ctx }),
       }));
+
       if (toolDefs.length) {
-        this._registry.registerDomain(id, toolDefs);
+        for (const tool of toolDefs) this._runtime.registerTool({ ...tool, fullName: id + '.' + tool.name, domain: id });
+      } else if (typeof adapter.execute === 'function') {
+        for (const capability of adapter.getCapabilities()) {
+          const name = capability.name || capability.id;
+          if (!name) continue;
+          this._runtime.registerTool({
+            name, fullName: id + '.' + name, domain: id,
+            description: capability.description || '',
+            parameters: capability.parameters || {}, risk: capability.risk || 'low',
+            execute: async (params, ctx) => adapter.execute({ tool: name, params, ...ctx }),
+          });
+        }
       }
     }
 
-    this._kernel.init(this._opts.dbPath);
     this._started = true;
-
-    log('info', `[AgentHarness] started — id: ${this.id}, domains: ${[...this._domains.keys()].join(', ')}`);
-    this.emit('harness:started', {
-      id:      this.id,
-      domains: [...this._domains.keys()],
-    });
+    log('info', '[AgentHarness] started — id: ' + this.id + ', domains: ' + [...this._domains.keys()].join(', '));
+    this.emit('harness:started', { id: this.id, domains: [...this._domains.keys()] });
     return this;
   }
 
@@ -186,39 +193,19 @@ class AgentHarness extends EventEmitter {
    */
   async run(toolName, params = {}, context = {}) {
     if (!this._started) await this.start();
-
     const ctx = { ...context, harness: this, agentId: this.id };
-
-    // Before hooks
-    for (const hook of this._hooks.before) {
-      await hook(toolName, params, ctx);
-    }
-
-    let result;
+    for (const hook of this._hooks.before) await hook(toolName, params, ctx);
     try {
-      // Try ToolRegistry first (flat map)
-      const tool = this._registry?.getTool(toolName);
-      if (tool) {
-        result = await tool.execute(ctx, params);
-      } else {
-        // Fallback: dispatch via AgentKernel
-        result = await this._kernel.dispatch({ name: toolName }, {
-          intent: { domain: toolName.split('.')[0], action: toolName, text: toolName },
-          params,
-          ...ctx,
-        });
-      }
+      const result = await this._runtime.execute({
+        content: toolName, context: ctx, tools: [toolName],
+        toolCalls: [{ name: toolName, arguments: params }],
+      });
+      for (const hook of this._hooks.after) await hook(toolName, result, ctx);
+      return result;
     } catch (err) {
       for (const hook of this._hooks.error) await hook(toolName, err, ctx);
       throw err;
     }
-
-    // After hooks
-    for (const hook of this._hooks.after) {
-      await hook(toolName, result, ctx);
-    }
-
-    return result;
   }
 
   /**
@@ -228,11 +215,7 @@ class AgentHarness extends EventEmitter {
    */
   async processMessage(text, context = {}) {
     if (!this._started) await this.start();
-
-    return this._kernel.dispatch({}, {
-      intent: { text },
-      ...context,
-    });
+    return this._runtime.execute({ content: text, context: { ...context, harness: this, agentId: this.id } });
   }
 
   // ── Introspection ──────────────────────────────────────────────────────────
@@ -259,7 +242,7 @@ class AgentHarness extends EventEmitter {
       id:      this.id,
       started: this._started,
       domains: [...this._domains.keys()],
-      kernel:  this._kernel?.status() || null,
+      runtime: this._runtime ? { owner: 'AgentRuntime', capabilities: this._runtime.getCapabilityManifest() } : null,
     };
   }
 
