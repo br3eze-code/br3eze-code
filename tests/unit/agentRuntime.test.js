@@ -8,12 +8,7 @@ jest.unstable_mockModule('uuid', () => {
     return { v4: () => `mock-uuid-${++counter}` };
 });
 
-// Mock heavy dependencies so unit tests don't require live services
-jest.unstable_mockModule('../../src/core/agentEngine.js',   () => ({ AgentEngine: class { static create() { return { sessionId: 'mock', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: 'ok' }), persistSession: jest.fn().mockReturnValue('/tmp/session'), renderSummary: jest.fn().mockReturnValue('summary'), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; } static fromSession(id) { return this.create(); } } }));
-jest.unstable_mockModule('../../src/core/mikrotik.js',      () => ({ getMikroTikClient: jest.fn() }));
-jest.unstable_mockModule('../../src/core/logger.js',        () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-
-const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
+// AgentRuntime is canonical; only external dependencies are mocked.\n\nconst { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
 const { PermissionMode } = await import('../../src/core/permissions.js');
 const { TaskStatus }     = await import('../../src/core/taskRegistry.js');
 
