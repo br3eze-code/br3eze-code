@@ -9,6 +9,7 @@
 export class AgentRegistry {
   constructor({ definitions = [] } = {}) {
     this.agents = new Map();
+    if (definitions?.length) this.registerMany(definitions);
   }
 
   register(definition = {}) {
