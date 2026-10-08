@@ -12,7 +12,7 @@ import UniversalBilling from '../../core/universal-billing.js';
 import DiscoveryService from '../../core/discovery.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
 import nodeRegistry from '../../core/node-registry.js';
-import AskEngine from '../../core/ask-engine.js';
+import { getAgentRuntime } from '../../core/agentRuntime.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import TaskScheduler from '../../core/taskScheduler.js';
@@ -298,28 +298,25 @@ export default (program) => {
                 global.memoryManager = memoryManager;
                 global.nodeRegistry = nodeRegistry;
 
-                // 2. AI Engine
-                const aiInstance = process.env.GEMINI_API_KEY
-                    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-                    : null;
-
-                const askEngine = new AskEngine({
-                    mikrotik,
-                    database,
-                    financial,
-                    billing,
-                    discovery,
-                    memory: memoryManager,
-                    ai: aiInstance
+                // 2. Canonical agent execution runtime
+                const runtime = getAgentRuntime({
+                    permissionMode: 'PROMPT',
+                    maxTurns: 8,
+                    toolExecutor: async (name, args = {}, context = {}) => {
+                        const target = global.toolRegistry?.getTool?.(name);
+                        if (!target) throw new Error('Tool not found: ' + name);
+                        return global.toolRegistry.execute(name, args, { ...context, mikrotik, database, financial, billing, discovery, memory: memoryManager });
+                    },
                 });
-                global.askEngine = askEngine;
+                global.agentRuntime = runtime;
+                global.askEngine = runtime;
 
                 // 2b. Scheduled task runner ("agent employee") — built (SQLite-backed
                 // cron/interval/once), just never instantiated anywhere until now.
                 // Dispatches through askEngine.run() since AgentKernel isn't wired
                 // into the live gateway (see taskScheduler.js's own doc comment).
                 try {
-                    const taskScheduler = new TaskScheduler({ engine: askEngine });
+                    const taskScheduler = new TaskScheduler({ engine: runtime });
                     taskScheduler.start();
                     global.taskScheduler = taskScheduler;
                     logger.info(`TaskScheduler started (${taskScheduler.listTasks().length} task(s) loaded)`);
@@ -355,7 +352,8 @@ export default (program) => {
                     port: Port,
                     verbose: options.verbose
                 });
-                gateway.askEngine = askEngine;
+                gateway.runtime = runtime;
+                gateway.askEngine = runtime;
                 global.gateway = gateway;
 
                 await gateway.start();
