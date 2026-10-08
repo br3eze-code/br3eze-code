@@ -7,6 +7,7 @@ import { formatWbsForPrompt } from './action-wbs.js';
 import { WorkGraph, WorkStatus } from '../workgraph/workGraph.js';
 import { ExecutionRecord } from '../workgraph/executionRecord.js';
 import { VerificationEngine } from '../verification/verificationEngine.js';
+import { AgentLoop, TURN_STATES } from './agent-loop.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -34,7 +35,7 @@ export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
 
 class RuntimeSession {
-  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null }) { this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.createdAt = new Date().toISOString(); }
+  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null, loop = null }) { this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = new Date().toISOString(); }
   asMarkdown() { return ['# Runtime Session', '', `Prompt: ${this.prompt}`, `Session ID: ${this.engine.sessionId}`, '', '## Matched Tools', ...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']), '', '## Permission Denials', ...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']), '', '## Agent State', this.engine.renderSummary(), ...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n'); }
 }
 
@@ -59,8 +60,9 @@ class AgentRuntime extends EventEmitter {
     const promptWithWbs = `${prompt}${wbsText}`;
     const matchedTools = this.routePrompt(promptWithWbs);
     const denials = this._inferDenials(matchedTools, engine);
+    const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, (config.maxTurns || 8) - 1)) });
     logger.info(`AgentRuntime bootstrap — capabilities: [${matchedTools.join(', ')}] denials: ${denials.length}`);
-    const session = new RuntimeSession({ prompt: promptWithWbs, engine, matchedTools, permissionDenials: denials });
+    const session = new RuntimeSession({ prompt: promptWithWbs, engine, matchedTools, permissionDenials: denials, loop });
     this.emit('session:created', session);
     return session;
   }
@@ -72,9 +74,26 @@ class AgentRuntime extends EventEmitter {
     const results = [];
     const promptWithWbs = opts.wbs?.length ? `${prompt}\n\n## Work Breakdown State\n${formatWbsForPrompt(opts.wbs)}` : prompt;
     for (let i = 0; i < turns; i++) {
+      if (i === 0) {
+        session.loop.transition(TURN_STATES.UNDERSTANDING, { turn: i + 1 });
+        session.loop.transition(TURN_STATES.PLANNING, { matchedTools });
+      }
+      session.loop.transition(TURN_STATES.EXECUTING, { turn: i + 1 });
       const result = await engine.submitMessage(i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`, matchedTools, permissionDenials);
+      session.loop.transition(TURN_STATES.OBSERVING, { stopReason: result.stopReason });
+      session.loop.transition(TURN_STATES.EVALUATING, { turn: i + 1 });
       results.push(result); this.emit('turn', result);
-      if (result.stopReason !== 'completed') break;
+      if (result.stopReason !== 'completed') {
+        if (i + 1 < turns && session.loop.retryCount < session.loop.maxRetries) {
+          session.loop.transition(TURN_STATES.RETRYING, { stopReason: result.stopReason });
+          continue;
+        }
+        session.loop.transition(TURN_STATES.FAILED, { stopReason: result.stopReason });
+        break;
+      }
+      session.loop.transition(TURN_STATES.VERIFYING, { turn: i + 1 });
+      session.loop.transition(TURN_STATES.COMPLETED, { turn: i + 1 });
+      break;
     }
     const sessionPath = engine.persistSession();
     return { results, session, sessionPath };
