@@ -104,6 +104,7 @@ class AgentRuntime extends EventEmitter {
     const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
     loop.transition(TURN_STATES.UNDERSTANDING);
     loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
+    const allToolsUsed = [];
 
     for (let iteration = 1; iteration <= this.defaultConfig.maxTurns; iteration += 1) {
       loop.transition(TURN_STATES.EXECUTING, { iteration });
@@ -114,6 +115,7 @@ class AgentRuntime extends EventEmitter {
         signal: frame.signal || null,
       }));
       const toolCalls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
+      allToolsUsed.push(...toolCalls.map(call => String(call.name || '').replace(/__/g, '.')).filter(Boolean));
       loop.transition(TURN_STATES.OBSERVING, { iteration, toolCalls: toolCalls.length });
       loop.transition(TURN_STATES.EVALUATING, { iteration });
 
@@ -123,7 +125,7 @@ class AgentRuntime extends EventEmitter {
         loop.transition(TURN_STATES.VERIFYING, { iteration });
         loop.transition(TURN_STATES.COMPLETED, { iteration });
         await this._persistTurn(sessionId, messages, frame, output, []);
-        return { response: output, sessionId, iterations: iteration, toolsUsed: [], toolCalls: [], raw: response, loop: loop.snapshot() };
+        return { response: output, sessionId, iterations: iteration, toolsUsed: [...new Set(allToolsUsed)], toolCalls: [], raw: response, loop: loop.snapshot() };
       }
 
       if (typeof this.toolExecutor !== 'function') {
@@ -150,7 +152,8 @@ class AgentRuntime extends EventEmitter {
 
       if (iteration >= this.defaultConfig.maxTurns) {
         loop.transition(TURN_STATES.FAILED, { reason: 'max_turns_reached' });
-        return { response: response?.content ?? '', sessionId, iterations: iteration, toolsUsed, toolCalls, stopReason: 'max_turns_reached', raw: response, loop: loop.snapshot() };
+        await this._persistTurn(sessionId, messages, frame, response?.content ?? '', allToolsUsed);
+        return { response: response?.content ?? '', sessionId, iterations: iteration, toolsUsed: [...new Set(allToolsUsed)], toolCalls, stopReason: 'max_turns_reached', raw: response, loop: loop.snapshot() };
       }
       loop.transition(TURN_STATES.RETRYING, { reason: 'tool_calls_pending', iteration });
     }
