@@ -95,6 +95,32 @@ class ToolRegistry {
   }
 
   getSkillNames() { return Array.from(this.skills.keys()); }
+  getDescriptions() {
+    return this.listSkills().map((skill) => ({
+      name: skill.name,
+      description: skill.description || skill.manifest?.description || '',
+      version: skill.version || skill.manifest?.version || null,
+      parameters: skill.parameters || skill.manifest?.parameters || {},
+      tools: (skill.tools || []).map((tool) => tool.fullName || tool.name),
+    }));
+  }
+  async initializeSkill(skillName, context = {}) {
+    const skill = this.skills.get(skillName);
+    if (!skill) throw new Error('Skill "' + skillName + '" not found');
+    if (typeof skill.initialize === 'function' && !skill.initialized) {
+      await skill.initialize(context);
+      skill.initialized = true;
+    }
+    return skill;
+  }
+  async destroy() {
+    for (const skill of this.skills.values()) {
+      if (typeof skill.destroy === 'function') await skill.destroy();
+    }
+    this.skills.clear();
+    this.tools.clear();
+    this.invalidateManifest();
+  }
   getToolCount() { return this.tools.size; }
   getToolsBySkill(skillName) { return Array.from(this.tools.values()).filter((tool) => tool.skill === skillName || tool.fullName?.startsWith(`${skillName}.`)); }
   setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this.invalidateManifest(); } }
@@ -112,7 +138,7 @@ class ToolRegistry {
     const skillPath = path.join(this._skillsPath, skillName);
     const manifest = await this._loadManifest(skillPath, skillName);
     if (!manifest) return false;
-    const skill = { ...manifest, manifest, name: manifest.name || skillName, enabled: true, tools: [] };
+    const skill = { ...manifest, manifest, name: manifest.name || skillName, enabled: true, tools: [], initialized: false, initialize: async () => {}, destroy: async () => {} };
     const toolsDir = path.join(skillPath, 'tools');
     const hasToolsDir = fsSync.existsSync(toolsDir) && fsSync.statSync(toolsDir).isDirectory();
     const indexPath = path.join(skillPath, 'index.js');
@@ -141,6 +167,15 @@ class ToolRegistry {
       this.tools.set(fullName, entry);
       skill.tools.push(entry);
     }
+    if (typeof indexModule?.initialize === 'function') {
+      skill.initialize = async (context = {}) => {
+        await indexModule.initialize(context);
+        skill.initialized = true;
+      };
+    }
+    if (typeof indexModule?.destroy === 'function') skill.destroy = async () => indexModule.destroy();
+    if (typeof indexModule?.validate === 'function') skill.validate = indexModule.validate.bind(indexModule);
+    await skill.initialize({ skill, registry: this, logger: this.logger });
     this.skills.set(skill.name, skill);
     this.invalidateManifest();
     return true;
