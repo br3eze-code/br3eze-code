@@ -35,6 +35,29 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'interface.list', keywords: ['interface', 'port', 'network'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
+
+/** Stable request contract owned by the canonical runtime. */
+export const AGENT_RUNTIME_CONTRACT_VERSION = '1.0';
+
+export function createRuntimeRequest({ sessionId, input, context = {}, capabilities = [], checkpoint = null } = {}) {
+  if (!sessionId) throw new TypeError('sessionId is required');
+  if (input === undefined || input === null) throw new TypeError('input is required');
+  return Object.freeze({
+    contractVersion: AGENT_RUNTIME_CONTRACT_VERSION,
+    sessionId,
+    input,
+    context: Object.freeze({ ...context }),
+    capabilities: Object.freeze([...capabilities]),
+    checkpoint,
+  });
+}
+
+export function validateRuntime(runtime) {
+  if (!runtime || typeof runtime !== 'object') throw new TypeError('runtime must be an object');
+  if (typeof runtime.execute !== 'function') throw new TypeError('runtime must implement execute(frame)');
+  return runtime;
+}
+
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
 
 class UsageSummary {
