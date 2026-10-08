@@ -1,92 +1,57 @@
-import { v4 as uuidv4 } from 'uuid';
-import EventEmitter from 'node:events';
-import { TranscriptStore } from './transcript.js';
-import { saveSession, loadSession } from './sessionStore.js';
-import { PermissionMode, PermissionEnforcer, PermissionDenial } from './permissions.js';
-import { logger } from './logger.js';
-
-const DEFAULT_CONFIG = Object.freeze({ maxTurns: 8, maxBudgetTokens: 4000, compactAfterTurns: 12, structuredOutput: false, permissionMode: PermissionMode.PROMPT });
-
-class UsageSummary {
-  constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
-  get total() { return this.inputTokens + this.outputTokens; }
-  addTurn(prompt, output) { return new UsageSummary(this.inputTokens + prompt.split(/\s+/).length, this.outputTokens + output.split(/\s+/).length); }
-  toJSON() { return { inputTokens: this.inputTokens, outputTokens: this.outputTokens }; }
-}
-
-class TurnResult {
-  constructor({ prompt, output, matchedTools = [], permissionDenials = [], usage, stopReason = 'completed' }) { Object.assign(this, { prompt, output, matchedTools, permissionDenials, usage, stopReason, timestamp: new Date().toISOString() }); }
-  toJSON() { return { prompt: this.prompt, output: this.output, matchedTools: this.matchedTools, permissionDenials: this.permissionDenials.map(d => d.toJSON?.() ?? d), usage: this.usage.toJSON(), stopReason: this.stopReason, timestamp: this.timestamp }; }
-}
-
 /**
- * Domain-neutral execution engine. Tool execution is injected; Core never
- * imports a vendor, network driver, payment provider, or customer domain.
+ * Compatibility facade for the retired AgentEngine.
+ *
+ * Runtime execution ownership lives in AgentRuntime/RuntimeSession.
+ * This module preserves the historical API without maintaining a second
+ * execution engine, transcript, permission state, or session representation.
  */
+import EventEmitter from 'node:events';
+import { RuntimeSession } from './agentRuntime.js';
+
+const DEFAULT_CONFIG = Object.freeze({
+  maxTurns: 8,
+  maxBudgetTokens: 4000,
+  compactAfterTurns: 12,
+  structuredOutput: false,
+  permissionMode: 'prompt'
+});
+
 class AgentEngine extends EventEmitter {
-  constructor(config = {}, sessionId = null) {
+  constructor(config = {}, sessionId = null, session = null) {
     super();
-    this.config = { ...DEFAULT_CONFIG, ...config };
-    this.sessionId = sessionId || uuidv4().replace(/-/g, '');
-    this.messages = [];
-    this.permissionDenials = [];
-    this.totalUsage = new UsageSummary();
-    this.transcriptStore = new TranscriptStore();
-    this.enforcer = new PermissionEnforcer(this.config.permissionMode);
-    this.toolExecutor = typeof this.config.toolExecutor === 'function' ? this.config.toolExecutor : null;
+    this._session = session || RuntimeSession.create({
+      prompt: '',
+      matchedTools: [],
+      permissionDenials: [],
+      config: { ...DEFAULT_CONFIG, ...config },
+      sessionId
+    });
   }
 
-  static create(config = {}) { return new AgentEngine(config); }
+  static create(config = {}) {
+    return new AgentEngine(config);
+  }
 
   static fromSession(sessionId, config = {}) {
-    const stored = loadSession(sessionId);
-    const engine = new AgentEngine(config, sessionId);
-    engine.messages = [...stored.messages];
-    engine.totalUsage = new UsageSummary(stored.inputTokens, stored.outputTokens);
-    engine.transcriptStore = new TranscriptStore({ entries: [...stored.messages] });
-    logger.info(`AgentEngine restored session ${sessionId} (${stored.messages.length} turns)`);
-    return engine;
+    return new AgentEngine(config, sessionId, RuntimeSession.fromSession(sessionId, {
+      prompt: '',
+      matchedTools: [],
+      permissionDenials: [],
+      config: { ...DEFAULT_CONFIG, ...config }
+    }));
   }
 
+  get sessionId() { return this._session.sessionId; }
+  get messages() { return this._session.messages; }
+  set messages(value) { this._session.messages = [...value]; }
+  get permissionDenials() { return this._session.permissionDenials; }
+  get totalUsage() { return this._session.totalUsage; }
+  get transcriptStore() { return this._session.transcriptStore; }
+  get enforcer() { return this._session.enforcer; }
+  get config() { return this._session.config; }
+
   async submitMessage(prompt, toolNames = [], deniedTools = []) {
-    if (this.messages.length >= this.config.maxTurns) return new TurnResult({ prompt, output: `Max turns (${this.config.maxTurns}) reached before processing prompt.`, matchedTools: toolNames, permissionDenials: deniedTools, usage: this.totalUsage, stopReason: 'max_turns_reached' });
-
-    const finalDenials = [...deniedTools];
-    const allowedTools = [];
-    for (const toolName of toolNames) {
-      const result = this.enforcer.check(toolName);
-      if (!result.allowed) {
-        finalDenials.push(new PermissionDenial(toolName, result.reason));
-        logger.warn(`Permission denied: ${toolName} — ${result.reason}`);
-      } else allowedTools.push(toolName);
-    }
-
-    const toolOutputs = [];
-    for (const toolName of allowedTools) {
-      if (!this.toolExecutor) {
-        toolOutputs.push({ tool: toolName, error: 'No tool executor configured' });
-        continue;
-      }
-      try { toolOutputs.push({ tool: toolName, result: await this.toolExecutor(toolName) }); }
-      catch (err) { toolOutputs.push({ tool: toolName, error: err.message }); logger.error(`Tool execution error [${toolName}]:`, err.message); }
-    }
-
-    const lines = [
-      `Prompt: ${prompt}`,
-      toolOutputs.length ? `Tools executed: ${allowedTools.join(', ')}` : 'No tools executed',
-      ...toolOutputs.map(t => t.error ? `  ✗ ${t.tool}: ${t.error}` : `  ✓ ${t.tool}: ${JSON.stringify(t.result).slice(0, 120)}`),
-      finalDenials.length ? `Permission denials: ${finalDenials.map(d => d.toolName).join(', ')}` : null
-    ].filter(Boolean);
-    const output = lines.join('\n');
-    const projectedUsage = this.totalUsage.addTurn(prompt, output);
-    const stopReason = projectedUsage.total > this.config.maxBudgetTokens ? 'max_budget_reached' : 'completed';
-
-    this.messages.push(prompt);
-    this.transcriptStore.append(prompt);
-    this.permissionDenials.push(...finalDenials);
-    this.totalUsage = projectedUsage;
-    this._compactIfNeeded();
-    const turn = new TurnResult({ prompt, output, matchedTools: allowedTools, permissionDenials: finalDenials, usage: this.totalUsage, stopReason });
+    const turn = await this._session.submitMessage(prompt, toolNames, deniedTools);
     this.emit('turn', turn);
     return turn;
   }
@@ -100,19 +65,11 @@ class AgentEngine extends EventEmitter {
     yield { type: 'message_stop', usage: result.usage.toJSON(), stopReason: result.stopReason, transcriptSize: this.transcriptStore.size };
   }
 
-  persistSession() {
-    this.transcriptStore.flush();
-    return saveSession({ sessionId: this.sessionId, messages: [...this.messages], inputTokens: this.totalUsage.inputTokens, outputTokens: this.totalUsage.outputTokens, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-  }
-
-  _compactIfNeeded() {
-    if (this.messages.length > this.config.compactAfterTurns) {
-      this.messages = this.messages.slice(-this.config.compactAfterTurns);
-      this.transcriptStore.compact(this.config.compactAfterTurns);
-    }
-  }
-
-  renderSummary() { return [`Session: ${this.sessionId}`, `Turns: ${this.messages.length} / ${this.config.maxTurns}`, `Usage: in=${this.totalUsage.inputTokens} out=${this.totalUsage.outputTokens}`, `Denials: ${this.permissionDenials.length}`, `Mode: ${this.config.permissionMode}`, `Transcript flushed: ${this.transcriptStore.flushed}`].join('\n'); }
+  persistSession() { return this._session.persistSession(); }
+  renderSummary() { return this._session.renderSummary(); }
 }
+
+class TurnResult {}
+class UsageSummary {}
 
 export { AgentEngine, TurnResult, UsageSummary };
