@@ -1,6 +1,8 @@
 import EventEmitter from 'node:events';
-import { AgentEngine } from './agentEngine.js';
-import { PermissionMode, PermissionDenial } from './permissions.js';
+import crypto from 'node:crypto';
+import { TranscriptStore } from './transcript.js';
+import { saveSession, loadSession } from './sessionStore.js';
+import { PermissionMode, PermissionDenial, PermissionEnforcer } from './permissions.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
@@ -35,9 +37,45 @@ const DEFAULT_TOOL_MANIFEST = [
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
 
+class UsageSummary {
+  constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
+  get total() { return this.inputTokens + this.outputTokens; }
+  addTurn(prompt, output) { return new UsageSummary(this.inputTokens + String(prompt).split(/\s+/).filter(Boolean).length, this.outputTokens + String(output).split(/\s+/).filter(Boolean).length); }
+  toJSON() { return { inputTokens: this.inputTokens, outputTokens: this.outputTokens }; }
+}
+
+class TurnResult {
+  constructor({ prompt, output, matchedTools = [], permissionDenials = [], usage, stopReason = 'completed' }) { Object.assign(this, { prompt, output, matchedTools, permissionDenials, usage, stopReason, timestamp: new Date().toISOString() }); }
+  toJSON() { return { prompt: this.prompt, output: this.output, matchedTools: this.matchedTools, permissionDenials: this.permissionDenials.map(d => d.toJSON?.() ?? d), usage: this.usage.toJSON(), stopReason: this.stopReason, timestamp: this.timestamp }; }
+}
+
 class RuntimeSession {
-  constructor({ prompt, engine, matchedTools, permissionDenials, taskId = null, loop = null }) { this.prompt = prompt; this.engine = engine; this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = new Date().toISOString(); }
-  asMarkdown() { return ['# Runtime Session', '', `Prompt: ${this.prompt}`, `Session ID: ${this.engine.sessionId}`, '', '## Matched Tools', ...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']), '', '## Permission Denials', ...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']), '', '## Agent State', this.engine.renderSummary(), ...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n'); }
+  constructor({ prompt, matchedTools, permissionDenials, taskId = null, loop = null, config = {}, sessionId = null, stored = null }) {
+    this.prompt = prompt; this.sessionId = sessionId || crypto.randomUUID().replace(/-/g, ''); this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = new Date().toISOString();
+    this.config = Object.freeze({ maxTurns: 8, maxBudgetTokens: 4000, compactAfterTurns: 12, ...config });
+    this.messages = [...(stored?.messages || [])]; this.totalUsage = new UsageSummary(stored?.inputTokens || 0, stored?.outputTokens || 0);
+    this.transcriptStore = new TranscriptStore({ entries: [...this.messages] }); this.enforcer = new PermissionEnforcer(this.config.permissionMode);
+  }
+  static create(options) { return new RuntimeSession(options); }
+  static fromSession(sessionId, options = {}) { return new RuntimeSession({ ...options, sessionId, stored: loadSession(sessionId) }); }
+  async submitMessage(prompt, toolNames = [], deniedTools = []) {
+    if (this.messages.length >= this.config.maxTurns) return new TurnResult({ prompt, output: `Max turns (${this.config.maxTurns}) reached before processing prompt.`, matchedTools: toolNames, permissionDenials: deniedTools, usage: this.totalUsage, stopReason: 'max_turns_reached' });
+    const finalDenials = [...deniedTools], allowedTools = [];
+    for (const toolName of toolNames) { const result = this.enforcer.check(toolName); if (!result.allowed) finalDenials.push(new PermissionDenial(toolName, result.reason)); else allowedTools.push(toolName); }
+    const toolOutputs = [];
+    for (const toolName of allowedTools) {
+      if (!this.config.toolExecutor) { toolOutputs.push({ tool: toolName, error: 'No tool executor configured' }); continue; }
+      try { toolOutputs.push({ tool: toolName, result: await this.config.toolExecutor(toolName) }); } catch (err) { toolOutputs.push({ tool: toolName, error: err.message }); }
+    }
+    const lines = [`Prompt: ${prompt}`, toolOutputs.length ? `Tools executed: ${allowedTools.join(', ')}` : 'No tools executed', ...toolOutputs.map(t => t.error ? `  ✗ ${t.tool}: ${t.error}` : `  ✓ ${t.tool}: ${JSON.stringify(t.result).slice(0, 120)}`), finalDenials.length ? `Permission denials: ${finalDenials.map(d => d.toolName).join(', ')}` : null].filter(Boolean);
+    const output = lines.join('\n'), projectedUsage = this.totalUsage.addTurn(prompt, output), stopReason = projectedUsage.total > this.config.maxBudgetTokens ? 'max_budget_reached' : 'completed';
+    this.messages.push(prompt); this.transcriptStore.append(prompt); this.permissionDenials.push(...finalDenials); this.totalUsage = projectedUsage; this._compactIfNeeded();
+    return new TurnResult({ prompt, output, matchedTools: allowedTools, permissionDenials: finalDenials, usage: this.totalUsage, stopReason });
+  }
+  persistSession() { this.transcriptStore.flush(); return saveSession({ sessionId: this.sessionId, messages: [...this.messages], inputTokens: this.totalUsage.inputTokens, outputTokens: this.totalUsage.outputTokens, createdAt: this.createdAt, updatedAt: new Date().toISOString() }); }
+  _compactIfNeeded() { if (this.messages.length > this.config.compactAfterTurns) { this.messages = this.messages.slice(-this.config.compactAfterTurns); this.transcriptStore.compact(this.config.compactAfterTurns); } }
+  renderSummary() { return [`Session: ${this.sessionId}`, `Turns: ${this.messages.length} / ${this.config.maxTurns}`, `Usage: in=${this.totalUsage.inputTokens} out=${this.totalUsage.outputTokens}`, `Denials: ${this.permissionDenials.length}`, `Mode: ${this.config.permissionMode}`, `Transcript flushed: ${this.transcriptStore.flushed}`].join('\n'); }
+  asMarkdown() { return ['# Runtime Session','',`Prompt: ${this.prompt}`,`Session ID: ${this.sessionId}`,'','## Matched Tools',...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']),'','## Permission Denials',...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']),'','## Agent State',this.renderSummary(),...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n'); }
 }
 
 class AgentRuntime extends EventEmitter {
@@ -65,16 +103,13 @@ class AgentRuntime extends EventEmitter {
 
   async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
     const config = { ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode, toolExecutor: this.toolExecutor };
-    const engine = sessionId ? AgentEngine.fromSession(sessionId, config) : AgentEngine.create(config);
     const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
-    const promptWithWbs = `${prompt}${wbsText}`;
-    const matchedTools = this.routePrompt(promptWithWbs);
-    const denials = this._inferDenials(matchedTools, engine);
-    const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, (config.maxTurns || 8) - 1)) });
-    logger.info(`AgentRuntime bootstrap — capabilities: [${matchedTools.join(', ')}] denials: ${denials.length}`);
-    const session = new RuntimeSession({ prompt: promptWithWbs, engine, matchedTools, permissionDenials: denials, loop });
-    this.emit('session:created', session);
-    return session;
+    const promptWithWbs = `${prompt}${wbsText}`, matchedTools = this.routePrompt(promptWithWbs);
+    const session = sessionId ? RuntimeSession.fromSession(sessionId, { prompt: promptWithWbs, matchedTools, permissionDenials: [], config }) : RuntimeSession.create({ prompt: promptWithWbs, matchedTools, permissionDenials: [], config });
+    session.permissionDenials = this._inferDenials(matchedTools, session);
+    session.loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, (config.maxTurns || 8) - 1)) });
+    logger.info(`AgentRuntime bootstrap — capabilities: [${matchedTools.join(', ')}] denials: ${session.permissionDenials.length}`);
+    this.emit('session:created', session); return session;
   }
 
   async execute(frame = {}) {
@@ -163,7 +198,7 @@ class AgentRuntime extends EventEmitter {
 
   async runTurnLoop(prompt, opts = {}) {
     const session = await this.bootstrapSession(prompt, opts);
-    const { engine, matchedTools, permissionDenials } = session;
+    const { matchedTools, permissionDenials } = session;
     const turns = opts.maxTurns || this.defaultConfig.maxTurns;
     const results = [];
     const promptWithWbs = opts.wbs?.length ? `${prompt}\n\n## Work Breakdown State\n${formatWbsForPrompt(opts.wbs)}` : prompt;
@@ -173,7 +208,7 @@ class AgentRuntime extends EventEmitter {
         session.loop.transition(TURN_STATES.PLANNING, { matchedTools });
       }
       session.loop.transition(TURN_STATES.EXECUTING, { turn: i + 1 });
-      const result = await engine.submitMessage(i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`, matchedTools, permissionDenials);
+      const result = await session.submitMessage(i === 0 ? promptWithWbs : `${promptWithWbs} [turn ${i + 1}]`, matchedTools, permissionDenials);
       session.loop.transition(TURN_STATES.OBSERVING, { stopReason: result.stopReason });
       session.loop.transition(TURN_STATES.EVALUATING, { turn: i + 1 });
       results.push(result); this.emit('turn', result);
@@ -189,7 +224,7 @@ class AgentRuntime extends EventEmitter {
       session.loop.transition(TURN_STATES.COMPLETED, { turn: i + 1 });
       break;
     }
-    const sessionPath = engine.persistSession();
+    const sessionPath = session.persistSession();
     return { results, session, sessionPath };
   }
 
@@ -279,5 +314,5 @@ class AgentRuntime extends EventEmitter {
 
 let _runtime = null;
 function getAgentRuntime(config = {}) { if (!_runtime) _runtime = new AgentRuntime(config); return _runtime; }
-export { AgentRuntime, RuntimeSession, getAgentRuntime };
+export { AgentRuntime, RuntimeSession, TurnResult, UsageSummary, getAgentRuntime };
 export default { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
