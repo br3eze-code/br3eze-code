@@ -1,7 +1,7 @@
 export class PluginContext {
-  constructor({ plugin, logger = console, config = {}, services = new Map(), adapters = new Map(), eventBus = null, telemetry = null, authorize = () => true } = {}) {
+  constructor({ plugin, logger = console, config = {}, services = new Map(), adapters = new Map(), eventBus = null, telemetry = null, authorize = () => true, runtime = null } = {}) {
     this.plugin = plugin; this.logger = logger; this.config = Object.freeze({ ...config });
-    this._services = services; this._adapters = adapters; this._eventBus = eventBus; this._telemetry = telemetry; this._authorize = authorize; this._runtime = arguments[0]?.runtime || null;
+    this._services = services; this._adapters = adapters; this._eventBus = eventBus; this._telemetry = telemetry; this._authorize = authorize; this._runtime = runtime;
   }
   authorize(permission) { return Boolean(this._authorize(permission, this.plugin)); }
   requirePermission(permission) { if (!this.authorize(permission)) throw new Error(`Plugin '${this.plugin.id}' is not authorized for '${permission}'`); }
