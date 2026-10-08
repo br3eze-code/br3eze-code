@@ -221,8 +221,8 @@ describe('AgentRuntime capability ownership', () => {
                 version: '1.0.0',
                 capabilities: ['example.lookup'],
             }),
-            initialize: jest.fn(async function () {
-                await this._context?.registerTool?.({
+            initialize: jest.fn(async (context) => {
+                context.registerTool({
                     name: 'example.lookup',
                     description: 'Plugin-provided lookup',
                     execute: async () => ({ ok: true }),
