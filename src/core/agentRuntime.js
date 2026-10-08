@@ -89,15 +89,60 @@ class AgentRuntime extends EventEmitter {
     const sessionId = frame.sessionId || null;
     const messages = Array.isArray(frame.messages) ? [...frame.messages] : [{ role: 'user', content: String(frame.content) }];
     const tools = Array.isArray(frame.tools) ? frame.tools : this.toolManifest;
-    const response = await this.model.execute(createModelRequest({ messages, tools, context: frame.context || frame, signal: frame.signal || null }));
-    return {
-      response: response?.content ?? response?.text ?? '',
-      sessionId,
-      iterations: 1,
-      toolsUsed: Array.isArray(response?.toolCalls) ? response.toolCalls.map(call => call.name).filter(Boolean) : [],
-      toolCalls: response?.toolCalls || [],
-      raw: response,
-    };
+    const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
+    loop.transition(TURN_STATES.UNDERSTANDING);
+    loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
+
+    for (let iteration = 1; iteration <= this.defaultConfig.maxTurns; iteration += 1) {
+      loop.transition(TURN_STATES.EXECUTING, { iteration });
+      const response = await this.model.execute(createModelRequest({
+        messages,
+        tools,
+        context: frame.context || frame,
+        signal: frame.signal || null,
+      }));
+      const toolCalls = Array.isArray(response?.toolCalls) ? response.toolCalls : [];
+      loop.transition(TURN_STATES.OBSERVING, { iteration, toolCalls: toolCalls.length });
+      loop.transition(TURN_STATES.EVALUATING, { iteration });
+
+      if (!toolCalls.length) {
+        const output = response?.content ?? response?.text ?? '';
+        messages.push({ role: 'assistant', content: output });
+        loop.transition(TURN_STATES.VERIFYING, { iteration });
+        loop.transition(TURN_STATES.COMPLETED, { iteration });
+        return { response: output, sessionId, iterations: iteration, toolsUsed: [], toolCalls: [], raw: response, loop: loop.snapshot() };
+      }
+
+      if (typeof this.toolExecutor !== 'function') {
+        loop.transition(TURN_STATES.FAILED, { reason: 'No tool executor configured' });
+        return { response: response?.content ?? '', sessionId, iterations: iteration, toolsUsed: [], toolCalls, error: 'No tool executor configured', raw: response, loop: loop.snapshot() };
+      }
+
+      messages.push({ role: 'assistant', content: response?.content || '', toolCalls });
+      const toolsUsed = [];
+      for (const call of toolCalls) {
+        const name = String(call.name || '').replace(/__/g, '.');
+        let args = call.arguments || {};
+        if (typeof args === 'string') {
+          try { args = JSON.parse(args); } catch { args = {}; }
+        }
+        try {
+          const result = await this.toolExecutor(name, args, frame);
+          toolsUsed.push(name);
+          messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result) });
+        } catch (error) {
+          messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify({ error: error.message }) });
+        }
+      }
+
+      if (iteration >= this.defaultConfig.maxTurns) {
+        loop.transition(TURN_STATES.FAILED, { reason: 'max_turns_reached' });
+        return { response: response?.content ?? '', sessionId, iterations: iteration, toolsUsed, toolCalls, stopReason: 'max_turns_reached', raw: response, loop: loop.snapshot() };
+      }
+      loop.transition(TURN_STATES.RETRYING, { reason: 'tool_calls_pending', iteration });
+    }
+
+    throw new Error('Agent model loop exited unexpectedly');
   }
 
   async runTurnLoop(prompt, opts = {}) {
