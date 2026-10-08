@@ -15,16 +15,14 @@ describe('AgentKernel ownership boundary', () => {
     kernel.registerDomain('test', adapter);
     kernel.init('/ignored/legacy/path.sqlite');
 
+    let sessionId;
+    kernel.on('dispatch:start', event => { sessionId = event.sessionId; });
     const result = await kernel.dispatch({ id: 'agent-1' }, {
       intent: { domain: 'test', text: 'ping' },
     });
 
     expect(result).toEqual({ ok: true });
-    const events = await store.read(
-      (await store.getLast(
-        [...store.sessions.keys()][0]
-      ))?.sessionId
-    ).catch(() => []);
+    const events = await store.read(sessionId);
     expect(events).toHaveLength(3);
     expect(events.map(event => event.type)).toEqual([
       'session/created',
