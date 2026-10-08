@@ -16,7 +16,7 @@ describe('AgentRegistry', () => {
       handoffsTo: ['orders'],
     });
 
-    expect(agent.role).toBe('inventoryspecialist');
+    expect(agent.role).toBe('inventory-specialist');
     expect(registry.get('inventory-specialist')).toBe(agent);
     expect(registry.get('Inventory Specialist')).toBe(agent);
     expect(registry.resolve({ agentRole: 'Inventory Specialist' })).toBe(agent);
