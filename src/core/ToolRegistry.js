@@ -107,8 +107,34 @@ export class ToolNotFoundError extends Error {\n  constructor(name) { super(`Too
     }
   }
 
-  getTool(name) { return this.tools.get(name); }
+  getTool(name) { return this.tools.get(name) || null; }
   getAllTools() { return Array.from(this.tools.values()); }
+  listTools() { return this.getAllTools(); }
+  listSkills() { return Array.from(this.skills.values()); }
+  matchFastPath(input) {
+    for (const skill of this.skills.values()) {
+      if (typeof skill.match !== 'function') continue;
+      try {
+        const hit = skill.match(input);
+        if (hit?.tool && this.tools.has(hit.tool)) return { tool: hit.tool, args: hit.args || {} };
+        if (hit?.tool && this.tools.has(`${skill.name}.${hit.tool}`)) return { tool: `${skill.name}.${hit.tool}`, args: hit.args || {} };
+      } catch {}
+    }
+    return null;
+  }
+  toolDeclarations() {
+    return this.getAllTools().map((tool) => ({
+      name: tool.fullName || tool.name,
+      description: tool.description || tool.schema?.description || '',
+      parameters: tool.parameters || tool.schema?.parameters || { type: 'object', properties: {} },
+      inputSchema: tool.inputSchema || tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+      outputSchema: tool.outputSchema || null,
+      specialist: tool.specialist || null,
+      permissions: tool.permissions || [],
+      ticketTypes: tool.ticketTypes || [],
+      risk: tool.risk || tool.riskLevel || 'low',
+    }));
+  }
   getToolsByDomain(d) { return Array.from(this.tools.values()).filter((t) => t.domain === d); }
   getToolsForDomain(d) { return this.getToolsByDomain(d); }
 
