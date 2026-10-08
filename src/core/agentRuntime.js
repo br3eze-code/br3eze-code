@@ -93,8 +93,13 @@ class AgentRuntime extends EventEmitter {
   }
 
   async _executeModelTurn(frame) {
-    const sessionId = frame.sessionId || null;
-    const messages = Array.isArray(frame.messages) ? [...frame.messages] : [{ role: 'user', content: String(frame.content) }];
+    const sessionId = frame.sessionId || this.sessionManager?.getSessionId?.(frame) || null;
+    const loaded = !Array.isArray(frame.messages) && sessionId && this.sessionManager?.load
+      ? await this.sessionManager.load(sessionId)
+      : [];
+    const messages = Array.isArray(frame.messages)
+      ? [...frame.messages]
+      : [...loaded, { role: 'user', content: String(frame.content) }];
     const tools = Array.isArray(frame.tools) ? frame.tools : this.toolRegistry?.getToolsForLLM?.() || this.toolManifest;
     const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
     loop.transition(TURN_STATES.UNDERSTANDING);
@@ -117,6 +122,7 @@ class AgentRuntime extends EventEmitter {
         messages.push({ role: 'assistant', content: output });
         loop.transition(TURN_STATES.VERIFYING, { iteration });
         loop.transition(TURN_STATES.COMPLETED, { iteration });
+        await this._persistTurn(sessionId, messages, frame, output, []);
         return { response: output, sessionId, iterations: iteration, toolsUsed: [], toolCalls: [], raw: response, loop: loop.snapshot() };
       }
 
@@ -238,6 +244,19 @@ class AgentRuntime extends EventEmitter {
   }
 
   _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }
+  async _persistTurn(sessionId, messages, frame, output, toolsUsed) {
+    if (!sessionId) return;
+    if (this.sessionManager?.save) await this.sessionManager.save(sessionId, messages.slice(-20));
+    if (this.memoryStore?.append) {
+      await this.memoryStore.append(sessionId, {
+        timestamp: Date.now(),
+        input: frame.content,
+        output,
+        toolsUsed: toolsUsed.length,
+      });
+    }
+  }
+
   async executeTool(toolName, params = {}, context = {}) {
     if (!this.toolRegistry) {
       if (!this.toolExecutor) throw new Error('No tool executor configured');
