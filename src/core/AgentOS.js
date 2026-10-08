@@ -11,6 +11,7 @@ import HealthMonitor from './HealthMonitor.js';
 import CircuitBreaker from '../utils/CircuitBreaker.js';
 import { logger } from './logger.js';
 import { buildChannelExecutionContext } from './execution-context.js';
+import ContextEngine from './context/ContextEngine.js';
 
 /**
  * AgentOS application kernel.
@@ -25,6 +26,7 @@ class AgentOS extends EventEmitter {
     this.toolbox = new AgentToolbox(this.config, this.skills);
     this.channels = new ChannelManager(this);
     this.memory = new MemoryManager(this.config.memoryAdapter || 'memory', { sessionEventStore: this.config.sessionEventStore });
+    this.contextEngine = new ContextEngine();
     this.llm = new LLMCoordinator(this.config.llmProvider || config.llm?.primary || 'ollama');
     this.workflows = new WorkflowEngine(this);
     this.telemetry = new TelemetryCollector();
