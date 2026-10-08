@@ -98,7 +98,9 @@ class AgentRuntime extends EventEmitter {
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
-      runtime: { runtime: this, logger, config },
+      runtime: this,
+        logger,
+        config,
     });
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : null;
     this.skillRegistry = config.skillRegistry || null;
