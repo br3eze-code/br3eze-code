@@ -32,7 +32,7 @@ const hooks = {
   runAfter: async () => {},
 };
 
-class ToolRegistry {
+export class ToolNotFoundError extends Error {\n  constructor(name) { super(`Tool not found: "${name}"`); this.name = 'ToolNotFoundError'; this.toolName = name; }\n}\n\nexport class SkillDisabledError extends Error {\n  constructor(skill, tool) { super(`Skill "${skill}" is disabled — cannot execute tool "${tool}"`); this.name = 'SkillDisabledError'; this.skillName = skill; this.toolName = tool; }\n}\n\nclass ToolRegistry {
   /**
    * @param {object} opts
    * @param {string} [opts.skillsPath] Path to load skill manifests from (optional)
@@ -76,8 +76,8 @@ class ToolRegistry {
 
   async execute(fullToolName, params = [], context = {}) {
     const tool = this.tools.get(fullToolName);
-    if (!tool) throw new Error(`Tool not found: ${fullToolName}`);
-    if (this.skills.get(tool.skill)?.enabled === false) throw new Error(`Skill "${tool.skill}" is disabled`);
+    if (!tool) throw new ToolNotFoundError(fullToolName);
+    if (this.skills.get(tool.skill)?.enabled === false) throw new SkillDisabledError(tool.skill, fullToolName);
     const metric = this._metrics.get(fullToolName) || { calls: 0, errors: 0, totalMs: 0, lastCalledAt: null };
     metric.calls++; metric.lastCalledAt = new Date().toISOString();
     const started = Date.now();
