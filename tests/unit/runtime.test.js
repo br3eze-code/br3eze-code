@@ -78,11 +78,13 @@ describe('domain-agnostic runtime (ESM)', () => {
         expect((await rt.run('do something')).type).toBe('fallback');
     });
 
-    test('runtime core has no domain coupling (only imports ./registry)', () => {
+    test('runtime facade delegates execution to canonical AgentRuntime', () => {
         const core = fs.readFileSync(path.join(RT_DIR, 'runtime.js'), 'utf8');
         const reg = fs.readFileSync(path.join(RT_DIR, 'registry.js'), 'utf8');
         const imports = (core.match(/from ['"][^'"]+['"]/g) || []);
-        expect(imports).toEqual(["from './registry.js'"]);
+        expect(imports).toContain("from '../core/agentRuntime.js'");
+        expect(imports).toContain("from '../core/ToolRegistry.js'");
+        expect(/class Runtime/.test(strip(core))).toBe(true);
         const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
         expect(/mikrotik|hotspot|\brouter\b|voucher|firebase/i.test(strip(core) + strip(reg))).toBe(false);
     });
