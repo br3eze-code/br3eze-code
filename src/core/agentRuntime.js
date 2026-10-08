@@ -45,9 +45,16 @@ class AgentRuntime extends EventEmitter {
     super();
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
-    this.toolExecutor = typeof config.toolExecutor === 'function' ? config.toolExecutor : null;
+    this.toolRegistry = config.toolRegistry || null;
+    this.providerManager = config.providerManager || null;
+    this.safetyEnvelope = config.safetyEnvelope || null;
+    this.sessionManager = config.sessionManager || null;
+    this.memoryStore = config.memoryStore || null;
+    this.toolExecutor = typeof config.toolExecutor === 'function'
+      ? config.toolExecutor
+      : this.toolRegistry?.execute?.bind(this.toolRegistry) || null;
     this.verificationEngine = config.verificationEngine || new VerificationEngine(config.verificationChecks || {});
-    this.model = config.model || null;
+    this.model = config.model || (this.providerManager ? { execute: (messages, tools) => this.providerManager.execute(messages, tools) } : null);
     if (this.model) validateModelPort(this.model);
   }
 
@@ -88,7 +95,7 @@ class AgentRuntime extends EventEmitter {
   async _executeModelTurn(frame) {
     const sessionId = frame.sessionId || null;
     const messages = Array.isArray(frame.messages) ? [...frame.messages] : [{ role: 'user', content: String(frame.content) }];
-    const tools = Array.isArray(frame.tools) ? frame.tools : this.toolManifest;
+    const tools = Array.isArray(frame.tools) ? frame.tools : this.toolRegistry?.getToolsForLLM?.() || this.toolManifest;
     const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
     loop.transition(TURN_STATES.UNDERSTANDING);
     loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
@@ -231,7 +238,20 @@ class AgentRuntime extends EventEmitter {
   }
 
   _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }
-  listTools() { return this.toolManifest.map(t => t.name); }
+  async executeTool(toolName, params = {}, context = {}) {
+    if (!this.toolRegistry) {
+      if (!this.toolExecutor) throw new Error('No tool executor configured');
+      return this.toolExecutor(toolName, params, context);
+    }
+    const tool = this.toolRegistry.getTool(toolName);
+    if (!tool) throw new Error(`Tool not found: ${toolName}`);
+    if (this.safetyEnvelope?.checkToolExecution && !this.safetyEnvelope.checkToolExecution(toolName, params)) {
+      throw new Error(`Tool execution blocked by safety envelope: ${toolName}`);
+    }
+    return this.toolRegistry.execute(toolName, params, context);
+  }
+
+  listTools() { return this.toolRegistry?.getAllTools?.().map(t => t.fullName || t.name) || this.toolManifest.map(t => t.name); }
   findTools(query) { const needle = query.toLowerCase(); return this.toolManifest.filter(t => t.name.includes(needle) || t.keywords.some(k => k.includes(needle))).map(t => t.name); }
 }
 
