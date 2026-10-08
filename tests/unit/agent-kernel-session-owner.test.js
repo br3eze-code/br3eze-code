@@ -37,3 +37,19 @@ describe('AgentKernel ownership boundary', () => {
     expect(kernel.sessionEventStore).toBeInstanceOf(SessionEventStore);
   });
 });
+
+
+describe('AgentKernel agent ownership boundary', () => {
+  test('delegates agent identity to the canonical AgentRegistry', () => {
+    const kernel = new AgentKernel();
+    const agent = kernel.registerAgent({
+      id: 'router-agent',
+      role: 'router',
+      capabilities: ['network.inspect'],
+    });
+
+    expect(kernel.getAgent('router')).toBe(agent);
+    expect(kernel.listAgents()).toEqual([agent]);
+    expect(kernel.agents).toBeUndefined();
+  });
+});
