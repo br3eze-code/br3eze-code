@@ -1,105 +1,5 @@
 import EventEmitter from 'events';
-import crypto from 'crypto';
-import path from 'path';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-/**
- * AgentKernel — domain-agnostic orchestrator
- *
- * BACKWARD COMPATIBLE: existing callers unchanged —
- *   new AgentKernel()
- *   kernel.registerDomain(id, adapter)
- *   kernel.dispatch(agentConfig, context)
- *
- * Added (non-breaking):
- *   kernel.init([dbPath])          — SQLite session store
- *   kernel.resolveDomain(intent)   — real implementation
- *   kernel.status()                — introspection
- *
- * No direct imports from domains/, adapters/, mikrotik, etc.
- */
-
-
-let _logger;
-function log(level, ...a) {
-  try { _logger = _logger || require('./logger').logger; _logger[level](...a); }
-  catch (_) { console[level === 'debug' ? 'debug' : level === 'warn' ? 'warn' : 'log'](...a); }
-}
-
-// ── Embedded session store (SQLite + Map fallback) ───────────────────────────
-class _SessionStore {
-  constructor() { this._mem = new Map(); this._db = null; }
-
-  init(dbPath) {
-    try {
-      const fs = require('fs');
-      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-      const DB = require('better-sqlite3');
-      this._db = new DB(dbPath);
-      this._db.exec(`
-        CREATE TABLE IF NOT EXISTS agent_sessions (
-          id TEXT PRIMARY KEY, domain TEXT, state TEXT NOT NULL DEFAULT 'initializing',
-          checkpoint INTEGER, retryCount INTEGER NOT NULL DEFAULT 0,
-          recoverable INTEGER NOT NULL DEFAULT 1,
-          createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, meta TEXT
-        );
-      `);
-      log('info', '[AgentKernel] SQLite session store:', dbPath);
-    } catch (e) {
-      log('warn', '[AgentKernel] SQLite unavailable, using in-memory sessions:', e.message);
-    }
-  }
-
-  _write(s) {
-    this._mem.set(s.id, s);
-    if (!this._db) return;
-    this._db.prepare(
-      `INSERT OR REPLACE INTO agent_sessions
-       (id,domain,state,checkpoint,retryCount,recoverable,createdAt,updatedAt,meta)
-       VALUES (?,?,?,?,?,?,?,?,?)`
-    ).run(s.id, s.domain, s.state, s.checkpoint, s.retryCount || 0,
-      s.recoverable ? 1 : 0, s.createdAt, s.updatedAt || s.createdAt,
-      JSON.stringify(s.meta || {}));
-  }
-
-  create(config) {
-    const now = Date.now();
-    const s = {
-      id: crypto.randomUUID(), domain: config.domain || 'default',
-      state: 'initializing', checkpoint: now, retryCount: 0,
-      recoverable: true, createdAt: now, updatedAt: now, meta: config.meta || {},
-    };
-    this._write(s);
-    return s;
-  }
-
-  get(id) {
-    if (this._mem.has(id)) return this._mem.get(id);
-    if (this._db) {
-      const row = this._db.prepare('SELECT * FROM agent_sessions WHERE id=?').get(id);
-      if (row) { const s = { ...row, recoverable: !!row.recoverable, meta: JSON.parse(row.meta || '{}') }; this._mem.set(id, s); return s; }
-    }
-    return null;
-  }
-
-  transition(id, toState) {
-    const VALID = {
-      initializing: ['running', 'failed'],
-      running:      ['paused', 'completed', 'failed'],
-      paused:       ['running', 'failed'],
-      completed:    [],
-      failed:       ['initializing'],
-    };
-    const s = this.get(id);
-    if (!s) throw new Error(`Session not found: ${id}`);
-    if (!(VALID[s.state] || []).includes(toState))
-      throw new Error(`Invalid transition: ${s.state} -> ${toState}`);
-    s.state = toState; s.updatedAt = Date.now(); s.checkpoint = Date.now();
-    this._write(s);
-    return s;
-  }
-}
+import { SessionEventStore } from './session/SessionEventStore.js';
 
 // ── AgentKernel ──────────────────────────────────────────────────────────────
 class AgentKernel extends EventEmitter {
@@ -107,16 +7,15 @@ class AgentKernel extends EventEmitter {
     super();
     this.domains  = new Map();
     this.agents   = new Map();
-    this._sessions = new _SessionStore();
+    this.sessionEventStore = opts.sessionEventStore || new SessionEventStore();
     this._opts    = opts;
     this._ready   = false;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
-  init(dbPath) {
-    const p = dbPath || this._opts.dbPath ||
-      path.join(process.env.AGENTOS_STATE_PATH || path.join(process.cwd(), 'data'), 'agentos.sqlite');
-    this._sessions.init(p);
+  init(_dbPath) {
+    // Storage ownership belongs to SessionEventStore. dbPath is retained only
+    // for backwards-compatible callers; durable adapters are injected.
     this._ready = true;
     this.emit('kernel:ready', { domains: this.domains.size });
     log('info', `[AgentKernel] ready — ${this.domains.size} domain(s)`);
@@ -167,23 +66,26 @@ class AgentKernel extends EventEmitter {
     const domain = this.resolveDomain(context.intent || context);
     if (!domain) throw new Error('No domain available for dispatch');
 
-    const session = this._sessions.create({
-      domain: domain.adapter.name || 'unknown',
-      meta: { intent: context.intent },
-    });
+    const sessionId = crypto.randomUUID();
+    const domainName = domain.adapter.name || 'unknown';
+    await this.sessionEventStore.append(sessionId, 'session/created', {
+      domain: domainName,
+      intent: context.intent,
+      agentConfig,
+    }, { source: 'agent.kernel' });
 
-    this.emit('dispatch:start', { sessionId: session.id, domain: session.domain });
+    this.emit('dispatch:start', { sessionId, domain: domainName });
     try {
-      this._sessions.transition(session.id, 'running');
+      await this.sessionEventStore.append(sessionId, 'session/running', { domain: domainName }, { source: 'agent.kernel' });
       const result = typeof domain.adapter.execute === 'function'
         ? await domain.adapter.execute(context)
         : await domain.adapter.getSkills?.()[0]?.execute?.(context);
-      this._sessions.transition(session.id, 'completed');
-      this.emit('dispatch:done', { sessionId: session.id });
+      await this.sessionEventStore.append(sessionId, 'session/completed', { domain: domainName }, { source: 'agent.kernel' });
+      this.emit('dispatch:done', { sessionId });
       return result;
     } catch (err) {
-      try { this._sessions.transition(session.id, 'failed'); } catch (_) {}
-      this.emit('dispatch:error', { sessionId: session.id, error: err.message });
+      try { await this.sessionEventStore.append(sessionId, 'session/failed', { domain: domainName, error: err.message }, { source: 'agent.kernel' }); } catch (_) {}
+      this.emit('dispatch:error', { sessionId, error: err.message });
       throw err;
     }
   }
