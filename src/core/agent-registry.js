@@ -58,7 +58,8 @@ export class AgentRegistry {
 
   get(ref) {
     if (ref == null) return null;
-    const key = normalizeRole(ref);\n    return this.agents.get(key) || this.agents.get(String(ref).trim().toLowerCase().replace(/[\\s_-]+/g, '')) || null;
+    const key = normalizeRole(ref);
+    return this.agents.get(key) || this.agents.get(String(ref).trim().toLowerCase().replace(/[\\s_-]+/g, '')) || null;
   }
 
   resolve(input = {}) {
