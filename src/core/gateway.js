@@ -4,8 +4,8 @@ import { WebSocketServer } from 'ws';
 import helmet from 'helmet';
 import path from 'path';
 import { promises as fs } from 'fs';
-import { AgentRuntime } from './agent-runtime.js';
-import { ToolRegistry } from './tool-registry.js';
+import { AgentRuntime } from './agentRuntime.js';
+import { ToolRegistry } from './ToolRegistry.js';
 import { SessionManager } from './session-manager.js';
 import { MemoryStore } from './memory-store.js';
 import { ProviderManager } from './provider-manager.js';
@@ -14,15 +14,7 @@ import { Heartbeat } from './heartbeat.js';
 import { Logger } from '../utils/logger.js';
 
 /**
- * @deprecated This file is STALE — use `gateway-engine.js` instead.
- *
- * The active gateway is `src/core/gateway-engine.js` which is what
- * `agentos gateway` (CLI) and all tests reference.
- *
- * This file is kept to avoid breaking any legacy imports, but it is NOT
- * started by the CLI and receives no updates.
- *
- * @see src/core/gateway-engine.js
+ * Legacy gateway implementation retained only until gateway-engine ownership is consolidated.
  */
 
 
