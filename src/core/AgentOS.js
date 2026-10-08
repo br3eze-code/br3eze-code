@@ -10,7 +10,6 @@ import TelemetryCollector from './TelemetryCollector.js';
 import HealthMonitor from './HealthMonitor.js';
 import CircuitBreaker from '../utils/CircuitBreaker.js';
 import { logger } from './logger.js';
-import { buildChannelExecutionContext } from './execution-context.js';
 import ContextEngine from './context/ContextEngine.js';
 
 /**
