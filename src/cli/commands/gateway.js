@@ -13,6 +13,7 @@ import DiscoveryService from '../../core/discovery.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
 import nodeRegistry from '../../core/node-registry.js';
 import { getAgentRuntime } from '../../core/agentRuntime.js';
+import { ToolRegistry } from '../../core/ToolRegistry.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import TaskScheduler from '../../core/taskScheduler.js';
@@ -302,12 +303,9 @@ export default (program) => {
                 const runtime = getAgentRuntime({
                     permissionMode: 'PROMPT',
                     maxTurns: 8,
-                    toolExecutor: async (name, args = {}, context = {}) => {
-                        const target = global.toolRegistry?.getTool?.(name);
-                        if (!target) throw new Error('Tool not found: ' + name);
-                        return global.toolRegistry.execute(name, args, { ...context, mikrotik, database, financial, billing, discovery, memory: memoryManager });
-                    },
+                    toolRegistry: new ToolRegistry({ skillsPath: config.skillsPath || './skills' }),
                 });
+                await runtime.loadSkills();
                 global.agentRuntime = runtime;
                 global.askEngine = runtime;
 
