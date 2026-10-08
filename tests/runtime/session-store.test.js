@@ -1,8 +1,8 @@
-import { InMemorySessionStore, SessionStore } from '../../src/core/session/SessionStore.js';
+import { InMemorySessionEventStore, SessionEventStore } from '../../src/core/session/SessionEventStore.js';
 
-describe('SessionStore', () => {
+describe('SessionEventStore', () => {
   test('appends ordered immutable events', async () => {
-    const sessions = new SessionStore({ clock: () => '2026-01-01T00:00:00.000Z' });
+    const sessions = new SessionEventStore({ clock: () => '2026-01-01T00:00:00.000Z' });
 
     const first = await sessions.append('s1', 'turn/start', { input: 'hello' });
     const second = await sessions.append('s1', 'tool/result', { ok: true });
@@ -21,7 +21,7 @@ describe('SessionStore', () => {
   });
 
   test('supports bounded reads and last-event lookup', async () => {
-    const sessions = new SessionStore({ store: new InMemorySessionStore() });
+    const sessions = new SessionEventStore({ store: new InMemorySessionEventStore() });
 
     await sessions.append('s1', 'a');
     await sessions.append('s1', 'b');
@@ -32,7 +32,7 @@ describe('SessionStore', () => {
   });
 
   test('rejects invalid event identity', async () => {
-    const sessions = new SessionStore();
+    const sessions = new SessionEventStore();
     await expect(sessions.append('', 'turn/start')).rejects.toThrow('sessionId');
     await expect(sessions.append('s1', '')).rejects.toThrow('event type');
   });
