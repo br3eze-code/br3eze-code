@@ -8,6 +8,7 @@ import { WorkGraph, WorkStatus } from '../workgraph/workGraph.js';
 import { ExecutionRecord } from '../workgraph/executionRecord.js';
 import { VerificationEngine } from '../verification/verificationEngine.js';
 import { AgentLoop, TURN_STATES } from './agent-loop.js';
+import { validateModelPort, createModelRequest } from './ports/model.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -46,6 +47,8 @@ class AgentRuntime extends EventEmitter {
     this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
     this.toolExecutor = typeof config.toolExecutor === 'function' ? config.toolExecutor : null;
     this.verificationEngine = config.verificationEngine || new VerificationEngine(config.verificationChecks || {});
+    this.model = config.model || null;
+    if (this.model) validateModelPort(this.model);
   }
 
   routePrompt(prompt, limit = 5) {
@@ -65,6 +68,36 @@ class AgentRuntime extends EventEmitter {
     const session = new RuntimeSession({ prompt: promptWithWbs, engine, matchedTools, permissionDenials: denials, loop });
     this.emit('session:created', session);
     return session;
+  }
+
+  async execute(frame = {}) {
+    if (!frame || frame.content == null) throw new TypeError('AgentRuntime.execute requires frame.content');
+    if (!this.model) {
+      const { results } = await this.runTurnLoop(String(frame.content), {
+        sessionId: frame.sessionId || null,
+        permissionMode: frame.permissionMode || null,
+        context: frame,
+        wbs: frame.wbs || null,
+      });
+      const last = results.at(-1);
+      return { response: last?.output || '', sessionId: last?.sessionId || null, iterations: results.length, toolsUsed: last?.matchedTools || [] };
+    }
+    return this._executeModelTurn(frame);
+  }
+
+  async _executeModelTurn(frame) {
+    const sessionId = frame.sessionId || null;
+    const messages = Array.isArray(frame.messages) ? [...frame.messages] : [{ role: 'user', content: String(frame.content) }];
+    const tools = Array.isArray(frame.tools) ? frame.tools : this.toolManifest;
+    const response = await this.model.execute(createModelRequest({ messages, tools, context: frame.context || frame, signal: frame.signal || null }));
+    return {
+      response: response?.content ?? response?.text ?? '',
+      sessionId,
+      iterations: 1,
+      toolsUsed: Array.isArray(response?.toolCalls) ? response.toolCalls.map(call => call.name).filter(Boolean) : [],
+      toolCalls: response?.toolCalls || [],
+      raw: response,
+    };
   }
 
   async runTurnLoop(prompt, opts = {}) {
