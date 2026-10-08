@@ -158,6 +158,12 @@ class AgentRuntime extends EventEmitter {
     this.emit('session:created', session); return session;
   }
 
+  /**
+   * Canonical convenience entry point. All public run-style callers converge here.
+   */
+  async run(input, context = {}) {
+    return this.execute({ content: input, context });
+  }
   async execute(frame = {}) {
     if (!frame || frame.content == null) throw new TypeError('AgentRuntime.execute requires frame.content');
 
