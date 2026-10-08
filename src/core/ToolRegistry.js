@@ -56,6 +56,7 @@ class ToolRegistry {
     this.hooks = opts.hooks || hooks;
     this.logger = opts.logger || logger;
     this._metrics = new Map();
+    if (Array.isArray(opts.skills)) for (const skill of opts.skills) this.registerSkill(skill);
   }
 
   registerDomain(domainName, toolDefs) {
