@@ -200,16 +200,34 @@ describe('RuntimeSession', () => {
     });
 });
 
-describe('AgentEngine compatibility facade', () => {
-    test('delegates to canonical RuntimeSession instead of owning execution state', async () => {
-        const { AgentEngine } = await import('../../src/core/agentEngine.js');
-        const engine = AgentEngine.create();
-        expect(engine._session).toBeDefined();
-        expect(engine.messages).toBe(engine._session.messages);
-        expect(engine.agents).toBeUndefined();
-        expect(typeof engine.submitMessage).toBe('function');
-        const result = await engine.submitMessage('hello', []);
-        expect(result.stopReason).toBe('completed');
+describe('AgentRuntime capability ownership', () => {
+    test('owns the canonical tool registry and exposes a capability manifest', () => {
+        const runtime = new AgentRuntime();
+        expect(runtime.toolRegistry).toBeDefined();
+        runtime.registerTool({
+            name: 'example.lookup',
+            description: 'Look up an entity',
+            execute: async () => ({ ok: true }),
+        });
+        const manifest = runtime.getCapabilityManifest();
+        expect(manifest.tools.some(tool => tool.name === 'example.lookup')).toBe(true);
+    });
+
+    test('loads plugins through the runtime-owned plugin registry', async () => {
+        const runtime = new AgentRuntime();
+        const plugin = {
+            getManifest: () => ({
+                id: 'example.plugin',
+                version: '1.0.0',
+                capabilities: ['example.lookup'],
+            }),
+            initialize: jest.fn(async () => {}),
+            start: jest.fn(async () => {}),
+        };
+        await runtime.loadPlugin(plugin);
+        expect(runtime.pluginRegistry.has('example.plugin')).toBe(true);
+        expect(plugin.initialize).toHaveBeenCalled();
+        expect(plugin.start).toHaveBeenCalled();
     });
 });
 
