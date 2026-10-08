@@ -221,13 +221,20 @@ describe('AgentRuntime capability ownership', () => {
                 version: '1.0.0',
                 capabilities: ['example.lookup'],
             }),
-            initialize: jest.fn(async () => {}),
+            initialize: jest.fn(async function () {
+                await this._context?.registerTool?.({
+                    name: 'example.lookup',
+                    description: 'Plugin-provided lookup',
+                    execute: async () => ({ ok: true }),
+                });
+            }),
             start: jest.fn(async () => {}),
         };
         await runtime.loadPlugin(plugin);
         expect(runtime.pluginRegistry.has('example.plugin')).toBe(true);
         expect(plugin.initialize).toHaveBeenCalled();
         expect(plugin.start).toHaveBeenCalled();
+        expect(runtime.listTools()).toContain('example.lookup');
     });
 });
 
