@@ -1,4 +1,4 @@
-import { InMemorySessionStore, SessionStore } from '../../src/runtime/session/SessionStore.js';
+import { InMemorySessionStore, SessionStore } from '../../src/core/session/SessionStore.js';
 
 describe('SessionStore', () => {
   test('appends ordered immutable events', async () => {
