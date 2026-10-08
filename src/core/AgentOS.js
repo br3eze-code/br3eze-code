@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import EventEmitter from 'node:events';
-import SkillRegistry from './SkillRegistry.js';
-import AgentToolbox from './agent-toolbox.js';
+import AgentRuntime from './agentRuntime.js';
+import { ToolRegistry } from './ToolRegistry.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
 import LLMCoordinator from './llm/LLMCoordinator.js';
@@ -21,8 +21,18 @@ class AgentOS extends EventEmitter {
     super();
     this.id = config.id || crypto.randomUUID();
     this.config = { ...config };
-    this.skills = new SkillRegistry(this.config);
-    this.toolbox = new AgentToolbox(this.config, this.skills);
+    this.runtime = config.runtime || new AgentRuntime({
+      toolRegistry: config.toolRegistry || new ToolRegistry({
+        skillsPath: config.skillsPath || './skills',
+        permissionPolicy: config.permissionPolicy,
+      }),
+      providerManager: config.providerManager || null,
+      model: config.model || null,
+      permissionMode: config.permissionMode,
+    });
+    // Compatibility aliases are stores, not execution owners.
+    this.skills = this.runtime.toolRegistry;
+    this.toolbox = this.runtime.toolRegistry;
     this.channels = new ChannelManager(this);
     this.memory = new MemoryManager(this.config.memoryAdapter || 'memory', { sessionEventStore: this.config.sessionEventStore });
     this.contextEngine = new ContextEngine();
@@ -52,7 +62,7 @@ class AgentOS extends EventEmitter {
     try {
       if (this.persistence?.initialize) await this.persistence.initialize();
       await this.memory.initialize();
-      await this.skills.loadFromDirectory(this.config.skillsPath || './skills');
+      await this.runtime.loadSkills();
       await this.llm.initialize();
       await this.channels.initialize();
       this.health.start();
@@ -75,10 +85,13 @@ class AgentOS extends EventEmitter {
       const execContext = await this.buildContext(input, context, interactionId);
       let result;
       if (input.action) {
-        result = await this.executeSkill(input.action, input.params, execContext);
+        result = await this.runtime.executeTool(input.action, input.params || {}, execContext);
       } else {
-        const intent = await this.classifyIntent(input.text, execContext);
-        result = await this.executeSkill(intent.skill, intent.params, execContext);
+        result = await this.runtime.execute({
+          content: input.text,
+          context: execContext,
+          sessionId: input.sessionId || null,
+        });
       }
       await this.memory.storeInteraction(interactionId, { input, context: execContext, result, duration: Date.now() - startTime });
       this.telemetry.record('interaction', { id: interactionId, skill: result.skill, duration: Date.now() - startTime, success: true });
@@ -89,27 +102,15 @@ class AgentOS extends EventEmitter {
     }
   }
 
-  async classifyIntent(text, context) {
-    return this.breakers.llm.execute(async () => {
-      const skills = this.skills.getDescriptions();
-      const prompt = `Available capabilities:\n${skills.map(s => `- ${s.name}: ${s.description}`).join('\n')}\n\nContext: ${JSON.stringify(context.summary)}\nInput: "${text}"\n\nReturn JSON: {"skill":"skillName","params":{},"confidence":0.9}`;
-      const response = await this.llm.generate(prompt, { temperature: 0.1, responseFormat: 'json' });
-      if (!this.skills.has(response.skill)) throw new Error(`Unknown capability: ${response.skill}`);
-      return response;
-    });
+  async classifyIntent(text, context = {}) {
+    const matches = this.runtime.routePrompt(text, 1);
+    if (!matches.length) throw new Error('No capability matched the request');
+    return { skill: matches[0], params: {}, confidence: 1, context };
   }
 
   async executeSkill(skillName, params = {}, context = {}) {
-    if (skillName?.includes('.')) {
-      const output = await this.skills.executeTool(skillName, params, context);
-      return { skill: skillName.split('.')[0], tool: skillName.split('.')[1], output, params, context: context.summary || {} };
-    }
-    const skill = this.skills.get(skillName);
-    if (!skill) throw new Error(`Capability '${skillName}' not found`);
-    if (skill.manifest?.permissions) await this.checkPermissions(context.userId, skill.manifest.permissions);
-    const timeout = skill.manifest?.timeout || 30000;
-    const output = await Promise.race([skill.execute(params, context), new Promise((_, reject) => setTimeout(() => reject(new Error('Capability execution timeout')), timeout))]);
-    return { skill: skillName, output, params, context: context.summary || {} };
+    const output = await this.runtime.executeTool(skillName, params, context);
+    return { skill: String(skillName).split('.')[0], tool: String(skillName).includes('.') ? String(skillName).split('.').slice(1).join('.') : null, output, params, context: context.summary || {} };
   }
 
   async buildContext(input, context, interactionId) {
@@ -131,7 +132,7 @@ class AgentOS extends EventEmitter {
   }
 
   async executeWorkflow(workflowId, params, context) { return this.workflows.execute(workflowId, params, context); }
-  async executeTool(toolName, params, context) { return this.toolbox.execute(toolName, params, context); }
+  async executeTool(toolName, params, context) { return this.runtime.executeTool(toolName, params, context); }
   async sendMessage(channel, userId, message) { return this.channels.send(channel, userId, message); }
   async broadcast(message, filter = null) { return this.channels.broadcast(message, filter); }
   async sendToAll(message) { return this.broadcast(message); }
@@ -157,7 +158,7 @@ class AgentOS extends EventEmitter {
   }
 
   onShutdown(handler) { this.shutdownHandlers.push(handler); }
-  getStatus() { return { id: this.id, initialized: this.initialized, skills: this.skills.count(), adapters: [...this.adapters.keys()], services: [...this.services.keys()], channels: this.channels.getStatus(), memory: this.memory.getStatus(), health: this.health.getStatus(), uptime: process.uptime() }; }
+  getStatus() { return { id: this.id, initialized: this.initialized, executionOwner: 'AgentRuntime', skills: this.skills.count(), adapters: [...this.adapters.keys()], services: [...this.services.keys()], channels: this.channels.getStatus(), memory: this.memory.getStatus(), health: this.health.getStatus(), uptime: process.uptime() }; }
 
   async destroy() {
     if (!this.initialized) return;
