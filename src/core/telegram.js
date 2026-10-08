@@ -7,7 +7,6 @@ import { getDatabase } from './database.js';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
-import AskEngine from './ask-engine.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -58,7 +57,6 @@ class AgentOSBot {
         this.pendingInputs = new Map();
         this.rateLimiter = new ChatRateLimiter(RATE_LIMIT_MAX, RATE_LIMIT_WINDOW);
         this._cooldown = new Map();
-        this.askEngine = null; // set via setAskEngine()
 
         this.runtime = getAgentRuntime({
             permissionMode: PermissionMode.PROMPT,
@@ -68,8 +66,8 @@ class AgentOSBot {
         this.setupHandlers();
     }
 
-    /** Inject AskEngine after construction (avoids circular deps) */
-    setAskEngine(engine) { this.askEngine = engine; }
+    /** Legacy injection point retained as a no-op compatibility boundary. */
+    setAskEngine() { return this; }
 
     setupHandlers() {
         const on = (re, fn) => this.bot.onText(re, fn.bind(this));
