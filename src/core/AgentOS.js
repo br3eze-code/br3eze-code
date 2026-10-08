@@ -24,7 +24,7 @@ class AgentOS extends EventEmitter {
     this.skills = new SkillRegistry(this.config);
     this.toolbox = new AgentToolbox(this.config, this.skills);
     this.channels = new ChannelManager(this);
-    this.memory = new MemoryManager(this.config.memoryAdapter || 'memory');
+    this.memory = new MemoryManager(this.config.memoryAdapter || 'memory', { sessionStore: this.config.sessionStore });
     this.llm = new LLMCoordinator(this.config.llmProvider || config.llm?.primary || 'ollama');
     this.workflows = new WorkflowEngine(this);
     this.telemetry = new TelemetryCollector();
