@@ -145,57 +145,76 @@ describe('AgentRuntime.findTools', () => {
 // ── RuntimeSession ────────────────────────────────────────────────────────────
 
 describe('RuntimeSession', () => {
-    const mockEngine = {
-        sessionId:     'sess-001',
-        renderSummary: jest.fn().mockReturnValue('## State\nIdle'),
-        enforcer:      { check: jest.fn().mockReturnValue({ allowed: true }) }
-    };
-
-    test('stores constructor fields', () => {
+    test('owns canonical session state directly', () => {
         const s = new RuntimeSession({
-            prompt: 'test prompt', engine: mockEngine,
-            matchedTools: ['ping'], permissionDenials: []
+            prompt: 'test prompt',
+            matchedTools: ['ping'],
+            permissionDenials: []
         });
         expect(s.prompt).toBe('test prompt');
+        expect(typeof s.sessionId).toBe('string');
         expect(s.matchedTools).toEqual(['ping']);
         expect(s.permissionDenials).toEqual([]);
         expect(s.taskId).toBeNull();
+        expect(s.enforcer).toBeDefined();
+        expect(s.transcriptStore).toBeDefined();
     });
 
     test('accepts optional taskId', () => {
         const s = new RuntimeSession({
-            prompt: 'p', engine: mockEngine,
-            matchedTools: [], permissionDenials: [], taskId: 'task-99'
+            prompt: 'p', matchedTools: [], permissionDenials: [], taskId: 'task-99'
         });
         expect(s.taskId).toBe('task-99');
     });
 
     test('has ISO createdAt timestamp', () => {
         const s = new RuntimeSession({
-            prompt: 'p', engine: mockEngine,
-            matchedTools: [], permissionDenials: []
+            prompt: 'p', matchedTools: [], permissionDenials: []
         });
         expect(new Date(s.createdAt).toISOString()).toBe(s.createdAt);
     });
 
     test('asMarkdown returns string containing prompt and session id', () => {
         const s = new RuntimeSession({
-            prompt: 'show stats', engine: mockEngine,
-            matchedTools: ['system.stats'], permissionDenials: []
+            prompt: 'show stats', matchedTools: ['system.stats'], permissionDenials: []
         });
         const md = s.asMarkdown();
         expect(typeof md).toBe('string');
         expect(md).toContain('show stats');
-        expect(md).toContain('sess-001');
+        expect(md).toContain(s.sessionId);
         expect(md).toContain('system.stats');
     });
 
     test('asMarkdown shows "none" when no tools matched', () => {
         const s = new RuntimeSession({
-            prompt: 'gibberish', engine: mockEngine,
-            matchedTools: [], permissionDenials: []
+            prompt: 'gibberish', matchedTools: [], permissionDenials: []
         });
         expect(s.asMarkdown()).toContain('none');
+    });
+
+    test('executes a turn without a second execution engine', async () => {
+        const executor = jest.fn().mockResolvedValue({ ok: true });
+        const s = new RuntimeSession({
+            prompt: 'ping', matchedTools: ['ping'], permissionDenials: [],
+            config: { toolExecutor: executor }
+        });
+        const result = await s.submitMessage('ping', ['ping']);
+        expect(result.stopReason).toBe('completed');
+        expect(result.matchedTools).toEqual(['ping']);
+        expect(executor).toHaveBeenCalledWith('ping');
+    });
+});
+
+describe('AgentEngine compatibility facade', () => {
+    test('delegates to canonical RuntimeSession instead of owning execution state', async () => {
+        const { AgentEngine } = await import('../../src/core/agentEngine.js');
+        const engine = AgentEngine.create();
+        expect(engine._session).toBeDefined();
+        expect(engine.messages).toBe(engine._session.messages);
+        expect(engine.agents).toBeUndefined();
+        expect(typeof engine.submitMessage).toBe('function');
+        const result = await engine.submitMessage('hello', []);
+        expect(result.stopReason).toBe('completed');
     });
 });
 
