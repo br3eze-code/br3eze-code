@@ -6,7 +6,7 @@
  * execution engine, transcript, permission state, or session representation.
  */
 import EventEmitter from 'node:events';
-import { RuntimeSession } from './agentRuntime.js';
+import { RuntimeSession, TurnResult, UsageSummary } from './agentRuntime.js';
 
 const DEFAULT_CONFIG = Object.freeze({
   maxTurns: 8,
@@ -68,8 +68,5 @@ class AgentEngine extends EventEmitter {
   persistSession() { return this._session.persistSession(); }
   renderSummary() { return this._session.renderSummary(); }
 }
-
-class TurnResult {}
-class UsageSummary {}
 
 export { AgentEngine, TurnResult, UsageSummary };
