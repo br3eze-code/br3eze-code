@@ -1,10 +1,10 @@
 import MemoryManager from '../../src/core/memory/MemoryManager.js';
-import { SessionStore } from '../../src/runtime/session/SessionStore.js';
+import { SessionEventStore } from '../../src/core/session/SessionEventStore.js';
 
 describe('MemoryManager session integration', () => {
   test('creates sessions in the canonical event store', async () => {
-    const sessionStore = new SessionStore();
-    const memory = new MemoryManager('memory', { sessionStore });
+    const sessionEventStore = new SessionEventStore();
+    const memory = new MemoryManager('memory', { sessionEventStore });
 
     const sessionId = await memory.createSession('user-1', { channel: 'test' });
     const session = await memory.getSession(sessionId);
@@ -20,8 +20,8 @@ describe('MemoryManager session integration', () => {
   });
 
   test('records completed interactions in the same session stream', async () => {
-    const sessionStore = new SessionStore();
-    const memory = new MemoryManager('memory', { sessionStore });
+    const sessionEventStore = new SessionEventStore();
+    const memory = new MemoryManager('memory', { sessionEventStore });
     const sessionId = await memory.createSession('user-1');
 
     await memory.storeInteraction('interaction-1', {
