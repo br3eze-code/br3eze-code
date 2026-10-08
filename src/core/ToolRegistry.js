@@ -94,6 +94,7 @@ class ToolRegistry {
     return this;
   }
 
+  count() { return this.skills.size; }
   getSkillNames() { return Array.from(this.skills.keys()); }
   getDescriptions() {
     return this.listSkills().map((skill) => ({
@@ -125,6 +126,12 @@ class ToolRegistry {
   getToolsBySkill(skillName) { return Array.from(this.tools.values()).filter((tool) => tool.skill === skillName || tool.fullName?.startsWith(`${skillName}.`)); }
   setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this.invalidateManifest(); } }
   getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...(skill.manifest || skill), toolCount: this.getToolsBySkill(skillName).length, enabled: skill.enabled !== false } : null; }
+
+  async loadFromDirectory(skillsPath = this._skillsPath) {
+    if (!skillsPath) return false;
+    this._skillsPath = skillsPath;
+    return this.loadSkills();
+  }
 
   async loadSkills() {
     if (!this._skillsPath) return false;
