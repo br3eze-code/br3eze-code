@@ -11,6 +11,8 @@ import { ExecutionRecord } from '../workgraph/executionRecord.js';
 import { VerificationEngine } from '../verification/verificationEngine.js';
 import { AgentLoop, TURN_STATES } from './agent-loop.js';
 import { validateModelPort, createModelRequest } from './ports/model.js';
+import toolRegistry from './ToolRegistry.js';
+import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -18,21 +20,7 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
   { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'system.status', keywords: ['status', 'health', 'state'] },
-  { name: 'users.active', keywords: ['active', 'users', 'user'] },
-  { name: 'users.all', keywords: ['all', 'users', 'user'] },
-  { name: 'system.stats', keywords: ['system', 'stats', 'statistics', 'resource', 'resources', 'memory', 'cpu'] },
-  { name: 'system.logs', keywords: ['system', 'logs', 'log'] },
-  { name: 'system.reboot', keywords: ['reboot', 'restart'] },
-  { name: 'user.add', keywords: ['create', 'new', 'user', 'add', 'register', 'account'] },
-  { name: 'user.remove', keywords: ['remove', 'delete', 'user', 'account'] },
-  { name: 'user.status', keywords: ['status', 'user', 'account', 'session'] },
-  { name: 'ping', keywords: ['ping', 'latency', 'reach', 'reachable'] },
-  { name: 'traceroute', keywords: ['trace', 'traceroute', 'route', 'path', 'hop'] },
-  { name: 'firewall.list', keywords: ['firewall', 'rules', 'filter', 'list'] },
-  { name: 'firewall.block', keywords: ['block', 'ban', 'blacklist', 'deny'] },
-  { name: 'firewall.unblock', keywords: ['unblock', 'unban', 'whitelist', 'allow'] },
-  { name: 'interface.list', keywords: ['interface', 'port', 'network'] }
+  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
@@ -105,8 +93,15 @@ class AgentRuntime extends EventEmitter {
   constructor(config = {}) {
     super();
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
-    this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : DEFAULT_TOOL_MANIFEST;
-    this.toolRegistry = config.toolRegistry || null;
+    // AgentRuntime owns capability orchestration; registries are implementation stores.
+    this.toolRegistry = config.toolRegistry || toolRegistry;
+    this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
+    this.pluginLoader = config.pluginLoader || new PluginLoader({
+      registry: this.pluginRegistry,
+      runtime: { runtime: this, logger, config },
+    });
+    this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : null;
+    this.skillRegistry = config.skillRegistry || null;
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
     this.sessionManager = config.sessionManager || null;
@@ -119,10 +114,36 @@ class AgentRuntime extends EventEmitter {
     if (this.model) validateModelPort(this.model);
   }
 
-  routePrompt(prompt, limit = 5) {
-    const tokens = new Set(prompt.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-    return this.toolManifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
+  getCapabilityManifest() {
+    return {
+      version: '1.0',
+      tools: this.toolRegistry?.toolDeclarations?.() || [],
+      skills: this.toolRegistry?.listSkills?.().map(skill => ({
+        name: skill.name,
+        description: skill.description || skill.manifest?.description || '',
+        version: skill.version || skill.manifest?.version || null,
+        enabled: skill.enabled !== false,
+      })) || [],
+      plugins: this.pluginRegistry?.list?.() || [],
+    };
   }
+
+  routePrompt(prompt, limit = 5) {
+    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
+    const manifest = this.toolRegistry?.getAllTools?.().map(tool => ({
+      name: tool.fullName || tool.name,
+      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
+    })) || this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
+      .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
+  }
+
+  registerTool(tool) { this.toolRegistry.registerTool(tool); return this; }
+  registerSkill(skill) { this.toolRegistry.registerSkill(skill); return this; }
+  async loadSkills() { await this.toolRegistry.loadSkills?.(); return this; }
+  registerPlugin(plugin) { this.pluginRegistry.register(plugin); return this; }
+  async loadPlugin(plugin) { await this.pluginLoader.load(plugin); return this; }
+  async unloadPlugin(id) { return this.pluginLoader.unload(id); }
 
   async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
     const config = { ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode, toolExecutor: this.toolExecutor };
@@ -158,7 +179,9 @@ class AgentRuntime extends EventEmitter {
     const messages = Array.isArray(frame.messages)
       ? [...frame.messages]
       : [...loaded, { role: 'user', content: String(frame.content) }];
-    const tools = Array.isArray(frame.tools) ? frame.tools : this.toolRegistry?.getToolsForLLM?.() || this.toolManifest;
+    const tools = Array.isArray(frame.tools)
+      ? frame.tools
+      : this.toolRegistry?.getToolsForLLM?.() || this.toolManifest || DEFAULT_TOOL_MANIFEST;
     const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
     loop.transition(TURN_STATES.UNDERSTANDING);
     loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
@@ -331,8 +354,18 @@ class AgentRuntime extends EventEmitter {
     return this.toolRegistry.execute(toolName, params, context);
   }
 
-  listTools() { return this.toolRegistry?.getAllTools?.().map(t => t.fullName || t.name) || this.toolManifest.map(t => t.name); }
-  findTools(query) { const needle = query.toLowerCase(); return this.toolManifest.filter(t => t.name.includes(needle) || t.keywords.some(k => k.includes(needle))).map(t => t.name); }
+  listTools() {
+    return this.toolRegistry?.getAllTools?.().map(t => t.fullName || t.name)
+      || (this.toolManifest || DEFAULT_TOOL_MANIFEST).map(t => t.name);
+  }
+  findTools(query) {
+    const needle = String(query).toLowerCase();
+    const manifest = this.toolRegistry?.getAllTools?.().map(tool => ({
+      name: tool.fullName || tool.name,
+      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/),
+    })) || this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    return manifest.filter(t => t.name.includes(needle) || (t.keywords || []).some(k => String(k).includes(needle))).map(t => t.name);
+  }
 }
 
 let _runtime = null;
