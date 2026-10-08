@@ -5,7 +5,7 @@ import { SessionEventStore } from '../session/SessionEventStore.js';
 class MemoryManager {
   constructor(adapter = 'memory', options = {}) {
     this.adapter = this.createAdapter(adapter);
-    this.sessionStore = options.sessionStore || new SessionEventStore();
+    this.sessionEventStore = options.sessionEventStore || options.sessionStore || new SessionEventStore();
   }
 
   createAdapter(type) {
@@ -39,7 +39,7 @@ class MemoryManager {
     await this.adapter.set('interaction:' + interactionId, data, 86400);
 
     if (data.context?.sessionId) {
-      await this.sessionStore.append(data.context.sessionId, 'interaction/completed', {
+      await this.sessionEventStore.append(data.context.sessionId, 'interaction/completed', {
         interactionId,
         userId,
         skill: data.result?.skill,
@@ -54,7 +54,7 @@ class MemoryManager {
     if (!sessionId) return null;
     const legacy = await this.adapter.get('session:' + sessionId);
     if (legacy) return legacy;
-    const events = await this.sessionStore.read(sessionId);
+    const events = await this.sessionEventStore.read(sessionId);
     const created = [...events].reverse().find((event) => event.type === 'session/created');
     if (!created) return null;
     return {
@@ -69,7 +69,7 @@ class MemoryManager {
   async createSession(userId, data = {}) {
     const sessionId = crypto.randomUUID();
     const createdAt = Date.now();
-    await this.sessionStore.append(sessionId, 'session/created', {
+    await this.sessionEventStore.append(sessionId, 'session/created', {
       userId, createdAt, data,
     }, { source: 'agentos.memory' });
     return sessionId;
@@ -77,12 +77,12 @@ class MemoryManager {
 
   async getSessionEvents(sessionId, options) {
     if (!sessionId) return [];
-    return this.sessionStore.read(sessionId, options);
+    return this.sessionEventStore.read(sessionId, options);
   }
 
   async getLastSessionEvent(sessionId) {
     if (!sessionId) return null;
-    return this.sessionStore.getLast(sessionId);
+    return this.sessionEventStore.getLast(sessionId);
   }
 
   async getPermissions(userId) {
@@ -95,7 +95,7 @@ class MemoryManager {
   }
 
   async close() {
-    await this.sessionStore.close();
+    await this.sessionEventStore.close();
     return this.adapter.close();
   }
 
