@@ -1,28 +1,15 @@
 /**
  * Build the capability surface exposed to a client channel.
- *
- * The manifest is descriptive for all clients, but executable tool names are
- * filtered by the caller's role/capabilities so UI discovery cannot become an
- * authorization bypass. Provider-specific tools remain implementation details.
+ * Executable tools are filtered by the caller's role/capabilities so UI
+ * discovery cannot become an authorization bypass.
  */
 import { anyCapabilityMatches } from './capability-policy.js';
 
 export const CLIENT_CAPABILITIES = Object.freeze([
-  'assistant.use',
-  'research.read',
-  'device.discovery',
-  'network.read',
-  'network.write',
-  'surveillance.read',
-  'surveillance.write',
-  'fleet.read',
-  'fleet.write',
-  'identity.manage',
-  'commerce.read',
-  'commerce.write',
-  'commerce.admin',
-  'system.read',
-  'system.write',
+  'assistant.use', 'research.read', 'device.discovery', 'network.read',
+  'network.write', 'surveillance.read', 'surveillance.write', 'fleet.read',
+  'fleet.write', 'identity.manage', 'commerce.read', 'commerce.write',
+  'commerce.admin', 'system.read', 'system.write',
 ]);
 
 const ADMIN_ROLES = new Set(['admin', 'owner', 'super_admin', 'platform_admin']);
@@ -42,9 +29,7 @@ export function buildCapabilityManifest({
   const granted = normalizeList(user?.capabilities || user?.permissions);
   const elevated = ADMIN_ROLES.has(role);
   const tools = normalizeList(availableTools);
-  const executableTools = elevated
-    ? tools
-    : tools.filter((tool) => anyCapabilityMatches(granted, tool));
+  const executableTools = elevated ? tools : tools.filter((tool) => anyCapabilityMatches(granted, tool));
 
   return {
     version: 1,
@@ -66,5 +51,3 @@ export function buildCapabilityManifest({
 }
 
 export default buildCapabilityManifest;
-
-if (typeof module !== 'undefined') module.exports = { buildCapabilityManifest, CLIENT_CAPABILITIES };

@@ -1,164 +1,20 @@
 import { Logger } from '../utils/logger.js';
 
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-
-/**
- * Provider Manager
-
- */
-
-
+/** Provider-neutral failover manager. Concrete providers are supplied by composition code. */
 class ProviderManager {
   constructor(options = {}) {
-    this.providers = new Map();
-    this.primary = options.primary || process.env.PRIMARY_PROVIDER || 'gemini';
-    this.fallbacks = options.fallbacks || 
-      (process.env.FALLBACK_PROVIDERS ? process.env.FALLBACK_PROVIDERS.split(',') : []);
-    
-    this.logger = new Logger('ProviderManager');
-    
-    this.initializeProviders();
+    this.providers = new Map(); this.primary = options.primary || process.env.PRIMARY_PROVIDER || null;
+    this.fallbacks = options.fallbacks || (process.env.FALLBACK_PROVIDERS ? process.env.FALLBACK_PROVIDERS.split(',').map(s => s.trim()).filter(Boolean) : []);
+    this.logger = options.logger || new Logger('ProviderManager'); this.ready = this.registerInjected(options.providers || options.providerFactories || {});
   }
-  
-  initializeProviders() {
-    // Register available providers
-    const providerConfigs = [
-      { name: 'gemini', envKey: 'GEMINI_API_KEY', module: '../providers/gemini' },
-      { name: 'claude', envKey: 'ANTHROPIC_API_KEY', module: '../providers/claude' },
-      { name: 'openai', envKey: 'OPENAI_API_KEY', module: '../providers/openai' },
-      { name: 'ollama', envKey: null, module: '../providers/ollama' } // Local, no key needed
-    ];
-    
-    for (const config of providerConfigs) {
-      const hasKey = !config.envKey || process.env[config.envKey];
-      if (hasKey) {
-        try {
-          const ProviderClass = require(config.module);
-          this.providers.set(config.name, new ProviderClass());
-          this.logger.info(`Registered provider: ${config.name}`);
-        } catch (error) {
-          this.logger.warn(`Failed to load provider ${config.name}:`, error.message);
-        }
-      }
-    }
-  }
-  
-  /**
-   * Execute with automatic failover
-   */
-  async execute(conversation, tools) {
-    const providersToTry = [this.primary, ...this.fallbacks];
-    
-    for (const providerName of providersToTry) {
-      const provider = this.providers.get(providerName);
-      if (!provider) continue;
-      
-      try {
-        this.logger.debug(`Trying provider: ${providerName}`);
-        const result = await provider.execute(conversation, tools);
-        
-        // Normalize response
-        return this.normalizeResponse(result);
-        
-      } catch (error) {
-        this.logger.warn(`Provider ${providerName} failed:`, error.message);
-        continue;
-      }
-    }
-    
-    throw new Error('All providers failed');
-  }
-  
-  /**
-   * Execute with specific provider
-   */
-  async executeWithProvider(providerName, conversation, tools) {
-    const provider = this.providers.get(providerName);
-    if (!provider) {
-      throw new Error(`Provider not found: ${providerName}`);
-    }
-    
-    const result = await provider.execute(conversation, tools);
-    return this.normalizeResponse(result);
-  }
-  
-  /**
-   * Normalize response to canonical format
-   */
-  normalizeResponse(raw) {
-    // Handle different provider response formats
-    if (raw.candidates) {
-      // Gemini format
-      return {
-        content: raw.candidates[0]?.content?.parts?.[0]?.text || '',
-        toolCalls: this.extractGeminiToolCalls(raw),
-        provider: 'gemini'
-      };
-    }
-    
-    if (raw.content) {
-      // Claude format
-      return {
-        content: raw.content[0]?.text || raw.content || '',
-        toolCalls: this.extractClaudeToolCalls(raw),
-        provider: 'claude'
-      };
-    }
-    
-    if (raw.choices) {
-      // OpenAI format
-      const message = raw.choices[0]?.message;
-      return {
-        content: message?.content || '',
-        toolCalls: message?.tool_calls?.map(tc => ({
-          id: tc.id,
-          name: tc.function?.name,
-          arguments: JSON.parse(tc.function?.arguments || '{}')
-        })),
-        provider: 'openai'
-      };
-    }
-    
-    // Already normalized or unknown format
-    return raw;
-  }
-  
-  extractGeminiToolCalls(raw) {
-    const parts = raw.candidates?.[0]?.content?.parts || [];
-    return parts
-      .filter(p => p.functionCall)
-      .map(p => ({
-        id: `${Date.now()}-${Math.random()}`,
-        name: p.functionCall.name,
-        arguments: p.functionCall.args
-      }));
-  }
-  
-  extractClaudeToolCalls(raw) {
-    // Claude tool use format
-    const toolUses = raw.content?.filter(c => c.type === 'tool_use') || [];
-    return toolUses.map(tu => ({
-      id: tu.id,
-      name: tu.name,
-      arguments: tu.input
-    }));
-  }
-  
-  /**
-   * Get available providers
-   */
-  getAvailableProviders() {
-    return Array.from(this.providers.keys());
-  }
-  
-  /**
-   * Get provider info
-   */
-  getProviderInfo(name) {
-    const provider = this.providers.get(name);
-    return provider ? provider.getInfo() : null;
-  }
+  async registerInjected(entries = {}) { for (const [name, value] of Object.entries(entries)) { try { const provider = typeof value === 'function' ? await value() : value; if (provider) this.providers.set(name, provider); } catch (error) { this.logger.warn(`Failed to load provider ${name}: ${error.message}`); } } if (!this.primary) this.primary = this.providers.keys().next().value || null; return this; }
+  register(name, provider) { if (!name || !provider) throw new TypeError('provider name and instance are required'); this.providers.set(String(name), provider); if (!this.primary) this.primary = String(name); return provider; }
+  async execute(conversation, tools, options = {}) { await this.ready; const names = [...new Set([options.provider, this.primary, ...this.fallbacks].filter(Boolean))]; for (const name of names) { const provider=this.providers.get(name); if (!provider?.execute) continue; try { return this.normalizeResponse(await provider.execute(conversation, tools, options)); } catch (error) { this.logger.warn(`Provider ${name} failed: ${error.message}`); } } throw new Error('All configured providers failed'); }
+  async executeWithProvider(name, conversation, tools, options = {}) { await this.ready; const provider=this.providers.get(name); if (!provider?.execute) throw new Error(`Provider not found: ${name}`); return this.normalizeResponse(await provider.execute(conversation, tools, options)); }
+  normalizeResponse(raw) { if (!raw || typeof raw !== 'object') return raw; if (raw.choices) { const m=raw.choices[0]?.message; return { content:m?.content || '', toolCalls:(m?.tool_calls || []).map(t=>({id:t.id,name:t.function?.name,arguments:this.parseArguments(t.function?.arguments)})), provider:raw.provider || null }; } if (raw.content) return { content:Array.isArray(raw.content) ? (raw.content[0]?.text || '') : raw.content, toolCalls:raw.toolCalls || [], provider:raw.provider || null }; if (raw.candidates) return { content:raw.candidates[0]?.content?.parts?.[0]?.text || '', toolCalls:raw.toolCalls || [], provider:raw.provider || null }; return raw; }
+  parseArguments(value) { if (!value) return {}; if (typeof value === 'object') return value; try { return JSON.parse(value); } catch { return {}; } }
+  getAvailableProviders() { return [...this.providers.keys()]; }
+  getProviderInfo(name) { const provider=this.providers.get(name); return provider?.getInfo ? provider.getInfo() : null; }
 }
-
 export { ProviderManager };
+export default ProviderManager;

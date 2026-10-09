@@ -32,8 +32,11 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
+<<<<<<< HEAD
+=======
     # Deploy from main pushes, manual dispatches, or successful releases.
     # A failed Release workflow must not silently suppress Firebase deployment.
+>>>>>>> origin/main
     if: >
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -56,8 +59,12 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Install functions (server/) dependencies
-        run: npm ci --ignore-scripts --prefix server
+      - name: Install functions dependencies
+        working-directory: server
+        run: |
+          # server/ currently has no lockfile. npm ci therefore cannot work here.
+          # Keep this explicit until server/package-lock.json is intentionally added.
+          npm install --ignore-scripts --no-audit --no-fund
 
       - name: Validate secrets
         id: validate
@@ -75,11 +82,14 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-key.json" >> "$GITHUB_ENV"
 
       - name: Write CI .env for the hosting predeploy step
+<<<<<<< HEAD
+=======
         # firebase.json's hosting.predeploy runs scripts/generate-env-www.js,
         # which reads a root .env for the browser-safe keys it copies into
         # www/js/env.js. There's no .env checked into the repo, so build a
         # Build only the browser-safe runtime configuration consumed by www/js/env.js.
         # Optional Supabase/AI values are included when configured but do not block Firebase Hosting.
+>>>>>>> origin/main
         run: |
           {
             echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY || secrets.FIREBASE_WEB_API_KEY }}"
