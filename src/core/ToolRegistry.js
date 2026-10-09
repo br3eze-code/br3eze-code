@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-/**
- * Compatibility facade for legacy PascalCase imports.
- *
- * Canonical implementation: ./tool-registry.js
- * Keep this file thin so there is exactly one ToolRegistry implementation.
-=======
 import { logger } from './logger.js';
 import { promises as fsp } from 'node:fs';
 import fsSync from 'node:fs';
@@ -19,24 +12,8 @@ const require = createRequire(import.meta.url);
  * Tool execution stays domain-neutral. Authorization is supplied by the
  * caller/host through opts.permissionPolicy or context.permissionPolicy.
  * No domain-specific permission assumptions live in Core.
->>>>>>> origin/main
  */
-import ToolRegistry, {
-  ToolRegistry as ToolRegistryClass,
-  ToolNotFoundError,
-  SkillDisabledError,
-} from './tool-registry.js';
 
-<<<<<<< HEAD
-const registry = new ToolRegistry();
-
-export default registry;
-export {
-  ToolRegistryClass as ToolRegistry,
-  ToolNotFoundError,
-  SkillDisabledError,
-};
-=======
 const defaultPermissionPolicy = {
   check: (toolName, context = {}, tool = {}) => {
     const required = tool.permissions || tool.requiredPermissions || [];
@@ -338,4 +315,3 @@ const _singleton = new ToolRegistry();
 
 export default _singleton;
 export { ToolRegistry };
->>>>>>> origin/main

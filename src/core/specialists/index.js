@@ -1,5 +1,4 @@
-export { SpecialistToolRegistry } from './SpecialistToolRegistry.js';
-export { default as SpecialistToolRegistryDefault } from './SpecialistToolRegistry.js';
+export { ToolRegistry } from './ToolRegistry.js';
 export { ToolPolicy } from './ToolPolicy.js';
 export { ToolExecutor, validateSchema } from './ToolExecutor.js';
 export { SpecialistRuntime } from './SpecialistRuntime.js';

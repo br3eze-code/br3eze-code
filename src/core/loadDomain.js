@@ -1,27 +1,36 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { logger } from './logger.js';
-import defaultRegistry from './ToolRegistry.js';
+import registry from './ToolRegistry.js';
 import BaseDomain from '../domains/BaseDomain.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 /**
- * Load every domain into the supplied capability registry.
- * The default registry is retained for backwards compatibility, while
- * bootstrap/runtime callers can inject an isolated registry for testing or
- * multi-runtime use.
+ * Automatically loads all domains from src/domains.
+ *
+ * Domain modules are loaded asynchronously so native ESM domain indexes work
+ * correctly. CommonJS modules remain compatible through import()'s namespace
+ * and default-export normalization.
  */
-async function loadAllDomains(config = {}, registry = defaultRegistry) {
-  const domainsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../domains');
+async function loadAllDomains(config = {}) {
+  const domainsDir = path.join(__dirname, '../domains');
 
   if (!fs.existsSync(domainsDir)) {
     logger.warn('Domains directory not found');
-    return registry;
+    return;
   }
 
-  for (const item of fs.readdirSync(domainsDir)) {
+  const items = fs.readdirSync(domainsDir);
+
+  for (const item of items) {
     const itemPath = path.join(domainsDir, item);
-    if (!fs.statSync(itemPath).isDirectory()) continue;
+    const stat = fs.statSync(itemPath);
+
+    if (!stat.isDirectory()) continue;
 
     const indexPath = path.join(itemPath, 'index.js');
     if (!fs.existsSync(indexPath)) continue;
@@ -31,24 +40,21 @@ async function loadAllDomains(config = {}, registry = defaultRegistry) {
       const domainModule = moduleNamespace.default ?? moduleNamespace;
 
       if (typeof domainModule.register === 'function') {
-        await domainModule.register(registry, config[item] || {});
+        domainModule.register(registry, config[item] || {});
       } else if (
         typeof domainModule === 'function' &&
-        (domainModule === BaseDomain || domainModule.prototype instanceof BaseDomain)
+        domainModule.prototype instanceof BaseDomain
       ) {
         const domainInstance = new domainModule(config[item] || {});
         registry.registerDomain(domainInstance.name || item, domainInstance.getSkills());
-      } else if (domainModule && typeof domainModule.getSkills === 'function') {
-        registry.registerDomain(domainModule.name || item, domainModule.getSkills());
       } else {
         logger.warn(`Domain ${item} does not follow a recognized registration pattern`);
       }
     } catch (err) {
       logger.error(`Failed to load domain ${item}: ${err.message}`);
+      console.error(err);
     }
   }
-
-  return registry;
 }
 
 export default loadAllDomains;
