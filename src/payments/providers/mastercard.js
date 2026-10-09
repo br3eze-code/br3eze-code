@@ -1,76 +1,64 @@
-// Skeleton Mastercard provider for AgentOS
-// TODO: Implement OAuth 1.0a RSA-SHA256 signing and real HTTP calls to Mastercard A2A
+// Mastercard provider boundary.
+// This adapter intentionally fails closed until the real Mastercard A2A
+// authentication, request signing, webhook verification and API endpoints
+// are configured and tested. It must never fabricate payment state.
 
 import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import fetch from 'node-fetch';
 
 class MastercardProvider {
   constructor(config = {}) {
     this.config = {
       consumerKey: process.env.MC_CONSUMER_KEY || config.consumerKey || null,
-      privateKeyPath: process.env.MC_PRIVATE_KEY_PATH || config.privateKeyPath || './certs/mastercard.p12',
+      privateKeyPath: process.env.MC_PRIVATE_KEY_PATH || config.privateKeyPath || null,
       environment: process.env.MC_ENVIRONMENT || config.environment || 'sandbox',
-      baseUrl: config.baseUrl || (process.env.MC_ENVIRONMENT === 'production' ? 'https://api.mastercard.com' : 'https://sandbox.api.mastercard.com')
+      baseUrl: config.baseUrl || (process.env.MC_ENVIRONMENT === 'production'
+        ? 'https://api.mastercard.com'
+        : 'https://sandbox.api.mastercard.com'),
     };
-
-    // Load private key lazily (expect PEM or P12 with passphrase conversion handled outside this module)
     this.privateKey = null;
-    try {
-      if (fs.existsSync(this.config.privateKeyPath)) {
-        // Prefer PEM; if P12 used, conversion recommended outside the runtime
-        this.privateKey = fs.readFileSync(this.config.privateKeyPath, 'utf8');
+    if (this.config.privateKeyPath) {
+      try {
+        if (fs.existsSync(this.config.privateKeyPath)) {
+          this.privateKey = fs.readFileSync(this.config.privateKeyPath, 'utf8');
+        }
+      } catch {
+        this.privateKey = null;
       }
-    } catch (e) {
-      // Do not throw here — provider can still be registered as "disabled" until configured
-      console.warn('MastercardProvider: private key not loaded:', e.message);
     }
   }
 
-  // Helper: TODO - implement proper OAuth 1.0a RSA-SHA256 signing
-  _signRequest(method, url, params = {}) {
-    // Placeholder: implement OAuth 1.0a RSA-SHA256 per Mastercard docs
-    const oauthHeader = `OAuth oauth_consumer_key="${this.config.consumerKey}", oauth_signature_method="RSA-SHA256", oauth_timestamp="${Math.floor(Date.now()/1000)}", oauth_nonce="${crypto.randomUUID()}", oauth_version="1.0", oauth_signature="SIGNATURE_PLACEHOLDER"`;
-    return oauthHeader;
+  isConfigured() {
+    return Boolean(this.config.consumerKey && this.privateKey);
   }
 
-  async createPayment(paymentData) {
-    // paymentData: { amount, currency, description, reference, phoneNumber, email, metadata }
-    if (!this.config.consumerKey || !this.privateKey) {
-      throw new Error('MastercardProvider not configured: MC_CONSUMER_KEY and MC_PRIVATE_KEY_PATH required');
+  _requireConfigured() {
+    if (!this.isConfigured()) {
+      throw new Error('MastercardProvider is not configured');
     }
-
-    // Example response structure — replace with real API call
-    const fakeTransactionId = `mc_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-
-    // TODO: build request body, sign, POST to Mastercard sandbox endpoint
-    return {
-      status: 'pending',
-      transactionId: fakeTransactionId,
-      provider: 'mastercard-a2a',
-      providerData: { note: 'This is a placeholder. Implement real createPayment.' }
-    };
   }
 
-  async verifyPayment(transactionId) {
-    // TODO: query Mastercard APIs for final payment status
-    return { success: true, status: 'completed', transactionId };
+  async createPayment() {
+    this._requireConfigured();
+    throw new Error('Mastercard A2A createPayment is not implemented; provider disabled until the signed API integration is installed');
   }
 
-  async verifyWebhook(payload, headers) {
-    // TODO: verify Mastercard webhook signature and return boolean
-    // This must be cryptographically verified against the certificate used by Mastercard
-    return true;
+  async verifyPayment() {
+    this._requireConfigured();
+    throw new Error('Mastercard A2A verifyPayment is not implemented; provider disabled until the API integration is installed');
   }
 
-  async refund(transactionId, amount, reason = '') {
-    // TODO: implement refund call
-    return { success: false, message: 'Not implemented' };
+  async verifyWebhook() {
+    this._requireConfigured();
+    throw new Error('Mastercard A2A webhook verification is not implemented; provider disabled until certificate verification is installed');
   }
 
-  async getAvailableMethods(context) {
-    return [{ id: 'mastercard-a2a', name: 'Mastercard Account-to-Account (A2A)', countries: ['*'] }];
+  async refund() {
+    this._requireConfigured();
+    throw new Error('Mastercard A2A refunds are not implemented; provider disabled until the refund API is installed');
+  }
+
+  async getAvailableMethods() {
+    return [];
   }
 }
 

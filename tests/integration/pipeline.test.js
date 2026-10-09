@@ -27,21 +27,6 @@ jest.unstable_mockModule('../../src/core/logger.js', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
 }));
 
-jest.unstable_mockModule('../../src/core/agentEngine.js', () => ({
-    AgentEngine: class {
-        static create() {
-            return {
-                sessionId:     'intg-sess-001',
-                submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: 'done' }),
-                persistSession: jest.fn().mockReturnValue('/tmp/sess'),
-                renderSummary:  jest.fn().mockReturnValue('idle'),
-                enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) }
-            };
-        }
-        static fromSession() { return this.create(); }
-    }
-}));
-
 jest.unstable_mockModule('../../src/core/mikrotik.js', () => ({ getMikroTikClient: jest.fn() }));
 
 // Mock database
@@ -137,12 +122,6 @@ describe('Integration — Permissions + AgentRuntime routing', () => {
     beforeAll(async () => {
         jest.resetModules();
         jest.unstable_mockModule('uuid', () => { let n=0; return { v4: () => `uuid-${++n}` }; });
-        jest.unstable_mockModule('../../src/core/agentEngine.js', () => ({
-            AgentEngine: class {
-                static create() { return { sessionId: 's', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: '' }), persistSession: jest.fn().mockReturnValue('/tmp'), renderSummary: jest.fn().mockReturnValue(''), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; }
-                static fromSession() { return this.create(); }
-            }
-        }));
         jest.unstable_mockModule('../../src/core/mikrotik.js', () => ({ getMikroTikClient: jest.fn() }));
         jest.unstable_mockModule('../../src/core/logger.js', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
         ({ AgentRuntime } = await import('../../src/core/agentRuntime.js'));

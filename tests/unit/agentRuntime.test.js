@@ -8,12 +8,7 @@ jest.unstable_mockModule('uuid', () => {
     return { v4: () => `mock-uuid-${++counter}` };
 });
 
-// Mock heavy dependencies so unit tests don't require live services
-jest.unstable_mockModule('../../src/core/agentEngine.js',   () => ({ AgentEngine: class { static create() { return { sessionId: 'mock', submitMessage: jest.fn().mockResolvedValue({ stopReason: 'completed', output: 'ok' }), persistSession: jest.fn().mockReturnValue('/tmp/session'), renderSummary: jest.fn().mockReturnValue('summary'), enforcer: { check: jest.fn().mockReturnValue({ allowed: true }) } }; } static fromSession(id) { return this.create(); } } }));
-jest.unstable_mockModule('../../src/core/mikrotik.js',      () => ({ getMikroTikClient: jest.fn() }));
-jest.unstable_mockModule('../../src/core/logger.js',        () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-
-const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
+// AgentRuntime is canonical; only external dependencies are mocked.\n\nconst { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
 const { PermissionMode } = await import('../../src/core/permissions.js');
 const { TaskStatus }     = await import('../../src/core/taskRegistry.js');
 
@@ -145,57 +140,101 @@ describe('AgentRuntime.findTools', () => {
 // ── RuntimeSession ────────────────────────────────────────────────────────────
 
 describe('RuntimeSession', () => {
-    const mockEngine = {
-        sessionId:     'sess-001',
-        renderSummary: jest.fn().mockReturnValue('## State\nIdle'),
-        enforcer:      { check: jest.fn().mockReturnValue({ allowed: true }) }
-    };
-
-    test('stores constructor fields', () => {
+    test('owns canonical session state directly', () => {
         const s = new RuntimeSession({
-            prompt: 'test prompt', engine: mockEngine,
-            matchedTools: ['ping'], permissionDenials: []
+            prompt: 'test prompt',
+            matchedTools: ['ping'],
+            permissionDenials: []
         });
         expect(s.prompt).toBe('test prompt');
+        expect(typeof s.sessionId).toBe('string');
         expect(s.matchedTools).toEqual(['ping']);
         expect(s.permissionDenials).toEqual([]);
         expect(s.taskId).toBeNull();
+        expect(s.enforcer).toBeDefined();
+        expect(s.transcriptStore).toBeDefined();
     });
 
     test('accepts optional taskId', () => {
         const s = new RuntimeSession({
-            prompt: 'p', engine: mockEngine,
-            matchedTools: [], permissionDenials: [], taskId: 'task-99'
+            prompt: 'p', matchedTools: [], permissionDenials: [], taskId: 'task-99'
         });
         expect(s.taskId).toBe('task-99');
     });
 
     test('has ISO createdAt timestamp', () => {
         const s = new RuntimeSession({
-            prompt: 'p', engine: mockEngine,
-            matchedTools: [], permissionDenials: []
+            prompt: 'p', matchedTools: [], permissionDenials: []
         });
         expect(new Date(s.createdAt).toISOString()).toBe(s.createdAt);
     });
 
     test('asMarkdown returns string containing prompt and session id', () => {
         const s = new RuntimeSession({
-            prompt: 'show stats', engine: mockEngine,
-            matchedTools: ['system.stats'], permissionDenials: []
+            prompt: 'show stats', matchedTools: ['system.stats'], permissionDenials: []
         });
         const md = s.asMarkdown();
         expect(typeof md).toBe('string');
         expect(md).toContain('show stats');
-        expect(md).toContain('sess-001');
+        expect(md).toContain(s.sessionId);
         expect(md).toContain('system.stats');
     });
 
     test('asMarkdown shows "none" when no tools matched', () => {
         const s = new RuntimeSession({
-            prompt: 'gibberish', engine: mockEngine,
-            matchedTools: [], permissionDenials: []
+            prompt: 'gibberish', matchedTools: [], permissionDenials: []
         });
         expect(s.asMarkdown()).toContain('none');
+    });
+
+    test('executes a turn without a second execution engine', async () => {
+        const executor = jest.fn().mockResolvedValue({ ok: true });
+        const s = new RuntimeSession({
+            prompt: 'ping', matchedTools: ['ping'], permissionDenials: [],
+            config: { toolExecutor: executor }
+        });
+        const result = await s.submitMessage('ping', ['ping']);
+        expect(result.stopReason).toBe('completed');
+        expect(result.matchedTools).toEqual(['ping']);
+        expect(executor).toHaveBeenCalledWith('ping');
+    });
+});
+
+describe('AgentRuntime capability ownership', () => {
+    test('owns the canonical tool registry and exposes a capability manifest', () => {
+        const runtime = new AgentRuntime();
+        expect(runtime.toolRegistry).toBeDefined();
+        runtime.registerTool({
+            name: 'example.lookup',
+            description: 'Look up an entity',
+            execute: async () => ({ ok: true }),
+        });
+        const manifest = runtime.getCapabilityManifest();
+        expect(manifest.tools.some(tool => tool.name === 'example.lookup')).toBe(true);
+    });
+
+    test('loads plugins through the runtime-owned plugin registry', async () => {
+        const runtime = new AgentRuntime();
+        const plugin = {
+            getManifest: () => ({
+                id: 'example.plugin',
+                version: '1.0.0',
+                capabilities: ['example.lookup'],
+            }),
+            initialize: jest.fn(async (context) => {
+                context.registerTool({
+                    name: 'example.lookup',
+                    description: 'Plugin-provided lookup',
+                    execute: async () => ({ ok: true }),
+                });
+            }),
+            start: jest.fn(async () => {}),
+        };
+        await runtime.loadPlugin(plugin);
+        expect(runtime.pluginRegistry.has('example.plugin')).toBe(true);
+        expect(plugin.initialize).toHaveBeenCalled();
+        expect(plugin.start).toHaveBeenCalled();
+        expect(runtime.listTools()).toContain('example.lookup');
     });
 });
 

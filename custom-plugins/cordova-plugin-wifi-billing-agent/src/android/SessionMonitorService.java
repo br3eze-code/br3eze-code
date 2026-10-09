@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.content.pm.ServiceInfo;
 
 import androidx.core.app.NotificationCompat;
 
@@ -41,6 +42,10 @@ public class SessionMonitorService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null || intent.getStringExtra("session") == null) {
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
         String sessionJson = intent.getStringExtra("session");
 
         try {
@@ -53,7 +58,12 @@ public class SessionMonitorService extends Service {
         }
 
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, createNotification());
+        Notification notification = createNotification();
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
         startMonitoring();
 
         return START_STICKY;

@@ -4,8 +4,7 @@
    Depends on: 01.ui.utils.js, 06.firebase.js
    ========================================================== */
 
-// ── Core modal utils ────────────────────────────────────────
-window.openModal  = function (id) {
+window.openModal = function (id) {
     const el = document.getElementById(id);
     if (el) el.classList.add('active');
 };
@@ -14,14 +13,10 @@ window.closeModal = function (id) {
     if (el) el.classList.remove('active');
 };
 
-// Close modal on backdrop click
 document.addEventListener('click', e => {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
-    }
+    if (e.target.classList.contains('modal')) e.target.classList.remove('active');
 });
 
-// ── Voucher redeem ──────────────────────────────────────────
 window.openRedeemVoucher = function () { window.openModal('redeemVoucherModal'); };
 
 window._handleRedeemVoucher = async function (e) {
@@ -37,8 +32,7 @@ window._handleRedeemVoucher = async function (e) {
         if (snap.empty) throw new Error('Invalid or already used code.');
 
         const voucher = snap.docs[0];
-        const val     = voucher.data().value;
-
+        const val = voucher.data().value;
         const batch = db.batch();
         batch.update(voucher.ref, { used: true, usedBy: window.currentUser.id, usedAt: firebase.firestore.FieldValue.serverTimestamp() });
         batch.update(db.collection('users').doc(window.currentUser.id), {
@@ -48,7 +42,6 @@ window._handleRedeemVoucher = async function (e) {
         await batch.commit();
         window.currentUser = await window.DataStore.getUser(window.currentUser.id);
         updateDashboard();
-
         showToast(`✅ $${val} added to your credits!`, 'success');
         window.closeModal('redeemVoucherModal');
         document.getElementById('voucherCodeInput').value = '';
@@ -59,13 +52,12 @@ window._handleRedeemVoucher = async function (e) {
     }
 };
 
-// ── Admin: Generate Vouchers ────────────────────────────────
 window.openGenerateVoucherModal = () => window.openModal('generateVoucherModal');
 
 window._handleGenerateVoucher = async function (e) {
     e.preventDefault();
     const value = parseFloat(document.getElementById('voucherValue').value);
-    const qty   = parseInt(document.getElementById('voucherQuantity').value);
+    const qty = parseInt(document.getElementById('voucherQuantity').value);
     Loading.show('Generating...');
     try {
         const batch = db.batch();
@@ -78,18 +70,21 @@ window._handleGenerateVoucher = async function (e) {
         }
         await batch.commit();
         showToast(`Generated ${qty} voucher(s). Codes: ${codes.join(', ')}`, 'success');
-        
-        // Print physical receipts if enabled
+
         if (window.HardwarePrinter && window.HardwarePrinter.currentInterface !== 'none') {
-            const printContent = codes.map(c => `
+            // Escape generated/user-visible values before putting them into the printer's HTML input.
+            const safeValue = typeof window.escapeHtml === 'function' ? window.escapeHtml(value.toFixed(2)) : String(value.toFixed(2));
+            const printContent = codes.map(c => {
+                const safeCode = typeof window.escapeHtml === 'function' ? window.escapeHtml(c) : String(c);
+                return `
                 <div style="border-bottom: 1px dashed #ccc; padding: 20px 0; text-align: center;">
                     <h2>br3eze.africa Voucher</h2>
-                    <p style="font-size: 1.5em; font-weight: bold; margin: 10px 0;">${c}</p>
-                    <p>Value: $${value.toFixed(2)}</p>
+                    <p style="font-size: 1.5em; font-weight: bold; margin: 10px 0;">${safeCode}</p>
+                    <p>Value: $${safeValue}</p>
                     <p>Redeem at br3eze.africa</p>
-                </div>
-            `).join('');
-            await window.HardwarePrinter.printReceipt(printContent, "br3eze.africa Vouchers");
+                </div>`;
+            }).join('');
+            await window.HardwarePrinter.printReceipt(printContent, 'br3eze.africa Vouchers');
         }
 
         window.closeModal('generateVoucherModal');
@@ -100,9 +95,8 @@ window._handleGenerateVoucher = async function (e) {
     }
 };
 
-// ── Admin: Plan CRUD ────────────────────────────────────────
 window.openAdminPlanModal = (planId = null) => {
-    document.getElementById('adminPlanId').value    = planId || '';
+    document.getElementById('adminPlanId').value = planId || '';
     document.getElementById('deletePlanBtn').classList.toggle('hidden', !planId);
     window.openModal('adminPlanModal');
 };
@@ -112,14 +106,14 @@ window._handleAdminPlan = async function (e) {
     Loading.show('Saving...');
     try {
         const planId = document.getElementById('adminPlanId').value;
-        const data   = {
-            name:          document.getElementById('adminPlanName').value,
-            price:         parseFloat(document.getElementById('adminPlanPrice').value),
+        const data = {
+            name: document.getElementById('adminPlanName').value,
+            price: parseFloat(document.getElementById('adminPlanPrice').value),
             durationValue: parseInt(document.getElementById('adminPlanDuration').value),
-            durationUnit:  document.getElementById('adminPlanDurationUnit').value,
-            maxDevices:    parseInt(document.getElementById('adminPlanDevices').value) || 1,
-            imageUrl:      document.getElementById('adminPlanImageUrl').value || '',
-            updatedAt:     firebase.firestore.FieldValue.serverTimestamp()
+            durationUnit: document.getElementById('adminPlanDurationUnit').value,
+            maxDevices: parseInt(document.getElementById('adminPlanDevices').value) || 1,
+            imageUrl: document.getElementById('adminPlanImageUrl').value || '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         if (planId) {
@@ -153,12 +147,11 @@ window.deletePlan = async function () {
     }
 };
 
-// ── Admin: Network Config ───────────────────────────────────
 window.openEditNetworkModal = async function () {
     window.openModal('adminNetworkModal');
     try {
         const net = await window.DataStore.getNetworkSettings();
-        document.getElementById('adminNetworkSsid').value     = net.ssid     || '';
+        document.getElementById('adminNetworkSsid').value = net.ssid || '';
         document.getElementById('adminNetworkPassword').value = net.password || '';
     } catch (e) {}
 };
@@ -168,8 +161,8 @@ window._handleAdminNetwork = async function (e) {
     Loading.show('Saving...');
     try {
         await db.collection('settings').doc('network').set({
-            ssid:      document.getElementById('adminNetworkSsid').value,
-            password:  document.getElementById('adminNetworkPassword').value,
+            ssid: document.getElementById('adminNetworkSsid').value,
+            password: document.getElementById('adminNetworkPassword').value,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
         showToast('Network settings saved.', 'success');
@@ -181,26 +174,43 @@ window._handleAdminNetwork = async function (e) {
     }
 };
 
-// ── Admin: Voucher list stub ────────────────────────────────
 window.renderVoucherList = async function () {
     const container = document.getElementById('voucherListContainer');
     if (!container) return;
     try {
         const snap = await db.collection('vouchers').orderBy('createdAt', 'desc').limit(50).get();
-        const rows = snap.docs.map(d => {
-            const v = d.data();
-            return `<tr>
-                <td>${v.code}</td>
-                <td>$${v.value}</td>
-                <td>${v.used ? '✅ Used' : '⬜ Available'}</td>
-            </tr>`;
+        container.textContent = '';
+
+        const heading = document.createElement('h3');
+        heading.textContent = 'Vouchers';
+        container.appendChild(heading);
+
+        const table = document.createElement('table');
+        table.style.cssText = 'width:100%;border-collapse:collapse;font-size:.85rem';
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Code', 'Value', 'Status'].forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            headRow.appendChild(th);
         });
-        container.innerHTML = `<h3>Vouchers</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:.85rem">
-                <thead><tr><th>Code</th><th>Value</th><th>Status</th></tr></thead>
-                <tbody>${rows.join('')}</tbody>
-            </table>`;
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        snap.docs.forEach(d => {
+            const v = d.data();
+            const row = document.createElement('tr');
+            [String(v.code || ''), `$${String(v.value ?? '')}`, v.used ? '✅ Used' : '⬜ Available'].forEach(text => {
+                const td = document.createElement('td');
+                td.textContent = text;
+                row.appendChild(td);
+            });
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+        container.appendChild(table);
     } catch (e) {
-        container.innerHTML = '<p>Failed to load vouchers.</p>';
+        container.textContent = 'Failed to load vouchers.';
     }
 };

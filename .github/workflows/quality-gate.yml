@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, upgrade/commerce-domains]
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,7 +25,11 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
+<<<<<<< HEAD
         run: npm install --ignore-scripts --no-audit --no-fund
+=======
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+>>>>>>> origin/main
 
       - name: Resolve comparison base
         id: base

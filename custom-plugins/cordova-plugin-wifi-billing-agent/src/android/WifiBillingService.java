@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
+import android.content.pm.ServiceInfo;
 
 import androidx.core.app.NotificationCompat;
 
@@ -36,7 +37,11 @@ public class WiFiBillingService extends Service {
         String config = intent != null ? intent.getStringExtra("config") : null;
 
         Notification notification = createServiceNotification("WiFi Billing Agent Active");
-        startForeground(NOTIFICATION_ID, notification);
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
 
         // Initialize service components
         initializeComponents(config);

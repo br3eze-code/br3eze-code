@@ -1,4 +1,4 @@
-import { cartKey, normalizeScope, scopeMatches } from '../../src/core/shop.js';
+import { cartKey, normalizeScope, scopeMatches } from '../../src/domains/commerce/shop.js';
 
 describe('tenant-scoped shop state', () => {
   test('cart keys separate tenant, domain, and site state', () => {

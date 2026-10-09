@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Specialist-scoped tool index.
  *
@@ -45,4 +46,10 @@ export class SpecialistToolRegistry {
   }
 }
 
+=======
+import { ToolRegistry } from './ToolRegistry.js';
+
+/** Compatibility name for the domain-neutral specialist tool registry. */
+export class SpecialistToolRegistry extends ToolRegistry {}
+>>>>>>> origin/main
 export default SpecialistToolRegistry;

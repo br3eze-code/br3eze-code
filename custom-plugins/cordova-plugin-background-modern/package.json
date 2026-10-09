@@ -1,0 +1,11 @@
+{
+  "name": "cordova-plugin-background-modern",
+  "version": "2.0.0",
+  "description": "Lifecycle-aware Cordova background runtime with modern Android foreground-service handling and iOS limited background-task support.",
+  "cordova": {
+    "id": "cordova-plugin-background-modern",
+    "platforms": ["android", "ios"]
+  },
+  "keywords": ["cordova", "android", "ios", "background", "foreground-service", "lifecycle"],
+  "license": "Apache-2.0"
+}

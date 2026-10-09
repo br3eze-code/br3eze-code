@@ -1,4 +1,4 @@
-import { AgentRuntime } from '../../src/core/agent-runtime.js';
+import { AgentRuntime } from '../../src/core/agentRuntime.js';
 import { attachOnboardingWbs } from '../../src/core/onboarding-wbs.js';
 
 describe('AgentRuntime canonical execution context', () => {

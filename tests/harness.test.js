@@ -7,7 +7,6 @@
 import { AgentHarness } from '../src/harness/AgentHarness.js';
 import registry from '../src/core/ToolRegistry.js';
 import { ToolRegistry } from '../src/core/ToolRegistry.js';
-import r from '../src/core/tool-registry.js';
 import BaseDomain from '../src/domains/BaseDomain.js';
 
 // ── Minimal domain adapter (no external deps) ─────────────────────────────
@@ -142,11 +141,6 @@ describe('ToolRegistry integration', () => {
     expect(r).toBeInstanceOf(ToolRegistry);
   });
 
-  test('tool-registry.js class is accessible', () => {
-    expect(typeof r).toBe('function');
-    const inst = new r();
-    expect(typeof inst.execute).toBe('function');
-  });
 });
 
 describe('BaseDomain', () => {

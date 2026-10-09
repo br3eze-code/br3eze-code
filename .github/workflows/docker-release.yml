@@ -22,6 +22,7 @@ permissions:
 jobs:
   qa:
     name: QA and release gates
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -60,7 +61,7 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
-      - name: Validate Dockerfile syntax and Compose source
+      - name: Validate Dockerfile and Compose source
         run: |
           test -s Dockerfile
           test -s docker-compose.production.yml
@@ -72,7 +73,9 @@ jobs:
   build-and-push:
     name: Build and publish production image
     needs: qa
-    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+    if: >-
+      (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') &&
+      (startsWith(github.ref, 'refs/tags/v') || inputs.publish == true)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -111,7 +114,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: mode=max

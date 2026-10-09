@@ -5,40 +5,78 @@
 
 let _currentChatUserId = null;
 
+function _text(value, fallback = '') {
+    return value == null || value === '' ? fallback : String(value);
+}
+
+function _makeChatItem(uid, name) {
+    const item = document.createElement('div');
+    item.className = 'chat-hub-item';
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.addEventListener('click', () => window.openUnifiedChat(uid, name));
+    item.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.openUnifiedChat(uid, name); } });
+
+    const avatar = document.createElement('div');
+    avatar.className = 'chat-hub-avatar';
+    avatar.textContent = name.charAt(0).toUpperCase() || '?';
+    const info = document.createElement('div');
+    info.className = 'chat-hub-info';
+    const title = document.createElement('span');
+    title.className = 'chat-hub-name';
+    title.textContent = name;
+    const preview = document.createElement('span');
+    preview.className = 'chat-hub-preview';
+    preview.textContent = 'Tap to chat';
+    info.append(title, preview);
+    item.append(avatar, info);
+    return item;
+}
+
+function _makeTicketItem(ticket) {
+    const item = document.createElement('div');
+    item.className = 'chat-hub-item';
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
+    item.addEventListener('click', () => window.openTicketDetail(ticket.id));
+    item.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.openTicketDetail(ticket.id); } });
+    const info = document.createElement('div');
+    info.className = 'chat-hub-info';
+    const title = document.createElement('span');
+    title.className = 'chat-hub-name';
+    title.textContent = _text(ticket.subject, 'Untitled ticket');
+    const status = document.createElement('span');
+    status.className = 'chat-hub-preview';
+    status.textContent = _text(ticket.status, 'Unknown');
+    info.append(title, status);
+    item.appendChild(info);
+    return item;
+}
+
 // ── Render chat list + ticket list ──────────────────────────
 async function renderMessages() {
     try {
-        // P2P contact list
-        const users    = await window.DataStore.getAllUsers();
+        const users = await window.DataStore.getAllUsers();
         const chatList = document.getElementById('chatListContainer');
         if (chatList) {
-            chatList.innerHTML = users
-                .filter(u => u.id !== window.currentUser.id)
-                .map(u => `
-                    <div class="chat-hub-item" onclick="openUnifiedChat('${u.id}','${u.fullname || 'User'}')">
-                        <div class="chat-hub-avatar">${u.fullname ? u.fullname[0].toUpperCase() : '?'}</div>
-                        <div class="chat-hub-info">
-                            <span class="chat-hub-name">${u.fullname || 'Anonymous User'}</span>
-                            <span class="chat-hub-preview">Tap to chat</span>
-                        </div>
-                    </div>
-                `).join('');
+            chatList.replaceChildren();
+            users.filter(u => u.id !== window.currentUser.id).forEach(u => {
+                const name = _text(u.fullname, 'Anonymous User');
+                chatList.appendChild(_makeChatItem(_text(u.id), name));
+            });
         }
 
-        // Ticket list
-        const tickets    = await window.DataStore.getTickets();
+        const tickets = await window.DataStore.getTickets();
         const ticketList = document.getElementById('ticketListContainer');
         if (ticketList) {
-            ticketList.innerHTML = tickets.length
-                ? tickets.map(t => `
-                    <div class="chat-hub-item" onclick="openTicketDetail('${t.id}')">
-                        <div class="chat-hub-info">
-                            <span class="chat-hub-name">${t.subject}</span>
-                            <span class="chat-hub-preview">${t.status}</span>
-                        </div>
-                    </div>
-                `).join('')
-                : '<p style="padding:10px;opacity:.6">No tickets yet.</p>';
+            ticketList.replaceChildren();
+            if (tickets.length) tickets.forEach(t => ticketList.appendChild(_makeTicketItem(t)));
+            else {
+                const empty = document.createElement('p');
+                empty.style.cssText = 'padding:10px;opacity:.6';
+                empty.textContent = 'No tickets yet.';
+                ticketList.appendChild(empty);
+            }
         }
     } catch (e) {
         console.error('[Messages] renderMessages error:', e);
@@ -46,32 +84,31 @@ async function renderMessages() {
     }
 }
 
-// ── New chat button ─────────────────────────────────────────
 window.handleNewChatClick = function () {
     window.openModal('contactPickerModal');
-    const src  = document.getElementById('chatListContainer');
+    const src = document.getElementById('chatListContainer');
     const dest = document.getElementById('contactListContainer');
-    if (src && dest) dest.innerHTML = src.innerHTML;
+    if (src && dest) dest.replaceChildren(...Array.from(src.children).map(node => node.cloneNode(true)));
 };
 
-// ── Open P2P chat window ────────────────────────────────────
 window.openUnifiedChat = function (uid, name) {
     _currentChatUserId = uid;
-    document.getElementById('chatHeaderName').innerText   = name;
-    document.getElementById('chatHeaderAvatar').innerText = name[0];
-    document.getElementById('chatLog').innerHTML          = '';
+    const safeName = _text(name, 'User');
+    const headerName = document.getElementById('chatHeaderName');
+    const headerAvatar = document.getElementById('chatHeaderAvatar');
+    if (headerName) headerName.textContent = safeName;
+    if (headerAvatar) headerAvatar.textContent = safeName.charAt(0).toUpperCase() || '?';
+    document.getElementById('chatLog')?.replaceChildren();
     window.openModal('unifiedChatModal');
     window.closeModal('contactPickerModal');
 };
 
-// ── Chat menu actions ───────────────────────────────────────
 window.toggleChatMenu = function () {
     const menu = document.getElementById('chatMenuDropdown');
     if (menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
 };
 window.clearChatHistory = function () {
-    const log = document.getElementById('chatLog');
-    if (log) log.innerHTML = '';
+    document.getElementById('chatLog')?.replaceChildren();
     window.toggleChatMenu();
 };
 window.blockUser = function () {
@@ -81,38 +118,43 @@ window.blockUser = function () {
 };
 window.openUserProfile = function () {
     window.openModal('userProfileModal');
-    document.getElementById('profileModalName').textContent   = document.getElementById('chatHeaderName').innerText;
-    document.getElementById('profileModalHandle').textContent = '@' + _currentChatUserId;
+    const name = document.getElementById('chatHeaderName')?.textContent || 'User';
+    document.getElementById('profileModalName').textContent = name;
+    document.getElementById('profileModalHandle').textContent = '@' + _text(_currentChatUserId);
 };
 
-// ── Support ticket: detail view ─────────────────────────────
+function _appendMessage(container, message, isUser) {
+    const row = document.createElement('div');
+    row.className = `chat-message ${isUser ? 'user' : 'bot'}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = _text(message);
+    row.appendChild(bubble);
+    container.appendChild(row);
+}
+
 window.openTicketDetail = async function (tid) {
     Loading.show('Loading...');
     try {
         const tickets = await window.DataStore.getTickets();
-        const ticket  = tickets.find(t => t.id === tid);
+        const ticket = tickets.find(t => t.id === tid);
         if (!ticket) throw new Error('Ticket not found.');
-
         const replies = await window.DataStore.getTicketReplies(tid);
 
-        document.getElementById('ticketModalTitle').innerText    = ticket.subject;
-        document.getElementById('ticketModalStatus').innerText   = ticket.status;
-        document.getElementById('currentTicketId').value         = tid;
-        document.getElementById('ticketModalSubtitle').innerText =
-            `Opened: ${ticket.timestamp ? new Date(ticket.timestamp.seconds * 1000).toLocaleDateString() : ''}`;
+        document.getElementById('ticketModalTitle').textContent = _text(ticket.subject, 'Ticket');
+        document.getElementById('ticketModalStatus').textContent = _text(ticket.status, 'Unknown');
+        document.getElementById('currentTicketId').value = tid;
+        document.getElementById('ticketModalSubtitle').textContent = ticket.timestamp
+            ? `Opened: ${new Date(ticket.timestamp.seconds * 1000).toLocaleDateString()}` : '';
 
         const container = document.getElementById('ticketRepliesContainer');
-        container.innerHTML = `<div class="chat-message bot"><div class="bubble">${ticket.body}</div></div>`;
-
-        replies.forEach(r => {
-            const cls = r.senderId === window.currentUser.id ? 'user' : 'bot';
-            container.innerHTML += `<div class="chat-message ${cls}"><div class="bubble">${r.message}</div></div>`;
-        });
-
+        container.replaceChildren();
+        _appendMessage(container, ticket.body, false);
+        replies.forEach(r => _appendMessage(container, r.message, r.senderId === window.currentUser.id));
         container.scrollTop = container.scrollHeight;
         window.openModal('ticketDetailModal');
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(_text(e?.message, 'Unable to open ticket.'), 'error');
     } finally {
         Loading.hide();
     }
@@ -120,25 +162,24 @@ window.openTicketDetail = async function (tid) {
 
 window.openSubmitTicketModal = function () { window.openModal('submitTicketModal'); };
 
-// ── Ticket form submissions (wired after DOM ready in 13.app.boot.js) ──
 window._handleNewTicket = async function (e) {
     e.preventDefault();
     Loading.show('Submitting...');
     try {
         await db.collection('tickets').add({
-            userId:     window.currentUser.id,
-            userEmail:  window.currentUser.email,
-            subject:    document.getElementById('newTicketSubject').value,
-            body:       document.getElementById('newTicketBody').value,
-            status:     'Open',
+            userId: window.currentUser.id,
+            userEmail: window.currentUser.email,
+            subject: document.getElementById('newTicketSubject').value,
+            body: document.getElementById('newTicketBody').value,
+            status: 'Open',
             lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
-            timestamp:  firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
         window.closeModal('submitTicketModal');
         renderMessages();
         showToast('Ticket submitted!', 'success');
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(_text(e?.message, 'Unable to submit ticket.'), 'error');
     } finally {
         Loading.hide();
     }
@@ -151,13 +192,13 @@ window._handleTicketReply = async function (e) {
     if (!msg) return;
     try {
         await db.collection('tickets').doc(tid).collection('replies').add({
-            senderId:  window.currentUser.id,
-            message:   msg,
+            senderId: window.currentUser.id,
+            message: msg,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('ticketReplyInput').value = '';
         window.openTicketDetail(tid);
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(_text(e?.message, 'Unable to send reply.'), 'error');
     }
 };

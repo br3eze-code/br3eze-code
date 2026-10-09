@@ -6,6 +6,15 @@ function ensureParent(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
+export class MemoryIdempotencyStore {
+  constructor() { this.records = new Map(); }
+  get(key) { const record = this.records.get(key); return record?.state === 'completed' ? record.result : record ? { pending: true, state: record.state, metadata: record.metadata || {} } : undefined; }
+  reserve(key, metadata = {}) { if (this.records.has(key)) return false; this.records.set(key, { state: 'pending', metadata }); return true; }
+  set(key, result) { this.records.set(key, { state: 'completed', result }); return result; }
+  release(key) { return this.records.delete(key); }
+  close() {}
+}
+
 export class FileIdempotencyStore {
   constructor({ filePath } = {}) {
     this.filePath = filePath || path.join(process.cwd(), 'state', 'payment-idempotency.json');
@@ -54,6 +63,14 @@ export class FileIdempotencyStore {
     return value;
   }
 
+  release(key) {
+    this.cleanup();
+    if (!this.records[key] || this.records[key].state !== 'pending') return false;
+    delete this.records[key];
+    this.persist();
+    return true;
+  }
+
   close() {}
 }
 
@@ -93,6 +110,10 @@ export class SqliteIdempotencyStore {
     const now = Date.now();
     this.db.prepare(`INSERT INTO payment_idempotency (idempotency_key,state,result_json,created_at,updated_at,expires_at) VALUES (?, 'completed', ?, ?, ?, ?) ON CONFLICT(idempotency_key) DO UPDATE SET state='completed', result_json=excluded.result_json, updated_at=excluded.updated_at, expires_at=excluded.expires_at`).run(key, JSON.stringify(value), now, now, now + this.ttlMs);
     return value;
+  }
+
+  release(key) {
+    return this.db.prepare("DELETE FROM payment_idempotency WHERE idempotency_key = ? AND state = 'pending'").run(key).changes === 1;
   }
 
   close() { this.db.close(); }

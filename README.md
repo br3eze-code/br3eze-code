@@ -1,392 +1,353 @@
-<div align="center">
-<pre>
-█████╗  ██████╗ ███████╗███╗   ██╗████████╗ ██████╗ ███████╗
-██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██╔═══██╗██╔════╝
-███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ██║   ██║███████╗
-██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ██║   ██║╚════██║
-██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ╚██████╔╝███████║
-╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚══════╝
-</pre>
-</div>
+# AgentOS
 
-<p align="center">
-  <img src="https://img.shields.io/badge/AgentOS-2026.5.4-blue?style=for-the-badge&logo=router&logoColor=white" alt="Version">
-  <img src="https://img.shields.io/badge/MikroTik-RouterOS-green?style=for-the-badge&logo=mikrotik" alt="MikroTik">
-  <img src="https://img.shields.io/badge/AI-Gemini%202.5-orange?style=for-the-badge&logo=google" alt="AI">
-</p>
+**Domain-agnostic agent harness for tools, skills, plugins, workflows, and model providers.**
 
-# 🤖 AgentOS
+AgentOS is a runtime-first agent platform. The core does not know whether a capability belongs to networking, coding, finance, commerce, documents, infrastructure, or something not yet invented. Domains are extensions.
 
-Network Intelligence Platform — AI-powered MikroTik management via Telegram, WhatsApp & CLI
+> **Current architectural rule:** AgentRuntime is the canonical execution owner. Tools, skills, plugins, models, memory, policies, verification, and external adapters plug into that runtime; they do not create competing agent loops.
 
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#documentation">Docs</a> •
-  <a href="#demo">Demo</a> •
-  <a href="#contributing">Contributing</a>
-</p>
+## What the harness provides
 
----
+- **AgentRuntime** — one execution boundary and lifecycle owner.
+- **Tools** — atomic executable capabilities with schemas, permissions, risk metadata, and audit hooks.
+- **Skills** — reusable capability packages that group tools plus domain knowledge/instructions.
+- **Plugins** — installable extensions with manifests, lifecycle hooks, permissions, and runtime access.
+- **Model ports** — provider-neutral model interface; swap model vendors without changing orchestration.
+- **Work graphs / WBS** — structured decomposition and dependency-aware execution.
+- **Sessions and memory ports** — state can be local, database-backed, or remote.
+- **Guardrails and permissions** — authorization belongs at the execution boundary, not in prompts.
+- **Verification** — work is not complete merely because a model stopped generating.
+- **Observability** — runtime events, tool metrics, transcripts, and execution records.
+- **Interoperability** — external capability protocols such as MCP can be adapters rather than core dependencies.
 
-## ✨ Why AgentOS?
+## Architecture
 
-Managing MikroTik routers shouldn't require memorizing CLI commands or keeping WinBox open 24/7. AgentOS brings conversational AI to network administration — control your infrastructure from messaging apps or the CLI.
+~~~text
+                         +------------------------------+
+                         |          AgentRuntime        |
+                         |  understand -> plan ->       |
+                         |  execute -> observe ->        |
+                         |  evaluate -> verify -> done   |
+                         +--------------+---------------+
+                                        |
+                +-----------------------+------------------------+
+                |                       |                        |
+          Capability Registry      Model Port              State Ports
+                |                       |                        |
+        +-------+--------+        +-----+-----+          +---------+----+
+        |       |        |        | providers |          | session      |
+      Tools   Skills  Plugins     | local/LLM |          | memory       |
+        +-------+--------+        +-----------+          | checkpoint   |
+                |                                      +--------------+
+                v
+       +---------------------+
+       | Domain extensions   |
+       | network / code /    |
+       | docs / commerce /   |
+       | anything else       |
+       +---------------------+
+~~~
 
-## The Problem AgentOS Solves
+### One owner, many capabilities
 
-Managing community WiFi infrastructure across multiple MikroTik nodes can be tedious: WinBox requires a desktop, RouterOS CLI requires memorizing commands, and hotspot billing often needs manual voucher generation. AgentOS consolidates these tasks into one intelligent agent you control from Telegram, WhatsApp, or a WebSocket CLI.
+The runtime owns **orchestration**, not domain behavior.
 
----
+~~~text
+Plugin / Skill / Tool / Protocol adapter
+                 |
+                 v
+          AgentRuntime
+                 |
+        permission + policy
+                 |
+                 v
+             execute
+                 |
+        observe + record
+                 |
+                 v
+             verify
+~~~
 
-## 🚀 Features
+There should not be a second hidden AgentEngine, AgentKernel, ReAct loop, or domain-specific orchestrator competing with this path.
 
-- 🤖 AI Coordinator — Natural language router management via Gemini 2.5 (ReAct engine)
-- 💬 Multi-channel control — Telegram, WhatsApp, WebSocket CLI, and REST API
-- 🎫 Voucher system with payment integrations and QR code generation
-- 🌐 Multi-router mesh management, monitoring, and automated alerts
-- 🔒 Security — command allowlist, rate limiting, input validation, and audit trails
-- 🧰 Tools — ping, traceroute, firewall management, user management, and more
+## Tool contract
 
----
+Tools are the smallest executable unit.
 
-## 📦 Installation
+~~~js
+{
+  name: "example.lookup",
+  description: "Look up an entity",
+  parameters: {
+    type: "object",
+    properties: { id: { type: "string" } },
+    required: ["id"]
+  },
+  permissions: ["example:read"],
+  risk: "low",
+  execute: async (args, context) => ({ /* result */ })
+}
+~~~
 
-```bash
-# Install from npm (optional global installer)
-npm install -g br3eze-code
+The model may request a tool, but the model never gets to execute it directly. AgentRuntime sends the call through the registered execution and authorization boundary.
 
-# Or clone repository
-git clone https://github.com/br3eze-code/br3eze-code.git
-cd br3eze-code
+## Skill contract
 
-# Install dependencies
+A skill is a reusable capability package. It may contain:
+
+- instructions and knowledge for the agent;
+- one or more tools;
+- examples and routing metadata;
+- validation;
+- lifecycle hooks;
+- domain-specific implementation.
+
+A skill is **not another agent runtime**. Its tools execute through the runtime's canonical boundary.
+
+~~~text
+skills/
+└── example/
+    ├── manifest.yaml
+    ├── SKILL.md
+    ├── index.js
+    └── tools/
+        ├── lookup.js
+        └── update.js
+~~~
+
+## Plugin contract
+
+Plugins are installable extensions with an explicit manifest:
+
+~~~js
+{
+  id: "example.plugin",
+  version: "1.0.0",
+  apiVersion: "1",
+  capabilities: ["example.lookup"],
+  permissions: ["capability:register"],
+  isolation: "in-process"
+}
+~~~
+
+Lifecycle:
+
+~~~text
+load -> register -> initialize -> start
+                         |
+                       run
+                         |
+                    stop -> unload
+~~~
+
+The plugin SDK lives under src/sdk/plugin/. A plugin receives a controlled PluginContext; it does not receive unrestricted access to process internals.
+
+## Model independence
+
+Models are behind a port. The runtime should operate with hosted frontier models, self-hosted/open models, local models, and test doubles.
+
+The orchestration contract should not contain provider-specific branching such as "if Gemini" or "if Anthropic". Provider differences belong in adapters.
+
+## Execution loop
+
+~~~text
+Receive
+  |
+Understand
+  |
+Plan / WBS
+  |
+Select capabilities
+  |
+Authorize
+  |
+Execute tool(s)
+  |
+Observe result
+  |
+Evaluate
+  |
+Retry / handoff / escalate when required
+  |
+Verify against acceptance criteria
+  |
+Complete
+~~~
+
+For parallel work, the runtime can execute independent work-graph nodes concurrently while preserving dependency and verification semantics.
+
+## Security model
+
+Security is enforced at execution time.
+
+1. Model proposes an action.
+2. Runtime resolves the capability.
+3. Policy checks identity, permissions, scope, risk, and context.
+4. Guardrails validate inputs.
+5. Human approval can be required for configured operations.
+6. The capability executes.
+7. Output guardrails/redaction run.
+8. The result is recorded for audit and verification.
+
+Never rely on a system prompt as the authorization boundary.
+
+## Interoperability
+
+AgentOS can consume external capabilities through adapters. MCP is a good example: an MCP server can provide tools to the runtime without forcing MCP into the core execution model.
+
+~~~text
+external protocol
+      |
+   adapter
+      |
+canonical Tool/Skill contract
+      |
+AgentRuntime
+~~~
+
+## Repository map
+
+~~~text
+src/
+├── core/
+│   ├── agentRuntime.js       <- canonical runtime owner
+│   ├── ToolRegistry.js       <- capability storage/dispatch
+│   ├── permissions.js        <- execution policy boundary
+│   ├── agent-loop.js         <- turn state machine
+│   ├── action-wbs.js         <- work decomposition
+│   └── ports/                <- provider-neutral contracts
+├── sdk/plugin/               <- plugin SDK + manifest + lifecycle
+├── adapters/                 <- external/domain integrations
+├── skills/                   <- domain capability packages
+├── workgraph/                <- dependency-aware execution
+├── verification/             <- completion verification
+├── channels/                 <- user-facing transports
+└── host/                     <- composition/bootstrap
+
+tests/
+├── unit/
+└── integration/
+~~~
+
+Legacy implementations may still exist while migration is in progress. They are not architectural owners merely because they remain in the tree. New orchestration code belongs in AgentRuntime.
+
+## Minimal embedding
+
+~~~js
+import { AgentRuntime } from './src/core/agentRuntime.js';
+
+const runtime = new AgentRuntime({
+  model: myModelPort,
+  permissionMode: 'prompt'
+});
+
+runtime.registerTool({
+  name: 'example.lookup',
+  description: 'Look up an entity',
+  parameters: {
+    type: 'object',
+    properties: { id: { type: 'string' } },
+    required: ['id']
+  },
+  execute: async ({ id }) => ({ id, found: true })
+});
+
+const result = await runtime.execute({
+  content: 'Look up entity 42',
+  context: { permissions: ['example:read'] }
+});
+
+console.log(result.response);
+~~~
+
+## Domain example: networking
+
+Networking is an extension, not the definition of the harness.
+
+A networking deployment can install skills/tools such as:
+
+~~~text
+network.ping
+network.interfaces
+network.firewall
+network.devices
+~~~
+
+Another deployment can install:
+
+~~~text
+code.search
+code.test
+docs.query
+finance.invoice
+commerce.order
+~~~
+
+The runtime remains the same.
+
+## Development
+
+Requirements:
+
+- Node.js 22.x
+- npm
+
+~~~bash
 npm install
+npm test
+npm run lint
+npm run build
+~~~
 
-# Interactive setup
-npm run onboard
+Useful checks:
 
-# Or manual configuration
-cp .env.example .env
-# Edit .env with your MikroTik credentials
-```
-
-Environment variables (examples):
-
-```env
-# MikroTik
-MIKROTIK_HOST=192.168.88.1
-MIKROTIK_USER=admin
-MIKROTIK_PASS=your_password
-MIKROTIK_PORT=8728
-
-# Telegram
-TELEGRAM_TOKEN=your_bot_token
-TELEGRAM_ADMIN_CHAT_ID=your_chat_id
-
-# AI
-GEMINI_API_KEY=your_gemini_key
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-
-# Payments (Mastercard A2A)
-MC_CONSUMER_KEY=your_key
-MC_PRIVATE_KEY_PATH=./certs/sandbox.p12
-
-# Database
-FIREBASE_PROJECT_ID=your_project
-# Or leave blank for local JSON fallback
-```
-
-## 🎮 Quick Start
-
-### Prerequisites
-
-- Node.js 20+ (ESM)
-- MikroTik RouterOS 7.x
-- Telegram Bot Token (from @BotFather)
-- Google Gemini API key (or another LLM provider)
-- Firebase project (or use local JSON fallback)
-
-### CLI Mode
-
-```bash
-# Start interactive CLI
-npm start
-
-# Or run specific commands
-agentos status                    # Quick overview
-agentos network ping 8.8.8.8      # Ping test
-agentos users kick john           # Disconnect user
-agentos voucher create 1Day       # Generate voucher
-```
-
-### Daemon Mode (with Telegram/WhatsApp)
-
-```bash
-# Start gateway
-agentos gateway --daemon
-
-# Check status
-agentos gateway:status
-
-# View logs
-tail -f logs/agentos.log
-```
-
-## 📸 Screenshots
-
-<p align="center">
-  <img src="docs/images/cli-demo.gif" width="600" alt="CLI Demo">
-  <br>
-  <em>Interactive CLI with real-time router feedback</em>
-</p>
-<p align="center">
-  <img src="docs/images/telegram-bot.png" width="300" alt="Telegram Bot">
-  &nbsp;&nbsp;
-  <img src="docs/images/whatsapp-chat.png" width="300" alt="WhatsApp">
-  <br>
-  <em>Unified messaging interface</em>
-</p>
-
-> AI-powered MikroTik management with multi-channel control via Telegram, WhatsApp, and WebSocket CLI
-
----
-
-## 🏗️ Architecture
-
-```text
-(See diagram in the repository for a full ASCII architecture diagram)
-```
-
-### Key Subsystems
-
-| Module | File | Role |
-|--------|------|------|
-| Core Engine | `agentos.mjs` | Entry point, boot sequence |
-| Gateway | `src/core/gateway.js` | WebSocket + HTTP server |
-| MikroTik Manager | `src/core/mikrotik.js` | RouterOS API adapter |
-| AI Engine | `src/core/ask-engine.js` | Gemini ReAct loop |
-| Billing | `src/core/universal-billing.js` | Voucher + payment flow |
-| Sentinel | `agentos-sentinel.rsc` | On-router native agent |
-| CLI | `bin/agentos.js` | Commander.js entry |
-
----
-
-## Billing Plans
-
-| Plan | Duration | Data Quota |
-|------|----------|------------|
-| 1Day | 24 hours | 7 GB |
-| 7Day | 7 days  | 21 GB |
-| 30Day | 30 days | 60 GB |
-
-Payment flow: **Mastercard A2A → Firebase → Voucher Generation → MikroTik Hotspot User**
-
----
-
-## Repository Structure
-
-```
-br3eze-code/
-├── agentos.mjs              Main entry (ESM)
-├── agentos-sentinel.rsc     RouterOS native agent
-├── mikro.rsc                RouterOS bootstrap scripts
-├── bin/agentos.js           CLI entry point
-├── src/
-│   ├── core/
-│   │   ├── mikrotik.js      RouterOS manager
-│   │   ├── gateway.js       WebSocket server
-│   │   ├── database.js      Firebase/local DB
-│   │   └── logger.js        Winston logger
-│   └── cli/
-│       ├── program.js       Commander setup
-│       └── commands/        CLI subcommands
-├── agents/                  AI agent modules
-├── services/                Billing, voucher, payment
-├── adapters/                Channel adapters (TG, WA)
-├── skills/                  Agent skill definitions
-├── workflows/               Automation workflows
-├── apps/shared/AgentOSkit/  Shared SDK
-├── custom-plugins/          Cordova plugin: aicore
-├── vscode-extension/        VS Code extension
-├── www/                     Web UI (cyberpunk portal)
-├── docs/                    Documentation
-├── tests/                   Test suites
-└── scripts/                 Deployment scripts
-```
-
----
-
-## Command Line Interface
-
-```
-agentos
-├── onboard                   Interactive setup wizard
-├── gateway                   WebSocket + Telegram gateway
-│   ├── --daemon              Run as background service
-│   ├── --force               Kill existing process first
-│   └── gateway:stop          Graceful shutdown
-├── status (s)                System overview
-├── doctor [--fix]            Health check + auto-repair
-├── network (net)
-│   ├── ping <host>           ICMP ping via router
-│   ├── scan                  DHCP lease scan
-│   ├── firewall              List firewall rules
-│   ├── block <ip|mac>        Add drop rule
-│   └── unblock <ip|mac>      Remove drop rule
-├── users (user)
-│   ├── list [--all]          Active / all hotspot users
-│   ├── kick <username>       Disconnect user
-│   ├── add <username>        Create hotspot user
-│   ├── remove <username>     Delete user
-│   └── status <username>     Check online + usage
-├── voucher (v)
-│   ├── create [plan]         Generate voucher (1Day|7Day|30Day)
-│   ├── list                  Recent vouchers
-│   ├── revoke <code>         Delete unused voucher
-│   └── stats                 Revenue + usage stats
-└── config
-    ├── get <path>            Read config value
-    ├── set <path> <value>    Write config value
-    ├── edit                  Open in $EDITOR
-    └── show                  Display full config
-```
-
-## Telegram Commands
-
-```
-/start      Authenticate and show menu
-/status     Router status overview
-/users      Active user list with kick buttons
-/kick       Kick a user by name
-/voucher    Create voucher with plan selector
-/stats      Network + billing stats
-/ping       Ping a host
-/firewall   Show firewall rules
-/help       Full command list
-```
-
-## 📖 Documentation
-
-- [Installation Guide](docs/install.md)
-- [Telegram Setup](docs/telegram.md)
-- [WhatsApp Setup](docs/whatsapp.md)
-- [API Reference](docs/api.md)
-- [Available Skills](SKILL.md)
-- [Project Specification](SPEC.md)
-- [Getting Started](START_HERE.md)
-- [Contributing](CONTRIBUTING.md)
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Runtime | Node.js 22+ ESM |
-| Router API | MikroTik RouterOS API (routeros-client) |
-| AI Engine | Google Gemini 2.5 / other providers |
-| Messaging | node-telegram-bot-api + Baileys |
-| Payments | Mastercard A2A · OAuth 1.0a RSA-SHA256 |
-| Database | Firebase Firestore / Local JSON |
-| Gateway | WebSocket (ws) + Express |
-| CLI | Commander.js |
-| Logging | Winston |
+~~~bash
+npm run test:production
+npm run check:ci-quality
+npm run build:types
+~~~
 
 ## Deployment
 
-### Docker
+The repository is connected to Vercel for deployment. Vercel is a host/deployment concern; it is not part of the AgentRuntime contract.
 
-```bash
-docker compose up -d
-```
+Production deployments should prove:
 
-### Podman
+1. source builds successfully;
+2. tests pass;
+3. runtime imports cleanly;
+4. capability discovery is deterministic;
+5. permissions are enforced;
+6. tool execution is observable;
+7. verification can distinguish completion from failure.
 
-```bash
-cp agentos.podman.env .env
-podman play kube agentos.yaml
-```
+## Design principles
 
-### User-local CLI and Desktop installation
+### Core owns semantics, adapters own integrations
 
-The supported installation path is user-local and idempotent. It keeps the CLI, Desktop runtime, and profile state under the operator’s home directory and never copies API keys into shell startup files. Node.js 22+, npm, and Git are required.
+Core defines contracts and lifecycle. Adapters translate external systems into those contracts.
 
-On Linux or macOS, download the script first, review it, and execute the local file:
+### Capabilities are data before they are code paths
 
-```bash
-curl -fsSL https://br3eze.africa/install.sh -o /tmp/agentos-install.sh
-less /tmp/agentos-install.sh
-bash /tmp/agentos-install.sh --ref upgrade/commerce-domains
-source ~/.bashrc  # or ~/.zshrc
-agentos onboard
-agentos login
-```
+A manifest should make a capability discoverable, inspectable, versionable, and permission-aware before execution.
 
-On Windows PowerShell:
+### One execution boundary
 
-```powershell
-Invoke-WebRequest https://br3eze.africa/install.ps1 -OutFile $env:TEMP\agentos-install.ps1
-Get-Content $env:TEMP\agentos-install.ps1
-powershell -ExecutionPolicy Bypass -File $env:TEMP\agentos-install.ps1 -Ref upgrade/commerce-domains
-# Open a new PowerShell window, then:
-agentos onboard
-agentos login
-```
+Human calls, model calls, workflows, scheduled work, and plugin actions must converge on the same runtime authorization and execution boundary.
 
-The default locations are `~/.agentos/app` and `~/.agentos/bin` on Unix, and `%USERPROFILE%\\.agentos\\app` and `%USERPROFILE%\\.agentos\\bin` on Windows. Use `--profile NAME` to keep separate tenants or environments isolated. Use `--desktop` only when you want the installer to fetch development dependencies and build the Electron directory package:
+### Bounded autonomy
 
-```bash
-bash /tmp/agentos-install.sh --desktop
-# or on PowerShell:
-# powershell -ExecutionPolicy Bypass -File $env:TEMP\agentos-install.ps1 -Desktop
-```
+Every run needs limits: turns, budget, concurrency, permissions, retries, timeouts, and scope.
 
-The installer does **not** enable a network daemon or system service automatically. For a long-running gateway, use the platform’s service manager only after configuring an explicit service account, working directory, environment provider, firewall policy, and log rotation. The local profile and credential store remain user-scoped.
+### Evidence beats confidence
 
-### RouterOS Sentinel
+The runtime should complete work because acceptance criteria are verified, not because the model says it is done.
 
-```bash
-# Upload via WinBox Files or SCP, then:
-/import file-name=agentos-sentinel.rsc
-# Verify
-/system/scheduler print
-```
+### Simplicity beats framework accumulation
 
----
+The execution path should remain followable from request to capability to verification without traversing several competing orchestration systems.
 
-## 🤝 Contributing
+## Status
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
-
-Quick contributions:
-
-- ⭐ Star this repository
-- 🐛 Open an issue: https://github.com/br3eze-code/br3eze-code/issues
-- 💡 Start a discussion: https://github.com/br3eze-code/br3eze-code/discussions
-- 📖 Improve documentation
-- 🔧 Submit a PR tagged `good-first-issue`
-
----
-
-## 📜 License
-
-Apache-2.0 © 2026 Brighton Mzacana · br3eze.africa
-
----
-
-<p align="center">
-  <a href="https://github.com/br3eze-code/br3ezeclaw/stargazers">
-    <img src="https://img.shields.io/github/stars/br3eze-code/br3ezeclaw?style=social" alt="Stars">
-  </a>
-  <a href="https://github.com/br3eze-code/br3ezeclaw/network/members">
-    <img src="https://img.shields.io/github/forks/br3eze-code/br3ezeclaw?style=social" alt="Forks">
-  </a>
-</p>
-
-<p align="center">
-  <strong>⭐ Star this repo if it helps you manage your network!</strong>
-</p>
-
-<div align="center">
-<sub>Built for Africa's community networks · Powered by AI · Controlled via Telegram</sub>
-</div>
+AgentOS is actively consolidating a historically evolved codebase toward this architecture. The goal is not to add more agent abstractions. The goal is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**

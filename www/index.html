@@ -22,6 +22,8 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
         <link rel="stylesheet" href="css/index.css">
+        <!-- Android 15+ edge-to-edge safe-area compatibility. -->
+        <link rel="stylesheet" href="css/android15-edge-to-edge.css">
         <title>Power Connect</title>
         <style>
     #authScreen, #mainApp, #mainHeader {
@@ -98,9 +100,35 @@
                 Continue with Google
             </button>
             <div class="auth-toggle">
+                <a onclick="toggleOtpLogin()">Login with email code</a>
+            </div>
+            <div class="auth-toggle">
                 <a onclick="toggleForgotPassword()">Forgot password?</a>
             </div>
             <div class="auth-toggle">Don't have an account? <a onclick="toggleAuthForm()">Create Account</a></div>
+        </div>
+
+        <!-- Email OTP Login Card -->
+        <div class="card auth-card hidden" id="otpLoginForm">
+            <div class="auth-header">
+                <h2>Email Code Login</h2>
+                <p>We'll send a one-time verification code to your email.</p>
+            </div>
+            <form id="otpRequestForm" autocomplete="on">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="otpLoginEmail" autocomplete="email" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Send Code</button>
+            </form>
+            <form id="otpVerifyForm" class="hidden" autocomplete="one-time-code">
+                <div class="form-group">
+                    <label>6-digit verification code</label>
+                    <input type="text" id="otpLoginCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Verify &amp; Login</button>
+            </form>
+            <div class="auth-toggle"><a onclick="toggleOtpLogin()">Back to Login</a></div>
         </div>
 
         <!-- Forgot Password Card -->
@@ -736,12 +764,14 @@
 
 <!-- CDN Libraries -->
 <script src="js/offline-runtime.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+
+
+
 <script src="js/env.js"></script>
 <script src="js/03.notifications.js"></script>
+<script src="js/06.firebase.js"></script>
+<script src="js/07.auth.js"></script>
 <script>
     // Cordova: only load in the real native WebView/file:// context -- avoids a
     // 404 (and the cordova.* undefined-global bugs it used to mask) when this

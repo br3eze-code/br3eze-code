@@ -10,47 +10,67 @@ const Users = (() => {
     await Promise.all([_loadActive(), _loadAll()]);
   }
 
+  function _renderUserCard(container, displayName, secondary, action, value) {
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    const info = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'user-name';
+    name.textContent = displayName;
+    const meta = document.createElement('div');
+    meta.className = action === 'disconnect' ? 'user-ip' : 'user-mac';
+    meta.textContent = secondary;
+    info.append(name, meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'user-actions';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'kick-btn';
+    button.textContent = action === 'disconnect' ? 'KICK' : 'DEL';
+    button.addEventListener('click', () => action === 'disconnect' ? disconnect(value) : remove(value));
+    actions.appendChild(button);
+    card.append(info, actions);
+    container.appendChild(card);
+  }
+
   async function _loadActive() {
     const box = document.getElementById('active-users-list');
-    box.innerHTML = '<div class="list-loading">Loading…</div>';
+    box.textContent = 'Loading…';
     try {
       const res = await Client.v1.activeUsers();
       const users = res.data || [];
-      if (!users.length) { box.innerHTML = '<div class="list-empty">No active sessions.</div>'; return; }
-      box.innerHTML = users.map(u => `
-        <div class="user-card">
-          <div>
-            <div class="user-name">${_esc(u.user || u.username || u['.id'] || '?')}</div>
-            <div class="user-ip">${_esc(u.address || '—')} · ${_esc(u.uptime || '—')}</div>
-          </div>
-          <div class="user-actions">
-            <button class="kick-btn" onclick="Users.disconnect('${_esc(u['.id'] || u.id)}')">KICK</button>
-          </div>
-        </div>`).join('');
+      box.replaceChildren();
+      if (!users.length) { box.textContent = 'No active sessions.'; return; }
+      users.forEach(u => _renderUserCard(
+        box,
+        u.user || u.username || u['.id'] || '?',
+        `${u.address || '—'} · ${u.uptime || '—'}`,
+        'disconnect',
+        u['.id'] || u.id
+      ));
     } catch (e) {
-      box.innerHTML = `<div class="list-empty">Failed: ${e.message}</div>`;
+      box.textContent = `Failed: ${e?.message || 'Unable to load users'}`;
     }
   }
 
   async function _loadAll() {
     const box = document.getElementById('all-users-list');
-    box.innerHTML = '<div class="list-loading">Loading…</div>';
+    box.textContent = 'Loading…';
     try {
       const res = await Client.v1.allUsers();
       const users = res.data || [];
-      if (!users.length) { box.innerHTML = '<div class="list-empty">No users configured.</div>'; return; }
-      box.innerHTML = users.map(u => `
-        <div class="user-card">
-          <div>
-            <div class="user-name">${_esc(u.name || u.username || '?')}</div>
-            <div class="user-mac">${_esc(u.profile || 'default')}</div>
-          </div>
-          <div class="user-actions">
-            <button class="kick-btn" onclick="Users.remove('${_esc(u.name || u.username)}')">DEL</button>
-          </div>
-        </div>`).join('');
+      box.replaceChildren();
+      if (!users.length) { box.textContent = 'No users configured.'; return; }
+      users.forEach(u => _renderUserCard(
+        box,
+        u.name || u.username || '?',
+        u.profile || 'default',
+        'remove',
+        u.name || u.username
+      ));
     } catch (e) {
-      box.innerHTML = `<div class="list-empty">Failed: ${e.message}</div>`;
+      box.textContent = `Failed: ${e?.message || 'Unable to load users'}`;
     }
   }
 
@@ -62,25 +82,21 @@ const Users = (() => {
       _loadActive();
       App.refreshKpis();
     } catch (e) {
-      UI.toast(`Failed: ${e.message}`, 'err');
+      UI.toast(`Failed: ${e?.message || 'Disconnect failed'}`, 'err');
     }
   }
 
   async function remove(username) {
     if (!username) return;
-    UI.confirm(`Delete user "${username}"?`, async () => {
+    UI.confirm(`Delete user "${String(username)}"?`, async () => {
       try {
         await Client.v1.delUser(username);
         UI.toast('User removed', 'ok');
         _loadAll();
       } catch (e) {
-        UI.toast(`Failed: ${e.message}`, 'err');
+        UI.toast(`Failed: ${e?.message || 'Delete failed'}`, 'err');
       }
     });
-  }
-
-  function _esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   return { refresh, disconnect, remove };

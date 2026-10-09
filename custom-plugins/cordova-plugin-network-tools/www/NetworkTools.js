@@ -21,6 +21,7 @@ const invoke = (action, payload = {}) => {
   if (!isCordova()) {
     return Promise.resolve({
       supported: false,
+      available: false,
       nativeReady: false,
       platform: 'web',
       action,
@@ -45,6 +46,30 @@ const NetworkTools = {
 
   interfaces() {
     return invoke('interfaces');
+  },
+
+  wifiSignalStrength() {
+    return invoke('wifiSignalStrength');
+  },
+
+  wifiStrength() {
+    return invoke('wifiStrength');
+  },
+
+  wifiList() {
+    return invoke('wifiList');
+  },
+
+  wifiDetails() {
+    return invoke('wifiDetails');
+  },
+
+  ipInfo() {
+    return invoke('ipInfo');
+  },
+
+  connectedDevices() {
+    return invoke('connectedDevices');
   },
 
   execute(tool, params = {}, context = {}) {

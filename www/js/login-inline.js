@@ -25,6 +25,37 @@ if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.leng
 const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
 const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
 
+// Provider-neutral auth handoff. Legacy from/type aliases remain accepted for compatibility.
+const AUTH_HANDOFF_API = String(window.ENV?.AUTH_HANDOFF_API || '/api/auth/handoff').replace(/\/$/, '');
+const authHandoffContext = (() => {
+    const params = new URLSearchParams(window.location.search);
+    const client = String(params.get('client') || params.get('from') || '').trim().toLowerCase();
+    const action = String(params.get('action') || params.get('type') || '').trim();
+    const nonce = String(params.get('nonce') || '').trim();
+    if (!nonce || !new Set(['device', 'web', 'native', 'cli']).has(client) || action !== 'signIn') return null;
+    history.replaceState(null, '', window.location.pathname + window.location.hash);
+    return Object.freeze({ client, action, nonce });
+})();
+
+async function completeAuthHandoff(user) {
+    if (!authHandoffContext || !user) return null;
+    try {
+        const token = await user.getIdToken();
+        const response = await fetch(AUTH_HANDOFF_API + '/' + encodeURIComponent(authHandoffContext.nonce) + '/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || 'Authentication handoff failed.');
+        return body;
+    } catch (error) {
+        showToast(error.message || 'Authentication handoff failed.', 'error');
+        return null;
+    }
+}
+
 function toggleAuthForm() {
     document.getElementById('loginForm').classList.toggle('hidden');
     document.getElementById('signupForm').classList.toggle('hidden');
@@ -157,6 +188,7 @@ window.Auth = {
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
+            await completeAuthHandoff(user);
             // Use the account email as the hotspot identifier so the operator
             // can reconcile Firebase-authenticated users with the voucher DB.
             submitHotspotLogin(user.email, '');
@@ -208,6 +240,7 @@ window.Auth = {
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
+            await completeAuthHandoff(user);
             // No email identifier available on a phone-only account — the
             // hotspot login form falls back to the phone number itself.
             submitHotspotLogin(user.phoneNumber, '');

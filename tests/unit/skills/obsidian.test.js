@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { createRuntime } from '../../../src/runtime/runtime.js';
+import { ToolRegistry } from '../../../src/core/ToolRegistry.js';
 import { obsidianSkill } from '../../../src/skills/obsidian/index.js';
 import { ObsidianVaultAdapter } from '../../../src/integrations/obsidian.js';
 
@@ -36,24 +36,22 @@ describe('domain-neutral Obsidian skill', () => {
 
   test('runs through the domain-agnostic runtime and preserves scope', async () => {
     await adapter.writeNote('context.md', '[[Next]] #agent', { ...baseContext, approval: { approved: true } });
-    const runtime = createRuntime().use(obsidianSkill);
-    const result = await runtime.run('note graph context.md', { ...baseContext, obsidianAdapter: adapter });
-    expect(result).toMatchObject({ type: 'tool', tool: 'workspace.obsidian.graph_context' });
-    expect(result.result).toMatchObject({ path: 'context.md', links: ['Next'], tags: ['#agent'] });
+    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const result = await registry.execute('workspace.obsidian.graph_context', { path: 'context.md' }, { ...baseContext, obsidianAdapter: adapter });
+    expect(result).toMatchObject({ path: 'context.md', links: ['Next'], tags: ['#agent'] });
     expect(events.at(-1)).toMatchObject({ action: 'obsidian.read', userId: 'agent-user', tenantId: 'tenant-a', domain: 'workspace', siteId: 'site-7' });
   });
 
   test('requires approval for agent mutations', async () => {
-    const runtime = createRuntime().use(obsidianSkill);
-    const result = await runtime._invoke('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
-    expect(result.type).toBe('error');
-    await expect(runtime._invoke('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter }))
-      .resolves.toMatchObject({ type: 'error', result: expect.stringMatching(/approved/) });
+    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const result = registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
+    await expect(registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter }))
+      .resolves.toMatchObject({ status: 'approval_required' });
   });
 
   test('supports injected adapters without environment or hardcoded vault paths', async () => {
-    const runtime = createRuntime().use(obsidianSkill);
-    const result = await runtime._invoke('workspace.obsidian.status', {}, { ...baseContext, obsidianAdapter: adapter });
-    expect(result).toMatchObject({ type: 'tool', result: { available: true, scope: baseContext.scope } });
+    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const result = await registry.execute('workspace.obsidian.status', {}, { ...baseContext, obsidianAdapter: adapter });
+    expect(result).toMatchObject({ available: true, scope: expect.objectContaining(baseContext.scope) });
   });
 });

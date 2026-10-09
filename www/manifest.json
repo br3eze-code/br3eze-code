@@ -1,11 +1,14 @@
 {
+  "id": "./",
+  "lang": "en-ZW",
+  "dir": "ltr",
   "name": "Br3eze Africa — Power Connect",
   "short_name": "Power Connect",
   "description": "AI-powered MikroTik hotspot billing and network management.",
-  "start_url": "index.html",
+  "start_url": "./index.html",
+  "prefer_related_applications": false,
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#050505",
   "theme_color": "#050505",
   "icons": [

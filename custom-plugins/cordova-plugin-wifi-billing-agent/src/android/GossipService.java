@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
+import android.content.pm.ServiceInfo;
 
 import androidx.core.app.NotificationCompat;
 
@@ -50,7 +51,11 @@ public class GossipService extends Service {
         }
 
         Notification notification = createServiceNotification("Gossip Sync Active");
-        startForeground(NOTIFICATION_ID, notification);
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
 
         if (gossipNode == null) {
             gossipNode = new GossipNode(getApplicationContext(), config);

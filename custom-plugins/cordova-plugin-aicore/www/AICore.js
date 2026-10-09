@@ -13,6 +13,13 @@ const unavailable = action => ({
   reason: 'Cordova native bridge is unavailable',
 });
 
+const unsupported = action => ({
+  supported: false,
+  action,
+  code: 'UNSUPPORTED',
+  reason: 'Capability is not enabled in this build',
+});
+
 const exec = (success, error, service, action, args) => {
   if (typeof cordova === 'undefined') {
     if (typeof error === 'function') error(unavailable(action));
@@ -31,44 +38,20 @@ const AICore = {
     exec(success, error, 'AICorePlugin', 'checkAvailability', []);
   },
   generateText(prompt, success, error) {
-    exec(success, error, 'AICorePlugin', 'generateText', [prompt]);
+    if (typeof error === 'function') error(unsupported('generateText'));
   },
   detectPose(base64Image, success, error) {
     exec(success, error, 'AICorePlugin', 'detectPose', [base64Image]);
   },
+  capabilities(success, error) {
+    exec(success, error, 'AICorePlugin', 'capabilities', []);
+  },
+  request(payload, success, error) {
+    exec(success, error, 'AICorePlugin', 'request', [payload]);
+  },
 };
 
-exports.request = payload =>
-  new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AICorePlugin', 'request', [payload]);
-  });
+exports.request = payload => new Promise((resolve, reject) => AICore.request(payload, resolve, reject));
+exports.capabilities = () => new Promise((resolve, reject) => AICore.capabilities(resolve, reject));
 
-exports.capabilities = () =>
-  new Promise((resolve, reject) => {
-    exec(resolve, reject, 'AICorePlugin', 'capabilities', []);
-  });
-
-// Polyfill window.ai for Web AI API compatibility
-if (typeof window !== 'undefined') {
-  window.ai = {
-    canCreateTextSession() {
-      return new Promise((resolve, reject) => {
-        AICore.checkAvailability(
-          status => resolve(status), // 'readily' | 'after-download' | 'no'
-          err => reject(err)
-        );
-      });
-    },
-    createTextSession() {
-      return Promise.resolve({
-        execute(prompt) {
-          return new Promise((resolve, reject) => {
-            AICore.generateText(prompt, resolve, reject);
-          });
-        },
-      });
-    },
-  };
-}
-
-export default AICore;
+module.exports = AICore;

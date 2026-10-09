@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/agentos_fallback.php';
 require_once __DIR__ . '/database_config.php';
 
-$autoload = __DIR__ . '/vendor/autoload.php';
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (is_file($autoload)) require_once $autoload;
 
 use RouterOS\Client;
@@ -48,6 +48,20 @@ function createUserOnMikroTik(string $username, string $password, string $profil
         if ($error->getMessage() === 'MIKROTIK_NOT_CONFIGURED') return ['success' => false, 'code' => 'NOT_CONFIGURED', 'message' => 'Router integration is not configured.'];
         error_log('[AgentOS PHP fallback] MikroTik create failed: ' . $error->getMessage());
         return ['success' => false, 'code' => 'ROUTER_UNAVAILABLE', 'message' => 'Router operation unavailable.'];
+    }
+}
+
+function removeUserFromMikroTik(string $username): array
+{
+    try {
+        $client = connectToMikrotik();
+        $response = $client->query((new Query('/ip/hotspot/user/print'))->where('name', $username))->read();
+        if (empty($response)) return ['success' => true, 'message' => 'User already absent.'];
+        $client->query((new Query('/ip/hotspot/user/remove'))->equal('.id', $response[0]['.id']))->read();
+        return ['success' => true, 'message' => 'User removed.'];
+    } catch (Throwable $error) {
+        error_log('[AgentOS PHP fallback] MikroTik removal failed: ' . $error->getMessage());
+        return ['success' => false, 'code' => 'ROUTER_UNAVAILABLE', 'message' => 'Router rollback unavailable.'];
     }
 }
 
