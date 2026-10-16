@@ -36,4 +36,8 @@ const CONFIG = {
     }
 };
 
+if (!CONFIG.MIKROTIK_PASS) {
+    console.warn('⚠️  Warning: MIKROTIK_PASS not set - router features disabled');
+}
+
 export { BRAND, CONFIG };
