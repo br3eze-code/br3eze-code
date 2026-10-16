@@ -33,6 +33,11 @@ describe('Wi-Fi route composition', () => {
 
     expect(routes.some((route) => route.path === '/health')).toBe(true);
     expect(routes.some((route) => route.path === '/api/vouchers')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/v1/vouchers')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/v1/vouchers/redeem')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/v1/tools')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/v1/capabilities')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/payment/methods')).toBe(true);
     expect(routes.some((route) => route.path === '/api/auth/otp')).toBe(true);
     expect(app.post).toHaveBeenCalled();
   });
