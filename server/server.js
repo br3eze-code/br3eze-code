@@ -28,7 +28,7 @@ import otpRouter from './src/routes/otp.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
-import { authenticateBearer } from './src/auth/identity.js';
+import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1319,7 +1319,7 @@ const authMiddleware = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Invalid token' });
 
     try {
-        const identity = await authenticateBearer(token);
+        const identity = await authenticateBearer(token, { userTokenSecret: CONFIG.GATEWAY_TOKEN });
         if (!identity) return res.status(401).json({ error: 'Invalid token' });
         req.user = identity;
         return next();
@@ -1360,7 +1360,8 @@ registerWifiRoutes({
     BRAND,
     authMiddleware,
     rateLimitMiddleware,
-    getCommandHandler: () => global.commandHandler
+    getCommandHandler: () => global.commandHandler,
+    issueUserToken
 });
 
 // ── Stripe card top-up ──────────────────────────────────────────────────────
