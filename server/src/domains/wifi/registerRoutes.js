@@ -64,6 +64,10 @@ app.use('/api/auth/otp', otpRouter);
         res.json({ tools: getCommandHandler().getAvailableTools() });
     });
 
+    app.get('/api/v1/tools', authMiddleware, (req, res) => {
+        res.json({ tools: getCommandHandler().getAvailableTools() });
+    });
+
     // Compatibility routes shared with the PHP fallback contract in www/.
     // Capability metadata is descriptive only; it never claims remote state.
     app.get('/api/v1/capabilities', (req, res) => {
