@@ -3,28 +3,24 @@
  *
  * This module owns only cross-cutting transport concerns. It deliberately
  * accepts framework/middleware implementations and a static directory from
- * the composition root; it knows nothing about AgentOS, Wi-Fi, vouchers,
- * payments, Firebase, or any network vendor.
+ * the composition root; it knows nothing about product domains, persistence,
+ * identity providers, payments, or network vendors.
  */
 
 /**
- * Configure baseline HTTP middleware on an Express-compatible application.
+ * Create an Express-compatible app and install baseline HTTP middleware.
  *
  * @param {{
- *   express: { json: (options: object) => unknown, static: (directory: string) => unknown },
+ *   express: Function & { json: (options: object) => unknown, static: (directory: string) => unknown },
  *   helmet: (options: object) => unknown,
  *   cors: () => unknown,
- *   staticDirectory: string,
- *   app?: { use: (...middleware: unknown[]) => unknown }
+ *   staticDirectory: string
  * }} options
  * @returns {unknown} the configured application
  */
-export function configureHttpApplication({ app, express, helmet, cors, staticDirectory }) {
-    if (!app || typeof app.use !== 'function') {
-        throw new TypeError('app must expose use()');
-    }
-    if (!express || typeof express.json !== 'function' || typeof express.static !== 'function') {
-        throw new TypeError('express must provide json() and static() middleware');
+export function configureHttpApplication({ express, helmet, cors, staticDirectory }) {
+    if (typeof express !== 'function' || typeof express.json !== 'function' || typeof express.static !== 'function') {
+        throw new TypeError('express must provide an app factory, json(), and static() middleware');
     }
     if (typeof helmet !== 'function' || typeof cors !== 'function') {
         throw new TypeError('helmet and cors middleware factories are required');
@@ -33,6 +29,7 @@ export function configureHttpApplication({ app, express, helmet, cors, staticDir
         throw new TypeError('staticDirectory must be a non-empty path');
     }
 
+    const app = express();
     app.use(helmet({
         contentSecurityPolicy: {
             directives: {
