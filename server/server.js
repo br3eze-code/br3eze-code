@@ -25,6 +25,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import QRCode from 'qrcode';
 import otpRouter from './src/routes/otp.js';
+import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1327,20 +1328,13 @@ class AgentOSGateway {
 // §7 EXPRESS APPLICATION
 // ============================================================
 
-const app = express();
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"]
-        }
-    }
-}));
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// The transport layer is shared infrastructure; product routes are composed below.
+const app = configureHttpApplication({
+    express,
+    helmet,
+    cors,
+    staticDirectory: path.join(__dirname, 'public')
+});
 
 // Auth middleware
 const authMiddleware = (req, res, next) => {
