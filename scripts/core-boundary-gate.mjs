@@ -45,9 +45,41 @@ function walk(file) {
 }
 
 for (const entry of roots) walk(path.resolve(root, entry));
+// The generic server transport core is a separate boundary: it may use
+// injected framework capabilities, but must not import product domains,
+// persistence, identity providers, payments, or network-vendor implementations.
+const serverCoreRoot = path.resolve(root, 'server/src/core');
+const serverFindings = [];
+if (fs.existsSync(serverCoreRoot)) {
+  const pending = [serverCoreRoot];
+  while (pending.length) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(absolute);
+        continue;
+      }
+      if (!entry.isFile() || !/\\.(?:mjs|cjs|js)$/.test(entry.name)) continue;
+      const source = fs.readFileSync(absolute, 'utf8');
+      for (const match of source.matchAll(importPattern)) {
+        const specifier = match[1];
+        if (forbidden.test(specifier)) {
+          serverFindings.push(`server core forbidden dependency: ${path.relative(root, absolute)} -> ${specifier}`);
+        }
+        const resolved = resolveImport(absolute, specifier);
+        if (specifier.startsWith('.') && resolved && !resolved.startsWith(serverCoreRoot + path.sep)) {
+          serverFindings.push(`server core import escapes its boundary: ${path.relative(root, absolute)} -> ${specifier}`);
+        }
+      }
+    }
+  }
+}
+findings.push(...serverFindings);
+
 if (findings.length) {
   console.error('Core boundary gate failed: concrete domain/provider dependency reached the canonical kernel graph.');
   for (const finding of findings) console.error(`  - ${finding}`);
   process.exit(1);
 }
-console.log(`Core boundary gate passed: ${visited.size} canonical core modules scanned.`);
+console.log(`Core boundary gate passed: ${visited.size} canonical AgentOS core modules and generic server-core imports scanned.`);
