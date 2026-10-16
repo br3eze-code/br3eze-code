@@ -6,6 +6,7 @@
  * Provider-specific identity remains behind this adapter boundary.
  */
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { admin } from '../config/firebase.js';
 import { verifySupabaseAccessToken } from '../../../src/adapters/auth/supabase.js';
 
@@ -50,7 +51,20 @@ function normalizeIdentity(decoded, provider = 'firebase') {
   });
 }
 
-export async function authenticateBearer(token) {
+export function issueUserToken({ uid, username, role }, secret) {
+  if (typeof secret !== 'string' || secret.length < 16) {
+    throw new TypeError('A signing secret of at least 16 characters is required');
+  }
+  const subject = uid || username;
+  if (!subject) throw new TypeError('A user identifier is required');
+  return jwt.sign(
+    { role: String(role || 'USER').toUpperCase() },
+    secret,
+    { subject: String(subject), issuer: 'agentos', audience: 'agentos-api', expiresIn: '1h' }
+  );
+}
+
+export async function authenticateBearer(token, { userTokenSecret } = {}) {
   if (!token) return null;
 
   const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || process.env.GATEWAY_TOKEN || '';
@@ -65,6 +79,18 @@ export async function authenticateBearer(token) {
       authenticatedAt: new Date().toISOString(),
       metadata: { service: true }
     });
+  }
+
+  if (userTokenSecret) {
+    try {
+      const decoded = jwt.verify(token, userTokenSecret, {
+        issuer: 'agentos',
+        audience: 'agentos-api'
+      });
+      return normalizeIdentity(decoded, 'local');
+    } catch {
+      // Continue to the configured external identity providers.
+    }
   }
 
   if (admin) {
