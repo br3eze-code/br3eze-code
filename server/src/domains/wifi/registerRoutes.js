@@ -102,11 +102,16 @@ app.use('/api/auth/otp', otpRouter);
             status: 'degraded',
             serverConfirmed: false,
             domains: {
-                identity: { paths: ['/api/auth/login', '/api/auth/otp'], skills: ['identity', 'tenant-scope', 'permissions'] },
-                tools: { paths: ['/api/tools', '/api/tool/execute', '/api/v1/tools'], skills: ['tool-registry', 'batch-execution', 'approval-gate'] },
-                vouchers: { paths: ['/api/vouchers', '/api/v1/vouchers', '/api/v1/vouchers/redeem'], skills: ['voucher-claim', 'voucher-validation', 'qr'] },
-                payments: { paths: ['/api/payment/methods', '/api/checkout/create', '/api/checkout/verify'], skills: ['provider-neutral-payments', 'idempotent-settlement', 'webhooks'] },
-                network: { paths: ['/api/router/status'], skills: ['network-tools', 'diagnostics', 'wifi'] }
+                shopping: { paths: ['/shop', '/products', '/products/:id', '/product/:id', '/cart', '/cart/add', '/cart/remove', '/checkout', '/orders', '/orders/:id', '/orders/:id/ship', '/orders/:id/track', '/couriers'], skills: ['catalog', 'cart', 'checkout', 'orders', 'fulfillment', 'shopping-agent'] },
+                payments: { paths: ['/api/payment/initiate', '/api/payment/status/:id', '/api/charge-card', '/api/charge-card/confirm', '/api/setup-intent/create', '/api/payment-method/save', '/billing/payment-link', '/billing/provider', '/billing/verify', '/billing/webhook', '/checkout/create', '/checkout/verify'], skills: ['provider-neutral-payments', 'idempotent-settlement', 'webhooks'] },
+                vouchers: { paths: ['/voucher/generate', '/voucher/redeem', '/voucher/validate', '/vouchers', '/vouchers/:code', '/vouchers/:code/qr', '/vouchers/pay', '/vouchers/redeem', '/vouchers/stats', '/api/v1/vouchers', '/api/v1/vouchers/:code', '/api/v1/vouchers/redeem'], skills: ['voucher-claim', 'voucher-validation', 'qr'] },
+                cctv: { paths: ['/api/v1/analysis/cctv', '/api/v1/cctv/stream/multi', '/cctv', '/cctv/stream', '/cctv/stream/multi', '/diagnostics/cctv'], skills: ['cctv-analysis', 'multi-channel-stream', 'audit-trails', 'device-health'] },
+                network: { paths: ['/api/nodes', '/api/nodes/:name/exec', '/api/mesh/exec', '/nodes', '/nodes/:name', '/nodes/:name/command', '/nodes/fanout', '/ping', '/traceroute', '/firewall/list', '/firewall/block', '/dhcp/leases', '/diagnostics', '/diagnostics/connectivity', '/diagnostics/full', '/diagnostics/ping-router', '/hotspot/profiles', '/hotspot/profiles/:name'], skills: ['mikrotik', 'network-tools', 'mesh', 'diagnostics', 'wifi'] },
+                channels: { paths: ['/channels', '/channels/:type/send', '/channels/broadcast', '/api/v1/channels/telegram/status', '/notify', '/webhooks/email'], skills: ['telegram', 'whatsapp', 'email', 'sms', 'websocket', 'channel-ui'] },
+                analytics: { paths: ['/analytics/network', '/analytics/system', '/analytics/vouchers', '/financial/report', '/financial/summary', '/financial/transactions', '/financial/trends', '/api/v1/analysis/:domain'], skills: ['cctv-analyst', 'shopping-analyst', 'network-analyst', 'lifecycle-graph'] },
+                skills: { paths: ['/skills', '/skills/:name', '/skills/:name/invoke', '/workflows', '/workflows/:name/trigger'], skills: ['skill-registry', 'skill-discovery', 'workflow-runner'] },
+                tools: { paths: ['/tools', '/tools/:tool', '/tool/execute', '/api/v1/tools', '/api/v1/tools/:tool', '/batch/execute', '/execute'], skills: ['tool-registry', 'batch-execution', 'approval-gate'] },
+                identity: { paths: ['/user', '/users/active', '/users/all', '/users/status', '/users/add', '/users/remove', '/users/kick', '/users/sync', '/system/identity', '/api/v1/users/sync', '/api/v1/users/kick'], skills: ['identity', 'tenant-scope', 'permissions', 'location-privacy'] }
             },
             paymentMethods,
             channels: [],
