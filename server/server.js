@@ -25,43 +25,16 @@ import helmet from 'helmet';
 import cors from 'cors';
 import QRCode from 'qrcode';
 import otpRouter from './src/routes/otp.js';
+import { configureHttpApplication } from './src/core/configureHttpApplication.js';
+import { BRAND, CONFIG } from './src/domains/wifi/config.js';
+import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
+import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
 // ============================================================
 
-const BRAND = {
-    name: 'AgentOS WiFi',
-    version: '2026.5.0',
-    emoji: '🤖'
-};
-
-const CONFIG = {
-    PORT: parseInt(process.env.PORT || '3000'),
-    HOST: process.env.HOST || '0.0.0.0',
-    MIKROTIK_IP: process.env.MIKROTIK_IP || '192.168.88.1',
-    MIKROTIK_USER: process.env.MIKROTIK_USER || 'admin',
-    MIKROTIK_PASS: process.env.MIKROTIK_PASS || '',
-    MIKROTIK_PORT: parseInt(process.env.MIKROTIK_PORT || '8728'),
-    TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || '',
-    ALLOWED_CHAT_IDS: (process.env.ALLOWED_CHAT_IDS || '').split(',').filter(Boolean),
-    GATEWAY_TOKEN: process.env.GATEWAY_TOKEN || crypto.randomBytes(32).toString('hex'),
-    VOUCHER_PREFIX: 'STAR-',
-    VOUCHER_PLANS: {
-        '1hour': { duration: 60 * 60 * 1000, price: 1.00 },
-        '1Day': { duration: 24 * 60 * 60 * 1000, price: 5.00 },
-        '7Day': { duration: 7 * 24 * 60 * 60 * 1000, price: 25.00 },
-        '30Day': { duration: 30 * 24 * 60 * 60 * 1000, price: 80.00 }
-    },
-    RATE_LIMIT: {
-        WINDOW: 15 * 60 * 1000,
-        MAX: 100
-    }
-};
-
-if (!CONFIG.MIKROTIK_PASS) {
-    console.warn('⚠️  Warning: MIKROTIK_PASS not set - router features disabled');
-}
+// Product configuration belongs to the Wi-Fi domain, not transport infrastructure.
 
 // ============================================================
 // §2 LOGGER
@@ -1327,32 +1300,33 @@ class AgentOSGateway {
 // §7 EXPRESS APPLICATION
 // ============================================================
 
-const app = express();
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "https:"]
-        }
-    }
-}));
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+// The transport layer is shared infrastructure; product routes are composed below.
+const app = configureHttpApplication({
+    express,
+    helmet,
+    cors,
+    staticDirectory: path.join(__dirname, 'public')
+});
 
-// Auth middleware
-const authMiddleware = (req, res, next) => {
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Bearer ')) {
+// Provider-neutral identity boundary: Firebase/Supabase user tokens and
+// explicitly configured service tokens are verified by the auth adapter.
+const authMiddleware = async (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Authorization required' });
     }
-    const token = auth.split(' ')[1];
-    if (token !== CONFIG.GATEWAY_TOKEN) {
+    const token = authorization.slice('Bearer '.length).trim();
+    if (!token) return res.status(401).json({ error: 'Invalid token' });
+
+    try {
+        const identity = await authenticateBearer(token, { userTokenSecret: CONFIG.GATEWAY_TOKEN });
+        if (!identity) return res.status(401).json({ error: 'Invalid token' });
+        req.user = identity;
+        return next();
+    } catch (error) {
+        logger.warn('Request authentication failed', { message: error?.message || 'unknown error' });
         return res.status(401).json({ error: 'Invalid token' });
     }
-    next();
 };
 
 // Rate limiter middleware
@@ -1375,79 +1349,19 @@ const rateLimitMiddleware = (req, res, next) => {
     next();
 };
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'ok',
-        version: BRAND.version,
-        uptime: process.uptime()
-    });
-});
 
-// Canonical email OTP authentication routes\napp.use('/api/auth/otp', otpRouter);\n\n// API routes
-app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = database.validateUser(username, password);
-    if (!user) {
-        return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    res.json({
-        success: true,
-        token: CONFIG.GATEWAY_TOKEN,
-        user: { username: user.username, role: user.role }
-    });
-});
 
-app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, res) => {
-    const { tool, params = [] } = req.body;
-    try {
-        const result = await global.commandHandler.execute(tool, params, req.body._actor || 'api');
-        res.json({ success: true, result });
-    } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
-    }
-});
-
-app.get('/api/tools', authMiddleware, (req, res) => {
-    res.json({ tools: global.commandHandler.getAvailableTools() });
-});
-
-app.get('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    const used = req.query.used === 'true' ? true : req.query.used === 'false' ? false : null;
-    res.json(database.listVouchers(limit, used));
-});
-
-app.post('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
-    const { plan, count = 1 } = req.body;
-    if (!CONFIG.VOUCHER_PLANS[plan]) {
-        return res.status(400).json({ error: `Invalid plan: ${plan}` });
-    }
-
-    const vouchers = [];
-    for (let i = 0; i < Math.min(count, 100); i++) {
-        const code = CONFIG.VOUCHER_PREFIX + crypto.randomBytes(3).toString('hex').toUpperCase();
-        vouchers.push(database.createVoucher(code, plan, 'api'));
-    }
-
-    res.json({ success: true, vouchers });
-});
-
-app.post('/api/vouchers/redeem', rateLimitMiddleware, (req, res) => {
-    const { code, user } = req.body;
-    if (!code || !user) {
-        return res.status(400).json({ error: 'Code and user required' });
-    }
-    res.json(database.redeemVoucher(code, user));
-});
-
-app.get('/api/vouchers/stats', authMiddleware, (req, res) => {
-    res.json(database.getVoucherStats());
-});
-
-app.get('/api/audit', authMiddleware, (req, res) => {
-    const limit = parseInt(req.query.limit) || 50;
-    res.json(database.getAuditLog(limit));
+// Register product-domain routes through an explicit dependency boundary.
+registerWifiRoutes({
+    app,
+    otpRouter,
+    database,
+    CONFIG,
+    BRAND,
+    authMiddleware,
+    rateLimitMiddleware,
+    getCommandHandler: () => global.commandHandler,
+    issueUserToken
 });
 
 // ── Stripe card top-up ──────────────────────────────────────────────────────

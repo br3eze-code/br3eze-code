@@ -6,7 +6,9 @@
  * Provider-specific identity remains behind this adapter boundary.
  */
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { admin } from '../config/firebase.js';
+import { verifySupabaseAccessToken } from '../../../src/adapters/auth/supabase.js';
 
 const ROLE_PERMISSIONS = Object.freeze({
   ADMIN: ['*'],
@@ -49,7 +51,20 @@ function normalizeIdentity(decoded, provider = 'firebase') {
   });
 }
 
-export async function authenticateBearer(token) {
+export function issueUserToken({ uid, username, role }, secret) {
+  if (typeof secret !== 'string' || secret.length < 16) {
+    throw new TypeError('A signing secret of at least 16 characters is required');
+  }
+  const subject = uid || username;
+  if (!subject) throw new TypeError('A user identifier is required');
+  return jwt.sign(
+    { role: String(role || 'USER').toUpperCase() },
+    secret,
+    { subject: String(subject), issuer: 'agentos', audience: 'agentos-api', expiresIn: '1h' }
+  );
+}
+
+export async function authenticateBearer(token, { userTokenSecret } = {}) {
   if (!token) return null;
 
   const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || process.env.GATEWAY_TOKEN || '';
@@ -66,10 +81,43 @@ export async function authenticateBearer(token) {
     });
   }
 
-  if (!admin) return null;
+  if (userTokenSecret) {
+    try {
+      const decoded = jwt.verify(token, userTokenSecret, {
+        issuer: 'agentos',
+        audience: 'agentos-api'
+      });
+      return normalizeIdentity(decoded, 'local');
+    } catch {
+      // Continue to the configured external identity providers.
+    }
+  }
+
+  if (admin) {
+    try {
+      const decoded = await admin.auth().verifyIdToken(token, true);
+      return normalizeIdentity(decoded, 'firebase');
+    } catch {
+      // A token may belong to the configured Supabase identity provider.
+    }
+  }
+
   try {
-    const decoded = await admin.auth().verifyIdToken(token);
-    return normalizeIdentity(decoded, 'firebase');
+    const decoded = await verifySupabaseAccessToken(token);
+    if (!decoded) return null;
+    const identity = normalizeIdentity({
+      uid: decoded.uid,
+      email: decoded.email,
+      role: decoded.role,
+      roles: decoded.roles,
+      email_verified: decoded.emailVerified
+    }, 'supabase');
+    return Object.freeze({
+      ...identity,
+      tenantId: decoded.tenantId || null,
+      siteId: decoded.siteId || null,
+      metadata: { ...identity.metadata, authProvider: 'supabase', domain: decoded.domain || null }
+    });
   } catch {
     return null;
   }

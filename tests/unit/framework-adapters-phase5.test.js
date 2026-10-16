@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, test } from '@jest/globals';
 import { AgentOSFrameworkAdapter, assertAdapterContract } from '../../src/adapters/frameworks/AgentOSFrameworkAdapter.js';
 import { MCPAdapter } from '../../src/adapters/protocols/MCPAdapter.js';
 import { A2AAdapter } from '../../src/adapters/protocols/A2AAdapter.js';
@@ -14,24 +13,26 @@ function fakeFactory() {
   return factory;
 }
 
-test('framework adapter satisfies AgentOS contract', async () => {
-  const adapter = new AgentOSFrameworkAdapter({ id: 'test', factory: fakeFactory() });
-  assert.equal(assertAdapterContract(adapter), true);
-  await adapter.runAgent({ id: 'a' }, { input: 'x' }, { tenantId: 't' });
-});
+describe('AgentOS framework and protocol adapters', () => {
+  test('framework adapter satisfies AgentOS contract', async () => {
+    const adapter = new AgentOSFrameworkAdapter({ id: 'test', factory: fakeFactory() });
+    expect(assertAdapterContract(adapter)).toBe(true);
+    await expect(adapter.runAgent({ id: 'a' }, { input: 'x' }, { tenantId: 't' })).resolves.toMatchObject({ ok: true, name: 'runAgent' });
+  });
 
-test('MCP adapter enforces tenant scope and forwards tenant', async () => {
-  let request;
-  const adapter = new MCPAdapter({ client: { listTools: async (value) => { request = value; return []; } } });
-  await assert.rejects(() => adapter.listTools(), /TENANT_SCOPE_REQUIRED/);
-  assert.deepEqual(await adapter.listTools({ tenantId: 't1' }), []);
-  assert.equal(request.tenantId, 't1');
-});
+  test('MCP adapter enforces tenant scope and forwards tenant', async () => {
+    let request;
+    const adapter = new MCPAdapter({ client: { listTools: async (value) => { request = value; return []; } } });
+    await expect(adapter.listTools()).rejects.toThrow('TENANT_SCOPE_REQUIRED');
+    await expect(adapter.listTools({ tenantId: 't1' })).resolves.toEqual([]);
+    expect(request.tenantId).toBe('t1');
+  });
 
-test('A2A adapter enforces tenant scope', async () => {
-  let request;
-  const adapter = new A2AAdapter({ client: { sendTask: async (value) => { request = value; return value; } } });
-  await assert.rejects(() => adapter.sendTask({ agent: 'a', input: 'x' }), /TENANT_SCOPE_REQUIRED/);
-  await adapter.sendTask({ agent: 'a', input: 'x', context: { tenantId: 't1', userId: 'u1' } });
-  assert.equal(request.context.tenantId, 't1');
+  test('A2A adapter enforces tenant scope', async () => {
+    let request;
+    const adapter = new A2AAdapter({ client: { sendTask: async (value) => { request = value; return value; } } });
+    await expect(adapter.sendTask({ agent: 'a', input: 'x' })).rejects.toThrow('TENANT_SCOPE_REQUIRED');
+    await adapter.sendTask({ agent: 'a', input: 'x', context: { tenantId: 't1', userId: 'u1' } });
+    expect(request.context.tenantId).toBe('t1');
+  });
 });

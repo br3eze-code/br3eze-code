@@ -1,7 +1,33 @@
 import { describe, expect, test } from '@jest/globals';
-import { hasPermission, ownsResource, normalizeIdentity } from './identity.js';
+import { authenticateBearer, issueUserToken, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
 
 describe('canonical identity authorization', () => {
+  test('accepts only an explicitly configured service token at the service boundary', async () => {
+    const previous = process.env.AGENTOS_SERVICE_TOKEN;
+    process.env.AGENTOS_SERVICE_TOKEN = 'test-service-token';
+    try {
+      const identity = await authenticateBearer('test-service-token');
+      expect(identity.provider).toBe('service');
+      expect(identity.permissions).toContain('*');
+      expect(await authenticateBearer('wrong-token')).toBeNull();
+    } finally {
+      if (previous === undefined) delete process.env.AGENTOS_SERVICE_TOKEN;
+      else process.env.AGENTOS_SERVICE_TOKEN = previous;
+    }
+  });
+
+  test('issues short-lived scoped user tokens that are not the service token', async () => {
+    const secret = 'test-signing-secret-that-is-long-enough';
+    const token = issueUserToken({ uid: 'user-123', username: 'test-user', role: 'PARTNER' }, secret);
+    expect(token).not.toBe(secret);
+    const identity = await authenticateBearer(token, { userTokenSecret: secret });
+    expect(identity.id).toBe('user-123');
+    expect(identity.provider).toBe('local');
+    expect(identity.roles).toContain('PARTNER');
+    expect(identity.permissions).toContain('orders.create');
+    expect(await authenticateBearer(token, { userTokenSecret: 'different-long-secret-value' })).toBeNull();
+  });
+
   test('normalizes a Firebase identity', () => {
     const identity = normalizeIdentity({ uid: 'u1', email: 'u@example.com', role: 'PARTNER' });
     expect(identity.id).toBe('u1');

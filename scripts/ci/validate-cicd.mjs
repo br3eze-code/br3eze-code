@@ -29,7 +29,10 @@ for (const file of workflows) {
     errors.push(`${file}: Node 18/20/21 is forbidden; use Node 22`);
   }
 
-  for (const match of text.matchAll(/npm\s+ci\b[^\n]*/g)) {
+  // Ignore comments when checking commands; documentation may mention npm ci
+  // without describing an executed dependency-install step.
+  const activeLines = text.split(/\r?\n/).filter((line) => !/^\s*#/.test(line)).join('\n');
+  for (const match of activeLines.matchAll(/npm\s+ci\b[^\n]*/g)) {
     if (!match[0].includes('--ignore-scripts')) {
       errors.push(`${file}: npm ci must include --ignore-scripts`);
     }
