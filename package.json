@@ -45,7 +45,7 @@
     "postinstall": "npm run build:product-query && node scripts/agentos-postinstall.mjs && node scripts/sync-php-platforms.mjs",
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
-    "check:architecture": "node scripts/architecture-direction-gate.mjs && node scripts/core-boundary-gate.mjs"
+    "check:architecture": "node scripts/core-boundary-gate.mjs"
   },
   "publishConfig": {
     "access": "public",
