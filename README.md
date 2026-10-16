@@ -378,3 +378,11 @@ The repair branch now separates three concerns under `server/`:
 - `server/src/domains/wifi/registerRoutes.js` owns the Wi-Fi health, tool, authentication, voucher, and audit endpoints, with dependencies supplied by the composition root.
 - `server/server.js` remains the composition/bootstrap entrypoint and still contains legacy gateway, persistence, and payment implementation. This is an incremental boundary extraction, **not** a claim that the entire server is domain-neutral or fully consolidated yet.
 - Unit tests cover the generic HTTP middleware factory and injected Wi-Fi route registration.
+
+
+### PHP fallback / Node route compatibility (incremental)
+
+- The Node Wi-Fi route module now exposes compatibility aliases for the shared capability, tools, voucher, payment-method, and channel endpoints used by `www/agentos_routes.php` and `www/agentos_domain_adapters.php`.
+- Payment-method metadata is built from one provider-neutral catalogue and reports configuration without exposing credential values; `serverConfirmed` remains false until a provider operation is actually verified.
+- Server authentication now delegates to the identity boundary, which verifies Firebase ID tokens, Supabase access tokens through the existing Supabase auth adapter, and explicitly configured service tokens. Unverified bearer tokens are rejected.
+- This is **targeted compatibility**, not complete route parity: the PHP fallback catalogue contains additional domain routes and safe fallback behavior that still require a route-by-route inventory and parity tests before this PR is considered merge-ready.
