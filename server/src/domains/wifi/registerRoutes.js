@@ -75,7 +75,7 @@ app.use('/api/auth/otp', otpRouter);
         });
     });
     
-    app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, res) => {
+    const executeTool = async (req, res) => {
         const { tool, params = [] } = req.body;
         try {
             const result = await getCommandHandler().execute(tool, params, req.body._actor || 'api');
@@ -83,7 +83,9 @@ app.use('/api/auth/otp', otpRouter);
         } catch (error) {
             res.status(400).json({ success: false, error: error.message });
         }
-    });
+    };
+    app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, executeTool);
+    app.post('/tool/execute', authMiddleware, rateLimitMiddleware, executeTool);
     
     app.get('/api/tools', authMiddleware, (req, res) => {
         res.json({ tools: getCommandHandler().getAvailableTools() });
@@ -114,15 +116,27 @@ app.use('/api/auth/otp', otpRouter);
                 identity: { paths: ['/user', '/users/active', '/users/all', '/users/status', '/users/add', '/users/remove', '/users/kick', '/users/sync', '/system/identity', '/api/v1/users/sync', '/api/v1/users/kick'], skills: ['identity', 'tenant-scope', 'permissions', 'location-privacy'] }
             },
             paymentMethods,
-            channels: [],
+            channels: ['telegram', 'whatsapp', 'email', 'sms', 'websocket', 'webpush', 'web', 'cordova', 'electron', 'cli'].map(id => ({ id, domainAgnostic: true, serverConfirmed: false })),
             message: 'Local capability manifest; authoritative remote availability is not confirmed.'
         });
     });
 
-    app.get('/api/payment/methods', (req, res) => {
+    const listPaymentMethods = (req, res) => {
         const methods = getPaymentMethods();
         res.json({ success: true, domain: 'payments', status: 'degraded', serverConfirmed: false, methods });
-    });
+    };
+    app.get('/api/payment/methods', listPaymentMethods);
+    app.get('/payment/methods', listPaymentMethods);
+    app.get('/billing/methods', listPaymentMethods);
+
+    const listChannelCapabilities = (req, res) => {
+        const channels = ['telegram', 'whatsapp', 'email', 'sms', 'websocket', 'webpush', 'web', 'cordova', 'electron', 'cli']
+            .map(id => ({ id, domainAgnostic: true, serverConfirmed: false }));
+        res.json({ success: true, domain: 'channels', status: 'degraded', serverConfirmed: false, channels });
+    };
+    app.get('/channels', listChannelCapabilities);
+    app.get('/api/channels', listChannelCapabilities);
+    app.get('/channels/capabilities', listChannelCapabilities);
     
     app.get('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
