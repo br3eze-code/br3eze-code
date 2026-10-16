@@ -28,7 +28,8 @@ describe('Wi-Fi route composition', () => {
       BRAND: { name: 'Test', version: '1' },
       authMiddleware: (_req, _res, next) => next(),
       rateLimitMiddleware: (_req, _res, next) => next(),
-      getCommandHandler: () => ({ execute: jest.fn(), getAvailableTools: jest.fn() })
+      getCommandHandler: () => ({ execute: jest.fn(), getAvailableTools: jest.fn() }),
+      issueUserToken: jest.fn(() => 'scoped-test-token')
     });
 
     expect(routes.some((route) => route.path === '/health')).toBe(true);
