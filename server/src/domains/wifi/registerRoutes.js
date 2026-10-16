@@ -33,7 +33,10 @@ export function registerWifiRoutes({
         });
     });
     
-    // Canonical email OTP authentication routes\napp.use('/api/auth/otp', otpRouter);\n\n// API routes
+    // Canonical email OTP authentication routes
+app.use('/api/auth/otp', otpRouter);
+
+// API routes
     app.post('/api/auth/login', (req, res) => {
         const { username, password } = req.body;
         const user = database.validateUser(username, password);
