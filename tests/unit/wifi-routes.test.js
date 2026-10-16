@@ -38,6 +38,10 @@ describe('Wi-Fi route composition', () => {
     expect(routes.some((route) => route.path === '/api/v1/tools')).toBe(true);
     expect(routes.some((route) => route.path === '/api/v1/capabilities')).toBe(true);
     expect(routes.some((route) => route.path === '/api/payment/methods')).toBe(true);
+    expect(routes.some((route) => route.path === '/billing/methods')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/channels')).toBe(true);
+    expect(routes.some((route) => route.path === '/channels/capabilities')).toBe(true);
+    expect(routes.some((route) => route.path === '/tool/execute')).toBe(true);
     expect(routes.some((route) => route.path === '/api/auth/otp')).toBe(true);
     expect(app.post).toHaveBeenCalled();
   });
