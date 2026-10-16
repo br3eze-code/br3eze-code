@@ -49,12 +49,25 @@ export function registerWifiRoutes({
         throw new TypeError('Wi-Fi route dependencies are required');
     }
 
-    // Health check
+    // Runtime health contract shared with the PHP fallback. The Node server
+    // reports its own health without claiming provider or remote-state success.
     app.get('/health', (req, res) => {
         res.json({
+            success: true,
             status: 'ok',
+            service: 'agentos-node-server',
+            firebase: Boolean(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL),
             version: BRAND.version,
             uptime: process.uptime()
+        });
+    });
+
+    app.get('/manifest', (req, res) => {
+        res.json({
+            name: 'AgentOS',
+            offline: false,
+            routeDispatcher: true,
+            version: process.env.AGENTOS_VERSION || BRAND.version
         });
     });
     
