@@ -7,6 +7,31 @@
  */
 import crypto from 'node:crypto';
 
+const PAYMENT_PROVIDERS = [
+    { id: 'stripe', name: 'Card', type: 'card', credentials: ['STRIPE_SECRET_KEY'] },
+    { id: 'ecocash', name: 'EcoCash', type: 'mobile_money', credentials: ['ECOCASH_API_KEY', 'ECOCASH_MERCHANT_CODE'] },
+    { id: 'netone', name: 'OneMoney', type: 'mobile_money', credentials: ['NETONE_API_KEY', 'NETONE_MERCHANT_ID'] },
+    { id: 'paynow', name: 'PayNow', type: 'aggregator', credentials: ['PAYNOW_INTEGRATION_ID', 'PAYNOW_INTEGRATION_KEY'] },
+    { id: 'pesapay', name: 'PesaPay', type: 'aggregator', credentials: ['PESAPAY_CONSUMER_KEY', 'PESAPAY_CONSUMER_SECRET'] },
+    { id: 'mpesa', name: 'M-Pesa', type: 'mobile_money', credentials: ['MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET'] },
+    { id: 'mastercard', name: 'Mastercard', type: 'card', credentials: ['MASTERCARD_API_KEY'] },
+    { id: 'apple_pay', name: 'Apple Pay', type: 'wallet', credentials: ['APPLE_PAY_MERCHANT_ID'] },
+    { id: 'google_pay', name: 'Google Pay', type: 'wallet', credentials: ['GOOGLE_PAY_MERCHANT_ID'] },
+    { id: 'innbucks', name: 'InnBucks', type: 'mobile_money', credentials: ['INNBUCKS_API_KEY'] },
+    { id: 'manual', name: 'Manual/Invoice', type: 'offline', credentials: [] }
+];
+
+function getPaymentMethods() {
+    return PAYMENT_PROVIDERS.map(({ id, name, type, credentials }) => ({
+        id,
+        name,
+        type,
+        configured: id === 'manual' || credentials.some(key => Boolean(String(process.env[key] || '').trim())),
+        serverConfirmed: false
+    }));
+}
+
+
 export function registerWifiRoutes({
     app,
     otpRouter,
@@ -71,19 +96,7 @@ app.use('/api/auth/otp', otpRouter);
     // Compatibility routes shared with the PHP fallback contract in www/.
     // Capability metadata is descriptive only; it never claims remote state.
     app.get('/api/v1/capabilities', (req, res) => {
-        const paymentMethods = [
-            { id: 'stripe', name: 'Card', type: 'card', configured: Boolean(process.env.STRIPE_SECRET_KEY) },
-            { id: 'ecocash', name: 'EcoCash', type: 'mobile_money', configured: Boolean(process.env.ECOCASH_API_KEY && process.env.ECOCASH_MERCHANT_CODE) },
-            { id: 'netone', name: 'OneMoney', type: 'mobile_money', configured: Boolean(process.env.NETONE_API_KEY && process.env.NETONE_MERCHANT_ID) },
-            { id: 'paynow', name: 'PayNow', type: 'aggregator', configured: Boolean(process.env.PAYNOW_INTEGRATION_ID && process.env.PAYNOW_INTEGRATION_KEY) },
-            { id: 'pesapay', name: 'PesaPay', type: 'aggregator', configured: Boolean(process.env.PESAPAY_CONSUMER_KEY && process.env.PESAPAY_CONSUMER_SECRET) },
-            { id: 'mpesa', name: 'M-Pesa', type: 'mobile_money', configured: Boolean(process.env.MPESA_CONSUMER_KEY && process.env.MPESA_CONSUMER_SECRET) },
-            { id: 'mastercard', name: 'Mastercard', type: 'card', configured: Boolean(process.env.MASTERCARD_API_KEY) },
-            { id: 'innbucks', name: 'InnBucks', type: 'mobile_money', configured: Boolean(process.env.INNBUCKS_API_KEY) },
-            { id: 'manual', name: 'Manual/Invoice', type: 'offline', configured: true }
-        ].map(({ id, name, type, configured }) => ({
-            id, name, type, configured, domainAgnostic: true, serverConfirmed: false
-        }));
+        const paymentMethods = getPaymentMethods();
         res.json({
             success: true,
             status: 'degraded',
@@ -102,19 +115,7 @@ app.use('/api/auth/otp', otpRouter);
     });
 
     app.get('/api/payment/methods', (req, res) => {
-        const methods = [
-            ['stripe', 'Card', 'card', Boolean(process.env.STRIPE_SECRET_KEY)],
-            ['ecocash', 'EcoCash', 'mobile_money', Boolean(process.env.ECOCASH_API_KEY && process.env.ECOCASH_MERCHANT_CODE)],
-            ['netone', 'OneMoney', 'mobile_money', Boolean(process.env.NETONE_API_KEY && process.env.NETONE_MERCHANT_ID)],
-            ['paynow', 'PayNow', 'aggregator', Boolean(process.env.PAYNOW_INTEGRATION_ID && process.env.PAYNOW_INTEGRATION_KEY)],
-            ['pesapay', 'PesaPay', 'aggregator', Boolean(process.env.PESAPAY_CONSUMER_KEY && process.env.PESAPAY_CONSUMER_SECRET)],
-            ['mpesa', 'M-Pesa', 'mobile_money', Boolean(process.env.MPESA_CONSUMER_KEY && process.env.MPESA_CONSUMER_SECRET)],
-            ['mastercard', 'Mastercard', 'card', Boolean(process.env.MASTERCARD_API_KEY)],
-            ['innbucks', 'InnBucks', 'mobile_money', Boolean(process.env.INNBUCKS_API_KEY)],
-            ['manual', 'Manual/Invoice', 'offline', true]
-        ].map(([id, name, type, configured]) => ({
-            id, name, type, configured, domainAgnostic: true, serverConfirmed: false
-        }));
+        const methods = getPaymentMethods();
         res.json({ success: true, domain: 'payments', status: 'degraded', serverConfirmed: false, methods });
     });
     
