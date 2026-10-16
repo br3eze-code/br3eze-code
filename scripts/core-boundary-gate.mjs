@@ -60,7 +60,7 @@ if (fs.existsSync(serverCoreRoot)) {
         pending.push(absolute);
         continue;
       }
-      if (!entry.isFile() || !/\\.(?:mjs|cjs|js)$/.test(entry.name)) continue;
+      if (!entry.isFile() || !/\.(?:mjs|cjs|js)$/.test(entry.name)) continue;
       const source = fs.readFileSync(absolute, 'utf8');
       for (const match of source.matchAll(importPattern)) {
         const specifier = match[1];
