@@ -7,6 +7,7 @@
  */
 import crypto from 'crypto';
 import { admin } from '../config/firebase.js';
+import { verifySupabaseAccessToken } from '../../../src/adapters/auth/supabase.js';
 
 const ROLE_PERMISSIONS = Object.freeze({
   ADMIN: ['*'],
@@ -66,10 +67,31 @@ export async function authenticateBearer(token) {
     });
   }
 
-  if (!admin) return null;
+  if (admin) {
+    try {
+      const decoded = await admin.auth().verifyIdToken(token, true);
+      return normalizeIdentity(decoded, 'firebase');
+    } catch {
+      // A token may belong to the configured Supabase identity provider.
+    }
+  }
+
   try {
-    const decoded = await admin.auth().verifyIdToken(token);
-    return normalizeIdentity(decoded, 'firebase');
+    const decoded = await verifySupabaseAccessToken(token);
+    if (!decoded) return null;
+    const identity = normalizeIdentity({
+      uid: decoded.uid,
+      email: decoded.email,
+      role: decoded.role,
+      roles: decoded.roles,
+      email_verified: decoded.emailVerified
+    }, 'supabase');
+    return Object.freeze({
+      ...identity,
+      tenantId: decoded.tenantId || null,
+      siteId: decoded.siteId || null,
+      metadata: { ...identity.metadata, authProvider: 'supabase', domain: decoded.domain || null }
+    });
   } catch {
     return null;
   }
