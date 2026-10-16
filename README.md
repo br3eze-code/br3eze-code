@@ -384,5 +384,5 @@ The repair branch now separates three concerns under `server/`:
 
 - The Node Wi-Fi route module now exposes compatibility aliases for the shared capability, tools, voucher, payment-method, and channel endpoints used by `www/agentos_routes.php` and `www/agentos_domain_adapters.php`.
 - Payment-method metadata is built from one provider-neutral catalogue and reports configuration without exposing credential values; `serverConfirmed` remains false until a provider operation is actually verified.
-- Server authentication now delegates to the identity boundary, which verifies Firebase ID tokens, Supabase access tokens through the existing Supabase auth adapter, and explicitly configured service tokens. Unverified bearer tokens are rejected.
+- Server authentication now delegates to the identity boundary, which verifies Firebase ID tokens, Supabase access tokens through the existing Supabase auth adapter, explicitly configured service tokens, and short-lived scoped local-login JWTs. The legacy login route no longer returns the shared gateway secret. Unverified bearer tokens are rejected.
 - This is **targeted compatibility**, not complete route parity: the PHP fallback catalogue contains additional domain routes and safe fallback behavior that still require a route-by-route inventory and parity tests before this PR is considered merge-ready.
