@@ -7,6 +7,8 @@ const nodeRoutes = readFileSync(new URL('../../server/src/domains/wifi/registerR
 
 describe('PHP fallback and Node server contract overlap', () => {
   test.each([
+    ['/health', 'GET'],
+    ['/manifest', 'GET'],
     ['/api/v1/capabilities', 'GET'],
     ['/api/v1/tools', 'GET'],
     ['/api/v1/vouchers', 'GET'],
