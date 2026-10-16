@@ -20,7 +20,6 @@ export const AGENT_RUNTIME_CAPABILITIES = Object.freeze([
   'child.agents', 'human.approval', 'guardrails', 'tenant.scope',
   'context.compaction', 'memory.namespaces', 'retrieval.adapter',
   'structured.output', 'tracing.spans', 'idempotent.side_effects',
-  'streaming.events', 'evaluation.hooks'
   'streaming.events', 'evaluation.hooks', 'trajectory.replay',
   'workflow.declarative', 'framework.adapters', 'usage.accounting'
 ]);
