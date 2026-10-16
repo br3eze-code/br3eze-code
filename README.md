@@ -351,3 +351,19 @@ The execution path should remain followable from request to capability to verifi
 ## Status
 
 AgentOS is actively consolidating a historically evolved codebase toward this architecture. The goal is not to add more agent abstractions. The goal is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**
+
+## Branch consolidation and architecture audit (2026-10-16)
+
+The `main` branch remains the canonical integration target. Ahead branches are reviewed file by file; commit counts alone are not a reason to merge. Divergent branches are not merged wholesale, and deletions of runtime implementations, adapters, or architecture tests require explicit caller and regression-test review.
+
+The current incremental repair and consolidation is tracked in [PR #193](https://github.com/br3eze-code/br3eze-code/pull/193). It resolves committed merge-conflict markers, aligns the package manifest with its lockfile, fixes the CI/CD contract workflow to test the pull-request commit, ports selected runtime-boundary improvements, and applies the `handlebars` 4.7.10 and `music-metadata` 11.16.1 lockfile updates. The PR does not claim that every ahead commit has been absorbed or that the runtime has only one execution owner yet.
+
+Branch review policy:
+
+- Keep one canonical `AgentRuntime` execution boundary; compatibility facades must delegate rather than reimplement execution.
+- Prefer extracting useful tests, adapter contracts, and domain-neutral ports over merging divergent legacy branches.
+- Preserve dependency lockfile integrity; do not replace it with a stale branch snapshot.
+- Do not delete legacy code until callers are migrated and regression tests cover the replacement.
+- Do not merge until the latest CI, architecture, syntax, test, deployment, and security results are reviewed.
+
+The architecture-direction gate is available for continued migration work. Existing legacy callers still need file-by-file conversion to provider ports before the broader gate can become a blocking repository-wide rule.
