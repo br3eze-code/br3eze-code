@@ -121,7 +121,7 @@ app.use('/api/auth/otp', otpRouter);
 
     // Compatibility routes shared with the PHP fallback contract in www/.
     // Capability metadata is descriptive only; it never claims remote state.
-    app.get('/api/v1/capabilities', (req, res) => {
+    app.get('/api/v1/capabilities', authMiddleware, (req, res) => {
         const paymentMethods = getPaymentMethods();
         res.json({
             success: true,
@@ -149,18 +149,18 @@ app.use('/api/auth/otp', otpRouter);
         const methods = getPaymentMethods();
         res.json({ success: true, domain: 'payments', status: 'degraded', serverConfirmed: false, methods });
     };
-    app.get('/api/payment/methods', listPaymentMethods);
-    app.get('/payment/methods', listPaymentMethods);
-    app.get('/billing/methods', listPaymentMethods);
+    app.get('/api/payment/methods', authMiddleware, listPaymentMethods);
+    app.get('/payment/methods', authMiddleware, listPaymentMethods);
+    app.get('/billing/methods', authMiddleware, listPaymentMethods);
 
     const listChannelCapabilities = (req, res) => {
         const channels = ['telegram', 'whatsapp', 'email', 'sms', 'websocket', 'webpush', 'web', 'cordova', 'electron', 'cli']
             .map(id => ({ id, domainAgnostic: true, serverConfirmed: false }));
         res.json({ success: true, domain: 'channels', status: 'degraded', serverConfirmed: false, channels });
     };
-    app.get('/channels', listChannelCapabilities);
-    app.get('/api/channels', listChannelCapabilities);
-    app.get('/channels/capabilities', listChannelCapabilities);
+    app.get('/channels', authMiddleware, listChannelCapabilities);
+    app.get('/api/channels', authMiddleware, listChannelCapabilities);
+    app.get('/channels/capabilities', authMiddleware, listChannelCapabilities);
     
     app.get('/api/vouchers', authMiddleware, rateLimitMiddleware, (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
