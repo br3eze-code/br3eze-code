@@ -367,3 +367,14 @@ Branch review policy:
 - Do not merge until the latest CI, architecture, syntax, test, deployment, and security results are reviewed.
 
 The architecture-direction gate is available for continued migration work. Existing legacy callers still need file-by-file conversion to provider ports before the broader gate can become a blocking repository-wide rule.
+
+
+### Server boundary extraction (incremental)
+
+The repair branch now separates three concerns under `server/`:
+
+- `server/src/core/configureHttpApplication.js` owns injectable, cross-cutting HTTP middleware only; it has no product, database, identity-provider, payment, or network-vendor imports.
+- `server/src/domains/wifi/config.js` owns Wi-Fi product defaults, router configuration, and voucher plans.
+- `server/src/domains/wifi/registerRoutes.js` owns the Wi-Fi health, tool, authentication, voucher, and audit endpoints, with dependencies supplied by the composition root.
+- `server/server.js` remains the composition/bootstrap entrypoint and still contains legacy gateway, persistence, and payment implementation. This is an incremental boundary extraction, **not** a claim that the entire server is domain-neutral or fully consolidated yet.
+- Unit tests cover the generic HTTP middleware factory and injected Wi-Fi route registration.
