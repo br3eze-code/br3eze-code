@@ -28,6 +28,7 @@ import otpRouter from './src/routes/otp.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
+import { authenticateBearer } from './src/auth/identity.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1307,17 +1308,25 @@ const app = configureHttpApplication({
     staticDirectory: path.join(__dirname, 'public')
 });
 
-// Auth middleware
-const authMiddleware = (req, res, next) => {
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Bearer ')) {
+// Provider-neutral identity boundary: Firebase/Supabase user tokens and
+// explicitly configured service tokens are verified by the auth adapter.
+const authMiddleware = async (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Authorization required' });
     }
-    const token = auth.split(' ')[1];
-    if (token !== CONFIG.GATEWAY_TOKEN) {
+    const token = authorization.slice('Bearer '.length).trim();
+    if (!token) return res.status(401).json({ error: 'Invalid token' });
+
+    try {
+        const identity = await authenticateBearer(token);
+        if (!identity) return res.status(401).json({ error: 'Invalid token' });
+        req.user = identity;
+        return next();
+    } catch (error) {
+        logger.warn('Request authentication failed', { message: error?.message || 'unknown error' });
         return res.status(401).json({ error: 'Invalid token' });
     }
-    next();
 };
 
 // Rate limiter middleware
