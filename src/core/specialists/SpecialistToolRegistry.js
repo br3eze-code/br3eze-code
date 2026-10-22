@@ -1,10 +1,9 @@
-<<<<<<< HEAD
 /**
- * Specialist-scoped tool index.
+ * Specialist-scoped ownership index.
  *
- * This is intentionally distinct from the canonical core ToolRegistry: it
- * answers ownership questions (which specialist may use which tool) and does
- * not load, execute or discover tools globally.
+ * This registry answers which specialist may reference which registered
+ * capability. It does not discover, execute, or globally register tools;
+ * execution remains owned by the canonical ToolRegistry and AgentRuntime.
  */
 export class SpecialistToolRegistry {
   constructor({ skills = [] } = {}) {
@@ -14,11 +13,11 @@ export class SpecialistToolRegistry {
   }
 
   registerSkill(skill) {
-    if (!skill?.name) throw new Error('skill name is required');
+    if (!skill?.name) throw new TypeError('skill name is required');
     if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);
     this.skills.set(skill.name, skill);
     for (const tool of skill.tools || []) {
-      if (!tool?.name) throw new Error('tool name is required');
+      if (!tool?.name) throw new TypeError('tool name is required');
       if (this.tools.has(tool.name)) throw new Error(`Tool "${tool.name}" already registered`);
       this.tools.set(tool.name, {
         ...tool,
@@ -38,18 +37,12 @@ export class SpecialistToolRegistry {
     const names = new Set(specialist?.tools || []);
     const skills = new Set(specialist?.skills || specialist?.skillNames || []);
     return this.listTools().filter((tool) => (
-      tool.specialist === specialist?.role ||
-      tool.specialist === specialist?.id ||
-      names.has(tool.name) ||
-      skills.has(tool.skill)
+      tool.specialist === specialist?.role
+      || tool.specialist === specialist?.id
+      || names.has(tool.name)
+      || skills.has(tool.skill)
     ));
   }
 }
 
-=======
-import { ToolRegistry } from './ToolRegistry.js';
-
-/** Compatibility name for the domain-neutral specialist tool registry. */
-export class SpecialistToolRegistry extends ToolRegistry {}
->>>>>>> origin/main
 export default SpecialistToolRegistry;
