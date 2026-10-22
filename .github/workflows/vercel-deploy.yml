@@ -56,7 +56,7 @@ jobs:
         run: npm run vercel:build
         env:
           NODE_ENV: production
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL || '' }}
           VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
           VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
           VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
@@ -66,10 +66,13 @@ jobs:
       - name: Verify build output
         run: |
           set -euo pipefail
-          test -d www
-          test -f www/index.html
+          test -d dist-web
+          test -f dist-web/index.html
+          test -f dist-web/connect.html
+          test -f dist-web/js/env.js
           test -f api/index.js
-          du -sh www
+          if find dist-web -type f \( -name '*.php' -o -name '*.phtml' -o -name '.htaccess' \) | grep -q .; then echo 'Server-only files found in static output' >&2; exit 1; fi
+          du -sh dist-web
 
       - name: Validate deployment configuration
         env:
@@ -82,10 +85,12 @@ jobs:
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
-          case "$VITE_API_URL" in
-            https://*|http://*) ;;
-            *) echo "VITE_API_URL must be an absolute HTTP(S) URL" >&2; exit 1 ;;
-          esac
+          if [ -n "$VITE_API_URL" ]; then
+            case "$VITE_API_URL" in
+              https://*|http://*) ;;
+              *) echo "VITE_API_URL must be empty for same-origin routing or an absolute HTTP(S) URL" >&2; exit 1 ;;
+            esac
+          fi
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
