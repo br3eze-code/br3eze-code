@@ -44,7 +44,8 @@
     "postinstall": "npm run build:product-query && node scripts/agentos-postinstall.mjs && node scripts/sync-php-platforms.mjs",
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
-    "test:production": "npm test -- --runInBand --coverage=false"
+    "test:production": "npm test -- --runInBand --coverage=false",
+    "vercel:build": "npm run build && node scripts/vercel-build.mjs"
   },
   "publishConfig": {
     "access": "public",
