@@ -12,7 +12,6 @@ const root = process.cwd();
 const conflictRoots = ['src', 'scripts'];
 const conflictFiles = ['package.json', 'package-lock.json'];
 const sourceExtensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.yml', '.yaml', '.php', '.html', '.css']);
-const markerPattern = /^(<<<<<<<(?: .*)?|=======(?: .*)?|>>>>>>>(?: .*)?)$/m;
 const conflictFindings = [];
 
 function collectFiles(entry) {
