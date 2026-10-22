@@ -1,17 +1,14 @@
 import { logger } from './logger.js';
 
 /**
-<<<<<<< HEAD
- * Domain-agnostic AgentOS lifecycle orchestrator.
+ * Domain-agnostic lifecycle coordinator.
  *
- * Core owns scheduling, lifecycle and observation. Domain/infrastructure
- * behavior is injected through capabilities; the kernel does not know about
- * a particular vendor, protocol, network product or commerce implementation.
+ * It schedules observation and maintenance callbacks supplied by capabilities;
+ * it does not plan or execute agent tasks. AgentRuntime remains the canonical
+ * execution owner.
  */
 class AgentOSOrchestrator {
   constructor(capabilities = {}, db = null, gateway = null, notifier = null) {
-    // Backwards-compatible positional construction is retained, but the core
-    // treats the first argument strictly as an injected capability provider.
     this.capabilities = capabilities || {};
     this.db = db;
     this.gateway = gateway;
@@ -55,7 +52,7 @@ class AgentOSOrchestrator {
   }
 
   _monitorSystem() {
-    const interval = setInterval(async () => {
+    this._intervals.push(setInterval(async () => {
       try {
         const metrics = await this._call('getSystemMetrics');
         if (metrics !== undefined) {
@@ -65,16 +62,14 @@ class AgentOSOrchestrator {
       } catch (error) {
         logger.error(`System monitor: ${error.message}`);
       }
-    }, 15_000);
-    this._intervals.push(interval);
+    }, 15_000));
   }
 
   _monitorEntities() {
-    const interval = setInterval(async () => {
+    this._intervals.push(setInterval(async () => {
       try {
         const entities = await this._call('listEntities');
         if (!Array.isArray(entities)) return;
-
         for (const entity of entities) {
           const id = entity?.id ?? entity?.key ?? entity?.name;
           if (id == null || this._knownEntities.has(String(id))) continue;
@@ -87,12 +82,11 @@ class AgentOSOrchestrator {
       } catch (error) {
         logger.warn(`Entity monitor: ${error.message}`);
       }
-    }, 60_000);
-    this._intervals.push(interval);
+    }, 60_000));
   }
 
   _scheduleExpiry() {
-    const interval = setInterval(async () => {
+    this._intervals.push(setInterval(async () => {
       try {
         const expire = this._capability('expire');
         if (!expire) return;
@@ -103,12 +97,11 @@ class AgentOSOrchestrator {
       } catch (error) {
         logger.error(`Expiry task: ${error.message}`);
       }
-    }, 60 * 60_000);
-    this._intervals.push(interval);
+    }, 60 * 60_000));
   }
 
   _scheduleMaintenance() {
-    const interval = setInterval(async () => {
+    this._intervals.push(setInterval(async () => {
       try {
         const maintenance = this._capability('maintenance');
         if (!maintenance) return;
@@ -118,55 +111,9 @@ class AgentOSOrchestrator {
       } catch (error) {
         logger.error(`Maintenance task: ${error.message}`);
       }
-    }, 60 * 60_000);
-    this._intervals.push(interval);
+    }, 60 * 60_000));
   }
 }
 
 export default AgentOSOrchestrator;
 export { AgentOSOrchestrator };
-=======
- * Domain-neutral orchestration scheduler.
- * Domain behavior is supplied as tasks/callbacks; Core owns lifecycle only.
- */
-export default class AgentOSOrchestrator {
-  constructor({ tasks = [], eventBus = null, clock = () => new Date() } = {}) {
-    this.tasks = new Map();
-    this.eventBus = eventBus;
-    this.clock = clock;
-    this._timers = new Map();
-    for (const task of tasks) this.register(task);
-  }
-  register(task) {
-    if (!task?.id || typeof task.run !== 'function') throw new TypeError('Task requires id and run()');
-    if (this.tasks.has(task.id)) throw new Error(`Task already registered: ${task.id}`);
-    this.tasks.set(task.id, { ...task });
-    return task.id;
-  }
-  unregister(id) { this.stop(id); return this.tasks.delete(id); }
-  async run(id, context = {}) {
-    const task = this.tasks.get(id);
-    if (!task) throw new Error(`Task not found: ${id}`);
-    const startedAt = Date.now();
-    try {
-      const result = await task.run({ ...context, now: this.clock(), taskId: id });
-      this.eventBus?.emit?.('task.completed', { taskId: id, durationMs: Date.now() - startedAt });
-      return result;
-    } catch (error) {
-      this.eventBus?.emit?.('task.failed', { taskId: id, error, durationMs: Date.now() - startedAt });
-      throw error;
-    }
-  }
-  start(id, intervalMs, context = {}) {
-    if (!Number.isFinite(intervalMs) || intervalMs <= 0) throw new TypeError('intervalMs must be positive');
-    this.stop(id);
-    const timer = setInterval(() => this.run(id, context).catch(error => logger.error(`Orchestrator task ${id}: ${error.message}`)), intervalMs);
-    this._timers.set(id, timer);
-    return timer;
-  }
-  stop(id) { const timer = this._timers.get(id); if (timer) clearInterval(timer); this._timers.delete(id); }
-  startAll() { for (const [id, task] of this.tasks) if (task.intervalMs) this.start(id, task.intervalMs, task.context); }
-  stopAll() { for (const id of this._timers.keys()) this.stop(id); }
-  destroy() { this.stopAll(); this.tasks.clear(); }
-}
->>>>>>> origin/main
