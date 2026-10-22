@@ -1,142 +1,179 @@
-<<<<<<< HEAD
-import { randomBytes } from 'node:crypto';
-import { getDatabase } from '../core/database.js';
-
-class VoucherService {
-    generateCode() {
-        // 6 bytes -> 12 hex characters. Cryptographic randomness prevents
-        // predictable voucher issuance and is portable across Node versions.
-        return `AG-${randomBytes(6).toString('hex').toUpperCase()}`;
-    }
-
-    async create(plan) {
-        const db = await getDatabase();
-        let code;
-        let voucher;
-
-        // Protect the persistence layer from the (very unlikely) random-code
-        // collision rather than relying on randomness alone for uniqueness.
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-            code = this.generateCode();
-            const existing = await db.getVoucher(code).catch(() => null);
-            if (existing) continue;
-
-            voucher = {
-                code,
-                plan,
-                used: false,
-                createdAt: Date.now()
-            };
-            await db.saveVoucher(voucher);
-            return voucher;
-        }
-
-        throw new Error('Unable to allocate a unique voucher code');
-    }
-
-    async redeem(code, username) {
-        const db = await getDatabase();
-        const voucher = await db.getVoucher(code);
-
-        if (!voucher) throw new Error('Invalid voucher');
-        if (voucher.used) throw new Error('Already used');
-
-        const updates = {
-            used: true,
-            user: username,
-            redeemedByUsername: username,
-            status: 'used'
-        };
-        await db.updateVoucher(code, updates);
-
-        return { ...voucher, ...updates };
-=======
+import { randomInt } from 'node:crypto';
 import eventBus from '../core/eventBus.js';
 import { getConfig } from '../core/config.js';
-import crypto from 'node:crypto';
 import { getDatabase } from '../core/database.js';
 
 class VoucherService {
-  constructor() {
+  constructor({ networkAdapter = null } = {}) {
     this.generated = new Map();
+    this.networkAdapter = networkAdapter;
   }
 
   get _config() {
     const config = getConfig();
-    return config.vouchers || config.tools?.voucher || { prefix: 'STAR', format: 'XXXX-XXXX', alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' };
+    return config.vouchers || config.tools?.voucher || {
+      prefix: 'STAR',
+      format: 'XXXX-XXXX',
+      alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+    };
   }
+
   get _validPlans() {
     const config = getConfig();
-    const plans = new Set(['default', '1hour', '1day', '1week', '30day', '7day', '1month']);
-    for (const p of config.tools?.mikrotik?.profiles || []) { if (p.name) plans.add(p.name); if (p.mikrotikProfile) plans.add(p.mikrotikProfile); }
-    for (const p of config.plans || []) { if (p.name) plans.add(p.name); if (p.mikrotikProfile) plans.add(p.mikrotikProfile); }
+    const plans = new Set(['default', '1hour', '1day', '1week', '7day', '30day', '1month']);
+    for (const plan of config.tools?.mikrotik?.profiles || []) {
+      if (plan.name) plans.add(plan.name);
+      if (plan.mikrotikProfile) plans.add(plan.mikrotikProfile);
+    }
+    for (const plan of config.plans || []) {
+      if (plan.name) plans.add(plan.name);
+      if (plan.mikrotikProfile) plans.add(plan.mikrotikProfile);
+    }
     return plans;
   }
+
+  _resolvePlan(plan) {
+    const match = [...this._validPlans].find(
+      (candidate) => candidate.toLowerCase() === String(plan).toLowerCase(),
+    );
+    if (!match) throw new Error(`Invalid plan '${plan}'. Available: ${[...this._validPlans].join(', ')}`);
+    return match;
+  }
+
+  _randomPart(length, alphabet) {
+    if (typeof alphabet !== 'string' || alphabet.length < 2) {
+      throw new Error('Voucher alphabet must contain at least two characters');
+    }
+    return Array.from({ length }, () => alphabet[randomInt(0, alphabet.length)]).join('');
+  }
+
+  generateCode() {
+    const config = this._config;
+    const alphabet = config.alphabet || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const format = config.format || 'XXXX-XXXX';
+    const prefix = config.prefix || 'STAR';
+    const body = format.replace(/X+/g, (match) => this._randomPart(match.length, alphabet));
+    return prefix ? `${prefix}-${body}` : body;
+  }
+
   async generate(plan = 'default') {
-    const valid = this._validPlans;
-    const match = [...valid].find((p) => p.toLowerCase() === String(plan).toLowerCase());
-    if (!match) throw new Error(`Invalid plan '${plan}'. Available: ${[...valid].join(', ')}`);
-    const cfg = this._config; const chars = cfg.alphabet || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    const part = (len) => Array.from({ length: len }, () => chars[crypto.randomInt(0, chars.length)]).join('');
-    const format = cfg.format || 'XXXX-XXXX'; const prefix = cfg.prefix || 'STAR';
-    const db = await getDatabase(); let code; let attempts = 0;
-    while (attempts++ < 10) {
-      code = `${prefix ? `${prefix}-` : ''}${format.replace(/X+/g, (m) => part(m.length))}`;
-      if (!(await db.getVoucher(code))) break;
+    const resolvedPlan = this._resolvePlan(plan);
+    const db = await getDatabase();
+    let voucher = null;
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const code = this.generateCode();
+      if (await db.getVoucher(code)) continue;
+
+      const createdAt = new Date().toISOString();
+      voucher = {
+        code,
+        plan: resolvedPlan,
+        status: 'active',
+        used: false,
+        createdAt,
+        createdBy: 'voucher-service',
+      };
+
+      if (typeof db.createVoucher === 'function') {
+        await db.createVoucher(code, voucher);
+      } else if (typeof db.saveVoucher === 'function') {
+        await db.saveVoucher(voucher);
+      } else {
+        throw new Error('Voucher persistence adapter does not support createVoucher/saveVoucher');
+      }
+
+      this.generated.set(code, voucher);
+      eventBus.emit('voucher.created', { code, plan: resolvedPlan, createdAt });
+      return code;
     }
-    if (!code) throw new Error('Unable to generate a unique voucher');
-    const createdAt = new Date().toISOString();
-    this.generated.set(code, { code, plan: match, status: 'active', used: false, createdAt });
-    await db.createVoucher(code, {
-      plan: match,
-      status: 'active',
-      used: false,
-      createdAt,
-      createdBy: 'voucher-service'
-    });
-    eventBus.emit('voucher.created', { code, plan: match, createdAt });
-    return code;
+
+    throw new Error('Unable to allocate a unique voucher code after 10 attempts');
   }
+
   async createVoucher(plan = 'default') {
-    const code = await this.generate(plan); const password = code;
-    let loginUrl = '';
-    if (global.mikrotik?.isConnected) {
-      try { loginUrl = await global.mikrotik.executeTool('user.add', { username: code, password, profile: plan }); }
-      catch (err) { console.error(`[Voucher] provisioning failed for ${code}: ${err.message}`); }
+    const resolvedPlan = this._resolvePlan(plan);
+    const code = await this.generate(resolvedPlan);
+    let provisioning = null;
+
+    if (this.networkAdapter?.provisionVoucher) {
+      try {
+        provisioning = await this.networkAdapter.provisionVoucher({
+          username: code,
+          password: code,
+          plan: resolvedPlan,
+        });
+      } catch (error) {
+        eventBus.emit('voucher.provisioning-failed', {
+          code,
+          plan: resolvedPlan,
+          message: error.message,
+        });
+      }
     }
-    return { username: code, password, profile: plan, loginUrl: loginUrl || `http://hotspot.local/login?username=${code}&password=${password}`, createdAt: new Date().toISOString() };
+
+    return {
+      username: code,
+      password: code,
+      profile: resolvedPlan,
+      loginUrl: provisioning?.loginUrl || '',
+      createdAt: this.generated.get(code)?.createdAt || new Date().toISOString(),
+    };
   }
+
+  async create(plan = 'default') {
+    const code = await this.generate(plan);
+    return this.generated.get(code);
+  }
+
   async updateVoucher(code, plan = 'default') {
-    const db = await getDatabase(); const existing = await db.getVoucher(code);
+    if (!code) throw new Error('Voucher code is required');
+    const resolvedPlan = this._resolvePlan(plan);
+    const db = await getDatabase();
+    const existing = await db.getVoucher(code);
     if (!existing) throw new Error(`Voucher '${code}' not found in database.`);
-    if (global.mikrotik?.isConnected) {
-      try { await global.mikrotik.executeTool('user.edit', { username: code, profile: plan }); } catch (err) { console.error(`[Voucher] update failed for ${code}: ${err.message}`); }
->>>>>>> origin/main
-    }
-    await db.updateVoucher(code, { plan, status: 'active', updatedAt: new Date().toISOString() });
+    if (existing.used) throw new Error('Used vouchers cannot be updated');
+
+    const updates = { plan: resolvedPlan, status: 'active', updatedAt: new Date().toISOString() };
+    if (typeof db.updateVoucher !== 'function') throw new Error('Voucher persistence adapter does not support updateVoucher');
+    await db.updateVoucher(code, updates);
+    this.generated.set(code, { ...existing, ...updates });
+    eventBus.emit('voucher.updated', { code, plan: resolvedPlan, updatedAt: updates.updatedAt });
     return db.getVoucher(code);
   }
-  async create(plan = 'default') { return this.createVoucher(plan); }
+
   async redeem(code, user) {
     if (!code || !user) throw new Error('code and user are required');
-    const cached = this.generated.get(code);
-    if (cached) {
-      if (cached.used) throw new Error('Already used');
-      const updates = { used: true, user, redeemedByUsername: user, status: 'used' };
-      this.generated.set(code, { ...cached, ...updates });
-      eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
-      const db = await getDatabase();
-      if (typeof db.updateVoucher === 'function') await db.updateVoucher(code, updates);
-      return { ...cached, ...updates };
-    }
     const db = await getDatabase();
+
+    // Prefer an adapter-level atomic redemption when available to prevent two
+    // concurrent requests from redeeming the same voucher.
+    if (typeof db.redeemVoucher === 'function') {
+      const redeemed = await db.redeemVoucher(code, user);
+      this.generated.set(code, redeemed);
+      eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
+      return redeemed;
+    }
+
     const voucher = await db.getVoucher(code);
-    if (!voucher) throw new Error('Invalid voucher'); if (voucher.used) throw new Error('Already used');
-    const updates = { used: true, user, redeemedByUsername: user, status: 'used' };
-    this.generated.set(code, { ...voucher, ...updates });
-    if (typeof db.updateVoucher === 'function') await db.updateVoucher(code, updates);
-    eventBus.emit('voucher.redeemed', { code, user, redeemedAt: new Date().toISOString() });
-    return { ...voucher, ...updates };
+    if (!voucher) throw new Error('Invalid voucher');
+    if (voucher.used || voucher.status === 'used') throw new Error('Already used');
+    if (typeof db.updateVoucher !== 'function') throw new Error('Voucher persistence adapter does not support updateVoucher');
+
+    const updates = {
+      used: true,
+      user,
+      redeemedByUsername: user,
+      status: 'used',
+      redeemedAt: new Date().toISOString(),
+    };
+    await db.updateVoucher(code, updates);
+    const result = { ...voucher, ...updates };
+    this.generated.set(code, result);
+    eventBus.emit('voucher.redeemed', { code, user, redeemedAt: updates.redeemedAt });
+    return result;
   }
 }
+
 export default new VoucherService();
+export { VoucherService };
