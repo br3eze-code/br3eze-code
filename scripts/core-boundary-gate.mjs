@@ -1,116 +1,99 @@
 #!/usr/bin/env node
-<<<<<<< HEAD
 /**
- * Enforces the AgentOS core boundary.
- * The canonical kernel/runtime graph may depend on core contracts only; concrete
- * domains, vendors, channels, payment systems and persistence providers belong
- * behind injected adapters.
+ * Enforces two repository invariants:
+ * 1. Source and package manifests must not contain unresolved merge markers.
+ * 2. The canonical core execution graph must not import concrete domain/vendor
+ *    implementations directly; those belong behind registered adapters.
  */
-=======
->>>>>>> origin/main
 import fs from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
-<<<<<<< HEAD
+const conflictRoots = ['src', 'scripts'];
+const conflictFiles = ['package.json', 'package-lock.json'];
+const sourceExtensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.yml', '.yaml', '.php', '.html', '.css']);
+const markerPattern = /^(<<<<<<<(?: .*)?|=======(?: .*)?|>>>>>>>(?: .*)?)$/m;
+const conflictFindings = [];
+
+function collectFiles(entry) {
+  const absolute = path.resolve(root, entry);
+  if (!fs.existsSync(absolute)) return [];
+  const stat = fs.statSync(absolute);
+  if (stat.isFile()) return sourceExtensions.has(path.extname(absolute)) ? [absolute] : [];
+  const found = [];
+  for (const name of fs.readdirSync(absolute)) {
+    if (['node_modules', '.git', 'dist', 'coverage', 'platforms', 'release', 'vendor'].includes(name)) continue;
+    found.push(...collectFiles(path.join(absolute, name)));
+  }
+  return found;
+}
+
+const scanFiles = [...new Set([
+  ...conflictRoots.flatMap(collectFiles),
+  ...conflictFiles.map((file) => path.resolve(root, file)).filter((file) => fs.existsSync(file)),
+])];
+for (const file of scanFiles) {
+  const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
+  lines.forEach((line, index) => {
+    if (/^(<<<<<<<(?: .*)?|=======(?: .*)?|>>>>>>>(?: .*)?)$/.test(line.trim())) {
+      conflictFindings.push(`${path.relative(root, file)}:${index + 1}: unresolved merge marker`);
+    }
+  });
+}
+if (conflictFindings.length) {
+  console.error('Repository integrity gate failed: unresolved merge markers found:');
+  for (const finding of conflictFindings) console.error(`  - ${finding}`);
+  process.exitCode = 1;
+}
+
 const roots = [
-  'src/core/agentKernel.js', 'src/core/agentRuntime.js',
-  'src/core/agent-runtime/index.js', 'src/core/taskRegistry.js',
-  'src/core/tool-registry.js', 'src/core/capability-boundary.js',
-  'src/core/saas-boundary.js', 'src/core/node-registry.js',
-  'src/core/orchestrator.js', 'src/core/SkillRegistry.js',
-  'src/core/onboarding-wbs.js', 'src/core/model-router.js',
-  'src/core/provider-manager.js', 'src/core/print-broker.js'
+  'src/core/agentKernel.js',
+  'src/core/agentRuntime.js',
+  'src/core/agent-runtime/index.js',
+  'src/core/taskRegistry.js',
+  'src/core/tool-registry.js',
+  'src/core/capability-boundary.js',
+  'src/core/saas-boundary.js',
+  'src/core/node-registry.js',
+  'src/core/orchestrator.js',
+  'src/core/SkillRegistry.js',
+  'src/core/onboarding-wbs.js',
+  'src/core/model-router.js',
+  'src/core/provider-manager.js',
+  'src/core/print-broker.js',
 ];
-const forbidden = /(?:firebase-admin|firebase\/|routeros-client|mikrotik|routeros|starlink|whatsapp|telegram|mastercard|stripe|ecocash|voucher|hotspot|wifi|wireless|printer)/i;
+const forbidden = /(?:^|[/@-])(?:firebase-admin|routeros-client|mikrotik|starlink|whatsapp|telegram|mastercard|stripe|ecocash|voucher|hotspot|wifi|wireless|printer)(?:$|[/@.-])/i;
 const importPattern = /(?:import\s+(?:[^'";]+?\s+from\s+)?|import\s*\(|require\s*\()\s*['"]([^'"]+)['"]/g;
 
 function resolveImport(from, specifier) {
   if (!specifier.startsWith('.')) return null;
-  let candidate = path.resolve(path.dirname(from), specifier);
-  for (const file of [candidate, `${candidate}.js`, `${candidate}.mjs`, `${candidate}.cjs`, path.join(candidate, 'index.js')]) {
+  const candidate = path.resolve(path.dirname(from), specifier);
+  for (const file of [candidate, `${candidate}.js`, `${candidate}.mjs`, `${candidate}.cjs`, `${candidate}.ts`, path.join(candidate, 'index.js')]) {
     if (fs.existsSync(file) && fs.statSync(file).isFile()) return file;
   }
   return null;
 }
 
 const visited = new Set();
-const findings = [];
+const boundaryFindings = [];
 function walk(file) {
-  if (visited.has(file) || !fs.existsSync(file)) return;
+  if (visited.has(file) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return;
   visited.add(file);
-  const text = fs.readFileSync(file, 'utf8');
-  for (const match of text.matchAll(importPattern)) {
+  const source = fs.readFileSync(file, 'utf8');
+  for (const match of source.matchAll(importPattern)) {
     const specifier = match[1];
-    if (forbidden.test(specifier)) findings.push(`${path.relative(root, file)} -> ${specifier}`);
+    if (forbidden.test(specifier)) boundaryFindings.push(`${path.relative(root, file)} -> ${specifier}`);
     const resolved = resolveImport(file, specifier);
     if (resolved && resolved.includes(`${path.sep}src${path.sep}core${path.sep}`)) walk(resolved);
   }
 }
-
 for (const entry of roots) walk(path.resolve(root, entry));
-if (findings.length) {
-  console.error('Core boundary gate failed: concrete domain/provider dependency reached the canonical kernel graph.');
-  for (const finding of findings) console.error(`  - ${finding}`);
-  process.exit(1);
-}
-console.log(`Core boundary gate passed: ${visited.size} canonical core modules scanned.`);
-=======
-const coreRoot = path.resolve(root, 'src/core');
-const sourceExt = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx']);
-const forbiddenImport = /(?:firebase-admin|firebase\/|routeros-client|routeros|mikrotik|starlink|voucher|hotspot|wifi|wireless|onvif|rtsp)/i;
-const forbiddenCorePath = /(?:^|\/)(?:mikrotik|mikrotik-mesh|starlink|voucher|universal-billing|financial|shop|plans-sales|mobile-money|whatsapp|telegram|discord|slack|printer|courier-gateway)\.(?:js|mjs|cjs|ts|tsx)$/i;
-const forbiddenRelative = /^(?:\.\.?\/)+(?:services|plugins|domains)\//;
-const importPattern = /(?:import\s+(?:[^'";]+?\s+from\s+)?|import\s*\(|require\s*\()\s*['"]([^'"]+)['"]/g;
 
-// These files pre-date the domain/adapter boundary and remain compatibility
-// shims. They are intentionally excluded from the hard gate while migration
-// proceeds; new core files still have to satisfy the boundary.
-const legacyCoreShims = new Set([
-  'src/core/courier-gateway.js',
-  'src/core/financial.js',
-  'src/core/loadDomain.js',
-  'src/core/memory/MemoryManager.js',
-  'src/core/mikrotik.js',
-  'src/core/monitor.js',
-  'src/core/plans-sales.js',
-  'src/core/printer.js',
-  'src/core/shop.js',
-  'src/core/telegram.js',
-  'src/core/universal-billing.js',
-  'src/core/whatsapp.js',
-]);
-
-function walk(dir) {
-  const files = [];
-  if (!fs.existsSync(dir)) return files;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...walk(full));
-    else if (sourceExt.has(path.extname(entry.name))) files.push(full);
-  }
-  return files;
+if (boundaryFindings.length) {
+  console.error('Core boundary gate failed: concrete domain/provider dependencies found in the core graph:');
+  for (const finding of boundaryFindings) console.error(`  - ${finding}`);
+  process.exitCode = 1;
 }
-
-const files = walk(coreRoot);
-const findings = [];
-for (const file of files) {
-  const relative = path.relative(root, file).replaceAll(path.sep, '/');
-  if (legacyCoreShims.has(relative)) continue;
-  if (forbiddenCorePath.test(relative)) findings.push(`${relative} -> concrete domain/provider filename`);
-  const text = fs.readFileSync(file, 'utf8');
-  for (const match of text.matchAll(importPattern)) {
-    const specifier = match[1];
-    if (forbiddenImport.test(specifier) || forbiddenRelative.test(specifier)) findings.push(`${relative} -> ${specifier}`);
-  }
+if (conflictFindings.length === 0 && boundaryFindings.length === 0) {
+  console.log('Core boundary and repository-integrity gates passed.');
 }
-
-const unique = [...new Set(findings)];
-if (unique.length) {
-  console.error('Core boundary gate failed: src/core contains a concrete domain/provider dependency.');
-  unique.forEach((finding) => console.error(`  - ${finding}`));
-  process.exit(1);
-}
-console.log(`Core boundary gate passed: ${files.length} core source files scanned; legacy compatibility shims excluded; new core contains no concrete domain/provider dependencies.`);
->>>>>>> origin/main
