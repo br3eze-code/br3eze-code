@@ -170,7 +170,7 @@
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^1.2.0",
     "node-thermal-printer": "^4.6.0",
-    "nodemailer": "^9.0.0",
+    "nodemailer": "^10.0.10",
     "onvif": "^0.8.0",
     "openai": "^4.52.0",
     "ora": "^5.4.1",
