@@ -173,7 +173,7 @@
     "nodemailer": "^9.0.0",
     "onvif": "^0.8.0",
     "openai": "^4.52.0",
-    "ora": "^5.4.1",
+    "ora": "^9.4.1",
     "osc": "^2.4.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
