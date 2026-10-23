@@ -146,7 +146,7 @@
     "debug": "^4.4.3",
     "digest-fetch": "^3.1.1",
     "discord.js": "^14.26.4",
-    "dotenv": "^17.4.1",
+    "dotenv": "^18.0.8",
     "express": "5.1.0",
     "express-rate-limit": "8.5.1",
     "express-validator": "^7.3.2",
