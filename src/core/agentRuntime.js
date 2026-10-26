@@ -460,20 +460,13 @@ class AgentRuntime extends EventEmitter {
 
   async _executeToolForFrame(toolName, params, frame = {}) {
     const context = { ...frame, ...(frame.context || {}) };
-    if (this.injectedToolExecutor) {
-      if (!this.toolExecutor) throw new Error('No tool executor configured');
-      return this.toolExecutor(toolName, params, context);
-    }
-    if (!this.toolRegistry) return this.executeTool(toolName, params, context);
-
     const tenantId = context.tenantId || context.tenant_id;
     const userId = context.userId || context.user_id || context.uid;
     if (!tenantId || !userId) {
-      // Registry-backed execution is fail-closed when authenticated scope is absent.
-      return this.executeTool(toolName, params, { ...context, phase: 'execute', action: toolName });
+      throw new Error('authenticated tenant context required for tool execution');
     }
 
-    const tool = this.toolRegistry.getTool?.(toolName);
+    const tool = this.toolRegistry?.getTool?.(toolName);
     const roleMutationRequiresApproval = Boolean(context.agentRole)
       && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
     const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
@@ -514,7 +507,7 @@ class AgentRuntime extends EventEmitter {
     taskRegistry.beginExecution(task.taskId);
 
     try {
-      const result = await this.executeTool(toolName, params, {
+      const result = await this._invokeTool(toolName, params, {
         ...context,
         tenantId,
         userId,
@@ -564,7 +557,12 @@ class AgentRuntime extends EventEmitter {
     return results;
   }
 
+  /** Public compatibility entry point; execution still crosses the canonical task gate. */
   async executeTool(toolName, params = {}, context = {}) {
+    return this._executeToolForFrame(toolName, params, context);
+  }
+
+  async _invokeTool(toolName, params = {}, context = {}) {
     if (this.injectedToolExecutor) {
       if (!this.toolExecutor) throw new Error('No tool executor configured');
       return this.toolExecutor(toolName, params, context);
