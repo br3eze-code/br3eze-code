@@ -23,6 +23,9 @@
     "setup": "node bin/agentos.js onboard",
     "security:audit": "npm audit && node scripts/security-check.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "train:transformer": "node experiments/llm-js/train-transformer.js",
+    "finetune:transformer": "node experiments/llm-js/finetune-transformer.js",
+    "verify:transformer": "node experiments/llm-js/verify-training.js",
     "lint": "npx --yes eslint@8 src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
     "lint:ci": "npx --yes eslint@8 src/core/PluginManager.js src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
     "check:ci-quality": "node scripts/ci-quality-gate.mjs && node scripts/core-boundary-gate.mjs",
@@ -47,7 +50,10 @@
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
-    "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs"
+    "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs",
+    "model:train": "node scripts/train-model.mjs",
+    "model:predict": "node scripts/predict-model.mjs",
+    "check:repository-hygiene": "node --test scripts/repository-hygiene-gate.test.mjs && node scripts/repository-hygiene-gate.mjs"
   },
   "publishConfig": {
     "access": "public",

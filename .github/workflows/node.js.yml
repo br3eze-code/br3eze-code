@@ -21,6 +21,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - name: Validate repository hygiene
+        run: node --test scripts/repository-hygiene-gate.test.mjs && node scripts/repository-hygiene-gate.mjs
       - name: Build check
         run: npm run build:check
       - name: Test
