@@ -29,11 +29,15 @@ export async function runFineTuning(model, optimizer = model?.optimizer, dataset
     importWeights(model, checkpoint, { strict: true });
   }
 
+  const originalModelOptimizer = model.optimizer;
   const policy = configureTrainableParameters(model, {
     freezeBase: Boolean(args.freezeBase),
     unfreezeHeadOnly: Boolean(args.unfreezeHeadOnly),
     trainFinalNorm: args.trainFinalNorm !== false
   });
+  // The default optimizer is refreshed by the policy to avoid carrying pretraining
+  // moments into fine-tuning. An explicitly supplied custom optimizer remains honored.
+  const activeOptimizer = optimizer === originalModelOptimizer ? model.optimizer : optimizer;
   const trainable = model.trainableParameters;
   const frozen = model.frozenParameters;
   if (trainable.length === 0) throw new Error("fine-tuning policy selected no trainable parameters");
@@ -81,7 +85,7 @@ export async function runFineTuning(model, optimizer = model?.optimizer, dataset
       const gradientScale = norm > maxGradientNorm ? maxGradientNorm / (norm || 1) : 1;
       const value = loss.value;
       if (!Number.isFinite(value)) throw new Error("non-finite loss; stopping fine-tuning");
-      optimizer.step(trainable, learningRate, { gradientScale });
+      activeOptimizer.step(trainable, learningRate, { gradientScale });
       for (const parameter of frozen) parameter.zeroGrad();
       totalLoss += value;
       steps += 1;
