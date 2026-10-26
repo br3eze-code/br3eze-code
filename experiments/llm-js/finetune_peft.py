@@ -80,8 +80,8 @@ class TokenizedDataset(torch.utils.data.Dataset):
             encoded = tokenizer(text, truncation=True, max_length=max_length, add_special_tokens=True)
             if len(encoded["input_ids"]) >= 2:
                 self.items.append({key: torch.tensor(value, dtype=torch.long) for key, value in encoded.items()})
-        if len(self.items) < 2:
-            raise ValueError("Need at least two records that each tokenize to 2+ tokens")
+        if not self.items:
+            raise ValueError("Each train/validation split must contain at least one record that tokenizes to 2+ tokens")
 
     def __len__(self):
         return len(self.items)
@@ -109,7 +109,6 @@ def main():
     model.config.use_cache = False
 
     # Common attention projections across Llama/Mistral/Qwen-style architectures.
-    # Users of other architectures can override this list in a future extension.
     target_modules = ["q_proj", "k_proj", "v_proj", "o_proj"]
     module_names = {name.rsplit(".", 1)[-1] for name, _ in model.named_modules()}
     matched = [name for name in target_modules if name in module_names]
