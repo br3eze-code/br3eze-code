@@ -90,7 +90,7 @@ def extract_pdf_layout(pdf_path: Path, source_uri: str | None = None,
     normalized_digest = sha256(combined.encode("utf-8"))
     return {
         "schemaVersion": "1.0",
-        "documentId": hashlib.sha256((uri + "\\0" + digest).encode("utf-8")).hexdigest()[:32],
+        "documentId": hashlib.sha256((uri + "\0" + digest).encode("utf-8")).hexdigest()[:32],
         "source": {
             "uri": uri,
             "sourceType": "local-pdf-layout",
@@ -129,7 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         document = extract_pdf_layout(source, args.source_uri, args.license_status)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\\n", encoding="utf-8")
+        output.write_text(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"PDF extraction failed: {exc}", file=sys.stderr)
         return 2
