@@ -16,31 +16,46 @@ function isSafePayload(value, depth = 0) {
 
 /** In-process IPC contract. Remote transports must preserve this authorization boundary. */
 export class IPCMessageBus {
-  constructor({ maxSubscribers = MAX_SUBSCRIBERS, onAudit = () => {} } = {}) {
+  constructor({ maxSubscribers = MAX_SUBSCRIBERS, maxPayloadBytes = 1024 * 1024, authorize = () => false, onAudit = () => {} } = {}) {
     if (!Number.isInteger(maxSubscribers) || maxSubscribers < 1) throw new RangeError('maxSubscribers must be positive');
+    if (!Number.isInteger(maxPayloadBytes) || maxPayloadBytes < 1 || maxPayloadBytes > 16 * 1024 * 1024) throw new RangeError('maxPayloadBytes must be between 1 byte and 16 MiB');
+    if (typeof authorize !== 'function') throw new TypeError('IPC authorize must be a trusted host policy function');
+    if (typeof onAudit !== 'function') throw new TypeError('IPC onAudit must be a function');
     this.maxSubscribers = maxSubscribers;
+    this.maxPayloadBytes = maxPayloadBytes;
+    this.authorize = authorize;
     this.onAudit = onAudit;
     this.subscriptions = new Map();
   }
 
-  subscribe({ topic, subscriberId, tenantId, userId, authorizedTopics = [] } = {}, handler) {
+  async #assertAuthorized(action, topic, principal) {
+    let allowed = false;
+    try { allowed = await this.authorize({ action, topic, ...principal }) === true; }
+    catch { allowed = false; }
+    if (!allowed) throw new Error(`missing_permission:ipc.${action}:${topic}`);
+  }
+
+  async subscribe({ topic, subscriberId, tenantId, userId } = {}, handler) {
     assertTopic(topic);
-    if (!subscriberId || !tenantId || !userId) throw new Error('IPC subscription requires authenticated subscriber, tenant, and user');
+    if (typeof subscriberId !== 'string' || !subscriberId || typeof tenantId !== 'string' || !tenantId || typeof userId !== 'string' || !userId) throw new Error('IPC subscription requires authenticated subscriber, tenant, and user');
     if (typeof handler !== 'function') throw new TypeError('IPC handler must be a function');
-    if (!Array.isArray(authorizedTopics) || !authorizedTopics.includes(topic)) throw new Error(`missing_permission:ipc.subscribe:${topic}`);
+    await this.#assertAuthorized('subscribe', topic, { principalId: subscriberId, tenantId, userId });
     if (this.subscriptions.size >= this.maxSubscribers) throw new Error('IPC subscriber limit reached');
-    const id = `${tenantId}:${subscriberId}:${topic}`;
+    const id = JSON.stringify([tenantId, subscriberId, topic]);
     if (this.subscriptions.has(id)) throw new Error(`IPC subscription already exists: ${id}`);
     this.subscriptions.set(id, { id, topic, subscriberId, tenantId, userId, handler });
     let active = true;
     return () => { if (active) { active = false; this.subscriptions.delete(id); } };
   }
 
-  async publish({ topic, publisherId, tenantId, userId, authorizedTopics = [], correlationId = null } = {}, payload) {
+  async publish({ topic, publisherId, tenantId, userId, correlationId = null } = {}, payload) {
     assertTopic(topic);
-    if (!publisherId || !tenantId || !userId) throw new Error('IPC publish requires authenticated publisher, tenant, and user');
-    if (!Array.isArray(authorizedTopics) || !authorizedTopics.includes(topic)) throw new Error(`missing_permission:ipc.publish:${topic}`);
+    if (typeof publisherId !== 'string' || !publisherId || typeof tenantId !== 'string' || !tenantId || typeof userId !== 'string' || !userId) throw new Error('IPC publish requires authenticated publisher, tenant, and user');
+    await this.#assertAuthorized('publish', topic, { principalId: publisherId, tenantId, userId });
     if (!isSafePayload(payload)) throw new TypeError('IPC payload must be bounded JSON-compatible data');
+    let serialized;
+    try { serialized = JSON.stringify(payload); } catch { throw new TypeError('IPC payload must be serializable JSON data'); }
+    if (Buffer.byteLength(serialized, 'utf8') > this.maxPayloadBytes) throw new RangeError('IPC payload exceeds configured byte limit');
     const envelope = Object.freeze({
       topic, publisherId, tenantId, userId, correlationId,
       timestamp: new Date().toISOString(),
