@@ -10,13 +10,17 @@ AgentOS can be configured for a domain that does not use Wi-Fi or RouterOS. Star
 - The gateway excludes network-only skills (MikroTik, mesh, voucher, router health, hotspot branding, Starlink, and Dahua) from non-network runtime tool discovery.
 - `src/core/loadDomain.js` can restrict domain registration to the selected domain; with no explicit selector it retains the legacy all-domain behavior.
 
-The existing default remains `network` for backward compatibility. Set `AGENTOS_DOMAIN=retail` (or another non-network domain) explicitly to opt out of networking.
+The existing default remains `network` for backward compatibility. Set `AGENTOS_DOMAIN=retail` (or another non-network domain) explicitly to opt out of networking. The next compatibility-breaking release should default to a neutral host profile and require network capabilities to be opted in.
 
 ## Environment and secrets
 
 Leave RouterOS variables blank in non-network deployments. Supply only the model, persistence, and channel credentials actually used by that deployment. Keep real secrets in the host's secret manager or a private local `.env`; never commit them.
 
 `DATABASE_PROVIDER=local` is an example, not a universal production recommendation. Choose a persistence adapter that is installed and configured for the deployment.
+
+## Cross-platform system capabilities
+
+`system.reboot` is a provider-neutral capability contract: it targets a named managed device (PC, server, or router), then resolves through the appropriate registered system/OS/infrastructure adapter. The RouterOS implementation is canonically named `mikrotik.system.reboot`; the unqualified `system.reboot` entry in `src/tools/tool.js` is a deprecated legacy alias and must not be treated as a cross-platform implementation. Keep authorization, explicit target validation, approval for disruptive actions, and outcome verification at the runtime boundary; keep OS/vendor commands in adapters.
 
 ## Remaining consolidation work
 
