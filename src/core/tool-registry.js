@@ -87,6 +87,13 @@ class ToolRegistry {
         fullName,
         definition: {
           ...tool,
+          schema: {
+            ...(tool.schema || {}),
+            parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+            risk: tool.schema?.risk || tool.risk || 'low',
+            requiresApproval: tool.schema?.requiresApproval ?? tool.requiresApproval ?? false,
+            permissions: tool.schema?.permissions || tool.permissions || [],
+          },
           handler: tool.handler || tool.execute,
           skill: skillName,
           domain: tool.domain || skill.domain || fullName.split('.')[0],

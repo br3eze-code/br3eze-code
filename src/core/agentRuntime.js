@@ -229,6 +229,12 @@ class AgentRuntime extends EventEmitter {
       .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
   }
 
+  listTools() {
+    return (this.toolRegistry?.getAllTools?.() || [])
+      .map((tool) => tool.fullName || tool.name)
+      .filter((name) => typeof name === 'string' && name.length > 0);
+  }
+
   registerTool(tool) {
     if (!tool || typeof tool.name !== 'string' || !tool.name.trim() || typeof tool.execute !== 'function') {
       throw new TypeError('registerTool requires a name and execute() function');
@@ -392,7 +398,10 @@ class AgentRuntime extends EventEmitter {
     loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
     const allToolsUsed = [];
 
-    for (let iteration = 1; iteration <= this.defaultConfig.maxTurns; iteration += 1) {
+    const maxTurns = Number.isInteger(frame.maxTurns)
+      ? Math.max(1, Math.min(8, frame.maxTurns))
+      : this.defaultConfig.maxTurns;
+    for (let iteration = 1; iteration <= maxTurns; iteration += 1) {
       loop.transition(TURN_STATES.EXECUTING, { iteration });
       const response = await this.model.execute(createModelRequest({
         messages,
@@ -433,7 +442,7 @@ class AgentRuntime extends EventEmitter {
         }
       }
 
-      if (iteration >= this.defaultConfig.maxTurns) {
+      if (iteration >= maxTurns) {
         loop.transition(TURN_STATES.FAILED, { reason: 'max_turns_reached' });
         await this._persistTurn(sessionId, messages, frame, response?.content ?? '', allToolsUsed);
         return { response: response?.content ?? '', sessionId, iterations: iteration, toolsUsed: [...new Set(allToolsUsed)], toolCalls, stopReason: 'max_turns_reached', raw: response, loop: loop.snapshot() };
@@ -551,6 +560,9 @@ class AgentRuntime extends EventEmitter {
       throw new Error('authenticated tenant context required for tool execution');
     }
 
+    if (Array.isArray(context.allowedToolNames) && !context.allowedToolNames.includes(toolName)) {
+      throw new Error(`Tool "${toolName}" is outside the delegated allowlist`);
+    }
     const tool = this.toolRegistry?.getTool?.(toolName);
     const roleMutationRequiresApproval = Boolean(context.agentRole)
       && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
