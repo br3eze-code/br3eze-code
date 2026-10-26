@@ -22,8 +22,11 @@ describe('Br3eze OS managed application platform', () => {
     const bus = new IPCMessageBus({ authorize: ({ action, topic, tenantId }) => topic === 'demo.events' && action === 'subscribe' ? tenantId === 'tenant-a' : topic === 'demo.events' && tenantId === 'tenant-a' });
     const received = jest.fn();
     await bus.subscribe({ topic: 'demo.events', subscriberId: 'app-a', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, received);
-    const deniedBus = new IPCMessageBus();
+    const auditEvents = [];
+    const deniedBus = new IPCMessageBus({ onAudit: (event) => auditEvents.push(event) });
     await expect(deniedBus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, { value: 1 })).rejects.toThrow('missing_permission');
+    expect(auditEvents).toHaveLength(1);
+    expect(auditEvents[0].type).toBe('ipc.authorization.denied');
     await expect(bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-b', userId: 'user-b' }, { value: 2 })).rejects.toThrow('missing_permission');
     expect(received).not.toHaveBeenCalled();
     await bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a' }, { value: 3 });
