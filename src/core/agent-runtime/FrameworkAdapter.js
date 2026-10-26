@@ -47,9 +47,17 @@ export function assertFrameworkAdapter(adapter, { requiredCapabilities = FRAMEWO
     throw error;
   }
 
-  const required = new Set(requiredCapabilities);
-  for (const name of advertised || []) required.add(name);
+  const missingAdvertised = advertised === null
+    ? []
+    : requiredCapabilities.filter((name) => !advertised.includes(name));
+  if (missingAdvertised.length) {
+    const error = new Error(`Framework adapter missing capabilities: ${missingAdvertised.join(', ')}`);
+    error.code = 'FRAMEWORK_ADAPTER_CONTRACT';
+    error.missing = missingAdvertised;
+    throw error;
+  }
 
+  const required = new Set([...(advertised || []), ...requiredCapabilities]);
   const missing = [...required].filter((name) => typeof adapter[FRAMEWORK_METHODS[name]] !== 'function');
   if (missing.length) {
     const error = new Error(`Framework adapter missing capabilities: ${missing.join(', ')}`);
