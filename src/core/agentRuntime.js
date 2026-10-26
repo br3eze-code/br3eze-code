@@ -583,27 +583,53 @@ class AgentRuntime extends EventEmitter {
       && typeof context.approvalId === 'string'
       && context.approvalId.trim().length > 0;
     const taskRegistry = getTaskRegistry();
-    const task = taskRegistry.create(`Execute tool ${toolName}`, {
-      action: toolName,
-      owner: { userId, platformId: context.platformId || null },
-      context: { ...context, tenantId, userId },
-      input: params,
-      requiresExecutionApproval: requiresApproval,
-    });
+    const resumingApproval = approvalGranted && typeof context.taskId === 'string' && context.taskId.length > 0;
+    let task = resumingApproval ? taskRegistry.get(context.taskId) : null;
+    if (resumingApproval && (
+      !task ||
+      task.scope?.tenantId !== tenantId ||
+      task.scope?.userId !== userId ||
+      task.action !== toolName ||
+      !task.execution?.approvalRequired ||
+      task.execution?.approved ||
+      task.execution?.approvalId !== context.approvalId
+    )) {
+      throw new Error('Approved task is missing, out of scope, mismatched, or already used');
+    }
+    if (!task) {
+      task = taskRegistry.create(`Execute tool ${toolName}`, {
+        action: toolName,
+        owner: { userId, platformId: context.platformId || null },
+        context: { ...context, tenantId, userId },
+        input: params,
+        requiresExecutionApproval: requiresApproval,
+      });
+    }
 
-    taskRegistry.markPlanReady(task.taskId, {
-      action: toolName,
-      input: params,
-      scopedTo: { tenantId, userId },
-    });
-    taskRegistry.markDraftReady(task.taskId, {
-      action: toolName,
-      input: params,
-      requiresApproval,
-    });
+    if (!task.execution.planReady) {
+      taskRegistry.markPlanReady(task.taskId, {
+        action: toolName,
+        input: params,
+        scopedTo: { tenantId, userId },
+      });
+    }
+    if (!task.execution.draftReady) {
+      taskRegistry.markDraftReady(task.taskId, {
+        action: toolName,
+        input: params,
+        requiresApproval,
+      });
+    }
 
     if (requiresApproval && !approvalGranted) {
-      const pending = await this.approvalGate.request({ toolName, params, context: { ...context, tenantId, userId } });
+      const pending = await this.approvalGate.request({
+        toolName,
+        params,
+        context: { ...context, tenantId, userId, taskId: task.taskId },
+      });
+      taskRegistry.update(task.taskId, {
+        execution: { ...task.execution, approvalId: pending.actionId },
+      });
       return { ...pending, approvalRequired: true, agentRole: context.agentRole || null, taskId: task.taskId, phase: 'approve' };
     }
 
