@@ -14,9 +14,15 @@
  * Isolated into its own AGENTOS_PROFILE, cleaned up afterward.
  */
 
+import { jest } from '@jest/globals';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+
+jest.unstable_mockModule('firebase-admin', () => {
+  const admin = { apps: [], credential: { cert: jest.fn() }, initializeApp: jest.fn() };
+  return { ...admin, default: admin };
+});
 process.env.AGENTOS_PROFILE = 'test-voucher-redemption';
 
 const profileDir = path.join(os.homedir(), '.agentos-test-voucher-redemption');
