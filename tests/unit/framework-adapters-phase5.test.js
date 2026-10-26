@@ -42,6 +42,7 @@ describe('framework and protocol adapters', () => {
 
     expect(adapter.capabilities()).toEqual(['agent.run']);
     expect(assertAdapterContract(adapter, { requiredCapabilities: ['agent.run'] })).toBe(true);
+    expect(() => assertAdapterContract(adapter, { requiredCapabilities: ['workflow.run'] })).toThrow(/missing workflow.run/i);
     await expect(adapter.runAgent({ id: 'a' }, 'hello')).resolves.toEqual({
       agent: { id: 'a' },
       input: 'hello',
