@@ -115,8 +115,9 @@ def fetch_approved_page(url: str, allowed_hosts: set[str], delay_seconds: float 
     robots = RobotFileParser()
     robots.set_url(robots_url)
     try:
+        robots_opener = urllib.request.build_opener(_AllowlistedRedirect(set(allowed_hosts)))
         request = urllib.request.Request(robots_url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+        with robots_opener.open(request, timeout=TIMEOUT_SECONDS) as response:
             robots_lines = response.read(256_000).decode("utf-8", "replace").splitlines()
         robots.parse(robots_lines)
     except urllib.error.HTTPError as exc:
