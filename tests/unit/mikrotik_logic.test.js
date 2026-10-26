@@ -66,7 +66,7 @@ describe('MikroTikManager Logic', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        manager = new MikroTikManager();
+        manager = new MikroTikManager({ host: '127.0.0.1', user: 'admin', timeout: 1000 });
         await manager.connect();
     });
 
