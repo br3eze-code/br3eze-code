@@ -68,23 +68,42 @@ export function assertAdapterContract(adapter, { requiredCapabilities = null } =
     'runWorkflow', 'resumeWorkflow', 'registerTool', 'executeTool',
     'checkGuardrail', 'readMemory', 'writeMemory', 'readTrace', 'evaluate'
   ];
-  const required = requiredCapabilities === null
-    ? legacyRequired
-    : requiredCapabilities.map((capability) => CAPABILITY_METHODS[capability]).filter(Boolean);
-  if (requiredCapabilities !== null) {
-    const unknown = requiredCapabilities.filter((capability) => !Object.hasOwn(CAPABILITY_METHODS, capability));
+  const advertised = typeof adapter?.capabilities === 'function' ? adapter.capabilities() : null;
+  if (advertised !== null && (!Array.isArray(advertised) || advertised.some((capability) => !Object.hasOwn(CAPABILITY_METHODS, capability)))) {
+    const error = new Error('FRAMEWORK_CAPABILITY_DECLARATION_INVALID');
+    error.code = 'FRAMEWORK_CAPABILITY_DECLARATION_INVALID';
+    throw error;
+  }
+
+  const requiredCapabilitiesList = requiredCapabilities === null
+    ? null
+    : requiredCapabilities;
+  if (requiredCapabilitiesList !== null) {
+    const unknown = requiredCapabilitiesList.filter((capability) => !Object.hasOwn(CAPABILITY_METHODS, capability));
     if (unknown.length) {
       const error = new Error(`Unknown framework capabilities: ${unknown.join(', ')}`);
       error.code = 'FRAMEWORK_CAPABILITY_UNKNOWN';
       throw error;
     }
+    const missingCapabilities = advertised === null
+      ? []
+      : requiredCapabilitiesList.filter((capability) => !advertised.includes(capability));
+    if (missingCapabilities.length) {
+      const error = new Error(`FRAMEWORK_ADAPTER_CONTRACT: missing ${missingCapabilities.join(', ')}`);
+      error.code = 'FRAMEWORK_ADAPTER_CONTRACT';
+      error.missing = missingCapabilities;
+      throw error;
+    }
   }
+
+  const required = requiredCapabilitiesList === null
+    ? legacyRequired
+    : requiredCapabilitiesList.map((capability) => CAPABILITY_METHODS[capability]);
   const missing = required.filter((name) => typeof adapter?.[name] !== 'function');
-  const advertised = typeof adapter?.capabilities === 'function' ? adapter.capabilities() : null;
-  const invalid = advertised !== null && (!Array.isArray(advertised) || advertised.some((capability) => {
+  const invalid = advertised !== null && advertised.some((capability) => {
     const method = CAPABILITY_METHODS[capability];
-    return !method || typeof adapter.factory?.[method] !== 'function';
-  }));
+    return typeof adapter.factory?.[method] !== 'function';
+  });
   if (missing.length || invalid) {
     const error = new Error(missing.length
       ? `FRAMEWORK_ADAPTER_CONTRACT: missing ${missing.join(', ')}`
