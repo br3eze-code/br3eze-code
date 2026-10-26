@@ -159,7 +159,7 @@ npm run model:train
 npm run model:predict -- --features 0.8,0.7,0.2
 ```
 
-Use `--data` to supply a JSONL dataset and `--out` to choose an artifact directory. The sample dataset is synthetic; replace it with representative, properly permissioned examples and evaluate on held-out data before trusting predictions. Training artifacts are local and ignored by Git. See [the Node.js model training guide](docs/architecture/nodejs-model-training.md) for the schema, CLI options, and limitations.
+Use `--data` to supply a JSONL dataset and `--out` to choose an artifact directory. The trained classifier can be exposed to the host runtime with `createClassifierTool({ modelDir })` from `src/ml/classifier-tool.js`. The sample dataset is synthetic; replace it with representative, properly permissioned examples and evaluate on held-out data before trusting predictions. Training artifacts are local and ignored by Git. See [the Node.js model training guide](docs/architecture/nodejs-model-training.md) for the schema, CLI options, and limitations.
 
 ## Model independence
 
