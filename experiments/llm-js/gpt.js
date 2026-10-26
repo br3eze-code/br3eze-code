@@ -182,6 +182,7 @@ export class TinyGPT {
       numHeads: this.numHeads,
       numLayers: this.numLayers,
       seed: this.seed,
+      optimizer: this.optimizer.toJSON(this.parameterList),
       parameters: Object.fromEntries(Object.entries(this.params).map(([name, tensor]) => [name, {
         shape: tensor.shape,
         data: Array.from(tensor.data)
@@ -202,6 +203,7 @@ export class TinyGPT {
       if (saved.data.some((value) => !Number.isFinite(value))) throw new RangeError(`checkpoint contains non-finite values: ${name}`);
       tensor.data.set(saved.data);
     }
+    if (checkpoint.optimizer) model.optimizer.restoreState(model.parameterList, checkpoint.optimizer);
     return model;
   }
 }
