@@ -1,7 +1,6 @@
 /binary/
 /chroot/
 /cache/
-/config/
 /local/
 /*.hybrid.iso
 /*.iso
