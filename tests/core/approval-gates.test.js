@@ -42,6 +42,13 @@ describe('ApprovalGate', () => {
     await expect(gate.decide({ actionId: pending.actionId, decision: 'APPROVED', actor: 'user', tenantId: 'a', authorize: async () => false })).rejects.toThrow(/not authorized/);
   });
 
+  test('does not consume a pending request when the executor is missing', async () => {
+    const pending = await gate.request({ toolName: 'inventory.delete', params: {}, context: { tenantId: 'a', userId: 'u' } });
+    await expect(gate.resume({ actionId: pending.actionId, actor: 'admin', tenantId: 'a', authorize: async () => true }))
+      .rejects.toThrow(/execute callback is required/);
+    expect(records.get('agentos:approval:' + pending.actionId).status).toBe('PENDING');
+  });
+
   test('executes an approved action once and rejects replay', async () => {
     const pending = await gate.request({ toolName: 'billing.refund', params: { amount: 3 }, context: { tenantId: 'a', userId: 'u' } });
     const execute = jest.fn(async () => ({ refunded: true }));
