@@ -26,7 +26,7 @@ describe('redeemVoucher via SQLite fallback', () => {
   let sqliteAvailable = true;
 
   beforeAll(async () => {
-    const { getDatabase } = await import('../../src/core/database.js');
+    const { getDatabase } = await import('../../src/adapters/persistence/database.js');
     db = await getDatabase();
     sqliteAvailable = !!db.sqlite;
     if (!sqliteAvailable) {
