@@ -5,9 +5,26 @@ export const FRAMEWORK_CONTRACT = Object.freeze([
   'memory.read', 'memory.write', 'trace.read', 'evaluation.run',
 ]);
 
+const FRAMEWORK_METHODS = Object.freeze({
+  'agent.create': 'createAgent',
+  'agent.run': 'runAgent',
+  'agent.handoff': 'handoff',
+  'agent.child': 'createChild',
+  'workflow.define': 'defineWorkflow',
+  'workflow.run': 'runWorkflow',
+  'workflow.resume': 'resumeWorkflow',
+  'tool.register': 'registerTool',
+  'tool.execute': 'executeTool',
+  'guardrail.check': 'checkGuardrail',
+  'memory.read': 'readMemory',
+  'memory.write': 'writeMemory',
+  'trace.read': 'readTrace',
+  'evaluation.run': 'evaluate',
+});
+
 export function assertFrameworkAdapter(adapter) {
   if (!adapter || typeof adapter !== 'object') throw new TypeError('framework adapter must be an object');
-  const missing = FRAMEWORK_CONTRACT.filter((name) => typeof adapter[name.replace('.', '_')] !== 'function');
+  const missing = FRAMEWORK_CONTRACT.filter((name) => typeof adapter[FRAMEWORK_METHODS[name]] !== 'function');
   if (missing.length) {
     const error = new Error(`Framework adapter missing capabilities: ${missing.join(', ')}`);
     error.code = 'FRAMEWORK_ADAPTER_CONTRACT';

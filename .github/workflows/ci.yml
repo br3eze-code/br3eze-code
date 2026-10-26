@@ -19,12 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-<<<<<<< HEAD
-
-      - name: Install dependencies
-        run: npm install --ignore-scripts --no-audit --no-fund
-
-=======
           cache: npm
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
@@ -32,15 +26,12 @@ jobs:
         run: node scripts/core-boundary-gate.mjs
       - name: Install dependencies
         run: npm ci --ignore-scripts --legacy-peer-deps
->>>>>>> origin/main
       - name: Lint maintained pipeline and plugin code
         run: npx eslint src/core/WorkflowEngine.js src/plugins/custom/*.js src/plugins/*.js scripts/check-syntax.mjs --quiet
       - name: Test
         run: npm test -- --ci --forceExit --passWithNoTests
         env:
           NODE_ENV: test
-<<<<<<< HEAD
-=======
           ROS_HOST: 127.0.0.1
           ROS_PORT: 8728
           ROS_USER: admin
@@ -48,7 +39,6 @@ jobs:
           MIKROTIK_HOST: 127.0.0.1
           MIKROTIK_USER: admin
           MIKROTIK_PASS: test
->>>>>>> origin/main
           DATA_BACKEND: local
           FIREBASE_PROJECT_ID: test-project
           LLM_PROVIDER: gemini
@@ -58,22 +48,12 @@ jobs:
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
           PORT: 3000
           GATEWAY_PORT: 19876
-<<<<<<< HEAD
-
-      - name: Type check (syntax + runtime source)
-=======
       - name: Type check (jsconfig + tsconfig)
->>>>>>> origin/main
         run: npm run build:check
       - name: Security check script
         run: npm run security:audit
         env:
           NODE_ENV: test
-<<<<<<< HEAD
-        continue-on-error: true
-
-=======
->>>>>>> origin/main
       - uses: actions/upload-artifact@v4
         if: always()
         with:
