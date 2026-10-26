@@ -90,8 +90,8 @@ router.post('/chat', async (req, res) => {
     if (!Array.isArray(messages) || !messages.length)
       return res.status(400).json({ ok: false, error: 'messages[] required' });
 
-    const coordinator = global.ai || global.coordinator;
-    if (!coordinator) return notReady(res, 'AI Coordinator');
+    const coordinator = global.agentRuntime || global.ai || global.coordinator;
+    if (!coordinator) return notReady(res, 'AgentRuntime');
 
     const result = await coordinator.chat(messages, { sessionId, systemPrompt });
     ok(res, result);

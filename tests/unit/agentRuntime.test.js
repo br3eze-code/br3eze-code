@@ -8,7 +8,8 @@ jest.unstable_mockModule('uuid', () => {
     return { v4: () => `mock-uuid-${++counter}` };
 });
 
-// AgentRuntime is canonical; only external dependencies are mocked.\n\nconst { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
+// AgentRuntime is canonical; only external dependencies are mocked.
+const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
 const { PermissionMode } = await import('../../src/core/permissions.js');
 const { TaskStatus }     = await import('../../src/core/taskRegistry.js');
 

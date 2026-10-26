@@ -17,6 +17,10 @@ import { ToolRegistry } from '../../core/ToolRegistry.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import TaskScheduler from '../../core/taskScheduler.js';
+import v1Router from '../../api/routes/v1.js';
+import v2Router from '../../api/routes/v2.js';
+import v3Router from '../../api/routes/v3.js';
+import { createBatchRouter } from '../../interfaces/batch-api.js';
 
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
@@ -344,11 +348,29 @@ export default (program) => {
                     tester.listen(Port, '0.0.0.0');
                 });
 
-                // 5. Start Gateway
+                // 5. Start Gateway. Every public surface is mounted under its
+                // version/domain namespace; the runtime remains the single execution owner.
+                const batchAgent = {
+                    handle: ({ tool, args, context }) => runtime.execute({
+                        content: tool,
+                        toolCalls: [{ name: tool, arguments: args }],
+                        context
+                    })
+                };
                 const gateway = new AgentOSGateway({
                     ...config,
                     port: Port,
-                    verbose: options.verbose
+                    verbose: options.verbose,
+                    routes: [
+                        { path: '/api/v1', router: v1Router },
+                        { path: '/api/rest', router: v1Router },
+                        { path: '/api/v2', router: v2Router },
+                        { path: '/api/v3', router: v3Router },
+                        { path: '/api', router: createBatchRouter({
+                            agent: batchAgent,
+                            authorize: (req) => req.authContext || req.user || null
+                        }) }
+                    ]
                 });
                 gateway.runtime = runtime;
                 gateway.askEngine = runtime;

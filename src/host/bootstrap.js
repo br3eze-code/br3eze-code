@@ -20,7 +20,9 @@ import ServiceRegistry from '../services/registry.js';
 export function bootstrapAgentOS() {
   registerNetworkProvider(networkAdapter);
   registerOnboardingProvider(onboardingAdapter.default || onboardingAdapter);
-  const useSupabaseDatabase = String(process.env.DATABASE_PROVIDER || '').toLowerCase() === 'supabase';
+  const requestedProvider = String(process.env.DATABASE_PROVIDER || 'auto').toLowerCase();
+  const hasSupabase = Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY));
+  const useSupabaseDatabase = requestedProvider === 'supabase' || (requestedProvider === 'auto' && hasSupabase);
   const activeDatabaseAdapter = useSupabaseDatabase ? supabaseDatabaseAdapter : databaseAdapter;
   registerDatabaseProvider(activeDatabaseAdapter);
   registerPersistenceProvider(firebaseAdapter.default || firebaseAdapter);
