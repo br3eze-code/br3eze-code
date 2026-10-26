@@ -160,3 +160,6 @@ server/agentos.db
 
 # AgentOS local mutable runtime state
 state/
+
+# Locally trained ML artifacts (never commit private training data or weights by default)
+artifacts/
