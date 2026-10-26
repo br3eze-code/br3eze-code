@@ -40,36 +40,39 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
 
   const vocabulary = buildVocabulary(text);
   const tokenIds = characters.map((character) => vocabulary.indexOf(character));
-  const sequenceLength = Math.min(contextSize, tokenIds.length - 1);
+  const splitIndex = Math.min(tokenIds.length - 2, Math.max(2, Math.floor(tokenIds.length * 0.9)));
+  const trainSequenceLength = Math.min(contextSize, splitIndex - 1);
+  const validationSequenceLength = Math.min(contextSize, tokenIds.length - splitIndex - 1);
   const rng = seededRandom(seed ^ 0x4c4c4d);
   const model = new TinyGPT(vocabulary.length, { contextSize, embeddingSize: width, hiddenSize, numHeads: heads, seed });
-  const sampleWindow = () => {
-    const maxStart = tokenIds.length - sequenceLength;
+  const sampleTrainWindow = () => {
+    const maxStart = splitIndex - trainSequenceLength - 1;
     const start = Math.floor(rng() * (maxStart + 1));
     return {
-      input: tokenIds.slice(start, start + sequenceLength),
-      target: tokenIds.slice(start + 1, start + sequenceLength + 1)
+      input: tokenIds.slice(start, start + trainSequenceLength),
+      target: tokenIds.slice(start + 1, start + trainSequenceLength + 1)
     };
   };
-  const evaluation = sampleWindow();
-  const initialLoss = model.loss(evaluation.input, evaluation.target).value;
+  const validationInput = tokenIds.slice(splitIndex, splitIndex + validationSequenceLength);
+  const validationTarget = tokenIds.slice(splitIndex + 1, splitIndex + validationSequenceLength + 1);
+  const initialLoss = model.loss(validationInput, validationTarget).value;
   let loss = initialLoss;
   for (let step = 1; step <= steps; step += 1) {
-    const batch = sampleWindow();
+    const batch = sampleTrainWindow();
     loss = model.trainStep(batch.input, batch.target, learningRate);
     if (step === 1 || step === steps || step % Math.max(1, Math.floor(steps / 10)) === 0) {
-      process.stdout.write(`step ${step}/${steps} loss=${loss.toFixed(4)}\n`);
+      process.stdout.write(`step ${step}/${steps} trainLoss=${loss.toFixed(4)}\\n`);
     }
   }
-  const finalLoss = model.loss(evaluation.input, evaluation.target).value;
-  process.stdout.write(`vocab=${vocabulary.length} context=${contextSize} width=${width} heads=${heads} fixedWindowInitialLoss=${initialLoss.toFixed(4)} fixedWindowFinalLoss=${finalLoss.toFixed(4)}\n`);
+  const finalLoss = model.loss(validationInput, validationTarget).value;
+  process.stdout.write(`vocab=${vocabulary.length} context=${contextSize} width=${width} heads=${heads} trainChars=${splitIndex} validationChars=${tokenIds.length - splitIndex} initialValidationLoss=${initialLoss.toFixed(4)} finalValidationLoss=${finalLoss.toFixed(4)}\\n`);
 
   const generatedIds = model.generate([tokenIds[0]], { maxNewTokens: generatedLength, seed });
   process.stdout.write("\n--- tiny GPT sample ---\n" + generatedIds.map((id) => vocabulary[id]).join("") + "\n");
 
   const checkpointPath = resolve(option(args, "--checkpoint", "experiments/llm-js/tiny-gpt-checkpoint.json"));
   await mkdir(dirname(checkpointPath), { recursive: true });
-  await writeFile(checkpointPath, JSON.stringify(model.toJSON()), "utf8");
+  await writeFile(checkpointPath, JSON.stringify({ ...model.toJSON(), tokenizer: { type: "character", vocabulary } }), "utf8");
   process.stdout.write(`checkpoint=${checkpointPath}\n`);
   return { initialLoss, finalLoss, vocabularySize: vocabulary.length, checkpoint: checkpointPath };
 }
