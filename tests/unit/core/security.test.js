@@ -1,4 +1,4 @@
-import SecurityManager from '../../../src/core/security.js';
+import { SecurityManager } from '../../../src/core/security.js';
 
 describe('SecurityManager encryption', () => {
   test('AES-GCM round trips plaintext and uses a fresh IV', () => {
