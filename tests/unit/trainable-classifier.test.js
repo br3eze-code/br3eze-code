@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { predictClass, trainClassifier, validateDataset } from '../../src/ml/trainable-classifier.js';
+import { createClassifierTool } from '../../src/ml/classifier-tool.js';
 
 describe('trainable classifier dataset contract', () => {
   test('accepts numeric vectors with two or more labels', () => {
@@ -67,6 +68,9 @@ describe('trainable classifier dataset contract', () => {
       expect(trained.exampleCount).toBe(8);
       expect(prediction.label).toBe('positive');
       expect(prediction.probabilities).toHaveLength(2);
+      const tool = createClassifierTool({ modelDir: outputDir });
+      expect(tool.name).toBe('ml.classify');
+      await expect(tool.execute({ features: [0.95] })).resolves.toMatchObject({ label: 'positive' });
     } finally {
       await rm(outputDir, { recursive: true, force: true });
     }
