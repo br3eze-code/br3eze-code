@@ -120,10 +120,13 @@ def fetch_approved_page(url: str, allowed_hosts: set[str], delay_seconds: float 
             robots_lines = response.read(256_000).decode("utf-8", "replace").splitlines()
         robots.parse(robots_lines)
     except urllib.error.HTTPError as exc:
-        if exc.code not in (401, 403, 404, 410):
+        if exc.code in (404, 410):
+            # A missing robots file imposes no robots.txt restrictions.
+            robots.parse([])
+        elif exc.code in (401, 403):
+            raise ValueError(f"robots.txt returned HTTP {exc.code}; refusing to crawl") from exc
+        else:
             raise
-        # A denied/unavailable robots policy is not treated as permission.
-        raise ValueError(f"robots.txt returned HTTP {exc.code}; refusing to crawl") from exc
     if not robots.can_fetch(USER_AGENT, url):
         raise ValueError("robots.txt disallows this URL")
     if delay_seconds > 0:
