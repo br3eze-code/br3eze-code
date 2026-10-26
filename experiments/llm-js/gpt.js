@@ -26,7 +26,7 @@ function matrix(rows, cols, rng, scale) {
 
 /**
  * Tiny decoder-only character model for educational CPU training.
- * It uses one causal attention head and one feed-forward decoder block.
+ * It uses configurable causal attention heads and one feed-forward decoder block.
  */
 export class TinyGPT {
   constructor(vocabSize, { contextSize = 32, embeddingSize = 16, hiddenSize = embeddingSize * 4, numHeads = 1, seed = 42 } = {}) {
@@ -104,9 +104,7 @@ export class TinyGPT {
     }
     const norm = Math.sqrt(squaredNorm);
     const scale = norm > maxGradientNorm ? maxGradientNorm / (norm || 1) : 1;
-    for (const parameter of this.parameterList) {
-      for (let i = 0; i < parameter.size; i += 1) parameter.data[i] -= learningRate * parameter.grad[i] * scale;
-    }
+    this.optimizer.step(this.parameterList, learningRate, { gradientScale: scale });
     return loss.value;
   }
 
