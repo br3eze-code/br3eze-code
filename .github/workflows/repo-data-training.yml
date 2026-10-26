@@ -1,0 +1,35 @@
+name: Br3eze repository data training
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/llm-js-training]
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/repo-data-training.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-corpus-and-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test repository corpus builder
+        run: node --test experiments/llm-js/build-repo-training-data.test.js
+      - name: Build filtered Br3eze repository corpus
+        run: node experiments/llm-js/build-repo-training-data.mjs --out-dir artifacts/training-data
+      - name: Train initial TinyGPT baseline on repository corpus
+        run: node experiments/llm-js/train-gpt.js --input artifacts/training-data/br3eze-repo.txt --steps 10 --context 32 --width 8 --heads 2 --layers 1 --hidden 32 --lr 0.01 --seed 42 --generate 0 --checkpoint artifacts/training-data/br3eze-tinygpt.json
+      - name: Upload corpus and baseline checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: br3eze-repository-training-baseline
+          path: artifacts/training-data/
+          if-no-files-found: error
+          retention-days: 14
