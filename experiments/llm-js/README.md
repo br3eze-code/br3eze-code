@@ -43,7 +43,7 @@ node --test experiments/llm-js/*.test.js
 
 ## Important limits
 
-This is a correctness-first CPU learning implementation, not a production LLM. It uses character-level tokens, small context windows, one simple sequential validation split, and a pure-JavaScript Float64 tensor engine. It does not yet provide BPE/tokenizer training, dropout, robust shuffled mini-batches, gradient accumulation, optimizer-state checkpoint/resume, learning-rate schedules, broad benchmark coverage, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights and architecture, not AdamW's moment state. Performance and model quality will be far below mature native/GPU training stacks, and a tiny corpus will not teach broad language competence.
+This is a correctness-first CPU learning implementation, not a production LLM. It uses character-level tokens, small context windows, one simple sequential validation split, and a pure-JavaScript Float64 tensor engine. It does not yet provide BPE/tokenizer training, dropout, robust shuffled mini-batches, gradient accumulation, optimizer-state checkpoint/resume, learning-rate schedules, broad benchmark coverage, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights, architecture, and AdamW moment state. Resume requires the original corpus; the sampling RNG stream restarts rather than continuing exactly. Performance and model quality will be far below mature native/GPU training stacks, and a tiny corpus will not teach broad language competence.
 
 ## Roadmap
 
