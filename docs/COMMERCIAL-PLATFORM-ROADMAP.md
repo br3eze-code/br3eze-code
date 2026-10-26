@@ -95,3 +95,24 @@ This is a prioritized reconciliation queue, not proof that every PR from #1 onwa
 5. Extract networking and commerce as optional plugins, preserving compatibility shims during migration.
 6. Add tenant-scoped streaming, cancellation/backpressure, artifacts, metering, and quotas.
 7. Port historical patterns in small, tested commits; rerun full tests, build/type checks, architecture gates, and security checks before merge.
+
+
+### Verified historical-pattern checkpoint (2026-10-26)
+
+Status definitions: **present on main** means the named implementation file was checked on the current default branch; it does not mean every behavior or test from the historical PR has been proven equivalent. **Patch unavailable** means the PR endpoint did not return changed-file patches, so source-branch descriptions are evidence for investigation only.
+
+| PR | Pattern | Current evidence | Next action |
+| --- | --- | --- | --- |
+| #123 | Runtime evaluation, trajectory replay, declarative workflows, usage metering, framework contract | The five implementation modules and runtime index exist on `main`; these are not wholesale missing features. | Compare behavior and tests against the historical patch; preserve improvements only if a concrete gap is found. |
+| #124 | Framework adapters plus MCP/A2A protocol wrappers | Framework adapter, optional loaders, MCP adapter, A2A adapter and tests exist on `main`. | Audit authorization defaults, actual framework API compatibility, and whether adapters are wired into composition. |
+| #119 | WBS-based custom-plugin safety and native capability handling | `custom-plugins/wbs-agents/index.mjs` exists on `main`. | Compare safety behavior, Cordova compatibility and tests; do not restore removed native features that were replaced with unsupported stubs without proving the implementation works. |
+| #181 | WorkGraph-backed canonical runtime, execution records, verification | PR is closed unmerged and its current PR patch endpoint returns no changed files. | Audit current `src/core/agentRuntime.js`, WorkGraph, ExecutionRecord and VerificationEngine directly; recover only demonstrably missing behavior. |
+| #209 | Persisted HITL, delegation, MCP registration and skill metadata | Implemented on the consolidation branch; still under review and not merged. | Keep targeted tests passing and resolve full-suite/deployment failures before merge. |
+
+### Current implementation hardening
+
+The approval workflow now uses conditional `EXECUTING -> EXECUTED/FAILED` transitions instead of unconditional terminal writes. This prevents a worker from overwriting a state changed by another actor. If execution has already happened but the terminal compare-and-set fails, the workflow reports that manual reconciliation is required rather than silently claiming a consistent state. A regression test covers failed execution finalization and replay denial.
+
+### CI state rule
+
+A queued or running workflow is not a pass. The current PR head must pass the targeted tests, full suite, build/syntax and architecture gates, security checks, and deployment regression tests. Existing failures must be baselined against `main`; no test may be skipped or weakened just to turn the badge green.
