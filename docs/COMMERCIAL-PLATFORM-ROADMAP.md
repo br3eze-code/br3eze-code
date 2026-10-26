@@ -113,6 +113,15 @@ Status definitions: **present on main** means the named implementation file was 
 
 The approval workflow now uses conditional `EXECUTING -> EXECUTED/FAILED` transitions instead of unconditional terminal writes. This prevents a worker from overwriting a state changed by another actor. If execution has already happened but the terminal compare-and-set fails, the workflow reports that manual reconciliation is required rather than silently claiming a consistent state. A regression test covers failed execution finalization and replay denial.
 
+### Port-and-adapter corrections in progress (2026-10-26)
+
+- Added `src/core/ports/system.js`, a provider-neutral system capability port. It requires a logical target, reason, explicit tenant/user context, authorization, approval, and a host-supplied adapter resolver before delegating a reboot. Tests cover ordering, denial, invalid inputs, and missing identity.
+- Added the canonical RouterOS-specific tool name `mikrotik.system.reboot`; the old unqualified `system.reboot` entry in `src/tools/tool.js` remains a deprecated compatibility alias only. This is a migration step, not proof that every production call site now uses the new port.
+- Made the Supabase auth SDK lazy-loaded in `src/adapters/auth/supabase.js` so unrelated AgentOS deployments/tests do not require the Supabase SDK merely to import the adapter. A configured Supabase deployment still needs that package installed; the missing dependency must be resolved in packaging or documented as an optional extra.
+- Corrected the architecture isolation test's invalid `node:assert` import.
+
+**Still required before these are considered complete:** wire the system port into the production composition root and canonical ToolRegistry; migrate production RouterOS reboot callers; establish a default-neutral boot profile without silently breaking existing network deployments; reconcile the legacy AskEngine ReAct path with AgentRuntime; and verify the latest CI runs.
+
 ### CI state rule
 
 A queued or running workflow is not a pass. The current PR head must pass the targeted tests, full suite, build/syntax and architecture gates, security checks, and deployment regression tests. Existing failures must be baselined against `main`; no test may be skipped or weakened just to turn the badge green.
