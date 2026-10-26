@@ -142,20 +142,17 @@ describe('Integration — Permissions + AgentRuntime routing', () => {
 
     test('routePrompt finds multiple tools for complex prompt', () => {
         const rt    = new AgentRuntime();
-        const tools = rt.routePrompt('show active users and system stats and memory health');
+        const tools = rt.routePrompt('run workflow and show system stats and runtime health');
         expect(tools.length).toBeGreaterThanOrEqual(2);
-        expect(tools).toContain('users.active');
+        expect(tools).toContain('workflow.run');
         expect(tools).toContain('system.stats');
+        expect(tools).toContain('runtime.status');
     });
 
-    test('PLAN enforcer blocks user.add from routePrompt results', () => {
-        const rt       = new AgentRuntime();
-        const enforcer = new PermissionEnforcer(PermissionMode.PLAN);
-        const tools    = rt.routePrompt('create a new user and register account');
-
-        // user.add should be found by router but blocked by plan enforcer
-        expect(tools).toContain('user.add');
-        expect(enforcer.isAllowed('user.add')).toBe(false);
+    test('keeps user-management actions outside the domain-neutral runtime manifest', () => {
+        const rt = new AgentRuntime();
+        const tools = rt.routePrompt('create a new user and register account');
+        expect(tools).not.toContain('user.add');
     });
 
     test('AUTO enforcer allows everything routePrompt returns', () => {
