@@ -36,6 +36,9 @@ describe('execution gate wiring', () => {
     const skills = new SkillRegistry({ taskRegistry: tasks });
     skills.register({ name: 'commerce', domain: 'commerce', capabilities: [{ id: 'commerce.read', phase: 'execute', risk: 'low' }] }, { execute: async () => 'read' });
     const task = tasks.create('read', { action: 'commerce.read', context });
+    tasks.markPlanReady(task.taskId, { action: 'commerce.read' });
+    tasks.markDraftReady(task.taskId, { action: 'commerce.read' });
+    tasks.beginExecution(task.taskId);
     await expect(skills.execute('commerce', 'read', {}, { ...context, taskId: task.taskId })).resolves.toBe('read');
   });
 });

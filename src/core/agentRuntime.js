@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { TranscriptStore } from './transcript.js';
 import { saveSession, loadSession } from './sessionStore.js';
 import { PermissionMode, PermissionDenial, PermissionEnforcer } from './permissions.js';
-import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { getTaskRegistry, TaskStatus, TaskPhase } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
 import { WorkGraph, WorkStatus } from '../workgraph/workGraph.js';
@@ -26,7 +26,7 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'user.add', keywords: ['user', 'add', 'create', 'register'] },
   { name: 'firewall.block', keywords: ['firewall', 'block', 'ban', 'blacklist'] },
   { name: 'ping', keywords: ['ping', 'latency', 'host'] }
-  ];
+];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
 /** Stable request contract owned by the canonical runtime. */
@@ -159,9 +159,15 @@ class AgentRuntime extends EventEmitter {
   }
 
   getCapabilityManifest() {
-    return {
-      version: '1.0',
-      tools: this.toolRegistry?.toolDeclarations?.() || this.toolManifest || DEFAULT_TOOL_MANIFEST,
+  const declarations = this.toolRegistry?.toolDeclarations?.() || [];
+  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+  return {
+  version: '1.0',
+  tools: declarations.length ? declarations : (registeredTools.length ? registeredTools.map(tool => ({
+  name: tool.fullName || tool.name,
+  description: tool.description || '',
+  parameters: normalizeToolParameters(tool.schema?.parameters),
+  })) : this.toolManifest || DEFAULT_TOOL_MANIFEST),
       skills: this.toolRegistry?.listSkills?.().map(skill => ({
         name: skill.name,
         description: skill.description || skill.manifest?.description || '',
@@ -174,25 +180,28 @@ class AgentRuntime extends EventEmitter {
 
   routePrompt(prompt, limit = 5) {
     const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-    const manifest = registeredTools.length
-      ? registeredTools.map(tool => ({
-        name: tool.fullName || tool.name,
-        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
-      }))
-      : this.toolManifest || DEFAULT_TOOL_MANIFEST;
+  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+  const manifest = registeredTools.length
+  ? [
+    ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
+    ...registeredTools.map(tool => ({
+      name: tool.fullName || tool.name,
+      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
+    })),
+  ]
+  : this.toolManifest || DEFAULT_TOOL_MANIFEST;
     return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
       .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
   }
 
   registerTool(tool) {
-    if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
-    else this.toolManifest.push(tool);
-    return this;
+  if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
+  else if (Array.isArray(this.toolManifest)) this.toolManifest.push(tool);
+  return this;
   }
   registerSkill(skill) {
-    if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
-    return this;
+  if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
+  return this;
   }
   async loadSkills() { await this.toolRegistry.loadSkills?.(); return this; }
   registerPlugin(plugin) { this.pluginRegistry.register(plugin); return this; }
@@ -200,7 +209,14 @@ class AgentRuntime extends EventEmitter {
   async unloadPlugin(id) { return this.pluginLoader.unload(id); }
 
   async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
-    const config = { ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode, toolExecutor: this.toolExecutor };
+    const config = {
+      ...this.defaultConfig,
+      permissionMode: permissionMode || this.defaultConfig.permissionMode,
+      toolExecutor: async (toolName) => {
+        const results = await this.executeTools([{ name: toolName, arguments: {} }], context);
+        return results[0]?.result;
+      },
+    };
     const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
     const promptWithWbs = `${prompt}${wbsText}`, matchedTools = this.routePrompt(promptWithWbs);
     const session = sessionId ? RuntimeSession.fromSession(sessionId, { prompt: promptWithWbs, matchedTools, permissionDenials: [], config }) : RuntimeSession.create({ prompt: promptWithWbs, matchedTools, permissionDenials: [], config });
@@ -254,7 +270,7 @@ class AgentRuntime extends EventEmitter {
         if (typeof args === 'string') {
           try { args = JSON.parse(args); } catch { args = {}; }
         }
-        results.push({ name, result: await this.executeTool(name, args, frame.context || frame) });
+        results.push({ name, result: await this._executeToolForFrame(name, args, frame.context || frame) });
       }
       return {
         response: results.length === 1 ? results[0].result : results,
@@ -412,7 +428,7 @@ class AgentRuntime extends EventEmitter {
         record.start();
         try {
           const run = executor || (async current => {
-            if (current.tool) return this.executeTool(current.tool, current.args || {});
+            if (current.tool) return this._executeToolForFrame(current.tool, current.args || {}, current.context || current);
             if (typeof current.run === 'function') return current.run(current);
             return { status: 'completed', taskId: current.id };
           });
@@ -468,32 +484,66 @@ class AgentRuntime extends EventEmitter {
 
   async _executeToolForFrame(toolName, params, frame = {}) {
     const context = { ...frame, ...(frame.context || {}) };
-    if (this.injectedToolExecutor) {
-      if (!this.toolExecutor) throw new Error('No tool executor configured');
-      return this.toolExecutor(toolName, params, context);
-    }
-    if (!this.toolRegistry) return this.executeTool(toolName, params, context);
-
     const tenantId = context.tenantId || context.tenant_id;
     const userId = context.userId || context.user_id || context.uid;
     if (!tenantId || !userId) {
-      // The registry rejects tool execution without authenticated scope and a task.
-      return this.executeTool(toolName, params, { ...context, phase: 'execute', action: toolName });
+      throw new Error('authenticated tenant context required for tool execution');
     }
 
+    const tool = this.toolRegistry?.getTool?.(toolName);
+    const roleMutationRequiresApproval = Boolean(context.agentRole)
+      && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
+    const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
+    const approvalGranted = context.approvalGranted === true || context.approved === true;
     const taskRegistry = getTaskRegistry();
     const task = taskRegistry.create(`Execute tool ${toolName}`, {
       action: toolName,
       owner: { userId, platformId: context.platformId || null },
       context: { ...context, tenantId, userId },
       input: params,
-      requiresExecutionApproval: Boolean(this.toolRegistry.getTool(toolName)?.capability?.requiresApproval),
+      requiresExecutionApproval: requiresApproval,
     });
-    taskRegistry.setStatus(task.taskId, TaskStatus.RUNNING);
+
+    taskRegistry.markPlanReady(task.taskId, {
+      action: toolName,
+      input: params,
+      scopedTo: { tenantId, userId },
+    });
+    taskRegistry.markDraftReady(task.taskId, {
+      action: toolName,
+      input: params,
+      requiresApproval,
+    });
+
+    if (requiresApproval && !approvalGranted) {
+      return {
+        approvalRequired: true,
+        agentRole: context.agentRole || null,
+        toolName,
+        taskId: task.taskId,
+        phase: 'approve',
+      };
+    }
+
+    if (requiresApproval) {
+      taskRegistry.approveExecution(task.taskId, context.approvalId || 'runtime-explicit-approval');
+    }
+    taskRegistry.beginExecution(task.taskId);
+
     try {
-      const result = await this.executeTool(toolName, params, {
-        ...context, tenantId, userId, taskId: task.taskId, action: toolName, phase: 'execute',
+      const result = await this._invokeTool(toolName, params, {
+        ...context,
+        tenantId,
+        userId,
+        taskId: task.taskId,
+        action: toolName,
+        phase: 'execute',
+        approvalGranted,
+        approved: approvalGranted,
       });
+      taskRegistry.setPhase(task.taskId, TaskPhase.OBSERVE);
+      taskRegistry.markVerified(task.taskId, [{ type: 'tool-execution', toolName, verified: true }]);
+      taskRegistry.setPhase(task.taskId, TaskPhase.COMPLETE);
       taskRegistry.setStatus(task.taskId, TaskStatus.COMPLETED);
       return result;
     } catch (error) {
@@ -517,30 +567,12 @@ class AgentRuntime extends EventEmitter {
       if (typeof args === 'string') {
         try { args = JSON.parse(args); } catch { args = {}; }
       }
-      const tool = this.toolRegistry?.getTool?.(name);
-      const mutationForScopedRole = Boolean(context.agentRole)
-        && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(name);
-      const approvalRequired = Boolean(tool?.capability?.requiresApproval || mutationForScopedRole);
-      if (approvalRequired && context.approvalGranted !== true && context.approved !== true) {
-        results.push({
-          toolCallId,
-          result: {
-            approvalRequired: true,
-            agentRole: context.agentRole || null,
-            toolName: name,
-            reason: 'explicit_approval_required',
-          },
-        });
-        continue;
-      }
       try {
-        const approvalGranted = context.approvalGranted === true || context.approved === true;
-        const executionContext = {
+        const result = await this._executeToolForFrame(name, args, {
           ...context,
-          approvalGranted,
-          approved: approvalGranted,
-        };
-        const result = await this._executeToolForFrame(name, args, executionContext);
+          approvalGranted: context.approvalGranted === true || context.approved === true,
+          approved: context.approved === true || context.approvalGranted === true,
+        });
         results.push({ toolCallId, result });
       } catch (error) {
         results.push({ toolCallId, result: { error: error.message } });
@@ -549,7 +581,12 @@ class AgentRuntime extends EventEmitter {
     return results;
   }
 
+  /** Public compatibility entry point; execution still crosses the canonical task gate. */
   async executeTool(toolName, params = {}, context = {}) {
+    return this._executeToolForFrame(toolName, params, context);
+  }
+
+  async _invokeTool(toolName, params = {}, context = {}) {
     if (this.injectedToolExecutor) {
       if (!this.toolExecutor) throw new Error('No tool executor configured');
       return this.toolExecutor(toolName, params, context);
@@ -567,20 +604,20 @@ class AgentRuntime extends EventEmitter {
   }
 
   listTools() {
-    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-    return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
+  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+  return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
   }
   findTools(query) {
-    const needle = String(query || '').toLowerCase();
-    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-    const manifest = [
-      ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
-      ...registeredTools.map(tool => ({
-        name: tool.fullName || tool.name,
-        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/),
-      })),
-    ];
-    return manifest.filter(t => t.name.includes(needle) || (t.keywords || []).some(k => String(k).includes(needle))).map(t => t.name);
+  const needle = String(query).toLowerCase();
+  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+  const manifest = [
+  ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
+  ...registeredTools.map(tool => ({
+  name: tool.fullName || tool.name,
+  keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/),
+  })),
+  ];
+  return manifest.filter(t => t.name.includes(needle) || (t.keywords || []).some(k => String(k).includes(needle))).map(t => t.name);
   }
 }
 

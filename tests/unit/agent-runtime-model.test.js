@@ -29,7 +29,7 @@ describe('AgentRuntime model execution path', () => {
       maxTurns: 3
     });
 
-    const result = await runtime.execute({ content: 'show system stats', sessionId: 's1' });
+    const result = await runtime.execute({ content: 'show system stats', sessionId: 's1', context: { tenantId: 'tenant-runtime', userId: 'user-runtime' } });
 
     expect(toolExecutor).toHaveBeenCalledWith('system.stats', { scope: 'host' }, expect.objectContaining({ content: 'show system stats' }));
     expect(model.execute).toHaveBeenCalledTimes(2);
@@ -118,6 +118,30 @@ describe('AgentRuntime model execution path', () => {
       { type: 'text', text: 'streamed answer', content: 'streamed answer' },
       { type: 'done' },
     ]);
+  });
+
+  test('direct tool-call dispatch uses the same scoped task lifecycle', async () => {
+    const toolRegistry = {
+      getAllTools: () => [],
+      getToolsForLLM: () => [],
+      getTool: (name) => ({ fullName: name, capability: { requiresApproval: false } }),
+      execute: jest.fn().mockResolvedValue({ ok: true }),
+    };
+    const runtime = new AgentRuntime({ toolRegistry });
+
+    const result = await runtime.execute({
+      content: '',
+      toolCalls: [{ id: 'direct-1', name: 'demo.echo', arguments: { value: 'ok' } }],
+      context: { tenantId: 'tenant-direct', userId: 'user-direct' },
+    });
+
+    expect(result.response).toEqual({ ok: true });
+    expect(toolRegistry.execute).toHaveBeenCalledWith('demo.echo', { value: 'ok' }, expect.objectContaining({
+      tenantId: 'tenant-direct',
+      userId: 'user-direct',
+      taskId: expect.any(String),
+      phase: 'execute',
+    }));
   });
 
   test('executes registered tools inside an authenticated task scope', async () => {

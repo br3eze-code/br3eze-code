@@ -27,12 +27,16 @@ describe('domain-neutral runtime capabilities', () => {
 
     const result = await runtime.execute({
       content: 'look up an example',
-      context: { tenantId: 'tenant-1' },
+      context: { tenantId: 'tenant-1', userId: 'user-1' },
       toolCalls: [{ name: 'example.lookup', arguments: { id: '42' } }],
     });
 
     expect(registry.getTool).toHaveBeenCalledWith('example.lookup');
-    expect(execute).toHaveBeenCalledWith('example.lookup', { id: '42' }, { tenantId: 'tenant-1' });
+    expect(execute).toHaveBeenCalledWith(
+      'example.lookup',
+      { id: '42' },
+      expect.objectContaining({ tenantId: 'tenant-1', userId: 'user-1' }),
+    );
     expect(result.toolsUsed).toEqual(['example.lookup']);
     expect(result.response).toEqual({
       name: 'example.lookup',

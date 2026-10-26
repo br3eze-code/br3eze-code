@@ -1,7 +1,7 @@
 import CanonicalRegistry from '../../../src/core/tool-registry.js';
 import LegacyRegistryFacade, { ToolRegistry as FacadeRegistry } from '../../../src/core/ToolRegistry.js';
 import { SpecialistToolRegistry } from '../../../src/core/specialists/SpecialistToolRegistry.js';
-import { getTaskRegistry, TaskStatus } from '../../../src/core/taskRegistry.js';
+import { getTaskRegistry } from '../../../src/core/taskRegistry.js';
 
 
 function executionContext(action, extra = {}) {
@@ -14,7 +14,9 @@ function executionContext(action, extra = {}) {
     input: {},
     requiresExecutionApproval: false,
   });
-  getTaskRegistry().setStatus(task.taskId, TaskStatus.RUNNING);
+  getTaskRegistry().markPlanReady(task.taskId, { action });
+  getTaskRegistry().markDraftReady(task.taskId, { action });
+  getTaskRegistry().beginExecution(task.taskId);
   return { tenantId, userId, taskId: task.taskId, action, phase: 'execute', ...extra };
 }
 
