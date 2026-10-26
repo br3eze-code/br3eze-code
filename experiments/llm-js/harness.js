@@ -21,7 +21,24 @@ function normalizeMessages(messages) {
         typeof message.content !== "string") {
       throw new TypeError(`messages[${index}] must have a supported role and string content`);
     }
-    return { role: message.role, content: message.content };
+    const normalized = { role: message.role, content: message.content };
+    if (message.role === "assistant" && Array.isArray(message.tool_calls)) {
+      normalized.tool_calls = message.tool_calls.map((call) => ({
+        id: requiredString(call?.id, `messages[${index}].tool_calls[].id`),
+        type: "function",
+        function: {
+          name: requiredString(call?.function?.name, `messages[${index}].tool_calls[].function.name`),
+          arguments: typeof call?.function?.arguments === "string"
+            ? call.function.arguments
+            : JSON.stringify(call?.function?.arguments ?? {})
+        }
+      }));
+    }
+    if (message.role === "tool") {
+      normalized.tool_call_id = requiredString(message.tool_call_id, `messages[${index}].tool_call_id`);
+      if (message.name) normalized.name = requiredString(message.name, `messages[${index}].name`);
+    }
+    return normalized;
   });
 }
 function timeoutSignal(timeoutMs, signal) {
@@ -62,7 +79,7 @@ export function createOpenAICompatibleAdapter({
     kind: "openai-compatible",
     model: modelId,
     baseUrl: endpoint,
-    async generate({ messages, temperature = 0.2, maxTokens = 512, signal, responseFormat } = {}) {
+    async generate({ messages, tools, toolChoice, temperature = 0.2, maxTokens = 512, signal, responseFormat } = {}) {
       const normalized = normalizeMessages(messages);
       if (!(temperature >= 0 && temperature <= 2) || !Number.isFinite(temperature)) {
         throw new RangeError("temperature must be between 0 and 2");
@@ -71,15 +88,27 @@ export function createOpenAICompatibleAdapter({
         throw new RangeError("maxTokens must be an integer from 1 to 131072");
       }
       const payload = { model: modelId, messages: normalized, temperature, max_tokens: maxTokens, stream: false };
+      if (tools !== undefined) {
+        if (!Array.isArray(tools)) throw new TypeError("tools must be an array");
+        payload.tools = tools;
+      }
+      if (toolChoice !== undefined) payload.tool_choice = toolChoice;
       if (responseFormat) payload.response_format = responseFormat;
       const response = await request("/chat/completions", payload, signal);
       const data = await response.json();
       const choice = data?.choices?.[0];
-      if (typeof choice?.message?.content !== "string") {
-        throw new TypeError("Model backend response did not contain choices[0].message.content");
+      const message = choice?.message;
+      if (typeof message?.content !== "string" && !Array.isArray(message?.tool_calls)) {
+        throw new TypeError("Model backend response did not contain message content or tool_calls");
       }
+      const toolCalls = (message.tool_calls ?? []).map((call, index) => ({
+        id: requiredString(call?.id, `choices[0].message.tool_calls[${index}].id`),
+        name: requiredString(call?.function?.name, `choices[0].message.tool_calls[${index}].function.name`),
+        arguments: call?.function?.arguments ?? "{}"
+      }));
       return {
-        text: choice.message.content,
+        text: typeof message.content === "string" ? message.content : "",
+        toolCalls,
         model: data.model ?? modelId,
         finishReason: choice.finish_reason ?? null,
         usage: data.usage ?? null,
