@@ -101,3 +101,47 @@ test("adapter forwards function tools and normalizes tool-call responses", async
   assert.equal(result.text, "");
   assert.deepEqual(result.toolCalls, [{ id: "call-1", name: "search_records", arguments: '{"query":"latest"}' }]);
 });
+
+
+test("open-model adapter implements the canonical AgentOS model port", async () => {
+  let body;
+  const adapter = createOpenAICompatibleAdapter({
+    baseUrl: "http://localhost:8080/v1",
+    model: "agentos-local",
+    fetchImpl: async (_url, init) => {
+      body = JSON.parse(init.body);
+      return jsonResponse({
+        choices: [{
+          message: {
+            content: null,
+            tool_calls: [{
+              id: "call-agentos",
+              type: "function",
+              function: { name: "knowledge.search", arguments: '{"query":"roaming"}' }
+            }]
+          },
+          finish_reason: "tool_calls"
+        }]
+      });
+    }
+  });
+  const result = await adapter.execute({
+    messages: [
+      { role: "user", content: "Search knowledge" },
+      { role: "assistant", content: "", toolCalls: [{ id: "prior", name: "lookup", arguments: { key: "x" } }] },
+      { role: "tool", toolCallId: "prior", name: "lookup", content: '{"ok":true}' }
+    ],
+    tools: [{
+      name: "knowledge.search",
+      description: "Search approved knowledge",
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] }
+    }],
+    context: { tenantId: "tenant-1", userId: "user-1" }
+  });
+  assert.equal(body.tools[0].function.name, "knowledge.search");
+  assert.deepEqual(body.messages[1].tool_calls[0].function.arguments, '{"key":"x"}');
+  assert.equal(body.messages[2].tool_call_id, "prior");
+  assert.equal(result.content, "");
+  assert.equal(result.toolCalls[0].name, "knowledge.search");
+  assert.equal(result.toolCalls[0].arguments, '{"query":"roaming"}');
+});
