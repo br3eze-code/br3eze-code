@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { predictClass, trainClassifier, validateDataset } from '../../src/ml/trainable-classifier.js';
@@ -48,6 +48,34 @@ describe('trainable classifier dataset contract', () => {
       features: [index],
       label: 'same',
     })))).toThrow(/two distinct labels/);
+  });
+
+
+  test('fits feature normalization on training rows only', async () => {
+    const outputDir = await mkdtemp(path.join(os.tmpdir(), 'agentos-normalizer-'));
+    const rows = Array.from({ length: 10 }, (_, index) => ({
+      features: [index === 9 ? 10000 : index],
+      label: index % 2 === 0 ? 'even' : 'odd',
+    }));
+    // Mirror the documented seeded shuffle to calculate the training partition.
+    let state = 4096 >>> 0;
+    const random = () => { state = (Math.imul(1664525, state) + 1013904223) >>> 0; return state / 4294967296; };
+    const indices = Array.from({ length: rows.length }, (_, index) => index);
+    for (let index = indices.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [indices[index], indices[swapIndex]] = [indices[swapIndex], indices[index]];
+    }
+    const validation = new Set(indices.slice(0, 2));
+    const expectedTraining = rows.filter((_, index) => !validation.has(index));
+    const expectedMean = expectedTraining.reduce((sum, row) => sum + row.features[0], 0) / expectedTraining.length;
+    try {
+      await trainClassifier(rows, { outputDir, epochs: 1, batchSize: 4 });
+      const artifact = JSON.parse(await readFile(path.join(outputDir, 'model.json'), 'utf8'));
+      expect(artifact.means[0]).toBeCloseTo(expectedMean, 10);
+      expect(artifact.training.validationExampleCount).toBe(2);
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
   });
 
   test('trains, saves, reloads, and predicts from a model artifact', async () => {
