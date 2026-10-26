@@ -211,9 +211,21 @@ class AgentRuntime extends EventEmitter {
   }
 
   registerTool(tool) {
-  if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
-  else if (Array.isArray(this.toolManifest)) this.toolManifest.push(tool);
-  return this;
+    if (!tool || typeof tool.name !== 'string' || !tool.name.trim() || typeof tool.execute !== 'function') {
+      throw new TypeError('registerTool requires a name and execute() function');
+    }
+    if (typeof this.toolRegistry?.registerTool === 'function') {
+      this.toolRegistry.registerTool(tool);
+    } else if (typeof this.toolRegistry?.register === 'function') {
+      const { name, execute, passContext, ...metadata } = tool;
+      const handler = passContext
+        ? (args = {}, context = {}) => execute(args, context)
+        : execute;
+      this.toolRegistry.register(name.trim(), { ...metadata, execute, handler, passContext: Boolean(passContext) });
+    } else if (Array.isArray(this.toolManifest)) {
+      this.toolManifest.push(tool);
+    }
+    return this;
   }
   registerSkill(skill) {
   if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
