@@ -184,3 +184,18 @@ Changes made from this research:
 
 **Not yet claimed as production complete:** the new adapter is a contract adapter; no concrete durable tenant-aware store is wired in the production composition root yet. The report port likewise needs a real tenant-filtered execution/audit data source. Do not add these capabilities to the public runtime manifest until end-to-end ToolRegistry tests prove authorization, tenant isolation, approval, traceability and persistence.
 
+
+
+### Cross-platform harness interoperability (2026-10-26)
+
+Added `docs/architecture/agent-harness-interoperability.md` as the integration contract for Linux/macOS/Windows server runtimes, Android, browsers/PWAs, edge devices, and remote agents. It catalogs ADK, OpenAI Agents SDK, LangGraph, Vercel AI SDK, Mastra, Pydantic AI, CrewAI, Microsoft Agent Framework, Strands, Agno, smolagents, Claude Agent SDK, MCP, and A2A as candidates to evaluate—not as installed or production-tested integrations.
+
+Key decisions:
+- Keep all framework SDKs optional and out of core contracts; do not install every SDK into the product dependency tree.
+- Use one canonical AgentRuntime/ToolRegistry policy path. External runners require an explicit adapter and deployment mode, not an implicit second execution loop.
+- Make adapter capability declarations truthful and partial-capability-aware; never advertise unsupported operations through placeholder methods.
+- Treat Android/browser/edge as different host profiles with native permission boundaries, rather than promising server-shell parity on every device.
+- Require version bounds, adapter health, timeouts, cancellation, output bounds, tenant isolation, approval, audit, and per-adapter conformance tests.
+- Add platform-specific CI only where the repository has real runner/device coverage; document unavailable coverage instead of assuming it passed.
+
+This closes a documentation/architecture-contract gap only. It does **not** mean those SDKs have all been integrated, nor does it resolve the current runtime, regression-test, dependency-audit, or branch-divergence blockers.
