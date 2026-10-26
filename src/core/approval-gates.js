@@ -62,8 +62,8 @@ export class ApprovalGate {
   }
 
   async resume({ actionId, actor, tenantId, authorize, execute }) {
-    const approved = await this.decide({ actionId, decision: 'APPROVED', actor, tenantId, authorize });
     if (typeof execute !== 'function') throw new TypeError('execute callback is required');
+    const approved = await this.decide({ actionId, decision: 'APPROVED', actor, tenantId, authorize });
     // Claim the approved request before executing; providers should use compareAndSet
     // for the APPROVED -> EXECUTING transition to prevent duplicate/replayed execution.
     const db = this.persistence();
