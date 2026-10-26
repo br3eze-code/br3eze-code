@@ -332,6 +332,16 @@ export default (program) => {
                     toolRegistry,
                     ...(modelPort ? { model: modelPort } : {}),
                 });
+                // Expose RouterOS through the same runtime/tool authorization path.
+                // Reuse the already-composed network manager; do not open a second connection.
+                if (networkEnabled && mikrotik) {
+                    const { createMikroTikHardwareAdapter } = await import('../../adapters/hardware/mikrotik-hardware-adapter.js');
+                    runtime.registerHardwareAdapter(createMikroTikHardwareAdapter({
+                        id: 'routeros',
+                        deviceId: config.network?.siteId || config.siteId || 'default-site',
+                        manager: mikrotik,
+                    }));
+                }
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;
                 global.askEngine = runtime;
