@@ -1,30 +1,29 @@
-import { generateSetupScript } from '../../src/core/onboard.js';
+import { generateSetupScript } from '../../src/adapters/network/onboard.js';
 
-describe('Onboard Template Generation', () => {
+describe('Network onboarding setup script', () => {
     const mockEnv = {
         AGENTOS_NODE_URL: 'http://1.2.3.4:3000',
+        name: 'test-node',
         TELEGRAM_BOT_TOKEN: 'test_token',
         TELEGRAM_CHAT_ID: 'test_chat_id'
     };
 
-    test('should generate a script with correct dynamic values', () => {
+    test('generates a script with the supplied node identity and endpoint', () => {
         const script = generateSetupScript(mockEnv);
-        
-        expect(script).toContain('http://1.2.3.4:3000/api/event/login');
-        expect(script).toContain('test_token');
-        expect(script).toContain('test_chat_id');
-        expect(script).toContain('address=1.2.3.4');
+        expect(script).toContain('http://1.2.3.4:3000');
+        expect(script).toContain('AgentOS-test-node');
+        expect(script).toContain('/ip service set telnet disabled=yes');
+        expect(script).toContain('/ip service set ftp disabled=yes');
     });
 
-    test('should not contain undefined strings', () => {
-        const script = generateSetupScript(mockEnv);
+    test('does not contain undefined values or injected identity quotes', () => {
+        const script = generateSetupScript({ ...mockEnv, name: 'test"node' });
         expect(script).not.toContain('undefined');
+        expect(script).toContain('AgentOS-testnode');
     });
 
-    test('should have valid login-by values', () => {
+    test('does not emit unsupported login-by configuration', () => {
         const script = generateSetupScript(mockEnv);
-        // Correct is mac,cookie or similar, NOT mac-cookie
-        expect(script).not.toContain('login-by=mac-cookie');
-        expect(script).toContain('login-by=http-chap,http-pap,trial,mac,cookie');
+        expect(script).not.toContain('login-by=');
     });
 });
