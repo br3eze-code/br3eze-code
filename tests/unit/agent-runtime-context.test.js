@@ -1,4 +1,5 @@
 import { AgentRuntime } from '../../src/core/agentRuntime.js';
+import { getTaskRegistry } from '../../src/core/taskRegistry.js';
 import { attachOnboardingWbs } from '../../src/core/onboarding-wbs.js';
 
 describe('AgentRuntime canonical execution context', () => {
@@ -87,6 +88,8 @@ describe('AgentRuntime canonical execution context', () => {
     expect(executions).toBe(0);
 
 
+    const pendingTaskId = blocked[0].result.taskId;
+    const tasksBeforeApproval = getTaskRegistry().list().length;
     const approval = await runtime.approveAction({
       actionId: blocked[0].result.actionId,
       actor: 'admin-1',
@@ -94,6 +97,8 @@ describe('AgentRuntime canonical execution context', () => {
       authorize: async () => true,
     });
     expect(approval).toMatchObject({ status: 'EXECUTED', result: { ok: true } });
+    expect(getTaskRegistry().get(pendingTaskId)).toMatchObject({ status: 'completed', execution: { phase: 'complete', approved: true, approvalId: blocked[0].result.actionId } });
+    expect(getTaskRegistry().list().length).toBe(tasksBeforeApproval);
     expect(executions).toBe(1);
   });
 
