@@ -130,7 +130,7 @@ class AgentRuntime extends EventEmitter {
     for (const adapter of (config.platformHostAdapters || [])) this.registerPlatformAdapter(adapter);
     // Managed application services share the canonical runtime lifecycle.
     this.serviceSupervisor = config.serviceSupervisor || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
-    this.ipc = config.ipc || new IPCMessageBus({ onAudit: (event) => this.emit('os.ipc.audit', event) });
+    this.ipc = config.ipc || new IPCMessageBus({ authorize: config.ipcAuthorize || (() => false), onAudit: (event) => this.emit('os.ipc.audit', event) });
     this.applications = config.applications || new ApplicationManager({ supervisor: this.serviceSupervisor });
     this.localState = config.localState || new LocalStateStore(config.localStateOptions || {});
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
