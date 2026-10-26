@@ -1,0 +1,59 @@
+name: Br3eze OS Image
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "os/level3/**"
+      - "docs/architecture/level-3-linux-distribution.md"
+      - ".github/workflows/br3eze-os-image.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: br3eze-os-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate OS build inputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate build script syntax
+        run: bash -n os/level3/build-image.sh
+      - name: Validate required build inputs
+        run: |
+          test -s os/level3/README.md
+          test -s os/level3/config/package-lists/br3eze.list.chroot
+          grep -q '^linux-image-amd64$' os/level3/config/package-lists/br3eze.list.chroot
+          grep -q '^systemd-sysv$' os/level3/config/package-lists/br3eze.list.chroot
+
+  build:
+    name: Build Debian Live ISO
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
+      - name: Build bootable ISO
+        run: ./os/level3/build-image.sh
+      - name: Verify image and checksum
+        run: |
+          test -s os/level3/br3eze-os-amd64.hybrid.iso
+          test -s os/level3/br3eze-os-amd64.hybrid.iso.sha256
+          cd os/level3
+          sha256sum --check br3eze-os-amd64.hybrid.iso.sha256
+      - name: Upload bootable image and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: br3eze-os-amd64-iso
+          path: |
+            os/level3/br3eze-os-amd64.hybrid.iso
+            os/level3/br3eze-os-amd64.hybrid.iso.sha256
+          if-no-files-found: error
+          retention-days: 7
