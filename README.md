@@ -200,7 +200,7 @@ Never rely on a system prompt as the authorization boundary.
 
 ## Interoperability
 
-AgentOS can consume external capabilities through adapters. MCP is a good example: an MCP server can provide tools to the runtime without forcing MCP into the core execution model.
+AgentOS can consume external capabilities through adapters. MCP is a good example: an MCP server can provide tools to the runtime without forcing MCP into the core execution model. The optional native transport implementation, installation instructions, and security constraints are documented in [the MCP client guide](docs/architecture/mcp-client.md).
 
 ~~~text
 external protocol
