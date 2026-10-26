@@ -46,7 +46,10 @@
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
-    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs"
+    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
+    "model:train": "node scripts/train-model.mjs",
+    "model:predict": "node scripts/predict-model.mjs",
+    "check:repository-hygiene": "node --test scripts/repository-hygiene-gate.test.mjs && node scripts/repository-hygiene-gate.mjs"
   },
   "publishConfig": {
     "access": "public",
