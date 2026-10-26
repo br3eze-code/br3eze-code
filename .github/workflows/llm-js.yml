@@ -27,3 +27,5 @@ jobs:
         run: node experiments/llm-js/train-gpt.js --input experiments/llm-js/fixtures/tiny-corpus.txt --steps 2 --context 4 --width 2 --heads 2 --layers 2 --hidden 4 --generate 2 --checkpoint /tmp/tiny-gpt-checkpoint.json
       - name: Resume TinyGPT from checkpoint
         run: node experiments/llm-js/train-gpt.js --input experiments/llm-js/fixtures/tiny-corpus.txt --resume /tmp/tiny-gpt-checkpoint.json --steps 1 --generate 2 --checkpoint /tmp/tiny-gpt-resumed.json
+      - name: Smoke-test depth-based Transformer preset
+        run: node experiments/llm-js/train-transformer.js --depth 2 --context 4 --steps 2 --generate 2 --checkpoint /tmp/depth-transformer.json
