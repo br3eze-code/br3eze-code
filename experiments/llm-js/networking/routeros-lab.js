@@ -90,7 +90,7 @@ export function createSimulatedRouterOSLab({ fault = "healthy" } = {}) {
       if (name !== "routeros.probeConnectivity" && Object.keys(args).length) {
         throw new TypeError(`${name} accepts no arguments`);
       }
-      if (name === "routeros.probeConnectivity" && !["gateway", "public-ip", "dns-name"].includes(args.target)) {
+      if (name === "routeros.probeConnectivity" && (Object.keys(args).some(key => key !== "target") || !["gateway", "public-ip", "dns-name"].includes(args.target))) {
         throw new TypeError("target must be gateway, public-ip, or dns-name");
       }
       return observations[name](args);
