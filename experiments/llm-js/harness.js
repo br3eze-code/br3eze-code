@@ -28,10 +28,10 @@ function normalizeMessages(messages) {
         id: requiredString(call?.id, `messages[${index}].tool_calls[].id`),
         type: "function",
         function: {
-          name: requiredString(call?.function?.name, `messages[${index}].tool_calls[].function.name`),
-          arguments: typeof call?.function?.arguments === "string"
-            ? call.function.arguments
-            : JSON.stringify(call?.function?.arguments ?? {})
+          name: requiredString(call?.function?.name ?? call?.name, `messages[${index}].tool_calls[].function.name`),
+          arguments: typeof (call?.function?.arguments ?? call?.arguments) === "string"
+            ? (call.function?.arguments ?? call.arguments)
+            : JSON.stringify((call?.function?.arguments ?? call?.arguments) ?? {})
         }
       }));
     }
