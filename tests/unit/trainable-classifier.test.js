@@ -1,4 +1,7 @@
-import { validateDataset } from '../../src/ml/trainable-classifier.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { predictClass, trainClassifier, validateDataset } from '../../src/ml/trainable-classifier.js';
 
 describe('trainable classifier dataset contract', () => {
   test('accepts numeric vectors with two or more labels', () => {
@@ -44,5 +47,28 @@ describe('trainable classifier dataset contract', () => {
       features: [index],
       label: 'same',
     })))).toThrow(/two distinct labels/);
+  });
+
+  test('trains, saves, reloads, and predicts from a model artifact', async () => {
+    const outputDir = await mkdtemp(path.join(os.tmpdir(), 'agentos-model-'));
+    const rows = [
+      { features: [-1], label: 'negative' },
+      { features: [-0.9], label: 'negative' },
+      { features: [-0.7], label: 'negative' },
+      { features: [-0.5], label: 'negative' },
+      { features: [0.5], label: 'positive' },
+      { features: [0.7], label: 'positive' },
+      { features: [0.9], label: 'positive' },
+      { features: [1], label: 'positive' },
+    ];
+    try {
+      const trained = await trainClassifier(rows, { outputDir, epochs: 160, batchSize: 4 });
+      const prediction = await predictClass(outputDir, [0.95]);
+      expect(trained.exampleCount).toBe(8);
+      expect(prediction.label).toBe('positive');
+      expect(prediction.probabilities).toHaveLength(2);
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
   });
 });
