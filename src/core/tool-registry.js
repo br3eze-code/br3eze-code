@@ -127,7 +127,12 @@ class ToolRegistry {
     if (typeof toolDef.execute !== 'function' && typeof toolDef.handler !== 'function') throw new TypeError(`Tool "${fullName}" must provide execute() or handler()`);
     const [domain] = fullName.split('.');
     const handler = toolDef.handler || toolDef.execute;
-    const schema = toolDef.schema || {};
+    const schema = {
+      ...(toolDef.schema || {}),
+      ...(toolDef.description && !toolDef.schema?.description ? { description: toolDef.description } : {}),
+      ...(toolDef.parameters && !toolDef.schema?.parameters ? { parameters: toolDef.parameters } : {}),
+      ...(toolDef.inputSchema && !toolDef.schema?.parameters && !toolDef.parameters ? { parameters: toolDef.inputSchema } : {}),
+    };
     const capability = describeCapability({
       id: toolDef.capabilityId || fullName,
       domain: toolDef.domain || domain,
