@@ -11,7 +11,7 @@ describe('Br3eze OS platform runtime composition', () => {
         capabilities: [{ name: 'identity', platforms: ['test'], invoke: async (_input, context) => ({ platform: context.platform }) }],
       }],
     });
-    expect(runtime.listPlatformCapabilities({ platform: 'test' })).toHaveLength(1);
+    expect(runtime.listPlatformCapabilities({ tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:test.host:identity'], platform: 'test' })).toHaveLength(1);
     await runtime.startPlatformAdapter('test.host');
     await expect(runtime.invokePlatformCapability('platform.test.host.identity', {}, { platform: 'test' }))
       .resolves.toEqual({ platform: 'test' });
@@ -34,7 +34,7 @@ describe('Br3eze OS platform runtime composition', () => {
       platformHostAdapters: [adapter],
     });
     await runtime.startPlatformAdapter('host.node');
-    await expect(runtime.invokePlatformCapability('platform.host.node.diagnostics'))
+    await expect(runtime.invokePlatformCapability('platform.host.node.diagnostics', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:host.node:diagnostics'] }))
       .resolves.toEqual({
         platform: 'test-os', architecture: 'test-arch', release: '1.0',
         cpuCount: 2, totalMemoryBytes: 1000, freeMemoryBytes: 400, uptimeSeconds: 12,
