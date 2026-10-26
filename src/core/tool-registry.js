@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import yaml from 'js-yaml';
 import { logger } from './logger.js';
 import { createExecutionIntent, describeCapability, checkCapabilityBoundary } from './capability-boundary.js';
-import { getTaskRegistry } from './taskRegistry.js';
+import { getTaskRegistry, TaskStatus, TaskPhase } from './taskRegistry.js';
 
 /**
  * Canonical AgentOS ToolRegistry.
@@ -128,8 +128,11 @@ class ToolRegistry {
     }
     const phase = ctx.phase || task?.execution?.phase || 'execute';
     if (phase !== 'execute') return { allowed: false, errors: [`task_not_executable:${phase}`], task, intent: null };
-    if (task && task.execution?.phase !== 'execute') {
+    if (task && task.execution?.phase !== TaskPhase.EXECUTE) {
       return { allowed: false, errors: [`task_not_executable:${task.execution?.phase || 'unknown'}`], task, intent: null };
+    }
+    if (task && task.status !== TaskStatus.RUNNING) {
+      return { allowed: false, errors: [`task_not_running:${task.status || 'unknown'}`], task, intent: null };
     }
     if (task && task.action && ctx.action && task.action !== ctx.action) return { allowed: false, errors: ['task_action_mismatch'], task, intent: null };
     const boundary = checkCapabilityBoundary(entry.capability, ctx, { phase, approved: task?.execution?.approved === true || ctx.approvalGranted === true });
