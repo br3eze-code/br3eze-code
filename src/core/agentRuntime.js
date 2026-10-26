@@ -20,7 +20,12 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
   { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] }
+  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] },
+  { name: 'system.stats', keywords: ['system', 'stats', 'cpu', 'memory'] },
+  { name: 'system.reboot', keywords: ['system', 'reboot', 'restart'] },
+  { name: 'user.add', keywords: ['user', 'add', 'create', 'register'] },
+  { name: 'firewall.block', keywords: ['firewall', 'block', 'ban', 'blacklist'] },
+  { name: 'ping', keywords: ['ping', 'latency', 'host'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
@@ -117,7 +122,7 @@ class AgentRuntime extends EventEmitter {
         logger,
         config,
     });
-    this.toolManifest = Array.isArray(config.toolManifest) ? config.toolManifest : null;
+    this.toolManifest = Array.isArray(config.toolManifest) ? [...config.toolManifest] : [...DEFAULT_TOOL_MANIFEST];
     this.skillRegistry = config.skillRegistry || null;
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
@@ -156,7 +161,7 @@ class AgentRuntime extends EventEmitter {
   getCapabilityManifest() {
     return {
       version: '1.0',
-      tools: this.toolRegistry?.toolDeclarations?.() || [],
+      tools: this.toolRegistry?.toolDeclarations?.() || this.toolManifest || DEFAULT_TOOL_MANIFEST,
       skills: this.toolRegistry?.listSkills?.().map(skill => ({
         name: skill.name,
         description: skill.description || skill.manifest?.description || '',
@@ -169,16 +174,26 @@ class AgentRuntime extends EventEmitter {
 
   routePrompt(prompt, limit = 5) {
     const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-    const manifest = this.toolRegistry?.getAllTools?.().map(tool => ({
-      name: tool.fullName || tool.name,
-      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
-    })) || this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const manifest = registeredTools.length
+      ? registeredTools.map(tool => ({
+        name: tool.fullName || tool.name,
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
+      }))
+      : this.toolManifest || DEFAULT_TOOL_MANIFEST;
     return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
       .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
   }
 
-  registerTool(tool) { this.toolRegistry.registerTool(tool); return this; }
-  registerSkill(skill) { this.toolRegistry.registerSkill(skill); return this; }
+  registerTool(tool) {
+    if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
+    else this.toolManifest.push(tool);
+    return this;
+  }
+  registerSkill(skill) {
+    if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
+    return this;
+  }
   async loadSkills() { await this.toolRegistry.loadSkills?.(); return this; }
   registerPlugin(plugin) { this.pluginRegistry.register(plugin); return this; }
   async loadPlugin(plugin) { await this.pluginLoader.load(plugin); return this; }
