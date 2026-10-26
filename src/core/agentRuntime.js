@@ -256,6 +256,26 @@ class AgentRuntime extends EventEmitter {
     yield { type: 'done' };
   }
 
+  /**
+   * Compatibility contract for older harnesses. This delegates to execute()
+   * so it cannot create a second execution loop or runtime owner.
+   */
+  async executeTurn(frame = {}, context = {}) {
+    if (typeof frame === 'string') {
+      return this.execute({ content: frame, context });
+    }
+    if (!frame || typeof frame !== 'object' || Array.isArray(frame)) {
+      throw new TypeError('AgentRuntime.executeTurn requires a prompt or frame object');
+    }
+    const content = frame.content ?? frame.prompt;
+    if (content == null) throw new TypeError('AgentRuntime.executeTurn requires frame.content or frame.prompt');
+    return this.execute({
+      ...frame,
+      content,
+      context: { ...context, ...(frame.context || {}) },
+    });
+  }
+
   async execute(frame = {}) {
     if (!frame || frame.content == null) throw new TypeError('AgentRuntime.execute requires frame.content');
 
