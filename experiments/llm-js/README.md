@@ -174,6 +174,19 @@ The Node 22 GitHub Actions workflow runs the educational model tests and CLI smo
 - Configurable decoder-only TinyGPT, gradient clipping, AdamW, deterministic sampling, validation loss and model-plus-optimizer checkpoint/resume.
 - Depth-first Transformer sizing preset derived from the nanochat “one complexity dial” pattern, with input validation and unit tests.
 
+- Native Transformer checkpoint fine-tuning with named parameters, head-only or frozen-base policies, fresh optimizer moments, and regression tests.
+
+Fine-tune a checkpoint produced by `train-transformer.js` using a corpus that stays within the checkpoint's character vocabulary:
+
+```bash
+node experiments/llm-js/train-transformer.js --input experiments/llm-js/fixtures/tiny-corpus.txt --depth 2 --context 4 --steps 20 --checkpoint artifacts/base-transformer.json
+node experiments/llm-js/finetune-transformer.js --checkpoint artifacts/base-transformer.json --input experiments/llm-js/fixtures/tiny-corpus.txt --steps 20 --lr 0.001 --output artifacts/finetuned-transformer.json
+node experiments/llm-js/finetune-transformer.js --checkpoint artifacts/base-transformer.json --input experiments/llm-js/fixtures/tiny-corpus.txt --unfreeze-head-only --steps 20 --output artifacts/head-only-transformer.json
+node experiments/llm-js/finetune-transformer.js --checkpoint artifacts/base-transformer.json --input experiments/llm-js/fixtures/tiny-corpus.txt --freeze-base --steps 20 --output artifacts/frozen-base-transformer.json
+```
+
+`--freeze-base` trains the output head and final normalization parameters; `--unfreeze-head-only` trains only the output projection and bias. The flags are mutually exclusive. Fine-tuning resets Adam moments rather than carrying over pretraining momentum. The character vocabulary is intentionally fixed: unknown characters are rejected rather than assigned incompatible token IDs.
+
 ## Important limits
 
 TinyGPT is a correctness-first CPU learning implementation, not a production or pretrained general-purpose LLM. It uses character-level tokens, small context windows and a pure-JavaScript Float64 tensor engine. It lacks a BPE tokenizer, dropout, mature shuffled mini-batching, broad gradient checks, optimized kernels, GPU acceleration and distributed training. The pretrained-model LoRA path is a separate optional backend and has not yet been verified end-to-end in this repository environment.
