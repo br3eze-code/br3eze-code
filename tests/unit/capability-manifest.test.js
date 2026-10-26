@@ -43,16 +43,16 @@ describe('capability manifest', () => {
     expect(manifest.tools).not.toContain('shop.checkout');
   });
 
-  test('capability route does not trust spoofable role headers and follows API auth middleware', () => {
+  test('API runtime routes use authenticated request identity, not spoofable role headers', () => {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-    const source = fs.readFileSync(path.join(root, 'src/core/gateway-engine.js'), 'utf8');
-    const authIndex = source.indexOf("this.app.use('/api', async");
-    const routeIndex = source.indexOf("this.app.get('/api/v1/capabilities'");
+    const source = fs.readFileSync(path.join(root, 'src/api/routes/v2.js'), 'utf8');
 
-    expect(authIndex).toBeGreaterThanOrEqual(0);
-    expect(routeIndex).toBeGreaterThan(authIndex);
+    expect(source).toContain('function runtimeRequestContext(req');
+    expect(source).toContain('const user = req.user || {}');
     expect(source).not.toContain("req.headers['x-agent-role']");
     expect(source).not.toContain("req.headers['x-agent-capabilities']");
+    expect(source).not.toContain('global.ai || global.coordinator');
+    expect(source).not.toContain('global.agentRuntime || global.askEngine');
   });
 
   test('administrators see all currently available tools without changing the source policy', () => {
