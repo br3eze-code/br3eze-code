@@ -42,19 +42,29 @@ export class ApplicationManager {
 
   async start(appId, context = {}) {
     const app = this.#require(appId);
-    const result = await this.supervisor.start(app.manifest.entryService, {
-      ...context,
-      application: { id: app.manifest.id, version: app.manifest.version, permissions: [...app.manifest.permissions] },
-    });
-    app.state = result.state === 'running' ? 'running' : result.state;
-    return this.describe(appId);
+    try {
+      const result = await this.supervisor.start(app.manifest.entryService, {
+        ...context,
+        application: { id: app.manifest.id, version: app.manifest.version, permissions: [...app.manifest.permissions] },
+      });
+      app.state = result.state === 'running' ? 'running' : result.state;
+      return this.describe(appId);
+    } catch (error) {
+      app.state = 'failed';
+      throw error;
+    }
   }
 
   async stop(appId, context = {}) {
     const app = this.#require(appId);
-    const result = await this.supervisor.stop(app.manifest.entryService, context);
-    app.state = result.state === 'stopped' ? 'stopped' : result.state;
-    return this.describe(appId);
+    try {
+      const result = await this.supervisor.stop(app.manifest.entryService, context);
+      app.state = result.state === 'stopped' ? 'stopped' : result.state;
+      return this.describe(appId);
+    } catch (error) {
+      app.state = 'failed';
+      throw error;
+    }
   }
 
   describe(appId) {
