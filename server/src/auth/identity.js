@@ -97,6 +97,45 @@ function normalizeIdentity(decoded, provider = 'firebase') {
   });
 }
 
+async function authenticateSupabaseBearer(token) {
+  const baseUrl = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const apiKey = process.env.SUPABASE_ANON_KEY
+    || process.env.SUPABASE_PUBLISHABLE_KEY
+    || process.env.SUPABASE_SERVICE_ROLE_KEY
+    || '';
+  if (!baseUrl || !apiKey || typeof fetch !== 'function') return null;
+
+  try {
+    const response = await fetch(`${baseUrl}/auth/v1/user`, {
+      headers: { apikey: apiKey, authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    const user = await response.json();
+    if (!user?.id) return null;
+
+    // Authorization roles must come from server-controlled app_metadata, not
+    // user-editable user_metadata.
+    const appMetadata = user.app_metadata || {};
+    const identity = normalizeIdentity({
+      uid: user.id,
+      email: user.email,
+      role: appMetadata.role || 'USER',
+      roles: Array.isArray(appMetadata.roles) ? appMetadata.roles : undefined,
+      email_verified: Boolean(user.email_confirmed_at),
+      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
+    }, 'supabase');
+    return Object.freeze({
+      ...identity,
+      tenantId: appMetadata.tenant_id || null,
+      siteId: appMetadata.site_id || null,
+      domainId: appMetadata.domain_id || appMetadata.domain || null,
+      metadata: { ...identity.metadata, authProvider: 'supabase' },
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function authenticateBearer(token, { userTokenSecret } = {}) {
   if (!token) return null;
 
@@ -119,13 +158,16 @@ export async function authenticateBearer(token, { userTokenSecret } = {}) {
     if (decoded) return normalizeIdentity(decoded, 'local');
   }
 
-  if (!admin) return null;
-  try {
-    const decoded = await admin.auth().verifyIdToken(token, true);
-    return normalizeIdentity(decoded, 'firebase');
-  } catch {
-    return null;
+  if (admin) {
+    try {
+      const decoded = await admin.auth().verifyIdToken(token, true);
+      return normalizeIdentity(decoded, 'firebase');
+    } catch {
+      // The token may belong to another configured identity provider.
+    }
   }
+
+  return authenticateSupabaseBearer(token);
 }
 
 export function hasPermission(identity, permission) {
