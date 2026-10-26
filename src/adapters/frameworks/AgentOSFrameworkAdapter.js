@@ -12,7 +12,7 @@ export class AgentOSFrameworkAdapter {
 
   capabilities() {
     return [
-      'agent.create', 'agent.run', 'agent.handoff', 'agent.child',
+      'agent.create', 'agent.run', 'agent.remove', 'agent.handoff', 'agent.child',
       'workflow.define', 'workflow.run', 'workflow.resume',
       'tool.register', 'tool.execute', 'guardrail.check',
       'memory.read', 'memory.write', 'trace.read', 'evaluation.run'
@@ -21,6 +21,7 @@ export class AgentOSFrameworkAdapter {
 
   async createAgent(spec) { return this._call('createAgent', spec); }
   async runAgent(agent, input, context = {}) { return this._call('runAgent', agent, input, context); }
+  async removeAgent(agentId, context = {}) { return this._call('removeAgent', agentId, context); }
   async handoff(agent, target, context = {}) { return this._call('handoff', agent, target, context); }
   async createChild(agent, spec, context = {}) { return this._call('createChild', agent, spec, context); }
   async defineWorkflow(spec) { return this._call('defineWorkflow', spec); }
@@ -44,7 +45,7 @@ export class AgentOSFrameworkAdapter {
 
 export function assertAdapterContract(adapter) {
   const required = [
-    'createAgent', 'runAgent', 'handoff', 'createChild', 'defineWorkflow',
+    'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild', 'defineWorkflow',
     'runWorkflow', 'resumeWorkflow', 'registerTool', 'executeTool',
     'checkGuardrail', 'readMemory', 'writeMemory', 'readTrace', 'evaluate'
   ];
