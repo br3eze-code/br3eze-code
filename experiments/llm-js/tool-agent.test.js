@@ -90,6 +90,7 @@ test("requires an explicit authorization policy and bounds model steps", async (
     runToolAgent({ model, messages: [{ role: "user", content: "Hi" }], tools: [] }),
     /authorizeTool is required/
   );
+  let loopExecutions = 0;
   const loopingModel = {
     async generate() {
       return { text: "", toolCalls: [{ id: "loop-call", name: "lookup_record", arguments: '{"key":"x"}' }] };
@@ -99,12 +100,13 @@ test("requires an explicit authorization policy and bounds model steps", async (
     runToolAgent({
       model: loopingModel,
       messages: [{ role: "user", content: "loop" }],
-      tools: [echoTool],
+      tools: [{ ...echoTool, execute: async () => { loopExecutions += 1; return "should not execute"; } }],
       authorizeTool: async () => true,
       maxSteps: 1
     }),
     (error) => error.code === "TOOL_AGENT_MAX_STEPS"
   );
+  assert.equal(loopExecutions, 0, "no tool side effect should occur after the step budget is exhausted");
 });
 
 test("rejects duplicate tools and unsupported schemas before model execution", async () => {
