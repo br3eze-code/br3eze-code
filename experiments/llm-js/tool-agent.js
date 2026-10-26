@@ -114,6 +114,9 @@ export async function runToolAgent({
       signal
     });
     const calls = Array.isArray(completion.toolCalls) ? completion.toolCalls : [];
+    if (calls.length > 0 && step === maxSteps) {
+      throw Object.assign(new Error(`Tool-agent reached maxSteps (${maxSteps}) before it could synthesize a final answer`), { code: "TOOL_AGENT_MAX_STEPS" });
+    }
     if (calls.length === 0) {
       const answer = typeof completion.text === "string" ? completion.text : "";
       conversation.push({ role: "assistant", content: answer });
