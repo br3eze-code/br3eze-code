@@ -103,6 +103,7 @@ The Node 22 GitHub Actions workflow runs the educational model tests and CLI smo
 - Embedding lookup, differentiable slicing/concatenation, linear layers, layer normalization and stable softmax/cross-entropy.
 - Causal multi-head attention, learned token/position embeddings, residual connections and feed-forward blocks.
 - Configurable decoder-only TinyGPT, gradient clipping, AdamW, deterministic sampling, validation loss and model-plus-optimizer checkpoint/resume.
+- Depth-first Transformer sizing preset derived from the nanochat “one complexity dial” pattern, with input validation and unit tests.
 
 ## Important limits
 
