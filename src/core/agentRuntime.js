@@ -20,15 +20,15 @@ import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistr
 const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
 
 const DEFAULT_TOOL_MANIFEST = [
-  { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
-  { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
-  { name: 'agent.remove', keywords: ['agent', 'remove', 'delete', 'retire'] },
-  { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
-  { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
-  { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] },
-  { name: 'system.stats', keywords: ['system', 'stats', 'cpu', 'memory'] },
-  { name: 'ping', keywords: ['ping', 'latency', 'host'] }
+  { name: 'agent.create', keywords: ['create agent', 'new agent', 'register agent'] },
+  { name: 'agent.run', keywords: ['run agent', 'execute agent', 'start agent'] },
+  { name: 'agent.remove', keywords: ['remove agent', 'delete agent', 'retire agent'] },
+  { name: 'workflow.run', keywords: ['run workflow', 'workflow run', 'start workflow'] },
+  { name: 'tool.execute', keywords: ['execute tool', 'run tool', 'invoke tool'] },
+  { name: 'task.status', keywords: ['task status', 'task progress', 'status of task'] },
+  { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
+  { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
+  { name: 'ping', keywords: ['ping', 'latency', 'check host'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
@@ -86,7 +86,12 @@ function normalizeToolParameters(parameters) {
   return { type: 'object', properties: {} };
 }
 
-function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
+function scorePrompt(tokens, entry, normalizedPrompt = '') {
+  return entry.keywords.filter((keyword) => {
+    const normalized = String(keyword).toLowerCase().trim();
+    return normalized.includes(' ') ? normalizedPrompt.includes(normalized) : tokens.has(normalized);
+  }).length;
+}
 
 class UsageSummary {
   constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
@@ -165,7 +170,7 @@ class AgentRuntime extends EventEmitter {
   /** Register a device adapter through the existing runtime and tool registry. */
   registerHardwareAdapter(adapter) {
     this.hardwareCapabilities.registerAdapter(adapter);
-    this.hardwareCapabilities.mount(this.toolRegistry);
+    if (typeof this.toolRegistry?.register === 'function') this.hardwareCapabilities.mount(this.toolRegistry);
     return this;
   }
 
@@ -214,7 +219,8 @@ class AgentRuntime extends EventEmitter {
   }
 
   routePrompt(prompt, limit = 5) {
-    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
+    const normalizedPrompt = String(prompt).toLowerCase().replace(/\s+/g, ' ').trim();
+    const tokens = new Set(normalizedPrompt.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
   const registeredTools = this.toolRegistry?.getAllTools?.() || [];
   const manifest = registeredTools.length
   ? [
@@ -225,7 +231,7 @@ class AgentRuntime extends EventEmitter {
     })),
   ]
   : this.toolManifest || DEFAULT_TOOL_MANIFEST;
-    return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
+    return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry, normalizedPrompt) }))
       .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
   }
 
