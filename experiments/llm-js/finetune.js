@@ -2,7 +2,7 @@
 import { readFile, access } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 function option(args, name, fallback) {
   const i = args.indexOf(name);
@@ -49,8 +49,7 @@ export async function fineTuneCli(args = process.argv.slice(2)) {
     }
   });
 
-  const script = new URL("./finetune_peft.py", import.meta.url);
-  const scriptPath = decodeURIComponent(script.pathname);
+  const scriptPath = fileURLToPath(new URL("./finetune_peft.py", import.meta.url));
   const childArgs = [
     scriptPath, "--input", resolve(input), "--model", model, "--output", resolve(output),
     "--max-length", String(maxLength), "--steps", String(steps), "--batch-size", String(batchSize),
