@@ -20,27 +20,45 @@ function zeros(length) {
 }
 
 function matrix(rows, cols, rng, scale) {
-  const data = Array.from({ length: rows * cols }, () => (rng() * 2 - 1) * scale);
-  return new Tensor(data, [rows, cols]);
+  return new Tensor(Array.from({ length: rows * cols }, () => (rng() * 2 - 1) * scale), [rows, cols]);
 }
+
+const BLOCK_PARAMETER_NAMES = [
+  "ln1Gamma", "ln1Beta", "qWeight", "qBias", "kWeight", "kBias", "vWeight", "vBias",
+  "attentionWeight", "attentionBias", "ln2Gamma", "ln2Beta", "ff1Weight", "ff1Bias", "ff2Weight", "ff2Bias"
+];
 
 /**
  * Tiny decoder-only character model for educational CPU training.
- * It uses configurable causal attention heads and one feed-forward decoder block.
+ * Supports configurable decoder depth and causal attention heads.
  */
 export class TinyGPT {
-  constructor(vocabSize, { contextSize = 32, embeddingSize = 16, hiddenSize = embeddingSize * 4, numHeads = 1, seed = 42 } = {}) {
+  constructor(vocabSize, {
+    contextSize = 32,
+    embeddingSize = 16,
+    hiddenSize = embeddingSize * 4,
+    numHeads = 1,
+    numLayers = 1,
+    seed = 42
+  } = {}) {
     if (!Number.isInteger(vocabSize) || vocabSize < 2) throw new RangeError("vocabSize must be an integer >= 2");
     for (const [name, value] of [["contextSize", contextSize], ["embeddingSize", embeddingSize], ["hiddenSize", hiddenSize]]) {
       if (!Number.isInteger(value) || value < 1) throw new RangeError(`${name} must be a positive integer`);
+    }
+    if (!Number.isInteger(numHeads) || numHeads < 1 || embeddingSize % numHeads !== 0) {
+      throw new RangeError("numHeads must evenly divide embeddingSize");
+    }
+    if (!Number.isInteger(numLayers) || numLayers < 1 || numLayers > 12) {
+      throw new RangeError("numLayers must be an integer from 1 to 12");
     }
     this.vocabSize = vocabSize;
     this.contextSize = contextSize;
     this.embeddingSize = embeddingSize;
     this.hiddenSize = hiddenSize;
-    if (!Number.isInteger(numHeads) || numHeads < 1 || embeddingSize % numHeads !== 0) throw new RangeError("numHeads must evenly divide embeddingSize");
     this.numHeads = numHeads;
+    this.numLayers = numLayers;
     this.seed = seed;
+
     const rng = seededRandom(seed);
     const d = embeddingSize;
     const h = hiddenSize;
@@ -50,19 +68,40 @@ export class TinyGPT {
     this.params = {
       tokenEmbedding: matrix(vocabSize, d, rng, 0.04),
       positionEmbedding: matrix(contextSize, d, rng, 0.04),
-      ln1Gamma: normScale(), ln1Beta: normShift(),
-      qWeight: init(d, d), qBias: zeros(d),
-      kWeight: init(d, d), kBias: zeros(d),
-      vWeight: init(d, d), vBias: zeros(d),
-      attentionWeight: init(d, d), attentionBias: zeros(d),
-      ln2Gamma: normScale(), ln2Beta: normShift(),
-      ff1Weight: init(d, h), ff1Bias: zeros(h),
-      ff2Weight: init(h, d), ff2Bias: zeros(d),
-      finalGamma: normScale(), finalBeta: normShift(),
-      lmHeadWeight: init(d, vocabSize), lmHeadBias: zeros(vocabSize)
+      finalGamma: normScale(),
+      finalBeta: normShift(),
+      lmHeadWeight: init(d, vocabSize),
+      lmHeadBias: zeros(vocabSize)
     };
+    for (let layer = 0; layer < numLayers; layer += 1) {
+      const prefix = `block${layer}_`;
+      Object.assign(this.params, {
+        [prefix + "ln1Gamma"]: normScale(),
+        [prefix + "ln1Beta"]: normShift(),
+        [prefix + "qWeight"]: init(d, d),
+        [prefix + "qBias"]: zeros(d),
+        [prefix + "kWeight"]: init(d, d),
+        [prefix + "kBias"]: zeros(d),
+        [prefix + "vWeight"]: init(d, d),
+        [prefix + "vBias"]: zeros(d),
+        [prefix + "attentionWeight"]: init(d, d),
+        [prefix + "attentionBias"]: zeros(d),
+        [prefix + "ln2Gamma"]: normScale(),
+        [prefix + "ln2Beta"]: normShift(),
+        [prefix + "ff1Weight"]: init(d, h),
+        [prefix + "ff1Bias"]: zeros(h),
+        [prefix + "ff2Weight"]: init(h, d),
+        [prefix + "ff2Bias"]: zeros(d)
+      });
+    }
     this.parameterList = Object.values(this.params);
     this.optimizer = new AdamW();
+  }
+
+  getBlockParameters(layer) {
+    if (!Number.isInteger(layer) || layer < 0 || layer >= this.numLayers) throw new RangeError("layer index is out of range");
+    const prefix = `block${layer}_`;
+    return Object.fromEntries(BLOCK_PARAMETER_NAMES.map((name) => [name, this.params[prefix + name]]));
   }
 
   forward(tokenIds) {
@@ -72,8 +111,10 @@ export class TinyGPT {
     const positions = tokenIds.map((_token, index) => index);
     const tokenVectors = embedding(this.params.tokenEmbedding, tokenIds);
     const positionVectors = embedding(this.params.positionEmbedding, positions);
-    const combined = tokenVectors.add(positionVectors);
-    const decoded = decoderBlock(combined, { ...this.params, numHeads: this.numHeads });
+    let decoded = tokenVectors.add(positionVectors);
+    for (let layer = 0; layer < this.numLayers; layer += 1) {
+      decoded = decoderBlock(decoded, { ...this.getBlockParameters(layer), numHeads: this.numHeads });
+    }
     const normalized = layerNorm(decoded, this.params.finalGamma, this.params.finalBeta);
     return linear(normalized, this.params.lmHeadWeight, this.params.lmHeadBias);
   }
@@ -139,6 +180,7 @@ export class TinyGPT {
       embeddingSize: this.embeddingSize,
       hiddenSize: this.hiddenSize,
       numHeads: this.numHeads,
+      numLayers: this.numLayers,
       seed: this.seed,
       parameters: Object.fromEntries(Object.entries(this.params).map(([name, tensor]) => [name, {
         shape: tensor.shape,
@@ -157,6 +199,7 @@ export class TinyGPT {
       if (!saved || JSON.stringify(saved.shape) !== JSON.stringify(tensor.shape) || !Array.isArray(saved.data) || saved.data.length !== tensor.size) {
         throw new RangeError(`checkpoint parameter mismatch: ${name}`);
       }
+      if (saved.data.some((value) => !Number.isFinite(value))) throw new RangeError(`checkpoint contains non-finite values: ${name}`);
       tensor.data.set(saved.data);
     }
     return model;
