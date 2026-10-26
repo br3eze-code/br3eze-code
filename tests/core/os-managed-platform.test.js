@@ -19,20 +19,26 @@ describe('Br3eze OS managed application platform', () => {
   });
 
   test('rejects ungranted IPC and isolates delivery by tenant', async () => {
-    const bus = new IPCMessageBus();
+    const bus = new IPCMessageBus({ authorize: ({ action, topic, tenantId }) => topic === 'demo.events' && action === 'subscribe' ? tenantId === 'tenant-a' : topic === 'demo.events' && tenantId === 'tenant-a' });
     const received = jest.fn();
-    bus.subscribe({ topic: 'demo.events', subscriberId: 'app-a', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, received);
-    await expect(bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a' }, { value: 1 })).rejects.toThrow('missing_permission');
-    await bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-b', userId: 'user-b', authorizedTopics: ['demo.events'] }, { value: 2 });
+    await bus.subscribe({ topic: 'demo.events', subscriberId: 'app-a', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, received);
+    const deniedBus = new IPCMessageBus();
+    await expect(deniedBus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, { value: 1 })).rejects.toThrow('missing_permission');
+    await expect(bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-b', userId: 'user-b' }, { value: 2 })).rejects.toThrow('missing_permission');
     expect(received).not.toHaveBeenCalled();
-    await bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a', authorizedTopics: ['demo.events'] }, { value: 3 });
+    await bus.publish({ topic: 'demo.events', publisherId: 'app-b', tenantId: 'tenant-a', userId: 'user-a' }, { value: 3 });
     expect(received).toHaveBeenCalledTimes(1);
     expect(received.mock.calls[0][0].payload).toEqual({ value: 3 });
   });
 
   test('rejects unsafe IPC payloads', async () => {
-    const bus = new IPCMessageBus();
+    const bus = new IPCMessageBus({ authorize: () => true });
     await expect(bus.publish({ topic: 'demo.events', publisherId: 'app', tenantId: 'tenant', userId: 'user', authorizedTopics: ['demo.events'] }, { bad: () => {} })).rejects.toThrow('JSON-compatible');
+  });
+
+  test('rejects IPC payloads exceeding byte limits', async () => {
+    const bus = new IPCMessageBus({ maxPayloadBytes: 32, authorize: () => true });
+    await expect(bus.publish({ topic: 'demo.events', publisherId: 'app', tenantId: 'tenant', userId: 'user' }, { value: 'x'.repeat(100) })).rejects.toThrow('byte limit');
   });
 
   test('registers and manages apps through the service supervisor', async () => {
