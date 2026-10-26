@@ -30,7 +30,7 @@ test("runs a model-selected tool only after schema validation and authorization"
   const result = await runToolAgent({
     model,
     messages: [{ role: "user", content: "Find alpha" }],
-    tools: [echoTool],
+    tools: [{ ...echoTool, execute: async ({ key }) => { executions += 1; return { key, value: "found" }; } }],
     authorizeTool: async ({ tool, context }) => tool.name === "lookup_record" && context.userId === "user-1",
     context: { userId: "user-1", tenantId: "tenant-1" },
     onEvent: (event) => events.push(event)
@@ -41,7 +41,7 @@ test("runs a model-selected tool only after schema validation and authorization"
   assert.equal(requests[1].messages.at(-1).role, "tool");
   assert.match(requests[1].messages.at(-1).content, /"value":"found"/);
   assert.deepEqual(events.map((event) => event.type), ["tool_call", "tool_result", "done"]);
-  assert.equal(executions, 0);
+  assert.equal(executions, 1);
 });
 
 test("denies tool execution unless the authorization callback returns true", async () => {
