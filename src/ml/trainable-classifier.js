@@ -1,9 +1,7 @@
-import * as tf from '@tensorflow/tfjs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const MANIFEST_FILE = 'model.json';
-const WEIGHTS_FILE = 'weights.bin';
+const MODEL_FILE = 'model.json';
 
 export function validateDataset(rows) {
   if (!Array.isArray(rows) || rows.length < 6) {
@@ -21,7 +19,7 @@ export function validateDataset(rows) {
     if (row.features.length !== featureCount || featureCount < 1) {
       throw new TypeError('Every example must use the same non-empty feature vector length');
     }
-    if (!row.features.every((value) => Number.isFinite(value))) {
+    if (!row.features.every(Number.isFinite)) {
       throw new TypeError(`Example ${index + 1} contains a non-finite feature`);
     }
     labels.add(row.label.trim());
@@ -44,6 +42,23 @@ export async function readJsonlDataset(filePath) {
   return rows;
 }
 
+function randomGenerator(seed = 4096) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(1664525, state) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function shuffled(values, random) {
+  const result = [...values];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [result[index], result[swapIndex]] = [result[swapIndex], result[index]];
+  }
+  return result;
+}
+
 function computeNormalizer(rows, featureCount) {
   const means = Array.from({ length: featureCount }, (_, index) =>
     rows.reduce((sum, row) => sum + row.features[index], 0) / rows.length);
@@ -61,149 +76,198 @@ function normalizeFeatures(features, means, scales) {
   return features.map((value, index) => (value - means[index]) / scales[index]);
 }
 
-function createNetwork(featureCount, classCount) {
-  const model = tf.sequential();
-  model.add(tf.layers.dense({
-    inputShape: [featureCount],
-    units: Math.max(8, Math.min(64, featureCount * 4)),
-    activation: 'relu',
-  }));
-  model.add(tf.layers.dense({ units: classCount, activation: 'softmax' }));
-  model.compile({
-    optimizer: tf.train.adam(0.01),
-    loss: 'categoricalCrossentropy',
-    metrics: ['accuracy'],
-  });
-  return model;
+function zeros(length) {
+  return Array.from({ length }, () => 0);
 }
 
-async function saveArtifacts(model, outputDir, metadata) {
-  await mkdir(outputDir, { recursive: true });
-  await model.save(tf.io.withSaveHandler(async (artifacts) => {
-    const manifest = {
-      format: artifacts.format,
-      generatedBy: artifacts.generatedBy,
-      convertedBy: artifacts.convertedBy,
-      modelTopology: artifacts.modelTopology,
-      weightSpecs: artifacts.weightSpecs,
-      userDefinedMetadata: metadata,
-    };
-    await writeFile(path.join(outputDir, MANIFEST_FILE), JSON.stringify(manifest, null, 2));
-    await writeFile(path.join(outputDir, WEIGHTS_FILE), Buffer.from(artifacts.weightData));
-    return {
-      modelArtifactsInfo: {
-        dateSaved: new Date(),
-        modelTopologyType: 'JSON',
-        modelTopologyBytes: Buffer.byteLength(JSON.stringify(artifacts.modelTopology)),
-        weightSpecsBytes: Buffer.byteLength(JSON.stringify(artifacts.weightSpecs)),
-        weightDataBytes: artifacts.weightData.byteLength,
-      },
-    };
+function zeroMatrix(rows, columns) {
+  return Array.from({ length: rows }, () => zeros(columns));
+}
+
+function softmax(logits) {
+  const max = Math.max(...logits);
+  const exponentials = logits.map((value) => Math.exp(value - max));
+  const total = exponentials.reduce((sum, value) => sum + value, 0);
+  return exponentials.map((value) => value / total);
+}
+
+function createNetwork(featureCount, classCount, random) {
+  const hiddenUnits = Math.max(8, Math.min(32, featureCount * 4));
+  const weight = () => (random() - 0.5) * 0.2;
+  return {
+    hiddenUnits,
+    w1: Array.from({ length: featureCount }, () => Array.from({ length: hiddenUnits }, weight)),
+    b1: zeros(hiddenUnits),
+    w2: Array.from({ length: hiddenUnits }, () => Array.from({ length: classCount }, weight)),
+    b2: zeros(classCount),
+  };
+}
+
+function forward(network, features) {
+  const hiddenPre = network.b1.map((bias, unit) =>
+    bias + features.reduce((sum, value, index) => sum + value * network.w1[index][unit], 0));
+  const hidden = hiddenPre.map((value) => Math.max(0, value));
+  const logits = network.b2.map((bias, label) =>
+    bias + hidden.reduce((sum, value, unit) => sum + value * network.w2[unit][label], 0));
+  return { hiddenPre, hidden, probabilities: softmax(logits) };
+}
+
+function trainBatch(network, batch, learningRate, classCount, featureCount) {
+  const gW1 = zeroMatrix(featureCount, network.hiddenUnits);
+  const gB1 = zeros(network.hiddenUnits);
+  const gW2 = zeroMatrix(network.hiddenUnits, classCount);
+  const gB2 = zeros(classCount);
+
+  for (const row of batch) {
+    const { hiddenPre, hidden, probabilities } = forward(network, row.features);
+    const dLogits = probabilities.map((value, index) => value - Number(index === row.labelIndex));
+    for (let unit = 0; unit < network.hiddenUnits; unit += 1) {
+      for (let label = 0; label < classCount; label += 1) {
+        gW2[unit][label] += hidden[unit] * dLogits[label];
+      }
+    }
+    for (let label = 0; label < classCount; label += 1) gB2[label] += dLogits[label];
+
+    for (let unit = 0; unit < network.hiddenUnits; unit += 1) {
+      const derivative = hiddenPre[unit] > 0
+        ? network.w2[unit].reduce((sum, weight, label) => sum + weight * dLogits[label], 0)
+        : 0;
+      gB1[unit] += derivative;
+      for (let feature = 0; feature < featureCount; feature += 1) {
+        gW1[feature][unit] += row.features[feature] * derivative;
+      }
+    }
+  }
+
+  const rate = learningRate / batch.length;
+  for (let feature = 0; feature < featureCount; feature += 1) {
+    for (let unit = 0; unit < network.hiddenUnits; unit += 1) network.w1[feature][unit] -= rate * gW1[feature][unit];
+  }
+  for (let unit = 0; unit < network.hiddenUnits; unit += 1) {
+    network.b1[unit] -= rate * gB1[unit];
+    for (let label = 0; label < classCount; label += 1) network.w2[unit][label] -= rate * gW2[unit][label];
+  }
+  for (let label = 0; label < classCount; label += 1) network.b2[label] -= rate * gB2[label];
+}
+
+function evaluate(network, rows, classCount) {
+  if (!rows.length) return { loss: null, accuracy: null };
+  let totalLoss = 0;
+  let correct = 0;
+  for (const row of rows) {
+    const probabilities = forward(network, row.features).probabilities;
+    totalLoss -= Math.log(Math.max(probabilities[row.labelIndex], 1e-12));
+    if (probabilities.indexOf(Math.max(...probabilities)) === row.labelIndex) correct += 1;
+  }
+  return { loss: totalLoss / rows.length, accuracy: correct / rows.length };
+}
+
+function prepareRows(rows, labels, means, scales) {
+  const labelIndex = new Map(labels.map((label, index) => [label, index]));
+  return rows.map((row) => ({
+    features: normalizeFeatures(row.features, means, scales),
+    labelIndex: labelIndex.get(row.label.trim()),
   }));
 }
 
 export async function trainClassifier(rows, {
   outputDir = path.resolve('artifacts/br3eze-classifier'),
-  epochs = 80,
-  batchSize = 8,
+  epochs = 300,
+  batchSize = 4,
+  learningRate = 0.03,
 } = {}) {
-  await tf.ready();
   const { featureCount, labels } = validateDataset(rows);
-  if (!Number.isInteger(epochs) || epochs < 1 || epochs > 2000) {
-    throw new RangeError('epochs must be an integer from 1 to 2000');
+  if (!Number.isInteger(epochs) || epochs < 1 || epochs > 10000) {
+    throw new RangeError('epochs must be an integer from 1 to 10000');
   }
   if (!Number.isInteger(batchSize) || batchSize < 1) throw new RangeError('batchSize must be a positive integer');
+  if (!Number.isFinite(learningRate) || learningRate <= 0 || learningRate > 1) {
+    throw new RangeError('learningRate must be greater than 0 and at most 1');
+  }
 
   const { means, scales } = computeNormalizer(rows, featureCount);
-  const normalized = rows.map((row) => normalizeFeatures(row.features, means, scales));
-  const oneHot = rows.map((row) => labels.map((label) => Number(label === row.label.trim())));
-  const xs = tf.tensor2d(normalized, [rows.length, featureCount]);
-  const ys = tf.tensor2d(oneHot, [rows.length, labels.length]);
-  const model = createNetwork(featureCount, labels.length);
+  const prepared = prepareRows(rows, labels, means, scales);
+  const random = randomGenerator();
+  const shuffledIndices = shuffled(prepared.map((_, index) => index), random);
+  const validationCount = rows.length >= 10 ? Math.max(2, Math.floor(rows.length * 0.2)) : 0;
+  const validationIndices = new Set(shuffledIndices.slice(0, validationCount));
+  const trainingRows = prepared.filter((_, index) => !validationIndices.has(index));
+  const validationRows = prepared.filter((_, index) => validationIndices.has(index));
+  const network = createNetwork(featureCount, labels.length, random);
 
-  try {
-    const history = await model.fit(xs, ys, {
-      epochs,
-      batchSize: Math.min(batchSize, rows.length),
-      shuffle: true,
-      validationSplit: rows.length >= 10 ? 0.2 : 0,
-      verbose: 0,
-    });
-    const final = (key) => {
-      const values = history.history[key];
-      return Array.isArray(values) && values.length ? Number(values.at(-1)) : null;
-    };
-    const metadata = {
-      schemaVersion: 1,
-      task: 'multiclass-classification',
-      labels,
-      featureCount,
-      means,
-      scales,
-      exampleCount: rows.length,
-      epochs,
-      trainedAt: new Date().toISOString(),
-    };
-    await saveArtifacts(model, outputDir, metadata);
-    return {
-      outputDir,
-      exampleCount: rows.length,
-      featureCount,
-      labels,
-      epochs,
-      loss: final('loss'),
-      accuracy: final('accuracy'),
-      validationLoss: final('val_loss'),
-      validationAccuracy: final('val_accuracy'),
-    };
-  } finally {
-    xs.dispose();
-    ys.dispose();
-    model.dispose();
+  for (let epoch = 0; epoch < epochs; epoch += 1) {
+    const epochRows = shuffled(trainingRows, random);
+    for (let start = 0; start < epochRows.length; start += batchSize) {
+      trainBatch(network, epochRows.slice(start, start + batchSize), learningRate, labels.length, featureCount);
+    }
   }
+
+  const trainMetrics = evaluate(network, trainingRows, labels.length);
+  const validationMetrics = evaluate(network, validationRows, labels.length);
+  const artifact = {
+    schemaVersion: 1,
+    task: 'multiclass-classification',
+    architecture: { type: 'dense-relu-softmax', featureCount, hiddenUnits: network.hiddenUnits, classCount: labels.length },
+    labels,
+    means,
+    scales,
+    weights: { w1: network.w1, b1: network.b1, w2: network.w2, b2: network.b2 },
+    training: {
+      exampleCount: rows.length,
+      trainingExampleCount: trainingRows.length,
+      validationExampleCount: validationRows.length,
+      epochs,
+      batchSize,
+      learningRate,
+      trainedAt: new Date().toISOString(),
+      train: trainMetrics,
+      validation: validationMetrics,
+    },
+  };
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(path.join(outputDir, MODEL_FILE), JSON.stringify(artifact, null, 2));
+
+  return {
+    outputDir,
+    exampleCount: rows.length,
+    featureCount,
+    labels,
+    epochs,
+    loss: trainMetrics.loss,
+    accuracy: trainMetrics.accuracy,
+    validationLoss: validationMetrics.loss,
+    validationAccuracy: validationMetrics.accuracy,
+  };
 }
 
 export async function loadClassifier(modelDir) {
-  await tf.ready();
-  const manifest = JSON.parse(await readFile(path.join(modelDir, MANIFEST_FILE), 'utf8'));
-  const weightBuffer = await readFile(path.join(modelDir, WEIGHTS_FILE));
-  if (manifest.schemaVersion !== 1 && manifest.userDefinedMetadata?.schemaVersion !== 1) {
-    throw new Error('Unsupported or missing model metadata schema');
+  const artifact = JSON.parse(await readFile(path.join(modelDir, MODEL_FILE), 'utf8'));
+  if (artifact.schemaVersion !== 1 || artifact.task !== 'multiclass-classification') {
+    throw new Error('Unsupported or missing model artifact schema');
   }
-  const metadata = manifest.userDefinedMetadata;
-  if (!Array.isArray(metadata?.labels) || !Array.isArray(metadata?.means) ||
-      !Array.isArray(metadata?.scales) || metadata.featureCount < 1) {
-    throw new Error('Model metadata is incomplete');
+  const { architecture, labels, means, scales, weights } = artifact;
+  if (!architecture || !Array.isArray(labels) || !labels.length ||
+      !Array.isArray(means) || !Array.isArray(scales) ||
+      means.length !== architecture.featureCount || scales.length !== architecture.featureCount ||
+      !weights?.w1 || !weights?.b1 || !weights?.w2 || !weights?.b2) {
+    throw new Error('Model artifact is incomplete');
   }
-  const weightData = Uint8Array.from(weightBuffer).buffer;
-  const handler = tf.io.fromMemory({
-    format: manifest.format,
-    generatedBy: manifest.generatedBy,
-    convertedBy: manifest.convertedBy,
-    modelTopology: manifest.modelTopology,
-    weightSpecs: manifest.weightSpecs,
-    weightData,
-    userDefinedMetadata: metadata,
-  });
-  const model = await tf.loadLayersModel(handler);
-  return { model, metadata };
+  return artifact;
 }
 
 export async function predictClass(modelDir, features) {
-  const { model, metadata } = await loadClassifier(modelDir);
-  let input;
-  let output;
-  try {
-    const normalized = normalizeFeatures(features, metadata.means, metadata.scales);
-    input = tf.tensor2d([normalized], [1, metadata.featureCount]);
-    output = model.predict(input);
-    const probabilities = Array.from(await output.data());
-    const ranked = metadata.labels.map((label, index) => ({ label, confidence: probabilities[index] }))
-      .sort((a, b) => b.confidence - a.confidence);
-    return { label: ranked[0].label, confidence: ranked[0].confidence, probabilities: ranked };
-  } finally {
-    input?.dispose();
-    output?.dispose();
-    model.dispose();
-  }
+  const artifact = await loadClassifier(modelDir);
+  const { architecture, labels, means, scales, weights } = artifact;
+  const normalized = normalizeFeatures(features, means, scales);
+  const network = {
+    hiddenUnits: architecture.hiddenUnits,
+    w1: weights.w1,
+    b1: weights.b1,
+    w2: weights.w2,
+    b2: weights.b2,
+  };
+  const probabilities = forward(network, normalized).probabilities;
+  const ranked = labels.map((label, index) => ({ label, confidence: probabilities[index] }))
+    .sort((a, b) => b.confidence - a.confidence);
+  return { label: ranked[0].label, confidence: ranked[0].confidence, probabilities: ranked };
 }
