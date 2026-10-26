@@ -29,7 +29,7 @@ describe('AgentRuntime model execution path', () => {
       maxTurns: 3
     });
 
-    const result = await runtime.execute({ content: 'show system stats', sessionId: 's1' });
+    const result = await runtime.execute({ content: 'show system stats', sessionId: 's1', context: { tenantId: 'tenant-runtime', userId: 'user-runtime' } });
 
     expect(toolExecutor).toHaveBeenCalledWith('system.stats', { scope: 'host' }, expect.objectContaining({ content: 'show system stats' }));
     expect(model.execute).toHaveBeenCalledTimes(2);
