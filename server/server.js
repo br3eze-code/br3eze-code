@@ -27,6 +27,7 @@ import QRCode from 'qrcode';
 import otpRouter from './src/routes/otp.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
+import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1304,17 +1305,24 @@ const app = configureHttpApplication({
     staticDirectory: path.join(__dirname, 'public')
 });
 
-// Auth middleware
-const authMiddleware = (req, res, next) => {
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Bearer ')) {
+// Authentication delegates to the provider-neutral identity boundary.
+const authMiddleware = async (req, res, next) => {
+    const authorization = req.headers.authorization;
+    if (!authorization || !authorization.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Authorization required' });
     }
-    const token = auth.split(' ')[1];
-    if (token !== CONFIG.GATEWAY_TOKEN) {
+    const token = authorization.slice('Bearer '.length).trim();
+    if (!token) return res.status(401).json({ error: 'Invalid token' });
+
+    try {
+        const identity = await authenticateBearer(token, { userTokenSecret: CONFIG.GATEWAY_TOKEN });
+        if (!identity) return res.status(401).json({ error: 'Invalid token' });
+        req.user = identity;
+        return next();
+    } catch (error) {
+        logger.warn('Request authentication failed', { message: error?.message || 'unknown error' });
         return res.status(401).json({ error: 'Invalid token' });
     }
-    next();
 };
 
 // Rate limiter middleware
@@ -1353,11 +1361,22 @@ app.post('/api/auth/login', (req, res) => {
     if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
     }
-    res.json({
-        success: true,
-        token: CONFIG.GATEWAY_TOKEN,
-        user: { username: user.username, role: user.role }
-    });
+    try {
+        const token = issueUserToken({
+            uid: user.uid || user.id || user.username,
+            username: user.username,
+            role: user.role
+        }, CONFIG.GATEWAY_TOKEN);
+        return res.json({
+            success: true,
+            token,
+            expiresIn: 3600,
+            user: { username: user.username, role: user.role }
+        });
+    } catch (error) {
+        logger.warn('Unable to establish user session', { message: error?.message || 'unknown error' });
+        return res.status(500).json({ success: false, error: 'Unable to establish a secure session' });
+    }
 });
 
 app.post('/api/tool/execute', authMiddleware, rateLimitMiddleware, async (req, res) => {
