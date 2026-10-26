@@ -1,4 +1,5 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, jest } from '@jest/globals';
+import { AgentRuntime } from '../../src/core/agentRuntime.js';
 import {
   EvaluationSuite,
   createBasicEvaluators,
@@ -11,6 +12,35 @@ import {
 } from '../../src/core/agent-runtime/index.js';
 
 describe('domain-neutral runtime capabilities', () => {
+  test('routes direct capability calls through the canonical AgentRuntime boundary', async () => {
+    const execute = jest.fn(async (name, args, context) => ({ name, args, tenantId: context.tenantId }));
+    const registry = {
+      getTool: jest.fn((name) => ({ name })),
+      execute,
+      getAllTools: () => [],
+      getToolsForLLM: () => [],
+      registerTool: jest.fn(),
+      registerSkill: jest.fn(),
+      loadSkills: jest.fn(),
+    };
+    const runtime = new AgentRuntime({ toolRegistry: registry });
+
+    const result = await runtime.execute({
+      content: 'look up an example',
+      context: { tenantId: 'tenant-1' },
+      toolCalls: [{ name: 'example.lookup', arguments: { id: '42' } }],
+    });
+
+    expect(registry.getTool).toHaveBeenCalledWith('example.lookup');
+    expect(execute).toHaveBeenCalledWith('example.lookup', { id: '42' }, { tenantId: 'tenant-1' });
+    expect(result.toolsUsed).toEqual(['example.lookup']);
+    expect(result.response).toEqual({
+      name: 'example.lookup',
+      args: { id: '42' },
+      tenantId: 'tenant-1',
+    });
+  });
+
   test('evaluates completed tenant-scoped execution', async () => {
     const suite = new EvaluationSuite({ evaluators: createBasicEvaluators() });
     const report = await suite.run({
