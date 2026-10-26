@@ -29,11 +29,23 @@ jest.unstable_mockModule('../../src/core/logger.js', () => ({
 
 jest.unstable_mockModule('../../src/core/mikrotik.js', () => ({ getMikroTikClient: jest.fn() }));
 
-// Mock database
+// Mock database with in-memory voucher persistence so generate → redeem
+// exercises the real lifecycle rather than generating a code that cannot be read back.
+const voucherStore = new Map();
 jest.unstable_mockModule('../../src/core/database.js', () => ({
     getDatabase: jest.fn().mockResolvedValue({
-        getVoucher: jest.fn().mockResolvedValue(null),
-        createVoucher: jest.fn().mockResolvedValue('STAR-MOCK-123')
+        getVoucher: jest.fn(async (code) => voucherStore.get(code) ?? null),
+        createVoucher: jest.fn(async (code, voucher) => {
+            voucherStore.set(code, voucher);
+            return voucher;
+        }),
+        updateVoucher: jest.fn(async (code, updates) => {
+            const existing = voucherStore.get(code);
+            if (!existing) return null;
+            const updated = { ...existing, ...updates };
+            voucherStore.set(code, updated);
+            return updated;
+        }),
     })
 }));
 
@@ -253,8 +265,9 @@ describe('Integration — VoucherAgent + EventBus', () => {
         eventBus.on('voucher.created',  e => events.push({ type: 'created',  code: e.code }));
         eventBus.on('voucher.redeemed', e => events.push({ type: 'redeemed', code: e.code }));
 
+        voucherStore.clear();
         const code = await voucher.generate('1day');
-        voucher.redeem(code, 'user-001');
+        await voucher.redeem(code, 'user-001');
 
         expect(events[0].type).toBe('created');
         expect(events[1].type).toBe('redeemed');
