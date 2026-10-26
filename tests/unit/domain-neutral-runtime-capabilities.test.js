@@ -27,7 +27,7 @@ describe('domain-neutral runtime capabilities', () => {
 
     const result = await runtime.execute({
       content: 'look up an example',
-      context: { tenantId: 'tenant-1' },
+      context: { tenantId: 'tenant-1', userId: 'user-1' },
       toolCalls: [{ name: 'example.lookup', arguments: { id: '42' } }],
     });
 
