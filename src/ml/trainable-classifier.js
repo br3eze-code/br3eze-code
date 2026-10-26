@@ -116,7 +116,6 @@ export async function trainClassifier(rows, {
 
   const { means, scales } = computeNormalizer(rows, featureCount);
   const normalized = rows.map((row) => normalizeFeatures(row.features, means, scales));
-  const labelIndex = new Map(labels.map((label, index) => [label, index]));
   const oneHot = rows.map((row) => labels.map((label) => Number(label === row.label.trim())));
   const xs = tf.tensor2d(normalized, [rows.length, featureCount]);
   const ys = tf.tensor2d(oneHot, [rows.length, labels.length]);
