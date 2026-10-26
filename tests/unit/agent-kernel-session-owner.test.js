@@ -33,6 +33,32 @@ describe('AgentKernel ownership boundary', () => {
     ]);
   });
 
+  test('records a failed dispatch when an adapter throws', async () => {
+    const store = new SessionEventStore();
+    const kernel = new AgentKernel({ sessionEventStore: store });
+    kernel.registerDomain('failure-test', {
+      name: 'failure-test',
+      capabilities: ['fail'],
+      execute: async () => { throw new Error('provider failed'); },
+    });
+    let sessionId;
+    kernel.on('dispatch:start', event => { sessionId = event.sessionId; });
+
+    await expect(kernel.dispatch({}, {
+      tenantId: 'tenant-a',
+      userId: 'user-a',
+      intent: { domain: 'failure-test', text: 'fail' },
+    })).rejects.toThrow('provider failed');
+
+    const events = await store.read(sessionId);
+    expect(events.map(event => event.type)).toEqual([
+      'session/created',
+      'session/running',
+      'session/failed',
+    ]);
+    expect(events[2].data.error.message).toBe('provider failed');
+  });
+
   test('does not create a private _sessions store', () => {
     const kernel = new AgentKernel();
     expect(kernel._sessions).toBeUndefined();
