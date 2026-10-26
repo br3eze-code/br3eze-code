@@ -316,6 +316,15 @@ export default (program) => {
                 // 2. Canonical agent execution runtime. The provider is composed at
                 // the host boundary; core/runtime only sees the neutral model port.
                 toolRegistry.skillsPath = config.skillsPath || path.join(process.cwd(), 'skills');
+                const configuredExcludedSkills = [
+                    ...(Array.isArray(config.excludedSkills) ? config.excludedSkills : []),
+                    ...(Array.isArray(config.skills?.excluded) ? config.skills.excluded : [])
+                ];
+                const networkOnlySkills = ['mikrotik', 'mesh', 'voucher', 'router_health', 'hotspot_brand', 'starlink', 'dahua'];
+                toolRegistry.excludedSkills = new Set([
+                    ...configuredExcludedSkills,
+                    ...(!networkEnabled ? networkOnlySkills : [])
+                ].map((name) => String(name).toLowerCase()));
                 const modelPort = await createConfiguredProviderModelPort({ config });
                 const runtime = getAgentRuntime({
                     permissionMode: 'PROMPT',
