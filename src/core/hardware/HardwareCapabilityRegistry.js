@@ -68,6 +68,9 @@ export class HardwareCapabilityRegistry {
       throw new RangeError('timeoutMs must be an integer between 1 and 120000');
     }
     this.timeoutMs = timeoutMs;
+    if (!Number.isInteger(maxAdapters) || maxAdapters < 1 || maxAdapters > 1024) {
+      throw new RangeError('maxAdapters must be an integer between 1 and 1024');
+    }
     this.maxAdapters = maxAdapters;
     this.adapters = new Map();
     this.capabilities = new Map();
@@ -175,6 +178,9 @@ export class HardwareCapabilityRegistry {
     });
     const signal = context.signal;
     const abortFromCaller = () => controller.abort(signal.reason || new Error('hardware operation cancelled'));
+    const abortFailure = new Promise((_, reject) => {
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason || new Error('hardware operation cancelled')), { once: true });
+    });
     if (signal?.aborted) abortFromCaller();
     else signal?.addEventListener('abort', abortFromCaller, { once: true });
 
@@ -192,7 +198,7 @@ export class HardwareCapabilityRegistry {
         approved: entry.capability.access === 'write' && (context.approvalGranted === true || context.approved === true),
         approvalId: context.approvalId || null,
       }));
-      return await Promise.race([operation, timeoutFailure]);
+      return await Promise.race([operation, timeoutFailure, abortFailure]);
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener('abort', abortFromCaller);
