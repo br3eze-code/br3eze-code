@@ -145,12 +145,21 @@ export class MikroTikManager extends EventEmitter {
     const activeUsers = await this._menu('/ip/hotspot/active').where('user', username).get();
     const active = activeUsers?.find((entry) => entry.user === username) || null;
     const parseBytes = (value) => {
-      const number = Number.parseInt(String(value || '0'), 10);
-      return Number.isFinite(number) ? number : 0;
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      const source = String(value || '0').trim();
+      const match = source.match(/^(\d+(?:\.\d+)?)\s*([kmgtpe])?i?b?$/i);
+      if (!match) {
+        const number = Number.parseInt(source, 10);
+        return Number.isFinite(number) ? number : 0;
+      }
+      const powers = { k: 1, m: 2, g: 3, t: 4, p: 5, e: 6 };
+      return Number(match[1]) * (match[2] ? 1024 ** powers[match[2].toLowerCase()] : 1);
     };
     const parseDuration = (value) => {
       if (typeof value === 'number') return value;
-      const source = String(value || '');
+      const source = String(value || '').trim();
+      const clock = source.match(/^(\d+):(\d{2}):(\d{2})$/);
+      if (clock) return Number(clock[1]) * 3600 + Number(clock[2]) * 60 + Number(clock[3]);
       const pattern = /(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/;
       const match = source.match(pattern);
       if (!match || !match[0]) return 0;
