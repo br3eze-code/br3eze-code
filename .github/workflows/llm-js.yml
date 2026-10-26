@@ -21,6 +21,11 @@ jobs:
           node-version: 22
       - name: Run llm-js unit tests
         run: node --test experiments/llm-js/*.test.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test RouterOS corpus and diagnostic-case preparation
+        run: python -m unittest experiments/llm-js/networking/ml/test_prepare_dataset.py
       - name: Verify measurable Transformer training, held-out evaluation, and checkpoint round trip
         run: node experiments/llm-js/verify-training.js /tmp/verified-transformer-checkpoint.json
       - name: Upload verified training report and checkpoint
