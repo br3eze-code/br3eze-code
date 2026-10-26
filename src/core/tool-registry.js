@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import yaml from 'js-yaml';
 import { logger } from './logger.js';
 import { createExecutionIntent, describeCapability, checkCapabilityBoundary } from './capability-boundary.js';
+import { getTaskRegistry } from './taskRegistry.js';
 
 /**
  * Canonical AgentOS ToolRegistry.
@@ -38,7 +39,7 @@ class ToolRegistry {
     this.hooks = new Map();
     this.domains = new Set();
     this.logger = options.logger || logger;
-    this.taskRegistry = options.taskRegistry || null;
+    this.taskRegistry = options.taskRegistry || getTaskRegistry();
     this.requireExecutionTask = options.requireExecutionTask !== false;
     this._manifestCache = null;
     this._metrics = new Map();

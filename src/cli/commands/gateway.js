@@ -13,9 +13,9 @@ import DiscoveryService from '../../core/discovery.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
 import nodeRegistry from '../../core/node-registry.js';
 import { getAgentRuntime } from '../../core/agentRuntime.js';
-import { ToolRegistry } from '../../core/ToolRegistry.js';
+import toolRegistry from '../../core/ToolRegistry.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createConfiguredProviderModelPort } from '../../adapters/models/configured-provider.js';
 import TaskScheduler from '../../core/taskScheduler.js';
 
 
@@ -299,11 +299,15 @@ export default (program) => {
                 global.memoryManager = memoryManager;
                 global.nodeRegistry = nodeRegistry;
 
-                // 2. Canonical agent execution runtime
+                // 2. Canonical agent execution runtime. The provider is composed at
+                // the host boundary; core/runtime only sees the neutral model port.
+                toolRegistry.skillsPath = config.skillsPath || path.join(process.cwd(), 'skills');
+                const modelPort = await createConfiguredProviderModelPort({ config });
                 const runtime = getAgentRuntime({
                     permissionMode: 'PROMPT',
                     maxTurns: 8,
-                    toolRegistry: new ToolRegistry({ skillsPath: config.skillsPath || './skills' }),
+                    toolRegistry,
+                    ...(modelPort ? { model: modelPort } : {}),
                 });
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;

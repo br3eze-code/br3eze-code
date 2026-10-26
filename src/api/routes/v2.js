@@ -18,6 +18,19 @@ const err      = (res, e, status = 500) => {
 };
 const notReady = (res, svc) => res.status(503).json({ ok: false, error: `${svc} not ready` });
 
+function runtimeRequestContext(req, { systemPrompt, model, channel = 'api' } = {}) {
+  const user = req.user || {};
+  return {
+    ...(systemPrompt ? { systemPrompt } : {}),
+    tenantId: user.tenantId || user.tenant_id || null,
+    userId: user.userId || user.uid || user.id || user.sub || null,
+    domainId: user.domainId || user.domain_id || null,
+    siteId: user.siteId || user.site_id || null,
+    channel,
+    ...(model ? { requestedModel: model } : {}),
+  };
+}
+
 // ── Request logging ───────────────────────────────────────────────────────────
 router.use((req, res, next) => {
   const t = Date.now();
@@ -33,8 +46,9 @@ router.get('/health', (req, res) => {
     ok: true, version: 'v2', ts: new Date().toISOString(),
     features: ['ai', 'streaming', 'financial', 'billing', 'analytics', 'channels'],
     services: {
-      ai:        !!(global.ai || global.coordinator),
-      askEngine: !!(global.askEngine),
+      ai:           !!global.agentRuntime?.model,
+      agentRuntime: !!global.agentRuntime,
+      askEngine:    !!global.agentRuntime,
       financial: !!(global.financial),
       billing:   !!(global.billing),
       channels:  !!(global.channelManager),
@@ -53,8 +67,8 @@ router.post('/ask', async (req, res) => {
   const { prompt, stream: wantStream, sessionId, model } = req.body || {};
   if (!prompt) return res.status(400).json({ ok: false, error: 'prompt required' });
 
-  const engine = global.askEngine;
-  if (!engine) return notReady(res, 'AskEngine');
+  const runtime = global.agentRuntime;
+  if (!runtime || typeof runtime.execute !== 'function') return notReady(res, 'AgentRuntime');
 
   if (wantStream) {
     res.writeHead(200, {
@@ -64,7 +78,10 @@ router.post('/ask', async (req, res) => {
       'X-Accel-Buffering': 'no',
     });
     try {
-      for await (const ev of engine.stream(prompt, { sessionId, model })) {
+      for await (const ev of runtime.stream(prompt, {
+        sessionId,
+        context: runtimeRequestContext(req, { model }),
+      })) {
         res.write(`data: ${JSON.stringify(ev)}\n\n`);
       }
     } catch (e) {
@@ -74,7 +91,11 @@ router.post('/ask', async (req, res) => {
   }
 
   try {
-    const result = await engine.run(prompt, { sessionId, model });
+    const result = await runtime.execute({
+      content: String(prompt),
+      sessionId,
+      context: runtimeRequestContext(req, { model }),
+    });
     ok(res, result);
   } catch (e) { err(res, e); }
 });
@@ -90,10 +111,26 @@ router.post('/chat', async (req, res) => {
     if (!Array.isArray(messages) || !messages.length)
       return res.status(400).json({ ok: false, error: 'messages[] required' });
 
-    const coordinator = global.ai || global.coordinator;
-    if (!coordinator) return notReady(res, 'AI Coordinator');
+    const runtime = global.agentRuntime;
+    if (!runtime || typeof runtime.execute !== 'function' || !runtime.model) {
+      return notReady(res, 'AgentRuntime model port');
+    }
 
-    const result = await coordinator.chat(messages, { sessionId, systemPrompt });
+    const lastUserMessage = [...messages].reverse().find((message) => message?.role === 'user');
+    if (!lastUserMessage || lastUserMessage.content == null) {
+      return res.status(400).json({ ok: false, error: 'messages[] must contain a user message' });
+    }
+
+    const content = typeof lastUserMessage.content === 'string'
+      ? lastUserMessage.content
+      : JSON.stringify(lastUserMessage.content);
+    const context = runtimeRequestContext(req, { systemPrompt });
+    const result = await runtime.execute({
+      content,
+      messages,
+      sessionId,
+      context,
+    });
     ok(res, result);
   } catch (e) { err(res, e); }
 });
@@ -104,9 +141,10 @@ router.post('/chat', async (req, res) => {
  */
 router.get('/providers', (req, res) => {
   try {
-    const coordinator = global.ai || global.coordinator;
-    const providers   = coordinator?.getProviders?.() || coordinator?.providers || {};
-    ok(res, providers);
+    const runtime = global.agentRuntime;
+    const providerNames = runtime?.providerManager?.getAvailableProviders?.()
+      || (runtime?.model?.providerName ? [runtime.model.providerName] : []);
+    ok(res, Object.fromEntries(providerNames.map((name) => [name, { configured: true }])));
   } catch (e) { err(res, e); }
 });
 
@@ -116,10 +154,22 @@ router.get('/providers', (req, res) => {
  */
 router.post('/providers/:name/test', async (req, res) => {
   try {
-    const coordinator = global.ai || global.coordinator;
-    if (!coordinator) return notReady(res, 'AI Coordinator');
-    const result = await coordinator.testProvider(req.params.name);
-    ok(res, result);
+    const runtime = global.agentRuntime;
+    if (!runtime?.model || typeof runtime.execute !== 'function') {
+      return notReady(res, 'AgentRuntime model port');
+    }
+    const providerNames = runtime.providerManager?.getAvailableProviders?.()
+      || (runtime.model.providerName ? [runtime.model.providerName] : []);
+    if (!providerNames.includes(req.params.name)) {
+      return res.status(404).json({ ok: false, error: 'Provider not configured for AgentRuntime' });
+    }
+    const result = await runtime.execute({
+      content: 'Respond with exactly: OK',
+      sessionId: `provider-test-${Date.now()}`,
+      tools: [],
+      context: { providerTest: true },
+    });
+    ok(res, { provider: req.params.name, result });
   } catch (e) { err(res, e); }
 });
 
