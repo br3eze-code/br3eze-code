@@ -76,11 +76,10 @@ export async function runFineTuning(model, optimizer = model?.optimizer, dataset
       if (!Number.isFinite(squaredNorm)) throw new Error("non-finite gradient norm; refusing optimizer update");
       const norm = Math.sqrt(squaredNorm);
       const gradientScale = norm > maxGradientNorm ? maxGradientNorm / (norm || 1) : 1;
-      optimizer.step(trainable, learningRate, { gradientScale });
-      for (const parameter of frozen) parameter.zeroGrad();
-
       const value = loss.value;
       if (!Number.isFinite(value)) throw new Error("non-finite loss; stopping fine-tuning");
+      optimizer.step(trainable, learningRate, { gradientScale });
+      for (const parameter of frozen) parameter.zeroGrad();
       totalLoss += value;
       steps += 1;
     }
