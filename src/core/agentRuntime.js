@@ -487,6 +487,51 @@ class AgentRuntime extends EventEmitter {
     }
   }
 
+  /**
+   * Execute a batch of model/framework tool calls through the canonical runtime
+   * path. This compatibility entry point delegates to the same scoped task
+   * lifecycle used by AgentRuntime's model loop.
+   */
+  async executeTools(toolCalls = [], context = {}) {
+    if (!Array.isArray(toolCalls)) throw new TypeError('toolCalls must be an array');
+    const results = [];
+    for (const call of toolCalls) {
+      const toolCallId = call?.id || call?.toolCallId || null;
+      const name = String(call?.name || '').replace(/__/g, '.');
+      let args = call?.arguments ?? call?.args ?? {};
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch { args = {}; }
+      }
+      const tool = this.toolRegistry?.getTool?.(name);
+      const mutationForScopedRole = Boolean(context.agentRole)
+        && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(name);
+      const approvalRequired = Boolean(tool?.capability?.requiresApproval || mutationForScopedRole);
+      if (approvalRequired && context.approvalGranted !== true && context.approved !== true) {
+        results.push({
+          toolCallId,
+          result: {
+            approvalRequired: true,
+            agentRole: context.agentRole || null,
+            toolName: name,
+            reason: 'explicit_approval_required',
+          },
+        });
+        continue;
+      }
+      try {
+        const executionContext = {
+          ...context,
+          approved: context.approved === true || context.approvalGranted === true,
+        };
+        const result = await this._executeToolForFrame(name, args, executionContext);
+        results.push({ toolCallId, result });
+      } catch (error) {
+        results.push({ toolCallId, result: { error: error.message } });
+      }
+    }
+    return results;
+  }
+
   async executeTool(toolName, params = {}, context = {}) {
     if (this.injectedToolExecutor) {
       if (!this.toolExecutor) throw new Error('No tool executor configured');
@@ -530,5 +575,5 @@ function getAgentRuntime(config = {}) {
   }
   return _runtime;
 }
-export { AgentRuntime, RuntimeSession, TurnResult, UsageSummary, getAgentRuntime };
+export { AgentRuntime, RuntimeSession, TurnResult, UsageSummary, TOOL_MANIFEST, getAgentRuntime };
 export default { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
