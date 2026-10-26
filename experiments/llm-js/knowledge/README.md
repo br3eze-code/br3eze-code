@@ -51,3 +51,51 @@ Each JSONL document contains schema version, deterministic document identifier, 
 Wikimedia/API exports; approved web crawling and web archives; PDF layout/table extraction; OCR and vision-language descriptions; audio/video transcription; database/record connectors; embeddings and vector/hybrid retrieval; reviewed SFT examples; and benchmark/evaluation pipelines.
 
 All adapters remain outside the canonical AgentRuntime. AgentRuntime stays the sole orchestration and execution authority.
+
+
+## Connector and persistent-index layer
+
+The connector layer is opt-in and stages records as **pending**; it does not certify licensing or privacy.
+
+### Wikimedia search
+
+```bash
+python experiments/llm-js/knowledge/source_connectors.py \
+  --wikimedia-query "distributed systems" \
+  --wikimedia-query "computer networking" \
+  --limit 5 \
+  --output ./data/knowledge-build/connector-documents.jsonl
+```
+
+Wikipedia content commonly carries Creative Commons Attribution-ShareAlike terms, but verify the applicable page revision, attribution and licence before approving reuse. The connector records a licence hint and keeps `licenseStatus=REVIEW_REQUIRED`.
+
+### Explicitly allowlisted HTTPS pages
+
+```bash
+python experiments/llm-js/knowledge/source_connectors.py \
+  --url https://docs.example.org/approved-guide \
+  --allow-host docs.example.org \
+  --output ./data/knowledge-build/web-documents.jsonl
+```
+
+Use only sites you are authorized to access and process. The web connector requires HTTPS, an exact hostname allowlist, public DNS addresses, a robots.txt check, response size limits, a timeout, and same-allowlist redirects. It does not crawl arbitrary link graphs. It extracts text only and does not bypass authentication, paywalls, or access controls. The operator remains responsible for authorization, terms and licence review.
+
+### Build chunks and an on-disk lexical index
+
+```bash
+python experiments/llm-js/knowledge/chunk_documents.py \
+  --input ./data/knowledge-build/documents.jsonl \
+  --output ./data/knowledge-build/chunks.jsonl
+python experiments/llm-js/knowledge/build_index.py \
+  --chunks ./data/knowledge-build/chunks.jsonl \
+  --database ./data/knowledge-build/knowledge.sqlite
+python experiments/llm-js/knowledge/search_index.py \
+  --database ./data/knowledge-build/knowledge.sqlite \
+  --query "distributed consensus" --limit 5
+```
+
+Run the chunker on a JSONL file containing normalized documents (combine connector output with the reviewed ingestion output first, if needed). The SQLite FTS5 index is a deterministic lexical baseline, not semantic/vector retrieval. It indexes only records whose licence, content review and privacy status are all explicitly approved. A tenant-scoped query can see global approved records plus that tenant's approved records; an unscoped query cannot see tenant-private chunks.
+
+### Data and training boundary
+
+Connector output is not automatically approved for retrieval or training. Preserve source attribution and hashes, review licences and privacy, deduplicate, then chunk and index approved records. Retrieval corpora, supervised examples, evaluation sets and model-training corpora must be versioned separately. No model training occurs in these commands.
