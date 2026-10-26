@@ -1,6 +1,6 @@
 # Level 1 — Hardware capability boundary
 
-Status: Level 1 includes a read-only RouterOS adapter. It is testable with an injected manager, but has not been verified against a live router in this workflow.
+Status: Level 1 includes a read-only RouterOS adapter and focused unit tests. It has not been verified against a live router in this workflow, and the full test suite has not yet been confirmed green.
 
 ## Ownership
 
@@ -17,9 +17,10 @@ Mounted tools are namespaced as `hardware.<adapter-id>.<capability-name>`. Arbit
 
 ## Safety and reliability defaults
 
-- Authenticated tenant and user context is mandatory.
+- Authenticated tenant and user context is mandatory; a device operation must carry trusted host identity, not identity inferred from model-supplied arguments.
+- The canonical ToolRegistry capability gate also requires a live execution task and an explicit `authorizedCapabilities`/ `capabilities` grant for the namespaced permission. Merely mounting an adapter does not grant the model or user access.
 - Every write capability requires explicit approval, regardless of agent permission mode.
-- The adapter receives a cancellation signal, operation ID, scoped tenant/user identity and approval metadata.
+- The adapter receives a cancellation signal, operation ID, scoped tenant/user identity and approval metadata. The registry races the operation against timeout/cancellation and cleans up listeners; adapters must still honor the signal to stop underlying I/O.
 - Operations have a bounded deadline; adapters should honor the cancellation signal and make writes idempotent where possible.
 - The adapter itself must validate arguments and device state. This boundary is not a substitute for OS permissions, device ACLs, physical interlocks, or vendor safety controls.
 - Do not expose a generic `shell.exec`, unrestricted serial command, or raw device path as a model-callable capability.
