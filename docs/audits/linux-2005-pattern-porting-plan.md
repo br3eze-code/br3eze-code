@@ -1,8 +1,8 @@
 # Linux 2.6-era patterns: AgentOS port plan
 
 Date: 2026-10-26
-Baseline: \`main\` at \`2e69f25e1be2f4cb2beeb51820ac4e608153de20\`
-Working branch: \`refactor/linux-single-runtime-boundaries\`
+Baseline: \`main\` at \`87441b79e6978e22b4d940e09eafed526ece8ab1\`
+Working branch: \`refactor/general-purpose-single-runtime\`
 
 ## Goal and boundary
 
