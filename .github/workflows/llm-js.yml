@@ -21,5 +21,7 @@ jobs:
           node-version: 22
       - name: Run llm-js unit tests
         run: node --test experiments/llm-js/*.test.js
-      - name: Smoke-test training CLI
+      - name: Smoke-test bigram training
         run: node experiments/llm-js/train.js --steps 20 --generate 20 --checkpoint "$RUNNER_TEMP/llm-js-checkpoint.json"
+      - name: Smoke-test TinyGPT training
+        run: node experiments/llm-js/train-gpt.js --steps 2 --context 4 --width 2 --hidden 4 --generate 2 --checkpoint "$RUNNER_TEMP/tiny-gpt-checkpoint.json"
