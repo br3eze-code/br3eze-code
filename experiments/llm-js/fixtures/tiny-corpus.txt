@@ -1,0 +1,2 @@
+The tiny transformer learns next character patterns.
+This is a training smoke test for Br3eze.
