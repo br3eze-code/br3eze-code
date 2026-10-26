@@ -92,6 +92,50 @@ describe('HardwareCapabilityRegistry', () => {
     expect(registry.listCapabilities()).toHaveLength(0);
   });
 
+
+  test('enforces operation deadlines and signals timeout to the adapter', async () => {
+    let receivedSignal;
+    const registry = new HardwareCapabilityRegistry({ timeoutMs: 10 });
+    registry.registerAdapter({
+      id: 'slow-device',
+      capabilities: [{
+        name: 'read',
+        access: 'read',
+        execute: (_args, context) => {
+          receivedSignal = context.signal;
+          return new Promise(() => {});
+        },
+      }],
+    });
+
+    await expect(registry.execute('hardware.slow-device.read', {}, auth))
+      .rejects.toThrow('hardware operation timed out');
+    expect(receivedSignal.aborted).toBe(true);
+  });
+
+  test('cancels an in-flight operation promptly when the caller aborts', async () => {
+    let receivedSignal;
+    const registry = new HardwareCapabilityRegistry({ timeoutMs: 5000 });
+    registry.registerAdapter({
+      id: 'cancel-device',
+      capabilities: [{
+        name: 'read',
+        access: 'read',
+        execute: (_args, context) => {
+          receivedSignal = context.signal;
+          return new Promise(() => {});
+        },
+      }],
+    });
+    const controller = new AbortController();
+    const pending = registry.execute('hardware.cancel-device.read', {}, { ...auth, signal: controller.signal });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    controller.abort(new Error('operator cancelled'));
+
+    await expect(pending).rejects.toThrow('operator cancelled');
+    expect(receivedSignal.aborted).toBe(true);
+  });
+
   test('mounts declared capabilities into the supplied canonical tool registry', () => {
     const toolRegistry = { register: jest.fn() };
     const registry = new HardwareCapabilityRegistry();
