@@ -19,7 +19,18 @@ async function loadAllDomains(config = {}, registry = defaultRegistry) {
     return registry;
   }
 
+  const requestedDomains = config.enabledDomains ?? config.domain ?? process.env.AGENTOS_DOMAIN;
+  const domainAllowlist = requestedDomains == null || requestedDomains === ''
+    ? null
+    : new Set((Array.isArray(requestedDomains) ? requestedDomains : String(requestedDomains).split(','))
+      .map((domain) => String(domain).trim().toLowerCase())
+      .filter(Boolean));
+
   for (const item of fs.readdirSync(domainsDir)) {
+    // With no explicit domain selection preserve legacy all-domain behavior.
+    // Once a deployment selects a domain, never load unrelated adapters.
+    if (domainAllowlist && !domainAllowlist.has(item.toLowerCase())) continue;
+
     const itemPath = path.join(domainsDir, item);
     if (!fs.statSync(itemPath).isDirectory()) continue;
 
