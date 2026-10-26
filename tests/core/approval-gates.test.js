@@ -50,6 +50,21 @@ describe('ApprovalGate', () => {
     expect(records.get('agentos:approval:' + pending.actionId).status).toBe('PENDING');
   });
 
+  test('atomically finalizes failed execution and rejects replay', async () => {
+    const pending = await gate.request({ toolName: 'billing.refund', params: {}, context: { tenantId: 'a', userId: 'u' } });
+    const execute = jest.fn(async () => { throw new Error('provider unavailable'); });
+    await expect(gate.resume({
+      actionId: pending.actionId, actor: 'admin', tenantId: 'a',
+      authorize: async () => true, execute,
+    })).rejects.toThrow('provider unavailable');
+    expect(records.get('agentos:approval:' + pending.actionId).status).toBe('FAILED');
+    await expect(gate.resume({
+      actionId: pending.actionId, actor: 'admin', tenantId: 'a',
+      authorize: async () => true, execute,
+    })).rejects.toThrow();
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   test('executes an approved action once and rejects replay', async () => {
     const pending = await gate.request({ toolName: 'billing.refund', params: { amount: 3 }, context: { tenantId: 'a', userId: 'u' } });
     const execute = jest.fn(async () => ({ refunded: true }));
