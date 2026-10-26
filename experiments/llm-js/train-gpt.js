@@ -43,6 +43,7 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
   if (!(learningRate > 0) || learningRate > 1) throw new Error("--lr must be > 0 and <= 1");
   if (!Number.isInteger(generatedLength) || generatedLength < 0 || generatedLength > 10000) throw new Error("--generate must be an integer from 0 to 10000");
 
+  if (resumePath && !inputPath) throw new Error("--resume requires --input with the original training corpus");
   const saved = resumePath ? JSON.parse(await readFile(resolve(resumePath), "utf8")) : null;
   if (saved && (!saved.tokenizer || saved.tokenizer.type !== "character" || !Array.isArray(saved.tokenizer.vocabulary))) {
     throw new Error("Resume checkpoint must include a character tokenizer vocabulary");
