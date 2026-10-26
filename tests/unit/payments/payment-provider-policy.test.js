@@ -13,9 +13,10 @@ describe('payment provider country policy', () => {
   });
 
   test('allows Zimbabwe-native providers for Zimbabwe merchants', () => {
-    for (const provider of ['paynow', 'ecocash', 'netone', 'pesapay', 'smilepay', 'contipay', 'zuripay']) {
+    for (const provider of ['paynow', 'ecocash', 'netone', 'pesapay', 'smilepay', 'contipay']) {
       expect(isProviderAllowed(provider, 'ZW')).toBe(true);
     }
+    expect(isProviderAllowed('zuripay', 'ZW')).toBe(false);
   });
 
   test('preserves Stripe eligibility outside the explicit Zimbabwe block', () => {
