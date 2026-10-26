@@ -62,7 +62,11 @@ class PaymentService {
     return { success: true, voucher, transaction };
   }
 
-  async getAvailablePaymentMethods(context = {}) { return this.platform.getAvailablePaymentMethods(context); }
+  async getAvailablePaymentMethods(context = {}) {
+    const resolveMethods = this.platform?.getAvailablePaymentMethods || this.platform?.getAvailableMethods;
+    if (typeof resolveMethods !== 'function') return [];
+    return resolveMethods.call(this.platform, context);
+  }
 
   async processRefund(transactionId, provider, amount, reason) {
     const result = await this.platform.refund(provider, transactionId, amount, reason);
