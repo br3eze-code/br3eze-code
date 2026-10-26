@@ -2,7 +2,7 @@
 
 A dependency-free Node.js learning implementation inspired by Andrej Karpathy's educational language-model work, especially **llm.c** (C/CUDA training systems) and **makemore/nanoGPT**.
 
-This is original educational code—not a line-for-line port of `llm.c` and not a competitive general-purpose LLM. It starts with a character-level bigram baseline and includes a tiny trainable decoder-only character model so the complete forward/backward/update loop can be explored.
+This is original educational code—not a line-for-line port of `llm.c` and not a competitive general-purpose LLM. It includes a character-level bigram baseline and a tiny trainable decoder-only character model to make the forward/backward/update loop inspectable.
 
 ## Requirements
 
@@ -15,15 +15,15 @@ This is original educational code—not a line-for-line port of `llm.c` and not 
 node experiments/llm-js/train.js --steps 2000 --lr 0.1 --seed 42
 ```
 
-## Train the tiny decoder-only model
+## Train TinyGPT with multi-head attention and AdamW
 
 ```bash
-node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --hidden 32 --lr 0.01 --seed 42
+node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --heads 2 --hidden 32 --lr 0.01 --seed 42
 ```
 
-Use `--input path/to/text.txt` to train on a UTF-8 text file you have permission to use. The trainer reports the same evaluation window's loss before and after training, generates a sample, and saves a JSON checkpoint. Change the destination with `--checkpoint path/to/model.json`. Avoid committing private training data or checkpoints.
+Use `--input path/to/text.txt` to train on a UTF-8 text file you have permission to use. The trainer reports loss before and after training on the same fixed window, generates a sample, and saves a JSON model checkpoint. Change the destination with `--checkpoint path/to/model.json`. Do not commit private training data or checkpoints.
 
-Useful tiny-model options: `--steps`, `--context`, `--width`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, and `--checkpoint`. Keep dimensions small for CPU training.
+Options include `--steps`, `--context`, `--width`, `--heads`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, and `--checkpoint`. The number of heads must divide the embedding width. Keep dimensions small for CPU training.
 
 ## Test
 
@@ -35,22 +35,22 @@ node --test experiments/llm-js/*.test.js
 
 - Character vocabulary and bigram baseline with stable softmax, cross-entropy, analytic gradients, SGD and JSON checkpointing.
 - `Tensor`: Float64 scalar/vector/matrix operations, matrix multiplication, transpose, row-wise softmax, ReLU, exp/log/sum and reverse-mode automatic differentiation.
-- Embedding lookup with scatter-add gradients, differentiable row selection, stable vector softmax and cross-entropy.
-- Causal single-head scaled dot-product attention, learned token and position embeddings, linear layers, layer normalization, residual connections and a feed-forward block.
-- `TinyGPT`: a small decoder-only character model with clipped-SGD updates, deterministic sampling and JSON checkpoint round trips.
+- Embedding lookup with scatter-add gradients, differentiable row/column selection and concatenation, stable softmax and cross-entropy.
+- Causal multi-head scaled dot-product attention, learned token and position embeddings, linear layers, layer normalization, residual connections and a feed-forward block.
+- `TinyGPT`: configurable single- or multi-head decoder-only character model, gradient clipping, AdamW updates, deterministic sampling and model-weight checkpoint round trips.
 - Node's built-in tests and a Node 22 GitHub Actions workflow for unit tests and CLI smoke tests.
 
 ## Important limits
 
-This is a correctness-first CPU learning implementation, not a production LLM. It uses one attention head, character-level tokens, small context windows and plain SGD. It does not yet include multi-head attention, AdamW, batching across multiple sequences, validation-data management, BPE, optimized tensor kernels, GPU acceleration, or distributed training. It will be much slower than C/CUDA implementations and cannot learn broad language competence from the tiny built-in corpus.
+This is a correctness-first CPU learning implementation, not a production LLM. It supports one decoder block and character-level tokens. It does not yet provide BPE/tokenizer training, stacked blocks, dropout, robust mini-batch training, a proper held-out validation pipeline, optimizer-state checkpoint/resume, gradient accumulation, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights and architecture, not AdamW's moment state. The pure-JavaScript Float64 tensor engine will be much slower than optimized C/CUDA backends, and a tiny corpus will not teach broad language competence.
 
 ## Roadmap
 
-1. **Implemented:** bigram baseline, tensor/autograd, TinyGPT forward/backward, causal attention, training CLI, checkpoint serialization.
-2. **Training quality:** AdamW, gradient-check comparisons against finite differences, mini-batches, train/validation split, and checkpoint-resume in the CLI.
-3. **Model quality:** multi-head attention, dropout, configurable depth, more robust tokenizer options and evaluation metrics.
-4. **Performance:** profile first, then consider optimized typed-array kernels, WebGPU or a native backend.
-5. **AgentOS integration:** only after the model API and tests are stable; keep training isolated from the domain-agnostic runtime.
+1. **Implemented:** bigram baseline, tensor/autograd, decoder block, multi-head causal attention, AdamW, sampling and model-weight checkpoints.
+2. **Training reliability:** finite-difference gradient checks, fixed train/validation split, mini-batches, optimizer-state checkpoint/resume and better failure diagnostics.
+3. **Model depth and data:** configurable stacked blocks, dropout, tokenizer interface/BPE, and repeatable evaluation metrics.
+4. **Performance:** benchmark first, then consider optimized typed-array kernels, WebGPU or a native backend.
+5. **AgentOS integration:** only after model and tokenizer interfaces are stable; keep training isolated from the domain-agnostic runtime.
 
 ## Relationship to Karpathy's work
 
