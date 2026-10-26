@@ -242,7 +242,27 @@ class ToolRegistry {
   getToolsForDomain(domain) { return this.getToolsByDomain(domain); }
   getSkillNames() { return [...this.skills.keys()]; }
   getToolCount() { return this.tools.size; }
-  getToolsBySkill(skillName) { const skill = this.skills.get(skillName); return skill ? [...skill.tools.values()] : []; }
+  getToolsBySkill(skillName) { return [...this.tools.values()].filter((tool) => tool.skill === skillName); }
+  toolsForSpecialist(specialist) {
+    if (!specialist) return [];
+    const names = new Set(specialist.tools || []);
+    const skills = new Set([...(specialist.skills || []), ...(specialist.skillNames || [])]);
+    return [...this.tools.values()]
+      .filter((tool) => tool.specialist === specialist.role
+        || tool.specialist === specialist.id
+        || names.has(tool.fullName)
+        || names.has(tool.name)
+        || skills.has(tool.skill))
+      .map((tool) => ({
+        ...tool,
+        name: tool.fullName,
+        parameters: tool.parameters || tool.schema?.parameters || {},
+        inputSchema: tool.inputSchema || tool.parameters || tool.schema?.parameters || {},
+        outputSchema: tool.outputSchema || tool.schema?.outputSchema || {},
+        permissions: tool.permissions || tool.schema?.permissions || [],
+        ticketTypes: tool.ticketTypes || tool.schema?.ticketTypes || [],
+      }));
+  }
   getSkill(skillName) { return this.skills.get(skillName) || null; }
   getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...skill.manifest, toolCount: skill.tools.size, enabled: skill.enabled, loadedAt: skill.loadedAt } : null; }
   setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this._manifestCache = null; } }
