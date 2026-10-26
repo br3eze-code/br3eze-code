@@ -1,0 +1,34 @@
+name: General Transformer tests
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/llm-js/**'
+      - 'package.json'
+      - '.github/workflows/general-transformer.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'experiments/llm-js/**'
+      - 'package.json'
+      - '.github/workflows/general-transformer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  transformer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test Transformer and configuration
+        run: node --test experiments/llm-js/general-transformer.test.js experiments/llm-js/model-config.test.js
+      - name: Smoke-train Transformer
+        run: npm run train:transformer -- --input experiments/llm-js/fixtures/tiny-corpus.txt --depth 2 --context 4 --steps 2 --generate 2 --checkpoint /tmp/general-transformer.json
+      - name: Smoke-test fine-tuning
+        run: npm run finetune:transformer -- --checkpoint /tmp/general-transformer.json --input experiments/llm-js/fixtures/tiny-corpus.txt --steps 2 --freeze-base --lr 0.001 --output /tmp/general-transformer-finetuned.json
+      - name: Verify training and checkpoint round trip
+        run: npm run verify:transformer
