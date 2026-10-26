@@ -33,6 +33,7 @@ async function importFresh(filePath) {
 class ToolRegistry {
   constructor(options = {}) {
     this.skillsPath = options.skillsPath || path.join(process.cwd(), 'src/skills');
+    this.excludedSkills = new Set((options.excludedSkills || []).map((name) => String(name).toLowerCase()));
     this.workspace = options.workspace || process.cwd();
     this.tools = new Map();
     this.skills = new Map();
@@ -85,13 +86,19 @@ class ToolRegistry {
     this.logger.info(`Loading skills from: ${this.skillsPath}`);
     try {
       const entries = await fsp.readdir(this.skillsPath, { withFileTypes: true });
-      await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => this.loadSkill(entry.name)));
+      const directories = entries.filter((entry) => entry.isDirectory());
+      for (const name of this.skills.keys()) {
+        if (this.excludedSkills.has(String(name).toLowerCase())) await this.unloadSkill(name);
+      }
+      const selected = directories.filter((entry) => !this.excludedSkills.has(entry.name.toLowerCase()));
+      await Promise.all(selected.map((entry) => this.loadSkill(entry.name)));
       this.logger.info(`Loaded ${this.skills.size} skills with ${this.tools.size} tools`);
     } catch (error) { this.logger.error(`Failed to read skills directory: ${error.message}`); }
     return this;
   }
 
   async loadSkill(skillName) {
+    if (this.excludedSkills.has(String(skillName).toLowerCase())) return false;
     const skillPath = path.join(this.skillsPath, skillName);
     const manifest = await this._resolveManifest(skillPath, skillName);
     if (!manifest) return false;
