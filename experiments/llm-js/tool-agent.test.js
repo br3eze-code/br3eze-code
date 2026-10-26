@@ -118,9 +118,14 @@ test("rejects duplicate tools and unsupported schemas before model execution", a
     }),
     /Duplicate tool name/
   );
+  const schemaModel = {
+    async generate() {
+      return { text: "", toolCalls: [{ id: "bad-schema", name: "lookup_record", arguments: "{}" }] };
+    }
+  };
   await assert.rejects(
     runToolAgent({
-      model,
+      model: schemaModel,
       messages: [{ role: "user", content: "Hi" }],
       tools: [{ ...echoTool, parameters: { type: "object", properties: { value: { type: "unsupported" } } } }],
       authorizeTool: async () => true
