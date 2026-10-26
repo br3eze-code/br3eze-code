@@ -27,6 +27,15 @@ Train the decoder-only Transformer:
 node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --heads 2 --layers 2 --hidden 32 --lr 0.01 --seed 42
 ```
 
+The general Transformer trainer also supports nanochat-inspired depth-first sizing:
+
+```bash
+node experiments/llm-js/train-transformer.js --depth 2 --context 16 --steps 100 --seed 42
+node experiments/llm-js/train-transformer.js --depth 6 --context 32 --steps 100 --seed 42
+```
+
+`--depth 1..8` derives width, attention-head count, layer count, and feed-forward width from one setting. This CPU reference preset is deliberately capped at width 32; it is a usability pattern, not a claim of compute-optimal hyperparameters. Explicit `--width`, `--heads`, `--layers`, and `--hidden` options remain available when you want to control the architecture.
+
 Use `--input path/to/text.txt` to train on UTF-8 text you have permission to use. The CLI uses a simple sequential 90/10 train/validation split, reports held-out validation loss before and after training, generates a sample, and saves model weights, AdamW moments, and the character vocabulary. Tiny corpora make weak validation sets; use larger representative data for meaningful evaluation.
 
 Options include `--steps`, `--context`, `--width`, `--heads`, `--layers`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, `--resume`, and `--checkpoint`.
