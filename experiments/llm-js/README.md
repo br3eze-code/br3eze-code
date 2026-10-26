@@ -123,6 +123,14 @@ for await (const piece of harness.stream("local-reasoner", {
 
 Run the contract tests with `node --test experiments/llm-js/harness.test.js`. These use a mocked HTTP server response and do not download model weights.
 
+To verify a real running model server (no mock), run:
+
+```bash
+MODEL_BASE_URL=http://127.0.0.1:8080/v1 MODEL_ID=local-model node experiments/llm-js/smoke-open-model.js --prompt "Say hello in one sentence."
+```
+
+Set `MODEL_API_KEY` only if your server requires a bearer token. The smoke test reports the endpoint, served model, elapsed time, usage metadata, and generated text; it fails with a useful error if the endpoint is unreachable or rejects the request. It does not launch the server or download model weights.
+
 ### 3. Keep training and inference separate
 
 - `finetune-pretrained.js` orchestrates LoRA fine-tuning of compatible Hugging Face causal language models via the optional Transformers/PEFT backend.
