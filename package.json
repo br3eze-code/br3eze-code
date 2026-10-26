@@ -46,7 +46,8 @@
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
-    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs"
+    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
+    "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs"
   },
   "publishConfig": {
     "access": "public",
