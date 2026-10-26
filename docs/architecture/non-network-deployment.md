@@ -7,6 +7,7 @@ AgentOS can be configured for a domain that does not use Wi-Fi or RouterOS. Star
 - `src/host/bootstrap.js` dynamically imports RouterOS and network onboarding adapters only for `network`, `wifi`, or `wifi-billing`.
 - `main.js` dynamically registers the networking, user/hotspot, voucher, Dahua, Starlink, MikroTik, and Tailscale CLI commands only for those network domains.
 - The gateway dynamically imports and connects to RouterOS only for those network domains.
+- The gateway excludes network-only skills (MikroTik, mesh, voucher, router health, hotspot branding, Starlink, and Dahua) from non-network runtime tool discovery.
 - `src/core/loadDomain.js` can restrict domain registration to the selected domain; with no explicit selector it retains the legacy all-domain behavior.
 
 The existing default remains `network` for backward compatibility. Set `AGENTOS_DOMAIN=retail` (or another non-network domain) explicitly to opt out of networking.
