@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import * as databaseAdapter from '../adapters/persistence/database.js';
 import * as firebaseAdapter from '../adapters/persistence/firebase.js';
 import supabaseDatabaseAdapter from '../adapters/persistence/supabase-database.js';
