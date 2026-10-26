@@ -126,8 +126,13 @@ def search_vector_index(database_path: Path, query: str, embedder: EmbeddingProv
         for row in rows:
             vector = json.loads(row["vector_json"])
             metadata = json.loads(row["metadata_json"])
+            score = cosine_similarity(query_vector, vector)
+            # Zero-similarity items are not semantic matches. Excluding them
+            # avoids returning unrelated global records just because they are in scope.
+            if score <= 0:
+                continue
             ranked.append({
-                "score": round(cosine_similarity(query_vector, vector), 6),
+                "score": round(score, 6),
                 "chunkId": row["chunk_id"],
                 "documentId": row["document_id"],
                 "source": metadata.get("source", {}),
