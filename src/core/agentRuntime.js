@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { TranscriptStore } from './transcript.js';
 import { saveSession, loadSession } from './sessionStore.js';
 import { PermissionMode, PermissionDenial, PermissionEnforcer } from './permissions.js';
-import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
+import { getTaskRegistry, TaskStatus, TaskPhase } from './taskRegistry.js';
 import { logger } from './logger.js';
 import { formatWbsForPrompt } from './action-wbs.js';
 import { WorkGraph, WorkStatus } from '../workgraph/workGraph.js';
