@@ -10,7 +10,7 @@ AgentOS is a runtime-first agent platform. The core does not know whether a capa
 
 Set `AGENTOS_DOMAIN` to the exact adapter directory name for a domain deployment. For example, `AGENTOS_DOMAIN=retail`, `AGENTOS_DOMAIN=logistics`, or `AGENTOS_DOMAIN=support` avoids loading the network-specific RouterOS adapter and network CLI commands. Add the matching `src/domains/<domain>/index.js` adapter when that domain is not already present.
 
-The default remains `network` for backward compatibility. See [non-network deployment](docs/architecture/non-network-deployment.md) and [the non-network environment template](examples/non-network.env.example). Domain selection limits adapter loading; it does not mean every legacy module has already been purged of domain-specific code.
+The default remains `network` for backward compatibility. See [non-network deployment](docs/architecture/non-network-deployment.md) and [the non-network environment template](examples/non-network.env.example). Domain selection limits adapter loading; it does not mean every legacy module has already been purged of domain-specific code. The ongoing file-by-file recovery status is tracked in [the PR and branch recovery ledger](docs/audits/pr-pattern-recovery.md).
 
 ## What the harness provides
 
