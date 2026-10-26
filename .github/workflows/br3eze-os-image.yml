@@ -39,7 +39,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
       - name: Build bootable ISO
-        run: sudo BR3EZE_OUT_DIR="$GITHUB_WORKSPACE/out" ./os/level3/build-live-image.sh
+        run: sudo env BR3EZE_OUT_DIR="$GITHUB_WORKSPACE/out" bash ./os/level3/build-live-image.sh
       - name: Upload ISO and checksum
         uses: actions/upload-artifact@v4
         with:
