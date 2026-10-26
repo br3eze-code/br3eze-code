@@ -14,6 +14,7 @@ export { FRAMEWORK_CONTRACT, FrameworkAdapterRegistry, assertFrameworkAdapter } 
 export { UsageMeter } from './Usage.js';
 
 export const AGENT_RUNTIME_CAPABILITIES = Object.freeze([
+  'agent.create', 'agent.run', 'agent.remove',
   'graph.execution', 'conditional.routing', 'checkpoint.resume', 'pause.resume',
   'retry.backoff', 'parallel.fanout', 'parallel.fanin', 'agent.handoff',
   'child.agents', 'human.approval', 'guardrails', 'tenant.scope',
