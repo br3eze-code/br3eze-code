@@ -19,6 +19,7 @@ import { PlatformAdapterRegistry } from './platform/PlatformAdapterRegistry.js';
 import { ServiceSupervisor } from './os/ServiceSupervisor.js';
 import { IPCMessageBus } from './os/IPCMessageBus.js';
 import { ApplicationManager } from './os/ApplicationManager.js';
+import { LocalStateStore } from './os/LocalStateStore.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -131,6 +132,7 @@ class AgentRuntime extends EventEmitter {
     this.serviceSupervisor = config.serviceSupervisor || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
     this.ipc = config.ipc || new IPCMessageBus({ onAudit: (event) => this.emit('os.ipc.audit', event) });
     this.applications = config.applications || new ApplicationManager({ supervisor: this.serviceSupervisor });
+    this.localState = config.localState || new LocalStateStore(config.localStateOptions || {});
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -207,6 +209,12 @@ class AgentRuntime extends EventEmitter {
   startApplication(appId, context = {}) { return this.applications.start(appId, context); }
   stopApplication(appId, context = {}) { return this.applications.stop(appId, context); }
   listApplications() { return this.applications.list(); }
+
+  /** Local-first durable state; synchronization is provided by separate future adapters. */
+  getAppState(identity) { return this.localState.get(identity); }
+  setAppState(identity) { return this.localState.set(identity); }
+  deleteAppState(identity) { return this.localState.delete(identity); }
+  listAppState(identity) { return this.localState.list(identity); }
 
   /** Local IPC. Callers must supply host-authenticated identity and explicit topic grants. */
   publishIPC(envelope, payload) { return this.ipc.publish(envelope, payload); }
