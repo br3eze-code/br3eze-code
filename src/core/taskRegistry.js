@@ -65,7 +65,9 @@ class TaskRegistry extends EventEmitter {
     const allowed = { plan: ['draft'], draft: ['approve', 'execute'], approve: ['execute'], execute: ['observe'], observe: ['verify'], verify: ['complete'], complete: [] };
     if (!allowed[task.execution.phase]?.includes(phase)) {
       if (phase === TaskPhase.EXECUTE) {
-        throw new Error('Execution requires completed plan and draft, followed by approval');
+        throw new Error(task.execution.approvalRequired
+          ? 'Execution requires completed plan and draft, followed by approval'
+          : 'Execution requires completed plan and draft');
       }
       throw new Error(`Invalid task phase transition ${task.execution.phase} -> ${phase}`);
     }
