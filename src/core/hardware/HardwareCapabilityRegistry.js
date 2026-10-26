@@ -178,9 +178,10 @@ export class HardwareCapabilityRegistry {
     });
     const signal = context.signal;
     const abortFromCaller = () => controller.abort(signal.reason || new Error('hardware operation cancelled'));
-    const abortFailure = new Promise((_, reject) => {
-      controller.signal.addEventListener('abort', () => reject(controller.signal.reason || new Error('hardware operation cancelled')), { once: true });
-    });
+    let rejectAbort;
+    const onControllerAbort = () => rejectAbort?.(controller.signal.reason || new Error('hardware operation cancelled'));
+    const abortFailure = new Promise((_, reject) => { rejectAbort = reject; });
+    controller.signal.addEventListener('abort', onControllerAbort, { once: true });
     if (signal?.aborted) abortFromCaller();
     else signal?.addEventListener('abort', abortFromCaller, { once: true });
 
@@ -202,6 +203,7 @@ export class HardwareCapabilityRegistry {
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener('abort', abortFromCaller);
+      controller.signal.removeEventListener('abort', onControllerAbort);
     }
   }
 }
