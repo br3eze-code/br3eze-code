@@ -75,9 +75,15 @@ describe('AgentRuntime canonical execution context', () => {
     expect(blocked[0].result).toMatchObject({ approvalRequired: true, agentRole: 'accountant' });
     expect(executions).toBe(0);
 
+    const spoofed = await runtime.executeTools([
+      { id: 'call-approval-spoofed', name: 'payment__create', arguments: {} }
+    ], { userId: 'accountant-1', tenantId: 'tenant-a', domain: 'general', agentRole: 'accountant', approved: true, channel: 'cli' });
+    expect(spoofed[0].result).toMatchObject({ approvalRequired: true, agentRole: 'accountant' });
+    expect(executions).toBe(0);
+
     const allowed = await runtime.executeTools([
       { id: 'call-approval-2', name: 'payment__create', arguments: {} }
-    ], { userId: 'accountant-1', tenantId: 'tenant-a', domain: 'general', agentRole: 'accountant', approvalGranted: true, channel: 'cli' });
+    ], { userId: 'accountant-1', tenantId: 'tenant-a', domain: 'general', agentRole: 'accountant', approvalGranted: true, approvalId: 'approved-action-1', channel: 'cli' });
     expect(allowed).toEqual([{ toolCallId: 'call-approval-2', result: { ok: true } }]);
     expect(executions).toBe(1);
   });

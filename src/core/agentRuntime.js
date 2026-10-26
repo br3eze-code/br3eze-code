@@ -52,6 +52,23 @@ export function validateRuntime(runtime) {
   return runtime;
 }
 
+function normalizeToolArguments(value) {
+  if (value == null) return {};
+  if (typeof value === 'string') {
+    let parsed;
+    try { parsed = JSON.parse(value); }
+    catch { throw new TypeError('tool arguments must be valid JSON'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new TypeError('tool arguments must decode to a JSON object');
+    }
+    return parsed;
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('tool arguments must be an object');
+  }
+  return value;
+}
+
 function normalizeToolParameters(parameters) {
   if (Array.isArray(parameters)) {
     const properties = Object.fromEntries(parameters
@@ -314,10 +331,7 @@ class AgentRuntime extends EventEmitter {
       for (const call of frame.toolCalls) {
         const name = String(call?.name || '').replace(/__/g, '.');
         if (!name) throw new TypeError('AgentRuntime.execute received a tool call without a name');
-        let args = call?.arguments ?? {};
-        if (typeof args === 'string') {
-          try { args = JSON.parse(args); } catch { args = {}; }
-        }
+        const args = normalizeToolArguments(call?.arguments ?? call?.args ?? {});
         results.push({ name, result: await this._executeToolForFrame(name, args, frame.context || frame) });
       }
       return {
@@ -407,11 +421,8 @@ class AgentRuntime extends EventEmitter {
       const toolsUsed = [];
       for (const call of toolCalls) {
         const name = String(call.name || '').replace(/__/g, '.');
-        let args = call.arguments || {};
-        if (typeof args === 'string') {
-          try { args = JSON.parse(args); } catch { args = {}; }
-        }
         try {
+          const args = normalizeToolArguments(call.arguments ?? call.args ?? {});
           const result = await this._executeToolForFrame(name, args, frame);
           toolsUsed.push(name);
           messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result) });
@@ -542,7 +553,9 @@ class AgentRuntime extends EventEmitter {
     const roleMutationRequiresApproval = Boolean(context.agentRole)
       && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
     const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
-    const approvalGranted = context.approvalGranted === true || context.approved === true;
+    const approvalGranted = context.approvalGranted === true
+      && typeof context.approvalId === 'string'
+      && context.approvalId.trim().length > 0;
     const taskRegistry = getTaskRegistry();
     const task = taskRegistry.create(`Execute tool ${toolName}`, {
       action: toolName,
@@ -569,7 +582,7 @@ class AgentRuntime extends EventEmitter {
     }
 
     if (requiresApproval) {
-      taskRegistry.approveExecution(task.taskId, context.approvalId || 'runtime-explicit-approval');
+      taskRegistry.approveExecution(task.taskId, context.approvalId);
     }
     taskRegistry.beginExecution(task.taskId);
 
@@ -606,16 +619,9 @@ class AgentRuntime extends EventEmitter {
     for (const call of toolCalls) {
       const toolCallId = call?.id || call?.toolCallId || null;
       const name = String(call?.name || '').replace(/__/g, '.');
-      let args = call?.arguments ?? call?.args ?? {};
-      if (typeof args === 'string') {
-        try { args = JSON.parse(args); } catch { args = {}; }
-      }
       try {
-        const result = await this._executeToolForFrame(name, args, {
-          ...context,
-          approvalGranted: context.approvalGranted === true || context.approved === true,
-          approved: context.approved === true || context.approvalGranted === true,
-        });
+        const args = normalizeToolArguments(call?.arguments ?? call?.args ?? {});
+        const result = await this._executeToolForFrame(name, args, context);
         results.push({ toolCallId, result });
       } catch (error) {
         results.push({ toolCallId, result: { error: error.message } });
@@ -632,7 +638,6 @@ class AgentRuntime extends EventEmitter {
         ...context,
         approvalId: actionId,
         approvalGranted: true,
-        approved: true,
       }),
     });
   }
