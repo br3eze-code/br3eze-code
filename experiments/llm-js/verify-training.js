@@ -71,4 +71,6 @@ const report = {
   checkpointRoundTrip: "passed (loss, vocabulary, optimizer step and Adam state)",
   checkpointPath
 };
+const reportPath = checkpointPath + ".report.json";
+await writeFile(reportPath, JSON.stringify(report, null, 2), "utf8");
 console.log(JSON.stringify(report, null, 2));
