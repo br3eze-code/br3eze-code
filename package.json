@@ -275,7 +275,8 @@
     ],
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/.claude/worktrees/"
+      "/.claude/worktrees/",
+      "/tests/platform/"
     ],
     "collectCoverageFrom": [
       "src/core/*.js",
