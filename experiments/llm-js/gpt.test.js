@@ -52,3 +52,17 @@ test("TinyGPT supports multi-head attention and preserves head count in checkpoi
 test("TinyGPT rejects head counts that do not divide embedding width", () => {
   assert.throws(() => new TinyGPT(5, { embeddingSize: 3, numHeads: 2 }), /evenly divide/);
 });
+
+test("TinyGPT supports stacked decoder blocks and round-trips depth", () => {
+  const model = new TinyGPT(5, { contextSize: 4, embeddingSize: 4, hiddenSize: 8, numHeads: 2, numLayers: 2, seed: 21 });
+  const expected = model.forward([0, 1, 2]).toArray();
+  const restored = TinyGPT.fromJSON(JSON.parse(JSON.stringify(model.toJSON())));
+  assert.equal(restored.numLayers, 2);
+  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), expected);
+  model.trainStep([0, 1, 2], [1, 2, 3], 0.01);
+  assert.ok(model.params.block1_qWeight.data.every(Number.isFinite));
+});
+
+test("TinyGPT rejects unreasonable decoder depth", () => {
+  assert.throws(() => new TinyGPT(5, { numLayers: 13 }), /from 1 to 12/);
+});
