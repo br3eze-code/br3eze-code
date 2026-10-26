@@ -7,7 +7,7 @@ function fakeFactory() {
   const calls = [];
   const factory = {};
   for (const name of [
-    'createAgent', 'runAgent', 'handoff', 'createChild',
+    'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild',
     'defineWorkflow', 'runWorkflow', 'resumeWorkflow',
     'registerTool', 'executeTool', 'checkGuardrail',
     'readMemory', 'writeMemory', 'readTrace', 'evaluate',
@@ -28,7 +28,9 @@ describe('framework and protocol adapters', () => {
 
     expect(assertAdapterContract(adapter)).toBe(true);
     await adapter.runAgent({ id: 'a' }, { input: 'x' }, { tenantId: 't1', userId: 'u1' });
+    await adapter.removeAgent('a', { tenantId: 't1', userId: 'u1' });
     expect(factory.calls.some((call) => call.name === 'runAgent')).toBe(true);
+    expect(factory.calls.some((call) => call.name === 'removeAgent')).toBe(true);
   });
 
   test('MCP adapter requires and forwards tenant scope', async () => {
