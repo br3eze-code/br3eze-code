@@ -22,6 +22,13 @@ describe('single-runtime gateway composition contract', () => {
     expect(gatewaySource).toMatch(/gateway\.askEngine\s*=\s*runtime\s*;/);
   });
 
+  test('mounts hardware capabilities through the canonical runtime and existing network manager', () => {
+    expect(gatewaySource).toMatch(/networkEnabled\s*&&\s*mikrotik/);
+    expect(gatewaySource).toMatch(/createMikroTikHardwareAdapter\s*\(/);
+    expect(gatewaySource).toMatch(/runtime\.registerHardwareAdapter\s*\(/);
+    expect(gatewaySource).toMatch(/manager\s*:\s*mikrotik/);
+  });
+
   test('scheduled tasks receive the same canonical runtime instance', () => {
     expect(gatewaySource).toMatch(/new\s+TaskScheduler\s*\(\s*\{\s*engine\s*:\s*runtime\s*\}\s*\)/);
   });
