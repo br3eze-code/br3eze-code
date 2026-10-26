@@ -21,6 +21,8 @@ function redactSecrets(text) {
 function eligiblePath(path) {
   const normalized = path.split(sep).join("/");
   if (EXCLUDED_FILES.test(normalized)) return false;
+  // Exclude service-account/credential JSON by filename, including camelCase variants.
+  if (/(^|\/)(?:serviceAccountKey|service-account|firebase-service-account|firebase-adminsdk|credentials?)(?:[^/]*?)\.json$/i.test(normalized)) return false;
   if (normalized.split("/").some((part) => part.startsWith(".") && part !== ".github")) return false;
   if (normalized.split("/").some((part) => EXCLUDED_DIRS.has(part))) return false;
   if (/(^|\/)(?:secrets?|credentials?|service-account|firebase-adminsdk)(?:\/|[-_.])/i.test(normalized)) return false;

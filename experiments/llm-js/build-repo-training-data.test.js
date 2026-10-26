@@ -13,12 +13,14 @@ test("corpus builder includes source and documentation, excludes secret files an
     await writeFile(join(root, "README.md"), "# AgentOS\nA general purpose agent harness.\n");
     await writeFile(join(root, "src", "runtime.js"), "export function run() { return 'safe'; }\n");
     await writeFile(join(root, ".env"), "API_KEY=do-not-train-this-secret\n");
+    await writeFile(join(root, "serviceAccountKey.json"), JSON.stringify({ private_key: "-----BEGIN PRIVATE KEY-----\\nprivate-material\\n-----END PRIVATE KEY-----" }));
+    await writeFile(join(root, "credentials.json"), JSON.stringify({ token: "do-not-train-this-token" }));
     await writeFile(join(root, "node_modules", "bad-package", "index.js"), "should not appear");
     const records = await buildTrainingRecords(root);
     const joined = records.map((record) => record.text).join("\n");
     assert.match(joined, /README\.md/);
     assert.match(joined, /src\/runtime\.js/);
-    assert.doesNotMatch(joined, /do-not-train-this-secret|should not appear/);
+    assert.doesNotMatch(joined, /do-not-train-this-secret|should not appear|private-material|do-not-train-this-token|serviceAccountKey\.json|credentials\.json/);
     assert.ok(records.length >= 2);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
