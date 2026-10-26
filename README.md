@@ -151,7 +151,7 @@ The plugin SDK lives under src/sdk/plugin/. A plugin receives a controlled Plugi
 
 ## Train a small model with Node.js
 
-AgentOS includes an optional TensorFlow.js workflow for training and running a small, domain-neutral numeric-feature classifier. It is a starter ML model—not a conversational LLM—and it does not create a second agent runtime.
+AgentOS includes a dependency-free JavaScript workflow for training a small neural-network classifier from numeric features. It is a starter ML model—not a conversational LLM—and does not create a second agent runtime.
 
 ```bash
 npm install
@@ -159,7 +159,7 @@ npm run model:train
 npm run model:predict -- --features 0.8,0.7,0.2
 ```
 
-Use `--data` to supply a JSONL dataset and `--out` to choose an artifact directory. The sample dataset is synthetic; replace it with representative, properly permissioned examples and evaluate on held-out data before using predictions. Training artifacts are local and ignored by Git. See [the Node.js model training guide](docs/architecture/nodejs-model-training.md) for the schema, CLI options, and limitations.
+Use `--data` to supply a JSONL dataset and `--out` to choose an artifact directory. The sample dataset is synthetic; replace it with representative, properly permissioned examples and evaluate on held-out data before trusting predictions. Training artifacts are local and ignored by Git. See [the Node.js model training guide](docs/architecture/nodejs-model-training.md) for the schema, CLI options, and limitations.
 
 ## Model independence
 
