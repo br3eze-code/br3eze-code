@@ -127,7 +127,10 @@ class ToolRegistry {
       return { allowed: false, errors: ['execution_task_required'], task: null, intent: null };
     }
     const phase = ctx.phase || task?.execution?.phase || 'execute';
-    if (task && phase !== 'execute') return { allowed: false, errors: [`task_not_executable:${phase}`], task, intent: null };
+    if (phase !== 'execute') return { allowed: false, errors: [`task_not_executable:${phase}`], task, intent: null };
+    if (task && task.execution?.phase !== 'execute') {
+      return { allowed: false, errors: [`task_not_executable:${task.execution?.phase || 'unknown'}`], task, intent: null };
+    }
     if (task && task.action && ctx.action && task.action !== ctx.action) return { allowed: false, errors: ['task_action_mismatch'], task, intent: null };
     const boundary = checkCapabilityBoundary(entry.capability, ctx, { phase, approved: task?.execution?.approved === true || ctx.approvalGranted === true });
     const intent = createExecutionIntent({ taskId: task?.taskId || taskId, wbsId: ctx.wbsId || task?.wbs?.id || null, capability: entry.capability, context: { ...ctx, approvalGranted: task?.execution?.approved === true || ctx.approvalGranted === true }, input: args, phase });
