@@ -29,7 +29,7 @@ jobs:
           grep -q 'NoNewPrivileges=true' os/level3/live-build/config/includes.chroot/etc/systemd/system/agentos.service
 
   build-iso:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/os-v')
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/os-v')
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -39,7 +39,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
       - name: Build bootable ISO
-        run: sudo --preserve-env=GITHUB_WORKSPACE BR3EZE_OUT_DIR="$GITHUB_WORKSPACE/out" ./os/level3/build-live-image.sh
+        run: sudo BR3EZE_OUT_DIR="$GITHUB_WORKSPACE/out" ./os/level3/build-live-image.sh
       - name: Upload ISO and checksum
         uses: actions/upload-artifact@v4
         with:
