@@ -27,7 +27,9 @@ This is a working ledger, not a claim that every PR has already received a compl
 
 | PR(s) | Finding | Decision/status |
 |---|---|---|
-| #1–44, #99–109 | Mostly dependency/Snyk automation. These are version/lockfile/security changes, not runtime patterns. | Do not replay old dependency patches blindly. Current lockfile reconciliation was handled separately; a fresh vulnerability audit is still required. |
+| #1–8 | Dependency-only updates to the lockfile and direct package versions. Current main already has newer versions than the reviewed patches (for example, Axios 1.20.0, Nodemailer 9.1.1, basic-ftp 5.3.1, and @xmldom/xmldom 0.9.12). | Superseded; do not replay the old versions. The v0 branch's unique lockfile completeness change was ported after version parity checks. |
+| #9 | Added the autonomous AI audit workflow, a broad skill-chain runner, and a tracked file under `.whatsapp-auth/`. The workflow originally committed AI-generated source patches directly to `main` with `contents: write`. | Hardened on main: local WhatsApp auth state is ignored and the tracked placeholder file was removed. The audit workflow now opens a review PR rather than pushing patches to main, and explicitly dispatches CI for that review branch. |
+| #10–44, #99–109 | Mostly dependency/Snyk automation and assorted feature PRs; each needs version or caller comparison, not branch-level cherry-picking. | Continue auditing in small batches. Do not replay old dependency patches blindly; a fresh vulnerability audit is still required. |
 | #45 | Large generated Cordova/Android platform and signing-related diff. | Do not copy generated platform output or signing material into the general-purpose core. The named keystore and service-account JSON files are absent from current `main`; ignore rules cover these credential types. |
 | #50 | Very large CommonJS-to-ESM migration touching hundreds of files. | Current `main` is already ESM-oriented. No wholesale historical copy. Audit only concrete remaining interop defects. |
 | #57 | Large Dahua/CCTV integration. | Keep it domain-specific and optional; do not import it into Core. |
