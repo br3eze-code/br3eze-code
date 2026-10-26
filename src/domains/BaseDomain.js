@@ -56,7 +56,7 @@ class BaseDomain {
         parameters:  tool.parameters  || {},
         risk:        tool.risk        || 'low',
         execute:     (ctx, params) => {
-          const args = params === undefined ? [] : (Array.isArray(params) ? params : [params]);
+          const args = params === undefined ? [{}] : (Array.isArray(params) ? params : [params]);
           return tool.passContext ? tool.execute(...args, ctx) : tool.execute(...args);
         },
       };
@@ -72,7 +72,7 @@ class BaseDomain {
     const { tool, params } = ctx;
     const skill = this.tools.find((t) => t.name === tool || t.name === `${this.name}.${tool}` || `${this.name}.${t.name}` === tool);
     if (!skill) throw new Error(`Domain "${this.name}": tool not found — "${tool}"`);
-    const args = params === undefined ? [] : (Array.isArray(params) ? params : [params]);
+    const args = params === undefined ? [{}] : (Array.isArray(params) ? params : [params]);
     return skill.passContext ? skill.execute(...args, ctx) : skill.execute(...args);
   }
 
