@@ -98,6 +98,7 @@ export function createSimulatedRouterOSLab({ fault = "healthy" } = {}) {
   }));
 
   return Object.freeze({
+    mode: "simulated-lab",
     tools,
     // Only evaluation/test code should receive the answer key.
     evaluation: Object.freeze({ faultId: fault }),
@@ -225,4 +226,27 @@ export async function runRouterOSLabSuite() {
       meanConfidence: rows.reduce((sum, row) => sum + row.confidence, 0) / count
     }
   };
+}
+
+
+/**
+ * Register lab tools with an already-constructed canonical AgentRuntime.
+ * No runtime is created here; runtime/tool policy owns authorization/execution.
+ */
+export function registerRouterOSLabTools(runtime, lab) {
+  if (!runtime || typeof runtime.registerTool !== "function") {
+    throw new TypeError("an existing AgentRuntime with registerTool() is required");
+  }
+  if (!lab || lab.mode !== "simulated-lab" || !Array.isArray(lab.tools)) {
+    throw new TypeError("only a simulated RouterOS lab adapter can be registered by this helper");
+  }
+  for (const tool of lab.tools) {
+    runtime.registerTool({
+      ...tool,
+      fullName: tool.name,
+      domain: "networking",
+      capability: { risk: "read-only", permissions: ["network:read"], requiresApproval: false }
+    });
+  }
+  return runtime;
 }
