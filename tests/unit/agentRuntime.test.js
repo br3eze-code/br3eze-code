@@ -38,9 +38,11 @@ describe('TOOL_MANIFEST', () => {
     test('expected tools are present', () => {
         const names = new Set(TOOL_MANIFEST.map(t => t.name));
         expect(names.has('system.stats')).toBe(true);
-        expect(names.has('user.add')).toBe(true);
+        expect(names.has('agent.create')).toBe(true);
         expect(names.has('ping')).toBe(true);
-        expect(names.has('firewall.block')).toBe(true);
+        expect(names.has('firewall.block')).toBe(false);
+        expect(names.has('user.add')).toBe(false);
+        expect(names.has('system.reboot')).toBe(false);
     });
 });
 
