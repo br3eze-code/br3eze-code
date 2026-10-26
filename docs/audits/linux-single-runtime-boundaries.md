@@ -1,7 +1,7 @@
 # Linux-inspired single-runtime boundary audit
 
 Date: 2026-10-26
-Baseline: `main` at `2e69f25e1be2f4cb2beeb51820ac4e608153de20`
+Baseline: `main` at `87441b79e6978e22b4d940e09eafed526ece8ab1`
 
 ## Scope
 
