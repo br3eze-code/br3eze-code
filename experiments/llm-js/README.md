@@ -48,7 +48,7 @@ This is a correctness-first CPU learning implementation, not a production LLM. I
 ## Roadmap
 
 1. **Implemented foundation:** tensor/autograd, multi-head causal attention, configurable stacked decoder blocks, AdamW, train/validation separation and model-plus-optimizer checkpoints.
-2. **Training reliability:** finite-difference checks for more operations, optimizer-state checkpoint/resume, minibatches, better tokenization, and repeatable validation metrics.
+2. **Training reliability:** finite-difference checks for more operations, RNG-state checkpointing, mini-batches, better tokenization, and repeatable validation metrics.
 3. **Model quality:** dropout, learning-rate schedules, robust dataset packing, tokenizer interface/BPE, and evaluation on held-out data.
 4. **Performance:** benchmark first, then consider optimized typed-array kernels, WebGPU or a native backend.
 5. **AgentOS integration:** only after model and tokenizer interfaces are stable; keep training isolated from the domain-agnostic runtime.
