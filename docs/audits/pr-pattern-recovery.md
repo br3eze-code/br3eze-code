@@ -15,9 +15,10 @@ This is a working ledger, not a claim that every PR has already received a compl
 - Added route-composition and PHP/Node route-parity tests.
 - Replaced the placeholder security policy, split CI syntax/type checks, and removed unresolved merge-conflict markers from the Firebase workflow.
 - Added runtime evaluation/replay/workflow/usage/framework-adapter tests and a capability-route identity-context assertion.
-- Added `AGENTOS_DOMAIN` opt-in boundaries to host bootstrap, CLI command registration, gateway RouterOS initialization, and domain loading. `network`, `wifi`, and `wifi-billing` preserve legacy network behavior; other selected domains avoid importing those RouterOS adapters from these boot paths.
+- Added `AGENTOS_DOMAIN` opt-in boundaries to host bootstrap, CLI command registration, gateway RouterOS initialization, domain loading, and skill discovery. `network`, `wifi`, and `wifi-billing` preserve legacy network behavior; other selected domains avoid importing RouterOS adapters and exclude network-only skills from the gateway runtime.
 - Added a non-network environment example and deployment notes.
 - Replaced the server login's shared-secret response with a short-lived HMAC-signed user token. Added Firebase/Supabase/service identity verification and tests. Only `AGENTOS_SERVICE_TOKEN` grants service-token authority; `GATEWAY_TOKEN` is not treated as a service credential.
+- Hardened the autonomous audit workflow so AI-generated patches go to a review PR and trigger an explicit CI run instead of being pushed directly to `main`; removed the tracked WhatsApp auth placeholder and ignored local WhatsApp auth state.
 - Restored an `AgentRuntime.executeTurn()` compatibility method that delegates to the canonical `execute()` path.
 - Corrected `package.json`'s `main` entry from the missing `src/core/gateway.js` to `src/core/agentRuntime.js`.
 - Restored the missing partner policy and job-state-machine regression tests.
