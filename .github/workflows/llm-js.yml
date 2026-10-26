@@ -1,0 +1,25 @@
+name: llm-js tests
+
+on:
+  pull_request:
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js.yml"
+  push:
+    branches: [main, feat/llm-js-training]
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run llm-js unit tests
+        run: node --test experiments/llm-js/*.test.js
+      - name: Smoke-test training CLI
+        run: node experiments/llm-js/train.js --steps 20 --generate 20 --checkpoint "$RUNNER_TEMP/llm-js-checkpoint.json"
