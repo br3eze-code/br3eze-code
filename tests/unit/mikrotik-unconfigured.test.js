@@ -21,7 +21,7 @@ const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest
 jest.unstable_mockModule('../../src/core/logger.js', () => ({ logger }));
 jest.unstable_mockModule('../../src/core/config.js', () => ({ getConfig: () => ({}) }));
 
-const { MikroTikManager } = await import('../../src/core/mikrotik.js');
+const { MikroTikManager } = await import('../../src/adapters/network/mikrotik.js');
 
 test('unconfigured MikroTik remains silent and does not connect', async () => {
   const manager = new MikroTikManager();
