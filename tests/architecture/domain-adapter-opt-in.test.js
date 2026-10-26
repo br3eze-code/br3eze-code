@@ -6,6 +6,13 @@ import loadAllDomains from '../../src/core/loadDomain.js';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 describe('optional domain adapter boot boundary', () => {
+  test('tracked default config contains no runtime bearer or device credentials', () => {
+    const config = JSON.parse(read('../../config/config.json'));
+    expect(config.gateway?.websocket?.token).toBeUndefined();
+    expect(config.adapters?.telegram?.token).toBeUndefined();
+    expect(config.tools?.mikrotik?.connection?.password).toBeUndefined();
+  });
+
   test('autonomous audit changes require a review PR and explicit CI dispatch', () => {
     const workflow = read('../../.github/workflows/autonomous-audit.yml');
     expect(workflow).not.toContain('git push origin main');
