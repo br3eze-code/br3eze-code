@@ -40,3 +40,15 @@ test("TinyGPT validates context and checkpoint formats", () => {
   assert.throws(() => model.forward([0, 1, 2]), /contextSize/);
   assert.throws(() => TinyGPT.fromJSON({}), /checkpoint format/);
 });
+
+test("TinyGPT supports multi-head attention and preserves head count in checkpoints", () => {
+  const model = new TinyGPT(5, { contextSize: 4, embeddingSize: 4, hiddenSize: 8, numHeads: 2, seed: 17 });
+  const expected = model.forward([0, 1, 2]).toArray();
+  const restored = TinyGPT.fromJSON(JSON.parse(JSON.stringify(model.toJSON())));
+  assert.equal(restored.numHeads, 2);
+  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), expected);
+});
+
+test("TinyGPT rejects head counts that do not divide embedding width", () => {
+  assert.throws(() => new TinyGPT(5, { embeddingSize: 3, numHeads: 2 }), /evenly divide/);
+});
