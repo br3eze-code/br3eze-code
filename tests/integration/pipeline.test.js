@@ -153,6 +153,7 @@ describe('Integration — Permissions + AgentRuntime routing', () => {
         const rt = new AgentRuntime();
         const tools = rt.routePrompt('create a new user and register account');
         expect(tools).not.toContain('user.add');
+        expect(tools).not.toContain('agent.create');
     });
 
     test('AUTO enforcer allows everything routePrompt returns', () => {
