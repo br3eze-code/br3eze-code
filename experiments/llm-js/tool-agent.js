@@ -178,9 +178,16 @@ export async function runToolAgent({
         result = await tool.execute(args, { ...context, signal, toolCallId: call.id, step });
         emit("tool_result", { step, toolName: name, callId: call.id ?? null, success: true });
       } catch (error) {
-        // Return a bounded error to the model so it can recover; never bypass policy.
-        result = { error: { code: error.code || "TOOL_EXECUTION_FAILED", message: String(error.message || error).slice(0, 500) } };
-        emit("tool_result", { step, toolName: name || null, callId: call.id ?? null, success: false, code: error.code || "TOOL_EXECUTION_FAILED" });
+        // Avoid leaking raw provider/database errors into the model context.
+        const code = error.code || "TOOL_EXECUTION_FAILED";
+        const safeMessages = {
+          UNKNOWN_TOOL: "The requested tool is not available.",
+          INVALID_TOOL_ARGUMENTS: "Tool arguments are not valid JSON.",
+          TOOL_SCHEMA_INVALID: String(error.message || "Tool arguments failed schema validation").slice(0, 300),
+          TOOL_NOT_AUTHORIZED: "Tool execution was not authorized.",
+        };
+        result = { error: { code, message: safeMessages[code] || "Tool execution failed." } };
+        emit("tool_result", { step, toolName: name || null, callId: call.id ?? null, success: false, code });
       }
       conversation.push({
         role: "tool",
