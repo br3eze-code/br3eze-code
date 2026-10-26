@@ -32,6 +32,7 @@ export class HardwareCapabilityRegistry {
     this.maxAdapters = maxAdapters;
     this.adapters = new Map();
     this.capabilities = new Map();
+    this.mountedRegistries = new WeakMap();
   }
 
   registerAdapter(adapter) {
@@ -88,7 +89,10 @@ export class HardwareCapabilityRegistry {
     if (!toolRegistry || typeof toolRegistry.register !== 'function') {
       throw new TypeError('canonical ToolRegistry with register() is required');
     }
+    let mounted = this.mountedRegistries.get(toolRegistry);
+    if (!mounted) { mounted = new Set(); this.mountedRegistries.set(toolRegistry, mounted); }
     for (const { fullName, adapter, capability } of this.capabilities.values()) {
+      if (mounted.has(fullName)) continue;
       toolRegistry.register(fullName, {
         description: capability.description || `Hardware capability ${fullName}`,
         schema: {
@@ -103,6 +107,7 @@ export class HardwareCapabilityRegistry {
         passContext: true,
         execute: (args, context) => this.execute(fullName, args, context),
       });
+      mounted.add(fullName);
     }
     return this;
   }
