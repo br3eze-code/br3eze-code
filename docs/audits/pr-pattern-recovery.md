@@ -47,7 +47,7 @@ This is a working ledger, not a claim that every PR has already received a compl
 | #193 | Conflict repair, shared HTTP setup, Wi-Fi configuration/routes, identity boundary, and tests. | Ported the useful HTTP/config/route separation and relevant identity/tests. Did not copy the whole PR or its unrelated core changes. |
 | #200 | Architecture-direction gate, explicit framework capability mapping, general-purpose package/README positioning. | Merged and already represented in `main`. |
 | #202, #206 | Single-runtime/provider-port consolidation. | Most core pieces are already present: configured provider ports, AgentRuntime execution/streaming, v2 route context, canonical ToolRegistry, task-phase guards, and runtime tests. Continue validating actual boot/call paths; do not infer full consolidation from the module names alone. |
-| #207 | Recovery PR containing security/CI/runtime-test patterns. | Closed after its useful patterns were ported directly to `main`; continue work from the current `main` state. |
+| #207 | Recovery PR containing security/CI/runtime-test patterns. | The PR is closed; its useful patterns have now been ported directly to `main`. Continue work from the current `main` state. |
 
 ## Branch findings
 
