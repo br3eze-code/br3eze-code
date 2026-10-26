@@ -5,6 +5,12 @@ function assertTopic(topic) {
   if (typeof topic !== 'string' || !TOPIC.test(topic)) throw new TypeError('IPC topic must be a stable identifier');
 }
 
+function assertPrincipalField(value, label) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(value)) {
+    throw new TypeError(`${label} must be a non-empty string of at most 128 safe characters`);
+  }
+}
+
 function isSafePayload(value, depth = 0) {
   if (depth > 32) return false;
   if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) return typeof value !== 'number' || Number.isFinite(value);
@@ -37,7 +43,9 @@ export class IPCMessageBus {
 
   async subscribe({ topic, subscriberId, tenantId, userId } = {}, handler) {
     assertTopic(topic);
-    if (typeof subscriberId !== 'string' || !subscriberId || typeof tenantId !== 'string' || !tenantId || typeof userId !== 'string' || !userId) throw new Error('IPC subscription requires authenticated subscriber, tenant, and user');
+    assertPrincipalField(subscriberId, 'subscriberId');
+    assertPrincipalField(tenantId, 'tenantId');
+    assertPrincipalField(userId, 'userId');
     if (typeof handler !== 'function') throw new TypeError('IPC handler must be a function');
     await this.#assertAuthorized('subscribe', topic, { principalId: subscriberId, tenantId, userId });
     if (this.subscriptions.size >= this.maxSubscribers) throw new Error('IPC subscriber limit reached');
@@ -50,7 +58,10 @@ export class IPCMessageBus {
 
   async publish({ topic, publisherId, tenantId, userId, correlationId = null } = {}, payload) {
     assertTopic(topic);
-    if (typeof publisherId !== 'string' || !publisherId || typeof tenantId !== 'string' || !tenantId || typeof userId !== 'string' || !userId) throw new Error('IPC publish requires authenticated publisher, tenant, and user');
+    assertPrincipalField(publisherId, 'publisherId');
+    assertPrincipalField(tenantId, 'tenantId');
+    assertPrincipalField(userId, 'userId');
+    if (correlationId !== null && (typeof correlationId !== 'string' || correlationId.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(correlationId))) throw new TypeError('correlationId must be a safe string of at most 128 characters');
     await this.#assertAuthorized('publish', topic, { principalId: publisherId, tenantId, userId });
     if (!isSafePayload(payload)) throw new TypeError('IPC payload must be bounded JSON-compatible data');
     let serialized;
