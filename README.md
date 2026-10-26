@@ -6,6 +6,12 @@ AgentOS is a runtime-first agent platform. The core does not know whether a capa
 
 > **Current architectural rule:** AgentRuntime is the canonical execution owner. Tools, skills, plugins, models, memory, policies, verification, and external adapters plug into that runtime; they do not create competing agent loops.
 
+## Select a domain at boot
+
+Set `AGENTOS_DOMAIN` to the exact adapter directory name for a domain deployment. For example, `AGENTOS_DOMAIN=retail`, `AGENTOS_DOMAIN=logistics`, or `AGENTOS_DOMAIN=support` avoids loading the network-specific RouterOS adapter and network CLI commands. Add the matching `src/domains/<domain>/index.js` adapter when that domain is not already present.
+
+The default remains `network` for backward compatibility. See [non-network deployment](docs/architecture/non-network-deployment.md) and [the non-network environment template](examples/non-network.env.example). Domain selection limits adapter loading; it does not mean every legacy module has already been purged of domain-specific code.
+
 ## What the harness provides
 
 - **AgentRuntime** — one execution boundary and lifecycle owner.
