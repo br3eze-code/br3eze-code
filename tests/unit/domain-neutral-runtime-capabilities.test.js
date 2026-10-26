@@ -153,7 +153,7 @@ describe('domain-neutral runtime capabilities', () => {
   test('maps framework capability names to explicit adapter methods', () => {
     const registry = new FrameworkAdapterRegistry();
     const methods = [
-      'createAgent', 'runAgent', 'handoff', 'createChild',
+      'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild',
       'defineWorkflow', 'runWorkflow', 'resumeWorkflow',
       'registerTool', 'executeTool', 'checkGuardrail',
       'readMemory', 'writeMemory', 'readTrace', 'evaluate',
