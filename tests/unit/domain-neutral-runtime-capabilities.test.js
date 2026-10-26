@@ -80,6 +80,20 @@ describe('domain-neutral runtime capabilities', () => {
     expect(() => meter.record({ inputTokens: 1 })).toThrow(/tenantId/i);
   });
 
+  test('maps framework capability names to explicit adapter methods', () => {
+    const registry = new FrameworkAdapterRegistry();
+    const methods = [
+      'createAgent', 'runAgent', 'handoff', 'createChild',
+      'defineWorkflow', 'runWorkflow', 'resumeWorkflow',
+      'registerTool', 'executeTool', 'checkGuardrail',
+      'readMemory', 'writeMemory', 'readTrace', 'evaluate',
+    ];
+    const adapter = Object.fromEntries(methods.map((name) => [name, async () => ({ ok: true })]));
+
+    expect(registry.register('test-framework', adapter)).toBe(adapter);
+    expect(registry.get('test-framework')).toBe(adapter);
+  });
+
   test('rejects incomplete framework adapters', () => {
     const registry = new FrameworkAdapterRegistry();
     expect(() => registry.register('bad', {})).toThrow(/missing capabilities/i);
