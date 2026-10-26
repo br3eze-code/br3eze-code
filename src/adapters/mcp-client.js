@@ -82,6 +82,7 @@ export class MCPClientAdapter {
         parameters: tool.inputSchema || { type: 'object', properties: {} },
         source: 'mcp',
         server: this.namespace,
+        passContext: true,
         execute: async (args = {}, callContext = {}) => this.callTool(originalName, args, callContext),
       };
     });
