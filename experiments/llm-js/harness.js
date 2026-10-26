@@ -22,8 +22,9 @@ function normalizeMessages(messages) {
       throw new TypeError(`messages[${index}] must have a supported role and string content`);
     }
     const normalized = { role: message.role, content: message.content };
-    if (message.role === "assistant" && Array.isArray(message.tool_calls)) {
-      normalized.tool_calls = message.tool_calls.map((call) => ({
+    const toolCalls = message.tool_calls ?? message.toolCalls;
+    if (message.role === "assistant" && Array.isArray(toolCalls)) {
+      normalized.tool_calls = toolCalls.map((call) => ({
         id: requiredString(call?.id, `messages[${index}].tool_calls[].id`),
         type: "function",
         function: {
@@ -35,10 +36,21 @@ function normalizeMessages(messages) {
       }));
     }
     if (message.role === "tool") {
-      normalized.tool_call_id = requiredString(message.tool_call_id, `messages[${index}].tool_call_id`);
+      normalized.tool_call_id = requiredString(message.tool_call_id ?? message.toolCallId, `messages[${index}].tool_call_id`);
       if (message.name) normalized.name = requiredString(message.name, `messages[${index}].name`);
     }
     return normalized;
+  });
+}
+function normalizeToolDeclarations(tools) {
+  if (!Array.isArray(tools)) throw new TypeError("tools must be an array");
+  return tools.map((tool) => {
+    if (tool?.type === "function" && tool.function) return tool;
+    const name = requiredString(tool?.name ?? tool?.fullName, "tool.name");
+    const description = typeof tool.description === "string" ? tool.description : "";
+    const parameters = tool.parameters ?? tool.schema?.parameters ?? { type: "object", properties: {} };
+    if (!parameters || parameters.type !== "object") throw new TypeError(`tool ${name} must have an object JSON Schema`);
+    return { type: "function", function: { name, description, parameters } };
   });
 }
 function timeoutSignal(timeoutMs, signal) {
@@ -113,6 +125,30 @@ export function createOpenAICompatibleAdapter({
         finishReason: choice.finish_reason ?? null,
         usage: data.usage ?? null,
         raw: data
+      };
+    },
+    // AgentOS ModelPort adapter: AgentRuntime owns tool authorization/execution.
+    async execute(request = {}) {
+      const context = request.context ?? {};
+      const suppliedTools = request.tools ?? [];
+      const result = await this.generate({
+        messages: request.messages,
+        tools: normalizeToolDeclarations(suppliedTools),
+        temperature: context.temperature ?? 0.2,
+        maxTokens: context.maxTokens ?? context.outputTokenBudget ?? 1024,
+        signal: request.signal ?? context.signal
+      });
+      return {
+        content: result.text,
+        text: result.text,
+        toolCalls: result.toolCalls.map((call) => ({
+          id: call.id,
+          name: call.name,
+          arguments: call.arguments
+        })),
+        model: result.model,
+        finishReason: result.finishReason,
+        usage: result.usage
       };
     },
     async *stream({ messages, temperature = 0.2, maxTokens = 512, signal } = {}) {
