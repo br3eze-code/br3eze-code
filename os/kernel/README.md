@@ -28,4 +28,4 @@ The build pipeline must fail closed if the source revision is not pinned, checks
 
 ## Current status
 
-This document defines the kernel-first direction. The source fetch, actual compile, QEMU boot test, and artifact publication are not complete until the dedicated workflow proves each stage.
+This document defines the kernel-first direction. The CI workflow now fetches the upstream Linux v6.12 tag, merges the Br3eze x86_64 config fragment, validates key options, compiles bzImage and modules, and uploads the kernel image/config/source metadata/checksums. This is a build pipeline, not yet a verified result: compile, artifact upload, and QEMU boot are not complete until CI proves each stage. The upstream tag is recorded with its resolved commit in the artifact metadata; production release work should additionally pin and verify a reviewed immutable commit/checksum.
