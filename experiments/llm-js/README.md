@@ -1,41 +1,60 @@
 # llm-js: a small language-model training lab
 
-A dependency-free Node.js learning implementation inspired by Andrej Karpathy's educational work, especially **micrograd**, **makemore/nanoGPT**, and **llm.c**. This is an original JavaScript translation of the learning patterns, not a line-for-line copy of upstream source.
+A dependency-free Node.js learning implementation inspired by Andrej Karpathy's educational language-model work, especially **llm.c** (C/CUDA training systems) and **makemore/nanoGPT**.
+
+This is original educational code—not a line-for-line port of `llm.c` and not a competitive general-purpose LLM. It includes a character-level bigram baseline and a tiny trainable decoder-only Transformer so the forward/backward/update loop can be inspected.
 
 ## Requirements
 
 - Node.js 22+
 - No third-party packages or GPU required
 
-## Train models
+## Train the bigram baseline
 
-Bigram baseline: `node experiments/llm-js/train.js --steps 2000 --lr 0.1 --seed 42`
+```bash
+node experiments/llm-js/train.js --steps 2000 --lr 0.1 --seed 42
+```
 
-TinyGPT (one decoder block): `node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --heads 2 --hidden 32 --lr 0.01 --seed 42`
+## Train TinyGPT
 
-Configurable stacked Transformer: `node experiments/llm-js/train-transformer.js --steps 200 --context 16 --width 8 --heads 2 --layers 2 --hidden 32 --seed 42`
+```bash
+node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --heads 2 --layers 2 --hidden 32 --lr 0.01 --seed 42
+```
 
-Use `--input path/to/text.txt` for a UTF-8 corpus you have permission to use. The Transformer CLI holds out a final segment for a small validation-loss check and writes a JSON checkpoint. Resume with `--resume path/to/checkpoint.json`; the input text and character vocabulary must match. Select output using `--checkpoint path/to/model.json`. Keep dimensions small: this is a CPU reference implementation, not a fast or production-scale LLM.
+Use `--input path/to/text.txt` to train on a UTF-8 text file you have permission to use. The CLI makes a simple sequential 90/10 train/validation split, trains only on the training portion, reports held-out validation loss before and after training, generates a sample, and saves model weights plus the character vocabulary. For a very small corpus the split is necessarily weak; use a larger, representative dataset for meaningful evaluation.
 
-## Tests
+Options include `--steps`, `--context`, `--width`, `--heads`, `--layers`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, and `--checkpoint`. The head count must divide the embedding width. Keep dimensions small for CPU training.
 
-`node --test experiments/llm-js/*.test.js`
+## Test
+
+```bash
+node --test experiments/llm-js/*.test.js
+```
 
 ## Implemented
 
-- Character-level bigram baseline, stable softmax/cross-entropy, analytic gradients and SGD.
-- `Tensor`: Float64 scalar/vector/matrix operations and reverse-mode automatic differentiation.
-- Token and position embeddings, causal attention, linear layers, layer normalization, residual paths and MLP blocks.
-- `TinyGPT`: a compact single-block educational model with configurable attention heads and AdamW updates.
-- `TransformerLM`: configurable width, number of causal attention heads, stacked decoder blocks and MLP width; gradient clipping; deterministic sampling; model plus optimizer-state checkpoint serialization.
-- CLI training, fixed-seed runs, basic held-out validation, checkpoint save and resume.
+- Character vocabulary and bigram baseline with stable softmax, cross-entropy, analytic gradients, SGD and JSON checkpointing.
+- `Tensor`: Float64 scalar/vector/matrix operations, matrix multiplication, transpose, row-wise softmax, ReLU, exp/log/sum and reverse-mode automatic differentiation.
+- Embedding lookup, differentiable row/column slicing and concatenation, stable softmax and cross-entropy.
+- Causal multi-head scaled dot-product attention, learned token and position embeddings, linear layers, layer normalization, residual connections and feed-forward blocks.
+- `TinyGPT`: configurable decoder depth and attention-head count, gradient clipping, AdamW updates, deterministic sampling and model-weight checkpointing.
+- A simple held-out validation split and saved character vocabulary.
+- Node's built-in tests and a Node 22 GitHub Actions workflow for unit tests and CLI smoke tests.
 
-## Limits and roadmap
+## Important limits
 
-This is a correctness-first learning system. It uses character-level tokens, hand-written Float64 autodiff and single-sequence updates. It does not yet provide BPE, dropout, true multi-sequence minibatching, exhaustive validation, finite-difference gradient checks, optimized kernels, GPU acceleration or distributed training. It will be much slower than C/CUDA, and the demo corpus cannot teach broad language competence.
+This is a correctness-first CPU learning implementation, not a production LLM. It uses character-level tokens, small context windows, one simple sequential validation split, and a pure-JavaScript Float64 tensor engine. It does not yet provide BPE/tokenizer training, dropout, robust shuffled mini-batches, gradient accumulation, optimizer-state checkpoint/resume, learning-rate schedules, broad benchmark coverage, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights and architecture, not AdamW's moment state. Performance and model quality will be far below mature native/GPU training stacks, and a tiny corpus will not teach broad language competence.
 
-Next: gradient checks, rigorous dataset splits, batching, optimizer/weight-decay audit, profiling, and only then an AgentOS adapter. Keep training isolated from the domain-agnostic agent runtime until the API and tests are stable.
+## Roadmap
+
+1. **Implemented foundation:** tensor/autograd, multi-head causal attention, configurable stacked decoder blocks, AdamW, train/validation separation and model-weight checkpoints.
+2. **Training reliability:** finite-difference checks for more operations, optimizer-state checkpoint/resume, minibatches, better tokenization, and repeatable validation metrics.
+3. **Model quality:** dropout, learning-rate schedules, robust dataset packing, tokenizer interface/BPE, and evaluation on held-out data.
+4. **Performance:** benchmark first, then consider optimized typed-array kernels, WebGPU or a native backend.
+5. **AgentOS integration:** only after model and tokenizer interfaces are stable; keep training isolated from the domain-agnostic runtime.
 
 ## Relationship to Karpathy's work
 
-`llm.c` is a C/CUDA performance-engineering reference; `micrograd`, `makemore`, and `nanoGPT` offer educational patterns for autodiff and language-model training. This implementation translates those ideas into original JavaScript rather than copying source or promising CUDA-level performance.
+- `llm.c` is a low-level C/CUDA training and performance-engineering reference.
+- `makemore` and `nanoGPT` are useful educational references for language-model structure and training loops.
+- This directory translates learning goals into original JavaScript code; it does not copy their source. Node.js should not be expected to match CUDA performance.
