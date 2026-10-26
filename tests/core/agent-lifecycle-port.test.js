@@ -3,15 +3,16 @@ import { createAgentLifecyclePort } from '../../src/core/ports/agent-lifecycle.j
 
 function setup(overrides = {}) {
   const agents = new Map();
+  const order = [];
   const registry = {
-    create: jest.fn(async (definition) => { const agent = { id: definition.id, ...definition }; agents.set(agent.id, agent); return agent; }),
+    create: jest.fn(async (definition) => { order.push('create'); const agent = { id: definition.id, ...definition }; agents.set(agent.id, agent); return agent; }),
     get: jest.fn(async (id) => agents.get(id) || null),
     remove: jest.fn(async (id) => agents.delete(id)),
   };
   const executeAgent = jest.fn(async ({ agent, input }) => ({ agentId: agent.id, output: input }));
-  const authorize = jest.fn(async () => true);
-  const requestApproval = jest.fn(async () => true);
-  return { port: createAgentLifecyclePort({ registry, executeAgent, authorize, requestApproval, ...overrides }), registry, executeAgent, authorize, requestApproval };
+  const authorize = jest.fn(async () => { order.push('authorize'); return true; });
+  const requestApproval = jest.fn(async () => { order.push('approval'); return true; });
+  return { port: createAgentLifecyclePort({ registry, executeAgent, authorize, requestApproval, ...overrides }), registry, executeAgent, authorize, requestApproval, order };
 }
 const context = { tenantId: 'tenant-a', userId: 'user-a', requestId: 'req-1' };
 
@@ -20,7 +21,8 @@ describe('agent lifecycle port', () => {
     const s = setup();
     const result = await s.port.create({ definition: { id: 'agent-a' }, context });
     expect(result.status).toBe('created');
-    expect(s.authorize).toHaveBeenCalledBefore?.(s.requestApproval);
+    expect(s.order.indexOf('authorize')).toBeLessThan(s.order.indexOf('approval'));
+    expect(s.order.indexOf('approval')).toBeLessThan(s.order.indexOf('create'));
     expect(s.registry.create).toHaveBeenCalledWith(expect.objectContaining({ id: 'agent-a', tenantId: 'tenant-a', createdBy: 'user-a' }));
   });
 
