@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, jest } from '@jest/globals';
 import { authenticateBearer, issueUserToken, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
 
 describe('canonical identity authorization', () => {
@@ -17,6 +17,49 @@ describe('canonical identity authorization', () => {
   test('rejects short signing secrets and malformed user tokens', async () => {
     expect(() => issueUserToken({ uid: 'u1', role: 'USER' }, 'short')).toThrow(/16 characters/);
     expect(await authenticateBearer('not-a-token', { userTokenSecret: 'test-signing-secret-that-is-long-enough' })).toBeNull();
+  });
+
+  test('verifies Supabase access tokens and trusts only server-controlled role metadata', async () => {
+    const previous = {
+      url: process.env.SUPABASE_URL,
+      anon: process.env.SUPABASE_ANON_KEY,
+      fetch: global.fetch,
+    };
+    process.env.SUPABASE_URL = 'https://example.supabase.co';
+    process.env.SUPABASE_ANON_KEY = 'test-anon-key';
+    global.fetch = jest.fn(async (url, options) => ({
+      ok: true,
+      json: async () => ({
+        id: 'supabase-user-1',
+        email: 'user@example.com',
+        email_confirmed_at: '2026-01-01T00:00:00.000Z',
+        app_metadata: { role: 'PARTNER', tenant_id: 'tenant-1' },
+        user_metadata: { role: 'ADMIN' },
+      }),
+    }));
+    try {
+      const identity = await authenticateBearer('valid-supabase-token');
+      expect(identity.provider).toBe('supabase');
+      expect(identity.id).toBe('supabase-user-1');
+      expect(identity.roles).toEqual(['PARTNER']);
+      expect(identity.tenantId).toBe('tenant-1');
+      expect(identity.roles).not.toContain('ADMIN');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.supabase.co/auth/v1/user',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            apikey: 'test-anon-key',
+            authorization: 'Bearer valid-supabase-token',
+          }),
+        }),
+      );
+    } finally {
+      if (previous.url === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = previous.url;
+      if (previous.anon === undefined) delete process.env.SUPABASE_ANON_KEY;
+      else process.env.SUPABASE_ANON_KEY = previous.anon;
+      global.fetch = previous.fetch;
+    }
   });
 
   test('normalizes a Firebase identity', () => {
