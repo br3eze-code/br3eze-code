@@ -1,5 +1,5 @@
 export const FRAMEWORK_CONTRACT = Object.freeze([
-  'agent.create', 'agent.run', 'agent.handoff', 'agent.child',
+  'agent.create', 'agent.run', 'agent.remove', 'agent.handoff', 'agent.child',
   'workflow.define', 'workflow.run', 'workflow.resume',
   'tool.register', 'tool.execute', 'guardrail.check',
   'memory.read', 'memory.write', 'trace.read', 'evaluation.run',
@@ -8,6 +8,7 @@ export const FRAMEWORK_CONTRACT = Object.freeze([
 const FRAMEWORK_METHODS = Object.freeze({
   'agent.create': 'createAgent',
   'agent.run': 'runAgent',
+  'agent.remove': 'removeAgent',
   'agent.handoff': 'handoff',
   'agent.child': 'createChild',
   'workflow.define': 'defineWorkflow',
