@@ -23,7 +23,7 @@ class AgentOS extends EventEmitter {
     this.config = { ...config };
     this.runtime = config.runtime || new AgentRuntime({
       toolRegistry: config.toolRegistry || new ToolRegistry({
-        skillsPath: config.skillsPath || './skills',
+        skillsPath: config.skillsPath || './src/skills',
         permissionPolicy: config.permissionPolicy,
       }),
       providerManager: config.providerManager || null,
