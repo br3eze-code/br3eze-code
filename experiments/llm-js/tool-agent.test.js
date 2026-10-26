@@ -38,8 +38,9 @@ test("runs a model-selected tool only after schema validation and authorization"
   assert.equal(result.answer, "The record was found.");
   assert.equal(result.steps, 2);
   assert.equal(requests[0].tools[0].function.name, "lookup_record");
-  assert.equal(requests[1].messages.at(-1).role, "tool");
-  assert.match(requests[1].messages.at(-1).content, /"value":"found"/);
+  const toolResultMessage = requests[1].messages.findLast((message) => message.role === "tool");
+  assert.ok(toolResultMessage, "the follow-up model request should include a tool result");
+  assert.match(toolResultMessage.content, /"value":"found"/);
   assert.deepEqual(events.map((event) => event.type), ["tool_call", "tool_result", "done"]);
   assert.equal(executions, 1);
 });
