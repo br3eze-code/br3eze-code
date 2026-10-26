@@ -9,7 +9,7 @@ describe('PlatformAdapterRegistry', () => {
     registry.register({ id: 'host.runtime', start, capabilities: [{ name: 'device.info', invoke }] });
     await registry.start('host.runtime');
     await registry.start('host.runtime');
-    await expect(registry.invoke('platform.host.runtime.device.info', {}, { platform: 'linux' })).resolves.toEqual({ platform: 'linux' });
+    await expect(registry.invoke('platform.host.runtime.device.info', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:host.runtime:device.info'], platform: 'linux' })).resolves.toEqual({ platform: 'linux' });
     expect(start).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledTimes(1);
   });
@@ -25,9 +25,9 @@ describe('PlatformAdapterRegistry', () => {
     const registry = new PlatformAdapterRegistry();
     registry.register({ id: 'host.runtime', capabilities: [{ name: 'device.write', access: 'write', invoke }] });
     await registry.start('host.runtime');
-    await expect(registry.invoke('platform.host.runtime.device.write')).rejects.toThrow('explicit approval');
+    await expect(registry.invoke('platform.host.runtime.device.write', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:host.runtime:device.write'] })).rejects.toThrow('explicit approval');
     expect(invoke).not.toHaveBeenCalled();
-    await expect(registry.invoke('platform.host.runtime.device.write', {}, { approvalGranted: true })).resolves.toEqual({ ok: true });
+    await expect(registry.invoke('platform.host.runtime.device.write', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:host.runtime:device.write'], approvalGranted: true })).resolves.toEqual({ ok: true });
   });
 
   test('rejects pre-aborted calls', async () => {
@@ -37,7 +37,7 @@ describe('PlatformAdapterRegistry', () => {
     await registry.start('host.runtime');
     const controller = new AbortController();
     controller.abort(new Error('cancelled'));
-    await expect(registry.invoke('platform.host.runtime.device.info', {}, { signal: controller.signal })).rejects.toThrow('cancelled');
+    await expect(registry.invoke('platform.host.runtime.device.info', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:host.runtime:device.info'], signal: controller.signal })).rejects.toThrow('cancelled');
     expect(invoke).not.toHaveBeenCalled();
   });
 
