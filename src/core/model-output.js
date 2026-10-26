@@ -7,7 +7,6 @@ export function processModelOutput(rawText, { reasoningSummary = null } = {}) {
   const text = String(rawText ?? '');
   const sanitizedOutput = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<｜think｜>[\s\S]*?<｜/gi, '')
     .trim();
   return {
     sanitizedOutput,
