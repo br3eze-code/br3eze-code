@@ -6,6 +6,13 @@ import loadAllDomains from '../../src/core/loadDomain.js';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 describe('optional domain adapter boot boundary', () => {
+  test('autonomous audit changes require a review PR and explicit CI dispatch', () => {
+    const workflow = read('../../.github/workflows/autonomous-audit.yml');
+    expect(workflow).not.toContain('git push origin main');
+    expect(workflow).toContain('gh pr create --base main');
+    expect(workflow).toContain('gh workflow run ci.yml --ref "$BRANCH"');
+  });
+
   test('package entry points to the canonical runtime, not the removed gateway facade', () => {
     const packageJson = JSON.parse(read('../../package.json'));
     expect(packageJson.main).toBe('src/core/agentRuntime.js');
