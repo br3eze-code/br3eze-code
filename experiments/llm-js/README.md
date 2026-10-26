@@ -114,6 +114,10 @@ const answer = await harness.generate("local-reasoner", {
 });
 console.log(answer.text);
 
+// Existing AgentOS runtime can use the same adapter as its ModelPort:
+// runtime.setModel(createOpenAICompatibleAdapter({ baseUrl, model }));
+// AgentRuntime remains the sole tool execution/permission boundary.
+
 // Streaming is also supported:
 for await (const piece of harness.stream("local-reasoner", {
   messages: [{ role: "user", content: "Explain LoRA briefly." }],
@@ -197,7 +201,7 @@ node --test experiments/llm-js/harness.test.js experiments/llm-js/tool-agent.tes
 
 - `finetune-pretrained.js` orchestrates LoRA fine-tuning of compatible Hugging Face causal language models via the optional Transformers/PEFT backend.
 - The saved output is an **adapter**, not a standalone model. Record the exact base model/revision and tokenizer alongside it; inference must load the base model and apply that adapter using a compatible runtime.
-- `harness.js` currently consumes an already-running inference endpoint. It does not load GGUF/safetensors weights directly, run a training job, execute tools, or enforce AgentOS authorization by itself.
+- `harness.js` consumes an already-running inference endpoint and now implements the canonical AgentOS model-port shape (`execute(request)`) as well as direct `generate()`/`stream()` calls. When passed to the existing `AgentRuntime.setModel(...)`, AgentRuntime continues to own tool discovery, permission checks, task lifecycle and execution. The adapter does not load GGUF/safetensors weights directly or run a training job.
 - `finetune.js`, `gpt.js`, and the tensor/autograd files remain the educational, pure-JavaScript TinyGPT path.
 
 ### 5. Production harness boundaries
