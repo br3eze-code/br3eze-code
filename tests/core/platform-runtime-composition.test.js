@@ -41,4 +41,36 @@ describe('Br3eze OS platform runtime composition', () => {
       });
     expect(runtime.listPlatformCapabilities({ platform: 'node' })).toHaveLength(1);
   });
+
+  test('canonical runtime exposes managed app state and fail-closed IPC policy', async () => {
+    const received = [];
+    const state = {
+      get: async () => 'value',
+      set: async () => ({ saved: true }),
+      delete: async () => true,
+      list: async () => ['key'],
+    };
+    const runtime = new AgentRuntime({
+      toolRegistry: { execute: async () => ({}), getTool: () => null, getAllTools: () => [] },
+      localState: state,
+      ipcAuthorize: ({ action, topic, tenantId, userId }) =>
+        action === 'publish' && action !== 'subscribe' && topic === 'demo.events' && tenantId === 'tenant-a' && userId === 'user-a',
+    });
+    await expect(runtime.getAppState({ tenantId: 'tenant-a', appId: 'demo.app', key: 'key' })).resolves.toBe('value');
+    await expect(runtime.setAppState({ tenantId: 'tenant-a', appId: 'demo.app', key: 'key', value: 1 })).resolves.toEqual({ saved: true });
+    await expect(runtime.publishIPC({ topic: 'demo.events', publisherId: 'app-a', tenantId: 'tenant-a', userId: 'user-a' }, { ok: true })).resolves.toMatchObject({ delivered: 0 });
+    await expect(runtime.publishIPC({ topic: 'demo.events', publisherId: 'app-a', tenantId: 'tenant-b', userId: 'user-b' }, { ok: true })).rejects.toThrow('missing_permission');
+  });
+
+  test('graceful shutdown stops registered services', async () => {
+    const stop = [];
+    const runtime = new AgentRuntime({
+      toolRegistry: { execute: async () => ({}), getTool: () => null, getAllTools: () => [] },
+    });
+    runtime.registerService({ id: 'shutdown.service', start: async () => {}, stop: async () => { stop.push(true); } });
+    await runtime.startService('shutdown.service');
+    await runtime.shutdownOS();
+    expect(stop).toHaveLength(1);
+    expect(runtime.listServices()[0].state).toBe('stopped');
+  });
 });
