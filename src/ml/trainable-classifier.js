@@ -150,7 +150,7 @@ function trainBatch(network, batch, learningRate, classCount, featureCount) {
   for (let label = 0; label < classCount; label += 1) network.b2[label] -= rate * gB2[label];
 }
 
-function evaluate(network, rows, classCount) {
+function evaluate(network, rows) {
   if (!rows.length) return { loss: null, accuracy: null };
   let totalLoss = 0;
   let correct = 0;
@@ -202,8 +202,8 @@ export async function trainClassifier(rows, {
     }
   }
 
-  const trainMetrics = evaluate(network, trainingRows, labels.length);
-  const validationMetrics = evaluate(network, validationRows, labels.length);
+  const trainMetrics = evaluate(network, trainingRows);
+  const validationMetrics = evaluate(network, validationRows);
   const artifact = {
     schemaVersion: 1,
     task: 'multiclass-classification',
