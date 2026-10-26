@@ -18,6 +18,13 @@ This is a file-by-file recovery, not a wholesale branch merge. Re-run GitHub com
 | `refactor/general-purpose-single-runtime` | 0 ahead, 78 behind | No unique committed file diff at current head. Re-check live runtime paths and historical review notes before claiming single-runtime consolidation is complete. |
 | `v0/br3eze-code-22012066` | 1 ahead, 162 behind | Only unique diff reported is `package-lock.json`. Deferred wholesale lockfile replacement pending dependency-manifest consistency and reproducible npm install; do not port stale dependency resolution blindly. |
 
+## Additional open-PR patterns recovered
+
+- From PR #215, removed tracked local AI settings, a Podman environment file containing a gateway token, the release keystore, and stale logs from this proposed tree. This does **not** purge those artifacts from Git history; rotate exposed credentials and signing material.
+- Ported PR #215's CI hygiene checks, domain-neutral default-tool cleanup, skill registration through the canonical ToolRegistry, and associated focused tests.
+- Added `experiments/llm-js/verify-training.js` from PR #211, which was absent from the first pass.
+- PRs #212 and #214 overlap on the autograd files; the consolidated branch keeps the corrected #214 implementation once, rather than duplicating the same feature.
+
 ## Files added or reconciled on this branch
 
 - `.github/workflows/llm-js.yml`
