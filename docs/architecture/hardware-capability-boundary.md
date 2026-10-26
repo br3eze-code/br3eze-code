@@ -1,6 +1,6 @@
 # Level 1 — Hardware capability boundary
 
-Status: first implementation slice; adapter contract and guarded registration exist, but no physical-device adapter is enabled by this change.
+Status: Level 1 includes a read-only RouterOS adapter. It is testable with an injected manager, but has not been verified against a live router in this workflow.
 
 ## Ownership
 
@@ -11,7 +11,7 @@ Status: first implementation slice; adapter contract and guarded registration ex
 
 ## Adapter contract
 
-Each adapter supplies a simple `id` and a non-empty `capabilities` array. Every capability declares a unique `name`, `access: 'read' | 'write'`, JSON-schema-like `schema`, and an `execute(args, context)` function. Register adapters, then call `registry.mount(runtime.toolRegistry)` at the composition root.
+Each adapter supplies a simple `id` and a non-empty `capabilities` array. Every capability declares a unique `name`, `access: 'read' | 'write'`, JSON-schema-like `schema`, and an `execute(args, context)` function. Register an adapter through `runtime.registerHardwareAdapter(adapter)` at the composition root. The first concrete adapter is `src/adapters/hardware/mikrotik-hardware-adapter.js`; it reuses the existing network adapter and exposes only read-only system statistics, interface listing and active hotspot-user listing.
 
 Mounted tools are namespaced as `hardware.<adapter-id>.<capability-name>`. Arbitrary shell strings and undeclared device operations are not part of the contract.
 
@@ -30,8 +30,8 @@ Mounted tools are namespaced as `hardware.<adapter-id>.<capability-name>`. Arbit
 2. Read operations require identity; write operations fail closed without approval.
 3. Tool registration flows through the canonical registry.
 4. Timeouts and cancellation are visible to adapters.
-5. Physical control is not claimed until a concrete adapter is installed and tested against target hardware.
+5. RouterOS read-only integration is implemented and covered with a fake manager; live-router validation is still outstanding. No write-capable device operation is currently exposed by the RouterOS adapter.
 
 ## Next slice
 
-Implement one real, narrowly scoped adapter against hardware the deployment actually has (for example, MikroTik RouterOS read-only inventory first), then add integration tests using a simulator or lab device before enabling write operations.
+Validate the RouterOS adapter against a simulator or lab router with read-only credentials, then add approved, narrowly scoped write operations only after idempotency and rollback behavior are tested.
