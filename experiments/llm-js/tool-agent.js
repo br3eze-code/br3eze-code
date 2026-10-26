@@ -62,12 +62,34 @@ function toToolResult(value) {
   catch { throw new TypeError("Tool result must be JSON-serializable or a string"); }
 }
 
+function validateSchemaDefinition(schema, path = "$") {
+  if (!isPlainObject(schema)) return [`${path} must be a schema object`];
+  const supported = new Set(["object", "array", "string", "number", "integer", "boolean"]);
+  if (!supported.has(schema.type)) return [`${path} has unsupported schema type: ${schema.type}`];
+  const errors = [];
+  if (schema.type === "object") {
+    if (schema.properties !== undefined && !isPlainObject(schema.properties)) errors.push(`${path}.properties must be an object`);
+    if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((key) => typeof key !== "string"))) {
+      errors.push(`${path}.required must be an array of strings`);
+    }
+    for (const [key, child] of Object.entries(schema.properties ?? {})) {
+      errors.push(...validateSchemaDefinition(child, `${path}.properties.${key}`));
+    }
+  }
+  if (schema.type === "array" && schema.items !== undefined) {
+    errors.push(...validateSchemaDefinition(schema.items, `${path}.items`));
+  }
+  return errors;
+}
+
 function normalizeTool(tool) {
   if (!tool || typeof tool.name !== "string" || !tool.name.trim()) throw new TypeError("Each tool needs a non-empty name");
   if (typeof tool.execute !== "function") throw new TypeError(`Tool ${tool.name} must implement execute(args, context)`);
   if (!isPlainObject(tool.parameters) || tool.parameters.type !== "object") {
     throw new TypeError(`Tool ${tool.name} must provide an object JSON Schema in parameters`);
   }
+  const schemaErrors = validateSchemaDefinition(tool.parameters, `tool.${tool.name}.parameters`);
+  if (schemaErrors.length) throw new TypeError(schemaErrors.join("; "));
   return tool;
 }
 
