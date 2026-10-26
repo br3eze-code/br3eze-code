@@ -1,0 +1,7 @@
+# Training environment for the RouterOS diagnosis LoRA scaffold.
+# Pin major versions for reproducibility; record exact resolved versions in each run.
+torch>=2.4,<3
+transformers>=4.46,<5
+peft>=0.13,<1
+accelerate>=1.0,<2
+safetensors>=0.4
