@@ -71,17 +71,28 @@ export class ApprovalWorkflow {
     if (!(await db.compareAndSet(PREFIX + actionId, 'APPROVED', executing))) {
       throw new Error('Approval could not be claimed for execution');
     }
+    let result;
     try {
-      const result = await execute(approved.toolName, approved.params, {
+      result = await execute(approved.toolName, approved.params, {
         tenantId: approved.tenantId, userId: approved.requestedBy,
         approvalGranted: true, approved: true, approvalId: actionId, approvedBy: actor,
       });
-      await db.set(PREFIX + actionId, { ...executing, status: 'EXECUTED', executedAt: now(), result });
-      return { actionId, status: 'EXECUTED', result };
     } catch (error) {
-      await db.set(PREFIX + actionId, { ...executing, status: 'FAILED', failedAt: now(), error: error.message });
+      const failed = { ...executing, status: 'FAILED', failedAt: now(), error: error?.message || String(error) };
+      const finalized = await db.compareAndSet(PREFIX + actionId, 'EXECUTING', failed);
+      if (!finalized) {
+        throw new Error('Action failed, but its approval state could not be finalized; manual reconciliation is required', { cause: error });
+      }
       throw error;
     }
+
+    // Never overwrite a state that another worker or administrative process has
+    // changed. Terminal transitions must be conditional just like the claim.
+    const executed = { ...executing, status: 'EXECUTED', executedAt: now(), result };
+    if (!(await db.compareAndSet(PREFIX + actionId, 'EXECUTING', executed))) {
+      throw new Error('Action executed, but its approval state could not be finalized; manual reconciliation is required');
+    }
+    return { actionId, status: 'EXECUTED', result };
   }
 }
 export default ApprovalWorkflow;
