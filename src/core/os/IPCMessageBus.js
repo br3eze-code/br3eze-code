@@ -6,7 +6,7 @@ function assertTopic(topic) {
 }
 
 function assertPrincipalField(value, label) {
-  if (typeof value !== 'string' || value.length < 1 || value.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(value)) {
+  if (typeof value !== 'string' || value.length < 1 || value.length > 128 || [...value].some((character) => { const code = character.charCodeAt(0); return code <= 31 || code === 127; })) {
     throw new TypeError(`${label} must be a non-empty string of at most 128 safe characters`);
   }
 }
@@ -61,7 +61,7 @@ export class IPCMessageBus {
     assertPrincipalField(publisherId, 'publisherId');
     assertPrincipalField(tenantId, 'tenantId');
     assertPrincipalField(userId, 'userId');
-    if (correlationId !== null && (typeof correlationId !== 'string' || correlationId.length > 128 || /[\\u0000-\\u001f\\u007f]/.test(correlationId))) throw new TypeError('correlationId must be a safe string of at most 128 characters');
+    if (correlationId !== null && (typeof correlationId !== 'string' || correlationId.length > 128 || [...correlationId].some((character) => { const code = character.charCodeAt(0); return code <= 31 || code === 127; }))) throw new TypeError('correlationId must be a safe string of at most 128 characters');
     await this.#assertAuthorized('publish', topic, { principalId: publisherId, tenantId, userId });
     if (!isSafePayload(payload)) throw new TypeError('IPC payload must be bounded JSON-compatible data');
     let serialized;
