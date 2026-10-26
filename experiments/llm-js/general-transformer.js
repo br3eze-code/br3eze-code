@@ -35,7 +35,10 @@ export class TransformerLM {
     this.blocks=Array.from({length:layers},()=>{const b={ln1:norm(),ln2:norm(),heads:[]}; for(let i=0;i<heads;i++) b.heads.push({qW:init(d,hd),qB:zeros(hd),kW:init(d,hd),kB:zeros(hd),vW:init(d,hd),vB:zeros(hd)}); b.attnW=init(d,d);b.attnB=zeros(d);b.ff1W=init(d,h);b.ff1B=zeros(h);b.ff2W=init(h,d);b.ff2B=zeros(d);return b;});
     this.finalNorm=norm();this.lmW=init(d,vocabSize);this.lmB=zeros(vocabSize);
     this.parameters=[this.tokenEmbedding,this.positionEmbedding,...this.blocks.flatMap(b=>[b.ln1.gamma,b.ln1.beta,...b.heads.flatMap(a=>[a.qW,a.qB,a.kW,a.kB,a.vW,a.vB]),b.attnW,b.attnB,b.ln2.gamma,b.ln2.beta,b.ff1W,b.ff1B,b.ff2W,b.ff2B]),this.finalNorm.gamma,this.finalNorm.beta,this.lmW,this.lmB];
+    this.parameterNames=["tokenEmbedding","positionEmbedding",...this.blocks.flatMap((b,bi)=>[`block${bi}.ln1.gamma`,`block${bi}.ln1.beta`,...b.heads.flatMap((_,hi)=>[`block${bi}.head${hi}.qW`,`block${bi}.head${hi}.qB`,`block${bi}.head${hi}.kW`,`block${bi}.head${hi}.kB`,`block${bi}.head${hi}.vW`,`block${bi}.head${hi}.vB`]),`block${bi}.attnW`,`block${bi}.attnB`,`block${bi}.ln2.gamma`,`block${bi}.ln2.beta`,`block${bi}.ff1W`,`block${bi}.ff1B`,`block${bi}.ff2W`,`block${bi}.ff2B`]),"finalNorm.gamma","finalNorm.beta","lmW","lmB"];
     this.optimizerStep=0;this.adamM=this.parameters.map(p=>new Float64Array(p.size));this.adamV=this.parameters.map(p=>new Float64Array(p.size));
+    this.trainableParameterIndices=this.parameters.map((_,i)=>i);
+    this.frozenParameterIndices=[];
   }
   forward(ids) {
     if(!Array.isArray(ids)||!ids.length||ids.length>this.contextSize||ids.some(i=>!Number.isInteger(i)||i<0||i>=this.vocabSize)) throw new RangeError("token IDs must be valid and fit within contextSize");
@@ -48,10 +51,12 @@ export class TransformerLM {
     if(!(learningRate>0)||!Number.isFinite(learningRate)||!(weightDecay>=0)||!Number.isFinite(weightDecay))throw new RangeError("invalid learningRate or weightDecay");
     if(!Number.isFinite(beta1)||beta1<0||beta1>=1||!Number.isFinite(beta2)||beta2<0||beta2>=1)throw new RangeError("beta1 and beta2 must be finite values in [0, 1)");
     if(!(epsilon>0)||!Number.isFinite(epsilon)||!(maxGradientNorm>0)||!Number.isFinite(maxGradientNorm))throw new RangeError("epsilon and maxGradientNorm must be finite and > 0");
+    if(!Array.isArray(this.trainableParameterIndices)||this.trainableParameterIndices.some(i=>!Number.isInteger(i)||i<0||i>=this.parameters.length))throw new Error("invalid trainable parameter selection");
     for(const p of this.parameters)p.zeroGrad();const loss=this.loss(inputs,targets);if(!Number.isFinite(loss.value))throw new Error("non-finite loss");loss.backward();let norm2=0;
-    for(const p of this.parameters)for(const g of p.grad){if(!Number.isFinite(g))throw new Error("non-finite gradient");norm2+=g*g;}
+    for(const j of this.trainableParameterIndices)for(const g of this.parameters[j].grad){if(!Number.isFinite(g))throw new Error("non-finite gradient");norm2+=g*g;}
     const norm=Math.sqrt(norm2),scale=norm>maxGradientNorm?maxGradientNorm/norm:1;this.optimizerStep++;const c1=1-beta1**this.optimizerStep,c2=1-beta2**this.optimizerStep;
-    this.parameters.forEach((p,j)=>{const m=this.adamM[j],v=this.adamV[j];for(let i=0;i<p.size;i++){const g=p.grad[i]*scale;m[i]=beta1*m[i]+(1-beta1)*g;v[i]=beta2*v[i]+(1-beta2)*g*g;p.data[i]-=learningRate*((m[i]/c1)/(Math.sqrt(v[i]/c2)+epsilon)+weightDecay*p.data[i]);}});
+    for(const j of this.trainableParameterIndices){const p=this.parameters[j],m=this.adamM[j],v=this.adamV[j];for(let i=0;i<p.size;i++){const g=p.grad[i]*scale;m[i]=beta1*m[i]+(1-beta1)*g;v[i]=beta2*v[i]+(1-beta2)*g*g;p.data[i]-=learningRate*((m[i]/c1)/(Math.sqrt(v[i]/c2)+epsilon)+weightDecay*p.data[i]);}}
+    for(const j of this.frozenParameterIndices)this.parameters[j].zeroGrad();
     return loss.value;
   }
   generate(seedIds,{maxNewTokens=100,temperature=1,seed=this.seed}={}){if(!Array.isArray(seedIds)||!seedIds.length||seedIds.some(i=>!Number.isInteger(i)||i<0||i>=this.vocabSize))throw new RangeError("seedIds must be valid token IDs");if(!Number.isInteger(maxNewTokens)||maxNewTokens<0||!(temperature>0)||!Number.isFinite(temperature))throw new RangeError("invalid generation options");const rng=rngFor(seed),out=[...seedIds];for(let n=0;n<maxNewTokens;n++){const ctx=out.slice(-this.contextSize),p=softmax(row(this.forward(ctx),ctx.length-1).mul(1/temperature)).data;let draw=rng(),next=p.length-1;for(let i=0;i<p.length;i++){draw-=p[i];if(draw<=0){next=i;break;}}out.push(next);}return out;}
