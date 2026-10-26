@@ -9,7 +9,7 @@ Level 2 is an operating-system-like application platform that runs above support
 - Managed runtime: canonical AgentRuntime remains the only agent/task execution owner.
 - Service supervisor: registered trusted services have explicit start/stop states, failure reporting, bounded registration, and lifecycle events.
 - Permission model: host identity and explicit capability grants are required at IPC/platform boundaries; app manifests declare requested permissions but do not grant them automatically.
-- IPC: in-process message bus supports tenant-scoped topics, JSON-compatible bounded payloads, per-topic authorization, correlation IDs, and audit hooks.
+- IPC: in-process message bus supports tenant-scoped topics, JSON-compatible payloads with a byte limit, correlation IDs, and audit hooks. Authorization is fail-closed and must be supplied as a trusted host `ipcAuthorize` policy; caller-supplied permission arrays are not trusted.
 - Application lifecycle: declarative manifests identify app/version/entry service; start/stop delegates to the service supervisor.
 - Local-first state: durable tenant/app-scoped JSON key/value storage with bounded values and atomic file replacement; sync/conflict policy remains a separate adapter.
 - Package management: planned next stage; must verify package integrity, constrain install paths, validate manifests and support rollback before executing code.
@@ -27,7 +27,7 @@ Level 2 is an operating-system-like application platform that runs above support
 
 - App manifest permissions are declarations only; host authorization must issue effective grants separately.
 - Never expose arbitrary shell, unrestricted filesystem access, raw memory, or implicit hardware writes to apps.
-- IPC topics are explicitly granted and tenant-scoped.
+- IPC topics are explicitly granted by the trusted host authorization callback and tenant-scoped; payload size is byte-bounded.
 - A registry or in-process message bus is not a sandbox against malicious code.
 - Remote IPC transports must authenticate both ends and preserve tenant/capability checks.
 - Package install must verify digest/signature and reject path traversal before extraction or activation.
