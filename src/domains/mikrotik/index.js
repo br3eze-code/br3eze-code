@@ -1,5 +1,5 @@
 import BaseDomain from '../BaseDomain.js';
-import { MikroTikManager } from '../../core/mikrotik.js';
+import { MikroTikManager } from '../../adapters/network/mikrotik.js';
 
 class MikroTikDomain extends BaseDomain {
   constructor(config) {
@@ -22,7 +22,13 @@ class MikroTikDomain extends BaseDomain {
     this.registerTool({
       name: 'reboot',
       description: 'Reboot the router',
-      execute: async () => this.client.reboot()
+      requiresApproval: true,
+      risk: 'critical',
+      passContext: true,
+      execute: async (params = {}, context = {}) => {
+        if (context.approvalGranted !== true) throw new Error('Router reboot requires explicit approval');
+        return this.client.reboot({ approvalGranted: true });
+      }
     });
   }
 }
