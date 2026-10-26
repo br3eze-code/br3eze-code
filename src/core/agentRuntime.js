@@ -185,7 +185,7 @@ class AgentRuntime extends EventEmitter {
       throw new TypeError('toolRegistry must be an object');
     }
     this.toolRegistry = toolRegistry;
-    this.hardwareCapabilities?.mount(toolRegistry);
+    if (typeof toolRegistry.register === 'function') this.hardwareCapabilities?.mount(toolRegistry);
     this.injectedToolExecutor = false;
     this.toolExecutor = typeof toolRegistry.execute === 'function'
       ? toolRegistry.execute.bind(toolRegistry)

@@ -92,7 +92,7 @@ describe('provider model port adapter', () => {
 
     await expect(model.execute({ tools: [{ type: 'function', function: { name: 'test.echo' } }] }))
       .resolves.toMatchObject({
-        toolCalls: [{ id: 'c2', name: 'test.echo', arguments: '{"value":"ok"}' }],
+        toolCalls: [{ id: 'c2', name: 'test.echo', arguments: { value: 'ok' } }],
       });
     expect(() => createProviderModelPort()).toThrow(/provider must implement generate/i);
   });

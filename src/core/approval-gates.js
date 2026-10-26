@@ -38,7 +38,7 @@ export class ApprovalWorkflow {
         agentRole: context.agentRole || null,
         roles: Array.isArray(context.roles) ? [...context.roles] : [],
         authorizedCapabilities: Array.isArray(context.authorizedCapabilities) ? [...context.authorizedCapabilities] : [],
-        allowedToolNames: Array.isArray(context.allowedToolNames) ? [...context.allowedToolNames] : [],
+        allowedToolNames: Array.isArray(context.allowedToolNames) ? [...context.allowedToolNames] : null,
         delegationDepth: Number.isInteger(context.delegationDepth) ? context.delegationDepth : 0,
         delegatedBy: context.delegatedBy || null,
         taskId: context.taskId || null,

@@ -158,6 +158,29 @@ class ToolRegistry {
     return this;
   }
 
+  matchFastPath(input) {
+    for (const [skillName, skill] of this.skills) {
+      if (skill.enabled === false || typeof skill.match !== 'function') continue;
+      try {
+        const match = skill.match(input);
+        if (!match || typeof match.tool !== 'string' || !this.tools.has(match.tool)) continue;
+        if (Array.isArray(skill.tools) && !skill.tools.includes(match.tool)) continue;
+        return { tool: match.tool, args: match.args && typeof match.args === 'object' ? match.args : {} };
+      } catch (error) {
+        this.logger.warn('Fast-path match failed for skill "' + skillName + '": ' + error.message);
+      }
+    }
+    return null;
+  }
+
+  toolDeclarations() {
+    return this.getAllTools().map((tool) => ({
+      name: tool.fullName || tool.name,
+      description: tool.description || tool.schema?.description || '',
+      parameters: tool.schema?.parameters || { type: 'object', properties: {} },
+    }));
+  }
+
   async loadSkills() {
     this.logger.info(`Loading skills from: ${this.skillsPath}`);
     try {
