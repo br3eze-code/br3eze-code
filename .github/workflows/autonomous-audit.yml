@@ -76,6 +76,8 @@ jobs:
               --title "Weekly AgentOS audit: $DATE" \
               --body "Automated audit output and suggested patches. Review all generated changes and confirm CI before merging. This workflow does not push AI-generated changes directly to main. Security CRITICAL=$SEC; crash bugs=$BUG; proposed patches=$PAT.")
             echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+            # GITHUB_TOKEN-created branches/PRs do not automatically trigger CI.
+            gh workflow run ci.yml --ref "$BRANCH"
           fi
 
       - name: Telegram summary
