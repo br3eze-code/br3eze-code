@@ -72,9 +72,9 @@ describe('HardwareCapabilityRegistry', () => {
 
     await expect(registry.execute('hardware.robot-1.move', {}, { ...auth, approvalGranted: true, approvalId: 'approval-123' }))
       .rejects.toThrow('missing required hardware argument');
-    await expect(registry.execute('hardware.robot-1.move', { direction: 'forward', shell: 'anything' }, { ...auth, approved: true }))
+    await expect(registry.execute('hardware.robot-1.move', { direction: 'forward', shell: 'anything' }, { ...auth, approvalGranted: true, approvalId: 'approval-123' }))
       .rejects.toThrow('unknown hardware argument');
-    await expect(registry.execute('hardware.robot-1.move', { direction: 'left' }, { ...auth, approved: true }))
+    await expect(registry.execute('hardware.robot-1.move', { direction: 'left' }, { ...auth, approvalGranted: true, approvalId: 'approval-123' }))
       .rejects.toThrow('invalid value');
     expect(execute).not.toHaveBeenCalled();
   });
