@@ -45,9 +45,19 @@ test("runner accepts checkpoint objects and rejects empty datasets", async () =>
   ], { checkpoint, epochs: 1, unfreezeHeadOnly: true, logger: () => {} });
   assert.deepEqual(Array.from(model.params.tokenEmbedding.data), originalEmbedding);
 
+  const emptyModel = createModel();
   await assert.rejects(
-    runFineTuning(createModel(), createModel().optimizer, [], { epochs: 1, logger: () => {} }),
+    runFineTuning(emptyModel, emptyModel.optimizer, [], { epochs: 1, logger: () => {} }),
     /no batches/
+  );
+
+  function* oneShotDataset() {
+    yield { inputs: [0, 1], targets: [1, 2] };
+  }
+  const singleUse = oneShotDataset();
+  await assert.rejects(
+    runFineTuning(emptyModel, emptyModel.optimizer, singleUse, { epochs: 2, logger: () => {} }),
+    /re-iterable collection/
   );
 });
 
