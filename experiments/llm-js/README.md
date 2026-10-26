@@ -21,9 +21,9 @@ node experiments/llm-js/train.js --steps 2000 --lr 0.1 --seed 42
 node experiments/llm-js/train-gpt.js --steps 100 --context 16 --width 8 --heads 2 --layers 2 --hidden 32 --lr 0.01 --seed 42
 ```
 
-Use `--input path/to/text.txt` to train on a UTF-8 text file you have permission to use. The CLI makes a simple sequential 90/10 train/validation split, trains only on the training portion, reports held-out validation loss before and after training, generates a sample, and saves model weights plus the character vocabulary. For a very small corpus the split is necessarily weak; use a larger, representative dataset for meaningful evaluation.
+Use `--input path/to/text.txt` to train on a UTF-8 text file you have permission to use. The CLI makes a simple sequential 90/10 train/validation split, trains only on the training portion, reports held-out validation loss before and after training, generates a sample, and saves model weights, AdamW moments, and the character vocabulary. For a very small corpus the split is necessarily weak; use a larger, representative dataset for meaningful evaluation.
 
-Options include `--steps`, `--context`, `--width`, `--heads`, `--layers`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, and `--checkpoint`. The head count must divide the embedding width. Keep dimensions small for CPU training.
+Options include `--steps`, `--context`, `--width`, `--heads`, `--layers`, `--hidden`, `--lr`, `--seed`, `--generate`, `--input`, `--resume`, and `--checkpoint`. The head count must divide the embedding width. Keep dimensions small for CPU training.
 
 ## Test
 
@@ -37,17 +37,17 @@ node --test experiments/llm-js/*.test.js
 - `Tensor`: Float64 scalar/vector/matrix operations, matrix multiplication, transpose, row-wise softmax, ReLU, exp/log/sum and reverse-mode automatic differentiation.
 - Embedding lookup, differentiable row/column slicing and concatenation, stable softmax and cross-entropy.
 - Causal multi-head scaled dot-product attention, learned token and position embeddings, linear layers, layer normalization, residual connections and feed-forward blocks.
-- `TinyGPT`: configurable decoder depth and attention-head count, gradient clipping, AdamW updates, deterministic sampling and model-weight checkpointing.
+- `TinyGPT`: configurable decoder depth and attention-head count, gradient clipping, AdamW updates, deterministic sampling and model-plus-optimizer checkpoint/resume.
 - A simple held-out validation split and saved character vocabulary.
 - Node's built-in tests and a Node 22 GitHub Actions workflow for unit tests and CLI smoke tests.
 
 ## Important limits
 
-This is a correctness-first CPU learning implementation, not a production LLM. It uses character-level tokens, small context windows, one simple sequential validation split, and a pure-JavaScript Float64 tensor engine. It does not yet provide BPE/tokenizer training, dropout, robust shuffled mini-batches, gradient accumulation, optimizer-state checkpoint/resume, learning-rate schedules, broad benchmark coverage, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights, architecture, and AdamW moment state. Resume requires the original corpus; the sampling RNG stream restarts rather than continuing exactly. Performance and model quality will be far below mature native/GPU training stacks, and a tiny corpus will not teach broad language competence.
+This is a correctness-first CPU learning implementation, not a production LLM. It uses character-level tokens, small context windows, one simple sequential validation split, and a pure-JavaScript Float64 tensor engine. It does not yet provide BPE/tokenizer training, dropout, robust shuffled mini-batches, gradient accumulation, learning-rate schedules, broad benchmark coverage, efficient tensor kernels, GPU acceleration or distributed training. Checkpoints currently preserve model weights, architecture, and AdamW moment state. Resume requires the original corpus; the sampling RNG stream restarts rather than continuing exactly. Performance and model quality will be far below mature native/GPU training stacks, and a tiny corpus will not teach broad language competence.
 
 ## Roadmap
 
-1. **Implemented foundation:** tensor/autograd, multi-head causal attention, configurable stacked decoder blocks, AdamW, train/validation separation and model-weight checkpoints.
+1. **Implemented foundation:** tensor/autograd, multi-head causal attention, configurable stacked decoder blocks, AdamW, train/validation separation and model-plus-optimizer checkpoints.
 2. **Training reliability:** finite-difference checks for more operations, optimizer-state checkpoint/resume, minibatches, better tokenization, and repeatable validation metrics.
 3. **Model quality:** dropout, learning-rate schedules, robust dataset packing, tokenizer interface/BPE, and evaluation on held-out data.
 4. **Performance:** benchmark first, then consider optimized typed-array kernels, WebGPU or a native backend.
