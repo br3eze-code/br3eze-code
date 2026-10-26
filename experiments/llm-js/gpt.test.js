@@ -32,7 +32,13 @@ test("TinyGPT checkpoint round trip preserves logits", () => {
   model.trainStep([0, 1, 2], [1, 2, 3], 0.01);
   const expected = model.forward([0, 1, 2]).toArray();
   const restored = TinyGPT.fromJSON(JSON.parse(JSON.stringify(model.toJSON())));
-  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), expected);\n  model.trainStep([0, 1, 2], [1, 2, 3], 0.01);\n  restored.trainStep([0, 1, 2], [1, 2, 3], 0.01);\n  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), model.forward([0, 1, 2]).toArray());\n});\n\ntest("TinyGPT validates context and checkpoint formats", () => {
+  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), expected);
+  model.trainStep([0, 1, 2], [1, 2, 3], 0.01);
+  restored.trainStep([0, 1, 2], [1, 2, 3], 0.01);
+  assert.deepEqual(restored.forward([0, 1, 2]).toArray(), model.forward([0, 1, 2]).toArray());
+});
+
+test("TinyGPT validates context and checkpoint formats", () => {
   const model = new TinyGPT(3, { contextSize: 2, embeddingSize: 2, hiddenSize: 4 });
   assert.throws(() => model.forward([0, 1, 2]), /contextSize/);
   assert.throws(() => TinyGPT.fromJSON({}), /checkpoint format/);
