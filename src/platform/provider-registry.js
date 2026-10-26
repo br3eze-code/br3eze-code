@@ -6,7 +6,7 @@ const PROVIDER_KINDS = new Set(['model', 'storage', 'network', 'hardware', 'mess
 function validateProvider(provider) {
   if (!provider || typeof provider !== 'object') throw new TypeError('provider must be an object');
   if (typeof provider.id !== 'string' || !ID.test(provider.id)) throw new TypeError('provider.id is invalid');
-  if (!PROVIDER_KINDS.has(provider.kind)) throw new TypeError(\`provider.kind must be one of: \${[...PROVIDER_KINDS].join(', ')}\`);
+  if (!PROVIDER_KINDS.has(provider.kind)) throw new TypeError(`provider.kind must be one of: ${[...PROVIDER_KINDS].join(', ')}`);
   if (typeof provider.version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(provider.version)) throw new TypeError('provider.version must be semantic version X.Y.Z');
   if (!Array.isArray(provider.capabilities) || provider.capabilities.some((c) => typeof c !== 'string' || !c.trim())) throw new TypeError('provider.capabilities must be an array of non-empty strings');
   validateProviderImplementation(provider);
@@ -22,7 +22,7 @@ export class ProviderRegistry {
 
   register(provider) {
     validateProvider(provider);
-    if (this.#providers.has(provider.id)) throw new Error(\`Provider already registered: \${provider.id}\`);
+    if (this.#providers.has(provider.id)) throw new Error(`Provider already registered: ${provider.id}`);
     const record = Object.freeze({
       id: provider.id,
       kind: provider.kind,
