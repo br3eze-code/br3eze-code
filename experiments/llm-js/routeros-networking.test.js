@@ -5,6 +5,7 @@ import {
   collectRouterOSEvidence,
   diagnoseRouterOS,
   evaluateDiagnosis,
+  registerRouterOSLabTools,
   runRouterOSLabSuite
 } from "./networking/routeros-lab.js";
 
@@ -52,4 +53,16 @@ test("diagnosis refuses to invent a root cause when evidence is insufficient", (
 
 test("collector requires the full diagnostic tool contract", async () => {
   await assert.rejects(() => collectRouterOSEvidence([]), /Missing read-only diagnostic tool/);
+});
+
+
+test("lab tools register into the existing AgentRuntime without creating another runtime", () => {
+  const lab = createSimulatedRouterOSLab();
+  const registered = [];
+  const runtime = { registerTool(tool) { registered.push(tool); return this; } };
+  assert.equal(registerRouterOSLabTools(runtime, lab), runtime);
+  assert.equal(registered.length, 5);
+  assert.ok(registered.every(tool => tool.domain === "networking" && tool.fullName === tool.name));
+  assert.ok(registered.every(tool => tool.capability.risk === "read-only"));
+  assert.throws(() => registerRouterOSLabTools({}, lab), /existing AgentRuntime/);
 });
