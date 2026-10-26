@@ -1,7 +1,24 @@
 import { describe, expect, test } from '@jest/globals';
-import { hasPermission, ownsResource, normalizeIdentity } from './identity.js';
+import { authenticateBearer, issueUserToken, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
 
 describe('canonical identity authorization', () => {
+  test('issues and verifies short-lived signed user tokens without exposing the signing secret', async () => {
+    const secret = 'test-signing-secret-that-is-long-enough';
+    const token = issueUserToken({ uid: 'user-123', username: 'test-user', role: 'PARTNER' }, secret);
+    expect(token).not.toBe(secret);
+    const identity = await authenticateBearer(token, { userTokenSecret: secret });
+    expect(identity.id).toBe('user-123');
+    expect(identity.provider).toBe('local');
+    expect(identity.roles).toContain('PARTNER');
+    expect(identity.permissions).toContain('orders.create');
+    expect(await authenticateBearer(token, { userTokenSecret: 'different-long-secret-value' })).toBeNull();
+  });
+
+  test('rejects short signing secrets and malformed user tokens', async () => {
+    expect(() => issueUserToken({ uid: 'u1', role: 'USER' }, 'short')).toThrow(/16 characters/);
+    expect(await authenticateBearer('not-a-token', { userTokenSecret: 'test-signing-secret-that-is-long-enough' })).toBeNull();
+  });
+
   test('normalizes a Firebase identity', () => {
     const identity = normalizeIdentity({ uid: 'u1', email: 'u@example.com', role: 'PARTNER' });
     expect(identity.id).toBe('u1');
