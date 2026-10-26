@@ -20,15 +20,27 @@ export function createDelegationTool({ name, description, runtime, allowedTools,
       if (!String(subTaskPrompt || '').trim()) throw new TypeError('subTaskPrompt is required');
       const depth = Number(context.delegationDepth || 0);
       if (depth >= maxDepth) throw new Error('Maximum delegation depth reached');
-      const tools = (runtime.listTools?.() || []).filter(tool => allowlist.has(tool));
-      if (tools.length !== allowlist.size) {
-        const missing = [...allowlist].filter(tool => !tools.includes(tool));
+      const registeredNames = new Set(runtime.listTools?.() || []);
+      const missing = [...allowlist].filter(tool => !registeredNames.has(tool));
+      if (missing.length) {
         throw new Error(`Delegation allowlist contains unregistered tools: ${missing.join(', ')}`);
+      }
+      const allDeclarations = runtime.toolRegistry?.getToolsForLLM?.() || [];
+      const allowedDeclarations = allDeclarations.filter((declaration) => {
+        const declaredName = declaration?.function?.name?.replace(/__/g, '.') || declaration?.name;
+        return allowlist.has(declaredName);
+      });
+      if (allowedDeclarations.length !== allowlist.size) {
+        throw new Error('Delegation allowlist could not be resolved to complete model tool declarations');
       }
       const result = await runtime.execute({
         content: String(subTaskPrompt),
-        context: { ...context, delegationDepth: depth + 1, delegatedBy: context.userId || context.uid || null },
-        tools: tools.map(name => ({ name })),
+        context: {
+          ...context,
+          delegationDepth: depth + 1,
+          delegatedBy: context.userId || context.uid || null,
+        },
+        tools: allowedDeclarations,
         maxTurns: 4,
       });
       return { agent: name, summary: result.response ?? result.content ?? '', toolsUsed: result.toolsUsed || [] };
