@@ -87,10 +87,13 @@ describe('AgentRuntime canonical execution context', () => {
     expect(executions).toBe(0);
 
 
-    const allowed = await runtime.executeTools([
-      { id: 'call-approval-2', name: 'payment__create', arguments: {} }
-    ], { userId: 'accountant-1', tenantId: 'tenant-a', domain: 'general', agentRole: 'accountant', approvalGranted: true, approvalId: 'approved-action-1', channel: 'cli' });
-    expect(allowed).toEqual([{ toolCallId: 'call-approval-2', result: { ok: true } }]);
+    const approval = await runtime.approveAction({
+      actionId: blocked[0].result.actionId,
+      actor: 'admin-1',
+      tenantId: 'tenant-a',
+      authorize: async () => true,
+    });
+    expect(approval).toMatchObject({ status: 'EXECUTED', result: { ok: true } });
     expect(executions).toBe(1);
   });
 
