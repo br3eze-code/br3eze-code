@@ -81,15 +81,23 @@ class AgentKernel extends EventEmitter {
       tenantId: context.tenantId,
       userId: context.userId,
       agentId: agentConfig?.id || null,
+      state: 'initializing',
     };
     await this.sessionEventStore.append(sessionId, 'session/created', session);
     this.emit('dispatch:start', { sessionId, domain: session.domain, tenantId: context.tenantId });
 
     try {
       await this.sessionEventStore.append(sessionId, 'session/running', { state: 'running' });
-      const result = typeof domain.adapter.execute === 'function'
-        ? await domain.adapter.execute(context)
-        : await domain.adapter.getSkills?.()[0]?.execute?.(context);
+      let result;
+      if (typeof domain.adapter.execute === 'function') {
+        result = await domain.adapter.execute(context);
+      } else {
+        const skill = domain.adapter.getSkills?.()[0];
+        if (typeof skill?.execute !== 'function') {
+          throw new Error(`Domain adapter "${session.domain}" has no executable dispatch handler`);
+        }
+        result = await skill.execute(context);
+      }
       await this.sessionEventStore.append(sessionId, 'session/completed', { state: 'completed' });
       this.emit('dispatch:done', { sessionId });
       return result;
