@@ -2,6 +2,24 @@
  * Stable AgentOS boundary for external agent frameworks.
  * Core depends on this contract, never on a framework SDK.
  */
+const CAPABILITY_METHODS = Object.freeze({
+  'agent.create': 'createAgent',
+  'agent.run': 'runAgent',
+  'agent.remove': 'removeAgent',
+  'agent.handoff': 'handoff',
+  'agent.child': 'createChild',
+  'workflow.define': 'defineWorkflow',
+  'workflow.run': 'runWorkflow',
+  'workflow.resume': 'resumeWorkflow',
+  'tool.register': 'registerTool',
+  'tool.execute': 'executeTool',
+  'guardrail.check': 'checkGuardrail',
+  'memory.read': 'readMemory',
+  'memory.write': 'writeMemory',
+  'trace.read': 'readTrace',
+  'evaluation.run': 'evaluate',
+});
+
 export class AgentOSFrameworkAdapter {
   constructor({ id, version = '1.0', factory = null } = {}) {
     if (!id) throw new TypeError('FRAMEWORK_ADAPTER_ID_REQUIRED');
@@ -10,13 +28,12 @@ export class AgentOSFrameworkAdapter {
     this.factory = factory;
   }
 
+  // Advertise only operations backed by a real factory handler. Wrapper methods
+  // exist for a stable API, but their existence alone is not implementation.
   capabilities() {
-    return [
-      'agent.create', 'agent.run', 'agent.remove', 'agent.handoff', 'agent.child',
-      'workflow.define', 'workflow.run', 'workflow.resume',
-      'tool.register', 'tool.execute', 'guardrail.check',
-      'memory.read', 'memory.write', 'trace.read', 'evaluation.run'
-    ];
+    return Object.entries(CAPABILITY_METHODS)
+      .filter(([, method]) => typeof this.factory?.[method] === 'function')
+      .map(([capability]) => capability);
   }
 
   async createAgent(spec) { return this._call('createAgent', spec); }
@@ -37,22 +54,43 @@ export class AgentOSFrameworkAdapter {
 
   async _call(name, ...args) {
     if (typeof this.factory?.[name] !== 'function') {
-      throw new Error(`FRAMEWORK_FACTORY_${name.toUpperCase()}_UNAVAILABLE`);
+      const error = new Error(`FRAMEWORK_FACTORY_${name.toUpperCase()}_UNAVAILABLE`);
+      error.code = 'CAPABILITY_UNAVAILABLE';
+      throw error;
     }
     return this.factory[name](...args);
   }
 }
 
-export function assertAdapterContract(adapter) {
-  const required = [
+export function assertAdapterContract(adapter, { requiredCapabilities = null } = {}) {
+  const legacyRequired = [
     'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild', 'defineWorkflow',
     'runWorkflow', 'resumeWorkflow', 'registerTool', 'executeTool',
     'checkGuardrail', 'readMemory', 'writeMemory', 'readTrace', 'evaluate'
   ];
+  const required = requiredCapabilities === null
+    ? legacyRequired
+    : requiredCapabilities.map((capability) => CAPABILITY_METHODS[capability]).filter(Boolean);
+  if (requiredCapabilities !== null) {
+    const unknown = requiredCapabilities.filter((capability) => !Object.hasOwn(CAPABILITY_METHODS, capability));
+    if (unknown.length) {
+      const error = new Error(`Unknown framework capabilities: ${unknown.join(', ')}`);
+      error.code = 'FRAMEWORK_CAPABILITY_UNKNOWN';
+      throw error;
+    }
+  }
   const missing = required.filter((name) => typeof adapter?.[name] !== 'function');
-  if (missing.length) {
-    const error = new Error(`FRAMEWORK_ADAPTER_CONTRACT: missing ${missing.join(', ')}`);
-    error.code = 'FRAMEWORK_ADAPTER_CONTRACT';
+  const advertised = typeof adapter?.capabilities === 'function' ? adapter.capabilities() : null;
+  const invalid = advertised !== null && (!Array.isArray(advertised) || advertised.some((capability) => {
+    const method = CAPABILITY_METHODS[capability];
+    return !method || typeof adapter.factory?.[method] !== 'function';
+  }));
+  if (missing.length || invalid) {
+    const error = new Error(missing.length
+      ? `FRAMEWORK_ADAPTER_CONTRACT: missing ${missing.join(', ')}`
+      : 'FRAMEWORK_CAPABILITY_DECLARATION_INVALID');
+    error.code = invalid ? 'FRAMEWORK_CAPABILITY_DECLARATION_INVALID' : 'FRAMEWORK_ADAPTER_CONTRACT';
+    if (missing.length) error.missing = missing;
     throw error;
   }
   return true;
