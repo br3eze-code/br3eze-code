@@ -51,7 +51,7 @@ This is a working ledger, not a claim that every PR has already received a compl
 
 ## Branch findings
 
-- `v0/br3eze-code-22012066` diverged from `main`: one unique commit ahead and 39 commits behind. Its only unique file was `package-lock.json`. That content is now ported to `main` after checking root dependency metadata and shared package versions. The stale ref remains a cleanup candidate.
+- `v0/br3eze-code-22012066` diverged from `main`: one unique commit ahead and 44 commits behind. Its only unique file was `package-lock.json`. That content is now ported to `main` after checking root dependency metadata and shared package versions. The stale ref remains a cleanup candidate.
 - The former `refactor/general-purpose-single-runtime` ref disappeared from branch search. It has now been recreated from current `main` as the single working branch for the next audit pass; its starting tree is synchronized with `main`.
 - No historical branch should be deleted or rewritten until its unique commits are enumerated and the port is verified.
 
