@@ -36,6 +36,7 @@ export class MikroTikManager {
   }
 
   get isConnected() { return this.state.isConnected; }
+  get isConfigured() { return Boolean(this.config.host); }
 
   async connect() {
     if (!this.config.host) return false;
@@ -108,6 +109,7 @@ export class MikroTikManager {
   }
 
   getSystemStats() { return this.executeTool('system.stats'); }
+  getArpTable() { return this.executeTool('arp.table'); }
   getActiveUsers() { return this.executeTool('users.active'); }
   addUser(username, password, profile = 'default') { return this.executeTool('user.add', { username, password, profile }); }
   kickUser(username) { return this.executeTool('user.kick', { username }); }
