@@ -64,7 +64,7 @@ class IndexTests(unittest.TestCase):
             global_results = search_index(db, "RouterOS DHCP")
             self.assertEqual([r["chunkId"] for r in global_results], ["global"])
             tenant_a = search_index(db, "invoice ledger", tenant_id="tenant-a")
-            self.assertEqual({r["chunkId"] for r in tenant_a}, {"tenant-a", "tenant-b"} if False else {"tenant-a"})
+            self.assertEqual({r["chunkId"] for r in tenant_a}, {"tenant-a"})
             self.assertEqual(tenant_a[0]["source"]["uri"], "tenant-a.md")
             self.assertEqual(search_index(db, "invoice ledger"), [])
     def test_rebuild_replaces_old_index_and_handles_empty_query(self):
