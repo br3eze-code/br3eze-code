@@ -1,0 +1,6 @@
+# Optional backend for experiments/llm-js/finetune.js
+# Install into an isolated virtual environment. Choose a PyTorch build matching your hardware.
+torch
+transformers>=4.45
+peft>=0.13
+accelerate>=1.0
