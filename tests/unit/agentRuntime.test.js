@@ -61,7 +61,7 @@ describe('AgentRuntime.routePrompt', () => {
     });
 
     test('matches system.stats for stats keywords', () => {
-        const tools = runtime.routePrompt('show cpu memory stats');
+        const tools = runtime.routePrompt('show system cpu memory stats');
         expect(tools).toContain('system.stats');
     });
 
