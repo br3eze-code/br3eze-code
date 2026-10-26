@@ -519,9 +519,11 @@ class AgentRuntime extends EventEmitter {
         continue;
       }
       try {
+        const approvalGranted = context.approvalGranted === true || context.approved === true;
         const executionContext = {
           ...context,
-          approved: context.approved === true || context.approvalGranted === true,
+          approvalGranted,
+          approved: approvalGranted,
         };
         const result = await this._executeToolForFrame(name, args, executionContext);
         results.push({ toolCallId, result });
