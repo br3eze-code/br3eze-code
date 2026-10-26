@@ -44,6 +44,17 @@ describe('AgentRuntime canonical execution context', () => {
 
   test('blocks role-specific mutations until explicit approval is present', async () => {
     let executions = 0;
+    const approvalRecords = new Map();
+    const approvalDb = {
+      async set(key, value) { approvalRecords.set(key, structuredClone(value)); },
+      async get(key) { return approvalRecords.has(key) ? structuredClone(approvalRecords.get(key)) : null; },
+      async compareAndSet(key, expectedStatus, next) {
+        const current = approvalRecords.get(key);
+        if (!current || current.status !== expectedStatus) return false;
+        approvalRecords.set(key, structuredClone(next));
+        return true;
+      },
+    };
     const runtime = new AgentRuntime({
       toolRegistry: {
         getTool: () => ({ schema: { parameters: { type: 'object', properties: {} } } }),
@@ -54,6 +65,7 @@ describe('AgentRuntime canonical execution context', () => {
       memoryStore: { append: async () => {} },
       providerManager: {},
       safetyEnvelope: { checkToolExecution: () => true },
+      approvalOptions: { persistence: () => approvalDb },
       maxIterations: 1
     });
 
