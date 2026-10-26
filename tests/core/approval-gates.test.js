@@ -1,4 +1,4 @@
-import { ApprovalGate } from '../../src/core/approval-gates.js';
+import { ApprovalWorkflow } from '../../src/core/approval-gates.js';
 
 describe('ApprovalGate', () => {
   let records;
@@ -18,7 +18,7 @@ describe('ApprovalGate', () => {
   beforeEach(() => {
     records = new Map();
     notified = [];
-    gate = new ApprovalGate({
+    gate = new ApprovalWorkflow({
       persistence: () => db,
       notify: async (payload) => { notified.push(payload); return { ok: true }; },
       ttlMs: 60_000,
