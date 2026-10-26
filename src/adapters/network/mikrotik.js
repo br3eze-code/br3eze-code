@@ -151,7 +151,7 @@ export class MikroTikManager extends EventEmitter {
     const parseDuration = (value) => {
       if (typeof value === 'number') return value;
       const source = String(value || '');
-      const pattern = /(?:(\\d+)w)?(?:(\\d+)d)?(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?/;
+      const pattern = /(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/;
       const match = source.match(pattern);
       if (!match || !match[0]) return 0;
       return Number(match[1] || 0) * 604800 + Number(match[2] || 0) * 86400 + Number(match[3] || 0) * 3600 + Number(match[4] || 0) * 60 + Number(match[5] || 0);
