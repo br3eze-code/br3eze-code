@@ -1,4 +1,4 @@
-import { causalSelfAttention } from "./attention.js";
+import { multiHeadCausalAttention } from "./multihead.js";
 import { layerNorm, linear } from "./layers.js";
 
 /**
@@ -18,7 +18,7 @@ export function decoderBlock(x, parameters) {
   const query = linear(normalizedForAttention, parameters.qWeight, parameters.qBias);
   const key = linear(normalizedForAttention, parameters.kWeight, parameters.kBias);
   const value = linear(normalizedForAttention, parameters.vWeight, parameters.vBias);
-  const { output: context } = causalSelfAttention(query, key, value);
+  const { output: context } = multiHeadCausalAttention(query, key, value, parameters.numHeads ?? 1);
   const attentionOutput = linear(context, parameters.attentionWeight, parameters.attentionBias);
   const afterAttention = x.add(attentionOutput);
 
