@@ -5,8 +5,7 @@ on:
   push:
     branches: [feat/llm-js-training]
     paths:
-      - "experiments/llm-js/build-repo-training-data.mjs"
-      - "experiments/llm-js/build-repo-training-data.test.js"
+      - "experiments/llm-js/**"
       - ".github/workflows/repo-data-training.yml"
 
 permissions:
