@@ -30,6 +30,22 @@ export function createAgentLifecyclePort({
   requireFunction(requestApproval, 'requestApproval');
 
   return Object.freeze({
+    async get({ agentId, context = {} } = {}) {
+      requireIdentity(context);
+      if (typeof agentId !== 'string' || !agentId.trim()) throw new TypeError('AGENT_ID_REQUIRED');
+      const request = Object.freeze({
+        capability: 'agent.get',
+        agentId: agentId.trim(),
+        tenantId: context.tenantId,
+        userId: context.userId,
+        requestId: context.requestId || null,
+      });
+      if (!await authorize(request, context)) throw new Error('AGENT_GET_FORBIDDEN');
+      const agent = await registry.get(request.agentId, context);
+      if (!agent) return Object.freeze({ capability: 'agent.get', status: 'not_found', agentId: request.agentId });
+      return Object.freeze({ capability: 'agent.get', status: 'found', agent });
+    },
+
     async create({ definition, context = {} } = {}) {
       requireIdentity(context);
       if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
@@ -60,6 +76,23 @@ export function createAgentLifecyclePort({
         requestId: context.requestId || null,
       });
       if (!await authorize(request, context)) throw new Error('AGENT_RUN_FORBIDDEN');
+      const agent = await registry.get(request.agentId, context);
+      if (!agent) throw new Error('AGENT_NOT_FOUND');
+      return executeAgent({ agent, input, context: { ...context, tenantId: context.tenantId, userId: context.userId } });
+    },
+
+    async call({ agentId, input, context = {} } = {}) {
+      requireIdentity(context);
+      if (typeof agentId !== 'string' || !agentId.trim()) throw new TypeError('AGENT_ID_REQUIRED');
+      if (input === undefined) throw new TypeError('AGENT_INPUT_REQUIRED');
+      const request = Object.freeze({
+        capability: 'agent.call',
+        agentId: agentId.trim(),
+        tenantId: context.tenantId,
+        userId: context.userId,
+        requestId: context.requestId || null,
+      });
+      if (!await authorize(request, context)) throw new Error('AGENT_CALL_FORBIDDEN');
       const agent = await registry.get(request.agentId, context);
       if (!agent) throw new Error('AGENT_NOT_FOUND');
       return executeAgent({ agent, input, context: { ...context, tenantId: context.tenantId, userId: context.userId } });
