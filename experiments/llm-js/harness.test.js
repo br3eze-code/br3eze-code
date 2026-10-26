@@ -66,3 +66,38 @@ test("adapter parses server-sent streaming deltas", async () => {
   for await (const token of adapter.stream({ messages: [{ role: "user", content: "hi" }] })) result.push(token);
   assert.equal(result.join(""), "open model");
 });
+
+
+test("adapter forwards function tools and normalizes tool-call responses", async () => {
+  let requestBody;
+  const adapter = createOpenAICompatibleAdapter({
+    baseUrl: "http://localhost:8080/v1",
+    model: "tool-capable-model",
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return jsonResponse({
+        model: "tool-capable-model",
+        choices: [{
+          finish_reason: "tool_calls",
+          message: {
+            content: null,
+            tool_calls: [{
+              id: "call-1",
+              type: "function",
+              function: { name: "search_records", arguments: '{"query":"latest"}' }
+            }]
+          }
+        }]
+      });
+    }
+  });
+  const result = await adapter.generate({
+    messages: [{ role: "user", content: "Search records" }],
+    tools: [{ type: "function", function: { name: "search_records", parameters: { type: "object" } } }],
+    toolChoice: "auto"
+  });
+  assert.equal(requestBody.tool_choice, "auto");
+  assert.equal(requestBody.tools[0].function.name, "search_records");
+  assert.equal(result.text, "");
+  assert.deepEqual(result.toolCalls, [{ id: "call-1", name: "search_records", arguments: '{"query":"latest"}' }]);
+});
