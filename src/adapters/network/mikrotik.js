@@ -110,6 +110,13 @@ export class MikroTikManager {
 
   getSystemStats() { return this.executeTool('system.stats'); }
   getArpTable() { return this.executeTool('arp.table'); }
+  async reboot({ approvalGranted = false } = {}) {
+    if (approvalGranted !== true) throw new Error('Router reboot requires explicit approval');
+    await this.connect();
+    const systemMenu = this._menu('/system');
+    if (typeof systemMenu.call !== 'function') throw new Error('RouterOS client does not support the reboot command');
+    return systemMenu.call('reboot');
+  }
   getActiveUsers() { return this.executeTool('users.active'); }
   addUser(username, password, profile = 'default') { return this.executeTool('user.add', { username, password, profile }); }
   kickUser(username) { return this.executeTool('user.kick', { username }); }
