@@ -18,7 +18,8 @@ class KnowledgeIngestionTests(unittest.TestCase):
    (root/".env").write_text("API_KEY=do-not-ingest",encoding="utf-8")
    manifest=build(argparse.Namespace(input_root=str(root),output=str(out),license_status="REVIEW_REQUIRED",max_file_bytes=10000,ocr=False))
    rows=[json.loads(line) for line in (out/"documents.jsonl").read_text(encoding="utf-8").splitlines()]
-   self.assertEqual(len(rows),1); self.assertEqual(manifest["totals"]["duplicates"],1)
+   self.assertEqual(len(rows),2); self.assertEqual(manifest["totals"]["duplicates"],1)
+   self.assertEqual(sum(1 for row in rows if row["content"]["duplicateContent"]),1)
    self.assertEqual(rows[0]["source"]["licenseStatus"],"REVIEW_REQUIRED")
    self.assertEqual(rows[0]["quality"]["reviewStatus"],"pending")
    self.assertIn("[REDACTED_EMAIL]",rows[0]["content"]["text"])
