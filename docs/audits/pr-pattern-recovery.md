@@ -44,6 +44,7 @@ This is a working ledger, not a claim that every PR has already received a compl
 | #57 | 206-file snapshot including local Claude settings, parallel agent/runtime implementations, network hardware integrations, and many legacy skill/provider paths. | Do not import the snapshot. Compare any remaining unique behavior to canonical AgentRuntime, ToolRegistry, model ports, and domain adapters before porting. |
 | #50 | Very large CommonJS-to-ESM migration touching hundreds of files. | Current `main` is already ESM-oriented. No wholesale historical copy. Audit only concrete remaining interop defects. |
 | #57 | Large Dahua/CCTV integration. | Keep it domain-specific and optional; do not import it into Core. |
+| #61–63, #65–70 | Dependency/lockfile-only updates. | Superseded by current dependency versions; no historical versions replayed. |
 | #64 | Payment/billing test coverage. Four listed test files already exist. The missing legacy `payment-gateway.test.js` targets a different API than the current `src/payments/payment-gateway.js` facade. | Do not copy that stale test unchanged; create tests against the current payment-platform contract if coverage is still missing. |
 | #78 | Large ESM interop / Wi-Fi plugin and application change. | Not copied wholesale. Continue auditing concrete interop fixes against current callers and module exports. |
 | #88 | Partner job, ledger, onboarding, policy, state-machine primitives. | Core partner files already exist. Restored the missing policy and state-machine tests. |
