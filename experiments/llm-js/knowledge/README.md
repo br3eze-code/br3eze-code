@@ -99,3 +99,18 @@ Run the chunker on a JSONL file containing normalized documents (combine connect
 ### Data and training boundary
 
 Connector output is not automatically approved for retrieval or training. Preserve source attribution and hashes, review licences and privacy, deduplicate, then chunk and index approved records. Retrieval corpora, supervised examples, evaluation sets and model-training corpora must be versioned separately. No model training occurs in these commands.
+
+
+### PDF page and table extraction
+
+Install the optional parser only in the environment that processes authorized PDFs:
+
+```bash
+python -m pip install pdfplumber
+python experiments/llm-js/knowledge/extract_pdf_layout.py \
+  --input ./approved-sources/technical-manual.pdf \
+  --source-uri manuals/technical-manual.pdf \
+  --output ./data/knowledge-build/pdf-document.jsonl
+```
+
+The extractor preserves page numbers in the searchable text (for example, `[PDF page 4]`), extracts tables into Markdown, and stores structured per-page/table metadata. It does **not** claim to understand scanned pages, diagrams, or images: pages without extractable text/tables are marked `needs-ocr-or-vision`, and a document with no extractable text/tables is rejected. OCR/vision should be a separate explicit, reviewed adapter. The output stays pending privacy/content review; redaction is not automatic in this PDF-specific adapter, so do not index it until the standard privacy review and redaction process has been completed.
