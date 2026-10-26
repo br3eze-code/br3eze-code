@@ -67,7 +67,7 @@ node experiments/llm-js/finetune.js \
   --output artifacts/br3eze-adapter
 ```
 
-Useful options: `--max-length`, `--batch-size`, `--grad-accum`, `--rank`, `--lr`, `--python`, and `--output`. If your Python executable is named `python3`, pass `--python python3`.
+Useful options: `--max-length`, `--batch-size`, `--grad-accum`, `--rank`, `--lr`, `--python`, and `--output`. If your Python executable is named `python3`, pass `--python python3`. This general pretrained-model path is `finetune-pretrained.js`; `finetune.js` is the native TinyGPT checkpoint path documented below.
 
 The current backend targets common Llama/Mistral/Qwen-style attention projection names (`q_proj`, `k_proj`, `v_proj`, `o_proj`). Some model families need different target modules or a different backend. Review the base model's license, gated-model access requirements, resource needs, and dataset rights before running.
 
