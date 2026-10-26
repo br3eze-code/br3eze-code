@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import { randomUUID } from 'node:crypto';
 
 const NAME = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$/;
 const MAX_VALUE_BYTES = 1024 * 1024;
@@ -81,8 +82,6 @@ export class LocalStateStore {
   }
 }
 
-function cryptoRandomId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
+function cryptoRandomId() { return randomUUID(); }
 
 export default LocalStateStore;
