@@ -16,6 +16,9 @@ import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
 import { PlatformAdapterRegistry } from './platform/PlatformAdapterRegistry.js';
+import { ServiceSupervisor } from './os/ServiceSupervisor.js';
+import { IPCMessageBus } from './os/IPCMessageBus.js';
+import { ApplicationManager } from './os/ApplicationManager.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -124,6 +127,10 @@ class AgentRuntime extends EventEmitter {
     // Portable host capabilities share this runtime; they do not create another executor.
     this.platformAdapters = config.platformAdapters || new PlatformAdapterRegistry(config.platformOptions || {});
     for (const adapter of (config.platformHostAdapters || [])) this.registerPlatformAdapter(adapter);
+    // Managed application services share the canonical runtime lifecycle.
+    this.serviceSupervisor = config.serviceSupervisor || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
+    this.ipc = config.ipc || new IPCMessageBus({ onAudit: (event) => this.emit('os.ipc.audit', event) });
+    this.applications = config.applications || new ApplicationManager({ supervisor: this.serviceSupervisor });
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -188,6 +195,22 @@ class AgentRuntime extends EventEmitter {
   stopPlatformAdapter(adapterId, context = {}) {
     return this.platformAdapters.stop(adapterId, context);
   }
+
+  /** Register a trusted in-process service under the OS-like lifecycle supervisor. */
+  registerService(service) { this.serviceSupervisor.register(service); return this; }
+  startService(serviceId, context = {}) { return this.serviceSupervisor.start(serviceId, context); }
+  stopService(serviceId, context = {}) { return this.serviceSupervisor.stop(serviceId, context); }
+  listServices() { return this.serviceSupervisor.list(); }
+
+  /** Register an application manifest and its trusted entry service. */
+  registerApplication(manifest, service) { this.applications.register(manifest, service); return this; }
+  startApplication(appId, context = {}) { return this.applications.start(appId, context); }
+  stopApplication(appId, context = {}) { return this.applications.stop(appId, context); }
+  listApplications() { return this.applications.list(); }
+
+  /** Local IPC. Callers must supply host-authenticated identity and explicit topic grants. */
+  publishIPC(envelope, payload) { return this.ipc.publish(envelope, payload); }
+  subscribeIPC(envelope, handler) { return this.ipc.subscribe(envelope, handler); }
 
   /** Inject the host-composed model port without creating a second runtime. */
   setModel(model) {
