@@ -114,3 +114,12 @@ python experiments/llm-js/knowledge/extract_pdf_layout.py \
 ```
 
 The extractor preserves page numbers in the searchable text (for example, `[PDF page 4]`), extracts tables into Markdown, and stores structured per-page/table metadata. It does **not** claim to understand scanned pages, diagrams, or images: pages without extractable text/tables are marked `needs-ocr-or-vision`, and a document with no extractable text/tables is rejected. OCR/vision should be a separate explicit, reviewed adapter. The output stays pending privacy/content review; redaction is not automatic in this PDF-specific adapter, so do not index it until the standard privacy review and redaction process has been completed.
+
+
+### Replaceable embedding and semantic-search adapter
+
+The lexical SQLite FTS5 index remains the simple keyword baseline. For semantic retrieval, the repository now defines a provider-neutral `EmbeddingProvider.embed(texts)` port and a small SQLite cosine-similarity adapter. It accepts vectors from a real embedding model supplied by the caller; the repository's deterministic fake embedder exists only in unit tests and is **not** a production embedding model.
+
+The adapter embeds and searches only chunks with licence, content-review, and privacy states explicitly approved. Tenant-scoped queries can see global and same-tenant chunks only; unscoped queries see global chunks only. Vectors are stored as JSON in SQLite for a small local corpus, not as an optimized ANN index.
+
+A provider adapter can call `build_vector_index(chunks_path, database_path, embedder)` and `search_vector_index(database_path, query, embedder)`. Keep model/vendor SDKs behind that adapter; replace SQLite with a vector database when corpus size requires it. Do not treat similarity as factual verification: retrieval results still need source citations and answer-time grounding.
