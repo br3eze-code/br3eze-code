@@ -28,3 +28,42 @@ test("checkpoint loader rejects non-finite or negative optimizer moments", () =>
   badStep.optimizerStep = -1;
   assert.throws(() => TransformerLM.fromJSON(badStep), /invalid optimizer step/);
 });
+
+import { configureTransformerTrainableParameters } from "./transformer-finetune-policy.js";
+
+test("head-only fine-tuning updates only the language-model head", () => {
+  const m = new TransformerLM(5, { contextSize: 4, width: 4, heads: 2, layers: 1, hiddenSize: 8, seed: 11 });
+  const policy = configureTransformerTrainableParameters(m, { unfreezeHeadOnly: true });
+  const embeddings = Array.from(m.tokenEmbedding.data);
+  const head = Array.from(m.lmW.data);
+  m.trainStep([0, 1, 2], [1, 2, 3], { learningRate: 0.01 });
+  assert.deepEqual(Array.from(m.tokenEmbedding.data), embeddings);
+  assert.notDeepEqual(Array.from(m.lmW.data), head);
+  assert.ok(m.frozenParameterIndices.every(i => m.parameters[i].grad.every(g => g === 0)));
+  assert.equal(policy.trainableCount, 2);
+  assert.equal(m.trainableParameterIndices.length, 2);
+});
+
+test("freeze-base policy updates head and final norm only", () => {
+  const m = new TransformerLM(5, { contextSize: 4, width: 4, heads: 2, layers: 1, hiddenSize: 8, seed: 12 });
+  const policy = configureTransformerTrainableParameters(m, { freezeBase: true });
+  const block = Array.from(m.blocks[0].attnW.data);
+  const head = Array.from(m.lmW.data);
+  const norm = Array.from(m.finalNorm.gamma.data);
+  m.trainStep([0, 1, 2], [1, 2, 3], { learningRate: 0.01 });
+  assert.deepEqual(Array.from(m.blocks[0].attnW.data), block);
+  assert.notDeepEqual(Array.from(m.lmW.data), head);
+  assert.notDeepEqual(Array.from(m.finalNorm.gamma.data), norm);
+  assert.equal(policy.trainableCount, 4);
+});
+
+test("fine-tuning rejects conflicting freeze policies", () => {
+  const m = new TransformerLM(5, { width: 4, heads: 2, layers: 1 });
+  assert.throws(() => configureTransformerTrainableParameters(m, { freezeBase: true, unfreezeHeadOnly: true }), /mutually exclusive/);
+});
+
+test("parameter names align one-to-one with model tensors", () => {
+  const m = new TransformerLM(5, { width: 4, heads: 2, layers: 2 });
+  assert.equal(m.parameterNames.length, m.parameters.length);
+  assert.equal(new Set(m.parameterNames).size, m.parameterNames.length);
+});
