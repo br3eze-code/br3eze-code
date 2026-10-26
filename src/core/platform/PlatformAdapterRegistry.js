@@ -121,6 +121,10 @@ export class PlatformAdapterRegistry {
     if (!capability) throw new Error(`platform capability not found: ${capabilityId}`);
     const record = this.#requireAdapter(capability.adapterId);
     if (record.state !== 'ready') throw new Error(`platform adapter is not ready: ${capability.adapterId}`);
+    if (!context.tenantId || !context.userId) throw new Error('platform invocation requires authenticated tenant and user context');
+    const grants = Array.isArray(context.authorizedCapabilities) ? context.authorizedCapabilities : context.capabilities;
+    const requiredGrant = `platform:${capability.adapterId}:${capability.name}`;
+    if (!Array.isArray(grants) || !grants.includes(requiredGrant)) throw new Error(`missing_permission:${requiredGrant}`);
     if (capability.access === 'write' && context.approvalGranted !== true) throw new Error(`explicit approval required: ${capabilityId}`);
     if (context.signal?.aborted) throw context.signal.reason || new Error('platform operation cancelled');
     return capability.invoke(input, {
