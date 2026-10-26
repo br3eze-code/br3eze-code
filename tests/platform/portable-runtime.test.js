@@ -4,11 +4,13 @@ import { ProviderRegistry } from '../../src/platform/provider-registry.js';
 import { HardwarePort, validateHardwareProvider } from '../../src/platform/hardware-port.js';
 import { RuntimeEnvironment } from '../../src/platform/runtime-environment.js';
 import { nodeHardwareProvider } from '../../src/platform/host-provider.js';
+import { createNodeRuntimeEnvironment } from '../../src/platform/node-host.js';
+import { validateProviderImplementation } from '../../src/platform/provider-contracts.js';
 
 const provider = (overrides = {}) => ({
   id: 'model.local', kind: 'model', version: '1.0.0',
   capabilities: ['text.generate'], priority: 10,
-  generate: async ({ prompt }) => ({ text: String(prompt) }),
+  execute: async ({ messages }) => ({ text: String(messages?.[0]?.content ?? '') }),
   ...overrides,
 });
 
@@ -21,6 +23,12 @@ test('provider registry validates and resolves providers by kind/capability', ()
   assert.equal(registry.resolve({ kind: 'storage' }), null);
   assert.throws(() => registry.register(provider({ id: 'model.local' })), /already registered/);
   assert.throws(() => registry.register(provider({ kind: 'unknown' })), /provider.kind/);
+});
+
+test('provider contracts reject an implementation that does not satisfy its declared SPI', () => {
+  assert.equal(validateProviderImplementation(provider()).id, 'model.local');
+  assert.throws(() => validateProviderImplementation({ kind: 'model' }), /must implement execute/);
+  assert.throws(() => validateProviderImplementation({ kind: 'unknown' }), /unsupported provider kind/);
 });
 
 test('hardware port normalizes portable facts and tolerates unknown metrics', async () => {
@@ -38,6 +46,11 @@ test('Node hardware provider implements the same host-neutral profile contract',
   const profile = await new HardwarePort(nodeHardwareProvider).profile();
   assert.ok(profile.platform.length > 0);
   assert.ok(profile.cpuCount > 0);
+});
+
+test('Node composition root explicitly registers host hardware adapter', () => {
+  const env = createNodeRuntimeEnvironment();
+  assert.equal(env.resolveProvider({ kind: 'hardware', capability: 'hardware.profile' }).id, 'host.node');
 });
 
 test('runtime environment wires provider SPI, permissions, IPC and supervisor without owning agent execution', async () => {
