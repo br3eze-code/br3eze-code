@@ -51,8 +51,8 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
       target: tokenIds.slice(start + 1, start + sequenceLength + 1)
     };
   };
-  const first = sampleWindow();
-  const initialLoss = model.loss(first.input, first.target).value;
+  const evaluation = sampleWindow();
+  const initialLoss = model.loss(evaluation.input, evaluation.target).value;
   let loss = initialLoss;
   for (let step = 1; step <= steps; step += 1) {
     const batch = sampleWindow();
@@ -61,12 +61,10 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
       process.stdout.write(`step ${step}/${steps} loss=${loss.toFixed(4)}\n`);
     }
   }
-  const finalBatch = sampleWindow();
-  const finalLoss = model.loss(finalBatch.input, finalBatch.target).value;
-  process.stdout.write(`vocab=${vocabulary.length} context=${contextSize} width=${width} initialLoss=${initialLoss.toFixed(4)} finalSampleLoss=${finalLoss.toFixed(4)}\n`);
+  const finalLoss = model.loss(evaluation.input, evaluation.target).value;
+  process.stdout.write(`vocab=${vocabulary.length} context=${contextSize} width=${width} fixedWindowInitialLoss=${initialLoss.toFixed(4)} fixedWindowFinalLoss=${finalLoss.toFixed(4)}\n`);
 
-  const startId = tokenIds[0];
-  const generatedIds = model.generate([startId], { maxNewTokens: generatedLength, seed });
+  const generatedIds = model.generate([tokenIds[0]], { maxNewTokens: generatedLength, seed });
   process.stdout.write("\n--- tiny GPT sample ---\n" + generatedIds.map((id) => vocabulary[id]).join("") + "\n");
 
   const checkpointPath = resolve(option(args, "--checkpoint", "experiments/llm-js/tiny-gpt-checkpoint.json"));
