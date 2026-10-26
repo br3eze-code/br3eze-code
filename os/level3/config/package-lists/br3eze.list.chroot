@@ -1,0 +1,38 @@
+# Core OS and boot
+linux-image-amd64
+systemd-sysv
+systemd-timesyncd
+live-boot
+live-config
+sudo
+
+# Networking and device diagnostics
+network-manager
+openssh-server
+iproute2
+iputils-ping
+ethtool
+pciutils
+usbutils
+wireless-tools
+iw
+rfkill
+curl
+wget
+ca-certificates
+dnsutils
+
+# Runtime prerequisites; AgentOS itself is not installed by this base image
+nodejs
+npm
+
+# Security and storage operations
+apparmor
+apparmor-utils
+nftables
+cryptsetup
+cryptsetup-initramfs
+parted
+gdisk
+smartmontools
+util-linux
