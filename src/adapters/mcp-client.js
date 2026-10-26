@@ -13,7 +13,7 @@ export class MCPClientAdapter {
     this.transport = null;
     this.connected = false;
     this.tools = [];
-    this.serverName = String(serverConfig.name || 'mcp-server');
+    this.serverName = String(serverConfig.name || 'mcp-server').replace(/[^a-zA-Z0-9_-]/g, '-');
   }
 
   async connect() {
@@ -41,6 +41,36 @@ export class MCPClientAdapter {
     }));
     this.connected = true;
     return [...this.tools];
+  }
+
+  /**
+   * Register connected remote tools in the canonical ToolRegistry.
+   * Remote tools are treated as high-risk and require HITL approval by default.
+   */
+  async registerTools(registry) {
+    if (!registry || typeof registry.register !== 'function') {
+      throw new TypeError('A canonical ToolRegistry with register(name, definition) is required');
+    }
+    const tools = this.connected ? this.tools : await this.connect();
+    for (const tool of tools) {
+      registry.register(tool.name, {
+        description: tool.description,
+        execute: tool.execute,
+        capabilityId: tool.name,
+        risk: 'high',
+        requiresApproval: true,
+        permissions: ['mcp.call'],
+        schema: {
+          description: tool.description,
+          parameters: tool.parameters,
+          risk: 'high',
+          requiresApproval: true,
+          permissions: ['mcp.call'],
+        },
+        domain: 'mcp',
+      });
+    }
+    return tools.map((tool) => tool.name);
   }
 
   async #loadTransport() {
