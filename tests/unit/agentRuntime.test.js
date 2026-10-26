@@ -240,6 +240,34 @@ describe('AgentRuntime capability ownership', () => {
     });
 });
 
+describe('AgentRuntime executeTurn compatibility contract', () => {
+    test('delegates string prompts and context to the canonical execute method', async () => {
+        const runtime = new AgentRuntime();
+        const execute = jest.spyOn(runtime, 'execute').mockResolvedValue({ response: 'ok' });
+        await runtime.executeTurn('hello', { tenantId: 'tenant-1' });
+        expect(execute).toHaveBeenCalledWith({
+            content: 'hello',
+            context: { tenantId: 'tenant-1' },
+        });
+    });
+
+    test('accepts legacy prompt frames without creating another execution loop', async () => {
+        const runtime = new AgentRuntime();
+        const execute = jest.spyOn(runtime, 'execute').mockResolvedValue({ response: 'ok' });
+        await runtime.executeTurn({ prompt: 'hello', context: { userId: 'user-1' } });
+        expect(execute).toHaveBeenCalledWith({
+            prompt: 'hello',
+            content: 'hello',
+            context: { userId: 'user-1' },
+        });
+    });
+
+    test('rejects invalid legacy frames', async () => {
+        const runtime = new AgentRuntime();
+        await expect(runtime.executeTurn(null)).rejects.toThrow(/prompt or frame object/);
+    });
+});
+
 // ── getAgentRuntime singleton ─────────────────────────────────────────────────
 
 describe('getAgentRuntime', () => {
