@@ -32,6 +32,18 @@ Run tests:
 
     python -m unittest discover -s experiments/llm-js/knowledge -p 'test_*.py'
 
+## Bounded Wikimedia import
+
+Import only explicitly listed English Wikipedia article titles; the importer does not recursively crawl links. It caps batches at 50 titles, responses at 8 MB, extracted text at 100,000 characters per page, and uses a request timeout and default inter-request delay.
+
+```bash
+python experiments/llm-js/knowledge/import_wikimedia.py \
+  --titles-file experiments/llm-js/knowledge/wikimedia-titles.example.txt \
+  --output ./data/wikimedia/documents.jsonl
+```
+
+The importer preserves canonical article URL, title attribution, page/revision identifiers, source/content hashes, and retrieval time, and writes a failure manifest. Every imported record remains `REVIEW_REQUIRED` with privacy/content review pending; public availability does not grant automatic training rights.
+
 ## Output contract
 Each JSONL document contains schema version, deterministic document identifier, source-file hash, normalized-content hash, relative source URI, media type, extraction modality, licence status, timestamps, redaction counts, and pending human-review/privacy-review states. Chunk records retain source metadata, review state, document ID, deterministic chunk ID, and character offsets. The manifest records totals and skipped-file reasons. Source hash is computed before redaction; content hash after redaction and normalization.
 
