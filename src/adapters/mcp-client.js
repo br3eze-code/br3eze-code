@@ -1,117 +1,183 @@
 /**
- * Optional Model Context Protocol client adapter.
+ * Optional native MCP client adapter.
  *
- * This module is dynamically imported so the AgentOS core can run without the
- * MCP SDK installed. MCP servers are trusted integrations: stdio commands must
- * be configured by an operator, never derived from user prompts.
+ * The MCP SDK is loaded only when this adapter is connected, so the generic
+ * AgentOS runtime does not require MCP or any transport package at boot.
+ * Install @modelcontextprotocol/sdk in deployments that enable MCP.
  */
+const SUPPORTED_TRANSPORTS = new Set(['stdio', 'http', 'sse']);
+
 export class MCPClientAdapter {
-  constructor(serverConfig = {}) {
-    if (!serverConfig || typeof serverConfig !== 'object') throw new TypeError('serverConfig must be an object');
-    this.config = serverConfig;
+  constructor(serverConfig = {}, options = {}) {
+    if (!serverConfig || typeof serverConfig !== 'object') throw new TypeError('MCP_SERVER_CONFIG_REQUIRED');
+    this.serverConfig = serverConfig;
+    this.namespace = String(serverConfig.namespace || serverConfig.name || 'server').replace(/[^a-zA-Z0-9_-]/g, '-');
+    this.authorize = options.authorize || null;
+    this.sdk = options.sdk || null;
     this.client = null;
     this.transport = null;
     this.connected = false;
-    this.tools = [];
-    this.serverName = String(serverConfig.name || 'mcp-server').replace(/[^a-zA-Z0-9_-]/g, '-');
   }
 
-  async connect() {
-    if (this.connected) return this.tools;
-    const [{ Client }, transports] = await Promise.all([
-      import('@modelcontextprotocol/sdk/client/index.js'),
-      this.#loadTransport(),
-    ]);
-    this.client = new Client({ name: 'AgentOS', version: '1.0.0' }, { capabilities: {} });
-    this.transport = transports;
-    await this.client.connect(this.transport);
-    const listed = await this.client.listTools();
-    this.tools = (listed.tools || []).map((tool) => ({
-      name: `mcp.${this.serverName}.${tool.name}`,
-      description: tool.description || `MCP tool ${tool.name} from ${this.serverName}`,
-      parameters: tool.inputSchema || { type: 'object', properties: {} },
-      capability: { source: 'mcp', server: this.serverName, externalToolName: tool.name },
-      execute: async (args = {}, context = {}) => {
-        if (!this.connected) throw new Error(`MCP server ${this.serverName} is not connected`);
-        if (context.signal?.aborted) throw new Error('MCP tool call aborted');
-        const result = await this.client.callTool({ name: tool.name, arguments: args });
-        if (result?.isError) throw new Error(`MCP tool ${tool.name} returned an error`);
-        return result;
-      },
-    }));
-    this.connected = true;
-    return [...this.tools];
+  async connect(context = {}) {
+    if (this.connected) return this.listTools(context);
+    const config = this.serverConfig;
+    const transportType = config.transport || (config.command ? 'stdio' : 'http');
+    if (!SUPPORTED_TRANSPORTS.has(transportType)) throw new Error('MCP_TRANSPORT_UNSUPPORTED');
+    if (transportType === 'stdio' && (!config.command || !Array.isArray(config.args || []))) {
+      throw new TypeError('MCP_STDIO_COMMAND_REQUIRED');
+    }
+    if (transportType !== 'stdio' && !config.url) throw new TypeError('MCP_TRANSPORT_URL_REQUIRED');
+
+    const sdk = this.sdk || await this._loadSdk(transportType);
+    const Client = sdk.Client;
+    if (typeof Client !== 'function') throw new TypeError('MCP_SDK_CLIENT_UNAVAILABLE');
+    this.client = new Client({
+      name: String(config.clientName || 'AgentOS'),
+      version: String(config.clientVersion || '1.0.0'),
+    }, { capabilities: {} });
+
+    if (transportType === 'stdio') {
+      if (typeof sdk.StdioClientTransport !== 'function') throw new Error('MCP_STDIO_TRANSPORT_UNAVAILABLE');
+      this.transport = new sdk.StdioClientTransport({ command: config.command, args: config.args || [], env: config.env });
+    } else if (transportType === 'sse') {
+      if (typeof sdk.SSEClientTransport !== 'function') throw new Error('MCP_SSE_TRANSPORT_UNAVAILABLE');
+      this.transport = new sdk.SSEClientTransport(new URL(config.url), {
+        requestInit: config.headers ? { headers: config.headers } : undefined,
+      });
+    } else {
+      if (typeof sdk.StreamableHTTPClientTransport !== 'function') throw new Error('MCP_HTTP_TRANSPORT_UNAVAILABLE');
+      this.transport = new sdk.StreamableHTTPClientTransport(new URL(config.url), {
+        requestInit: config.headers ? { headers: config.headers } : undefined,
+      });
+    }
+
+    try {
+      await this.client.connect(this.transport);
+      this.connected = true;
+      return await this.listTools(context);
+    } catch (error) {
+      await this.close().catch(() => {});
+      throw error;
+    }
+  }
+
+  async listTools(context = {}) {
+    await this._authorize('mcp.tools.list', context);
+    if (!this.connected || !this.client) throw new Error('MCP_CLIENT_NOT_CONNECTED');
+    const response = await this.client.listTools();
+    return (response?.tools || []).map((tool) => {
+      const originalName = String(tool.name || '');
+      if (!originalName) throw new TypeError('MCP_TOOL_NAME_REQUIRED');
+      const name = `mcp.${this.namespace}.${originalName}`;
+      return {
+        name,
+        description: String(tool.description || ''),
+        schema: {
+          description: String(tool.description || ''),
+          parameters: tool.inputSchema || { type: 'object', properties: {} },
+          risk: tool.annotations?.destructiveHint ? 'high' : 'medium',
+          requiresApproval: Boolean(tool.annotations?.destructiveHint || tool.annotations?.openWorldHint),
+        },
+        parameters: tool.inputSchema || { type: 'object', properties: {} },
+        source: 'mcp',
+        server: this.namespace,
+        passContext: true,
+        execute: async (args = {}, callContext = {}) => this.callTool(originalName, args, callContext),
+      };
+    });
   }
 
   /**
-   * Register connected remote tools in the canonical ToolRegistry.
-   * Remote tools are treated as high-risk and require HITL approval by default.
+   * Register remote capabilities in the canonical ToolRegistry.
+   * Tenant-scoped authorization is required at discovery and invocation;
+   * all imported remote tools require human approval until a narrower policy
+   * is explicitly configured by the host.
    */
-  async registerTools(registry) {
+  async registerTools(registry, context = {}) {
     if (!registry || typeof registry.register !== 'function') {
-      throw new TypeError('A canonical ToolRegistry with register(name, definition) is required');
+      throw new TypeError('CANONICAL_TOOL_REGISTRY_REQUIRED');
     }
-    const tools = this.connected ? this.tools : await this.connect();
+    const tools = this.connected ? await this.listTools(context) : await this.connect(context);
     for (const tool of tools) {
-      registry.register(tool.name, {
-        description: tool.description,
-        execute: tool.execute,
-        capabilityId: tool.name,
+      const schema = {
+        ...tool.schema,
         risk: 'high',
         requiresApproval: true,
-        permissions: ['mcp.call'],
-        schema: {
-          description: tool.description,
-          parameters: tool.parameters,
-          risk: 'high',
-          requiresApproval: true,
-          permissions: ['mcp.call'],
-        },
+        permissions: ['mcp.tools.call'],
+      };
+      registry.register(tool.name, {
+        ...tool,
+        schema,
+        risk: 'high',
+        requiresApproval: true,
+        permissions: ['mcp.tools.call'],
         domain: 'mcp',
+        passContext: true,
       });
     }
     return tools.map((tool) => tool.name);
   }
 
-  async #loadTransport() {
-    const transport = String(this.config.transport || 'stdio').toLowerCase();
-    if (transport === 'stdio') {
-      if (!this.config.command || !Array.isArray(this.config.args || [])) {
-        throw new TypeError('stdio MCP config requires an operator-configured command and args array');
-      }
-      const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js');
-      return new StdioClientTransport({
-        command: this.config.command,
-        args: this.config.args || [],
-        env: this.config.env,
-        cwd: this.config.cwd,
-      });
+  async callTool(name, arguments_ = {}, context = {}) {
+    if (!name) throw new TypeError('MCP_TOOL_NAME_REQUIRED');
+    await this._authorize('mcp.tools.call', context, { name });
+    if (!this.connected || !this.client) throw new Error('MCP_CLIENT_NOT_CONNECTED');
+    const result = await this.client.callTool({ name, arguments: arguments_ ?? {} });
+    if (result?.isError) {
+      const error = new Error('MCP_TOOL_EXECUTION_FAILED');
+      error.code = 'MCP_TOOL_EXECUTION_FAILED';
+      error.content = result.content || [];
+      throw error;
     }
-    if (transport === 'sse') {
-      if (!this.config.url || !/^https?:\/\//i.test(this.config.url)) throw new TypeError('SSE MCP config requires an http(s) URL');
-      const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js');
-      return new SSEClientTransport(new URL(this.config.url), {
-        eventSourceInit: this.config.eventSourceInit,
-        requestInit: this.config.requestInit,
-      });
-    }
-    if (transport === 'streamable-http') {
-      if (!this.config.url || !/^https?:\/\//i.test(this.config.url)) throw new TypeError('Streamable HTTP MCP config requires an http(s) URL');
-      const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
-      return new StreamableHTTPClientTransport(new URL(this.config.url), {
-        requestInit: this.config.requestInit,
-      });
-    }
-    throw new TypeError(`Unsupported MCP transport: ${transport}`);
+    return result?.structuredContent ?? result?.content ?? result;
   }
 
   async close() {
-    this.connected = false;
-    this.tools = [];
-    if (this.client) await this.client.close();
-    else if (this.transport?.close) await this.transport.close();
+    const client = this.client;
+    const transport = this.transport;
     this.client = null;
     this.transport = null;
+    this.connected = false;
+    if (client && typeof client.close === 'function') await client.close();
+    else if (transport && typeof transport.close === 'function') await transport.close();
+  }
+
+  async _authorize(capability, context, resource = {}) {
+    if (!context.tenantId) throw new Error('TENANT_SCOPE_REQUIRED');
+    if (!this.authorize) throw new Error('MCP_AUTHORIZER_REQUIRED');
+    const allowed = await this.authorize({
+      capability,
+      tenantId: context.tenantId,
+      userId: context.userId,
+      resource,
+      server: this.namespace,
+    });
+    if (!allowed) throw new Error('CAPABILITY_FORBIDDEN');
+  }
+
+  async _loadSdk(transportType) {
+    try {
+      const [clientModule, transportModule] = await Promise.all([
+        import('@modelcontextprotocol/sdk/client/index.js'),
+        import(transportType === 'stdio'
+          ? '@modelcontextprotocol/sdk/client/stdio.js'
+          : transportType === 'sse'
+            ? '@modelcontextprotocol/sdk/client/sse.js'
+            : '@modelcontextprotocol/sdk/client/streamableHttp.js'),
+      ]);
+      const transportName = transportType === 'stdio'
+        ? 'StdioClientTransport'
+        : transportType === 'sse'
+          ? 'SSEClientTransport'
+          : 'StreamableHTTPClientTransport';
+      return { Client: clientModule.Client, [transportName]: transportModule[transportName] };
+    } catch (cause) {
+      const error = new Error('MCP_SDK_NOT_INSTALLED: install @modelcontextprotocol/sdk to enable MCP transports');
+      error.cause = cause;
+      throw error;
+    }
   }
 }
+
 export default MCPClientAdapter;
