@@ -160,6 +160,12 @@ npm run model:predict -- --features 0.8,0.7,0.2
 
 Use `--data` to supply a JSONL dataset and `--out` to choose an artifact directory. The trained classifier can be exposed to the host runtime with `createClassifierTool({ modelDir })` from `src/ml/classifier-tool.js`. The sample dataset is synthetic; replace it with representative, properly permissioned examples and evaluate on held-out data before trusting predictions. Training artifacts are local and ignored by Git. See [the Node.js model training guide](docs/architecture/nodejs-model-training.md) for the schema, CLI options, and limitations.
 
+## Experimental JavaScript TinyGPT lab
+
+The separate `experiments/llm-js/` lab contains a small, educational character-level GPT/Transformer path, tensor operations, optimization, checkpoints, fine-tuning experiments, and a local OpenAI-compatible model adapter. It is intentionally separate from the production AgentRuntime and from the numeric-feature classifier described above.
+
+Start with the lab guide at [experiments/llm-js/README.md](experiments/llm-js/README.md). The pull-request workflow runs focused unit tests and tiny smoke-training runs. The repository-corpus workflow is opt-in or branch-triggered and writes generated corpora/checkpoints under ignored `artifacts/`; inspect training-data privacy and licensing before using repository contents. A successful tiny training run demonstrates that the pipeline executes, not that it has produced a capable conversational LLM.
+
 ## Model independence
 
 Models are behind a port. The runtime should operate with hosted frontier models, self-hosted/open models, local models, and test doubles.
