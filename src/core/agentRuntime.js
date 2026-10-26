@@ -602,7 +602,12 @@ class AgentRuntime extends EventEmitter {
   async approveAction({ actionId, actor, tenantId, authorize } = {}) {
     return this.approvalGate.resume({
       actionId, actor, tenantId, authorize,
-      execute: (toolName, params, context) => this._invokeTool(toolName, params, context),
+      execute: (toolName, params, context) => this._executeToolForFrame(toolName, params, {
+        ...context,
+        approvalId: actionId,
+        approvalGranted: true,
+        approved: true,
+      }),
     });
   }
 
