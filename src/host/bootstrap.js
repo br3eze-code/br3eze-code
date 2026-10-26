@@ -1,13 +1,8 @@
-import * as networkAdapter from '../adapters/network/mikrotik.js';
-import * as onboardingAdapter from '../adapters/network/onboard.js';
 import * as databaseAdapter from '../adapters/persistence/database.js';
 import * as firebaseAdapter from '../adapters/persistence/firebase.js';
 import supabaseDatabaseAdapter from '../adapters/persistence/supabase-database.js';
 import BillingAdapter from '../adapters/payments/universal-billing.js';
 import FinancialService from '../services/financial.js';
-import MikroTikAdapter from '../adapters/network/mikrotik-adapter.js';
-import { registerNetworkProvider } from '../core/mikrotik.js';
-import { registerOnboardingProvider } from '../core/onboard.js';
 import { registerDatabaseProvider } from '../core/database.js';
 import { registerPersistenceProvider } from '../core/firebase.js';
 import { registerBillingProvider } from '../core/universal-billing.js';
@@ -17,9 +12,26 @@ import pluginRegistry from '../plugins/registry.js';
 import PluginManager from '../plugins/manager.js';
 import ServiceRegistry from '../services/registry.js';
 
+const NETWORK_DOMAINS = new Set(['network', 'wifi', 'wifi-billing']);
+const ACTIVE_DOMAIN = String(process.env.AGENTOS_DOMAIN || 'network').trim().toLowerCase();
+const networkModules = NETWORK_DOMAINS.has(ACTIVE_DOMAIN)
+  ? await Promise.all([
+      import('../adapters/network/mikrotik.js'),
+      import('../adapters/network/onboard.js'),
+      import('../adapters/network/mikrotik-adapter.js'),
+      import('../core/mikrotik.js'),
+      import('../core/onboard.js')
+    ])
+  : null;
+const networkAdapter = networkModules?.[0] || null;
+const onboardingAdapter = networkModules?.[1] || null;
+const MikroTikAdapter = networkModules?.[2]?.default || networkModules?.[2] || null;
+const registerNetworkProvider = networkModules?.[3]?.registerNetworkProvider || null;
+const registerOnboardingProvider = networkModules?.[4]?.registerOnboardingProvider || null;
+
 export function bootstrapAgentOS() {
-  registerNetworkProvider(networkAdapter);
-  registerOnboardingProvider(onboardingAdapter.default || onboardingAdapter);
+  if (networkAdapter && registerNetworkProvider) registerNetworkProvider(networkAdapter);
+  if (onboardingAdapter && registerOnboardingProvider) registerOnboardingProvider(onboardingAdapter.default || onboardingAdapter);
   const requestedProvider = String(process.env.DATABASE_PROVIDER || 'auto').toLowerCase();
   const hasSupabase = Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY));
   const useSupabaseDatabase = requestedProvider === 'supabase' || (requestedProvider === 'auto' && hasSupabase);
@@ -28,8 +40,8 @@ export function bootstrapAgentOS() {
   registerPersistenceProvider(firebaseAdapter.default || firebaseAdapter);
   registerBillingProvider(BillingAdapter);
   registerFinancialProvider(FinancialService);
-  nodeRegistry.setManagerFactory(networkAdapter.createManager);
-  pluginRegistry.register('mikrotik', MikroTikAdapter);
+  if (networkAdapter) nodeRegistry.setManagerFactory(networkAdapter.createManager);
+  if (MikroTikAdapter) pluginRegistry.register('mikrotik', MikroTikAdapter);
   return { networkAdapter, onboardingAdapter, databaseAdapter: activeDatabaseAdapter, legacyDatabaseAdapter: databaseAdapter, supabaseDatabaseAdapter, firebaseAdapter, BillingAdapter, FinancialService, nodeRegistry, pluginRegistry };
 }
 
