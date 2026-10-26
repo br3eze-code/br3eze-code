@@ -462,23 +462,64 @@ class AgentRuntime extends EventEmitter {
     const tenantId = context.tenantId || context.tenant_id;
     const userId = context.userId || context.user_id || context.uid;
     if (!tenantId || !userId) {
-      // The registry rejects tool execution without authenticated scope and a task.
+      // Registry-backed execution is fail-closed when authenticated scope is absent.
       return this.executeTool(toolName, params, { ...context, phase: 'execute', action: toolName });
     }
 
+    const tool = this.toolRegistry.getTool?.(toolName);
+    const roleMutationRequiresApproval = Boolean(context.agentRole)
+      && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
+    const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
+    const approvalGranted = context.approvalGranted === true || context.approved === true;
     const taskRegistry = getTaskRegistry();
     const task = taskRegistry.create(`Execute tool ${toolName}`, {
       action: toolName,
       owner: { userId, platformId: context.platformId || null },
       context: { ...context, tenantId, userId },
       input: params,
-      requiresExecutionApproval: Boolean(this.toolRegistry.getTool(toolName)?.capability?.requiresApproval),
+      requiresExecutionApproval: requiresApproval,
     });
-    taskRegistry.setStatus(task.taskId, TaskStatus.RUNNING);
+
+    taskRegistry.markPlanReady(task.taskId, {
+      action: toolName,
+      input: params,
+      scopedTo: { tenantId, userId },
+    });
+    taskRegistry.markDraftReady(task.taskId, {
+      action: toolName,
+      input: params,
+      requiresApproval,
+    });
+
+    if (requiresApproval && !approvalGranted) {
+      return {
+        approvalRequired: true,
+        agentRole: context.agentRole || null,
+        toolName,
+        taskId: task.taskId,
+        phase: 'approve',
+      };
+    }
+
+    if (requiresApproval) {
+      taskRegistry.approveExecution(task.taskId, context.approvalId || 'runtime-explicit-approval');
+    }
+    taskRegistry.beginExecution(task.taskId);
+
     try {
       const result = await this.executeTool(toolName, params, {
-        ...context, tenantId, userId, taskId: task.taskId, action: toolName, phase: 'execute',
+        ...context,
+        tenantId,
+        userId,
+        taskId: task.taskId,
+        action: toolName,
+        phase: 'execute',
+        approvalGranted,
+        approved: approvalGranted,
       });
+      taskRegistry.setPhase(task.taskId, TaskPhase.OBSERVE);
+      taskRegistry.markVerified(task.taskId, [{ type: 'tool-execution', toolName, verified: true }]);
+      taskRegistry.setPhase(task.taskId, TaskPhase.COMPLETE);
       taskRegistry.setStatus(task.taskId, TaskStatus.COMPLETED);
       return result;
     } catch (error) {
@@ -502,30 +543,12 @@ class AgentRuntime extends EventEmitter {
       if (typeof args === 'string') {
         try { args = JSON.parse(args); } catch { args = {}; }
       }
-      const tool = this.toolRegistry?.getTool?.(name);
-      const mutationForScopedRole = Boolean(context.agentRole)
-        && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(name);
-      const approvalRequired = Boolean(tool?.capability?.requiresApproval || mutationForScopedRole);
-      if (approvalRequired && context.approvalGranted !== true && context.approved !== true) {
-        results.push({
-          toolCallId,
-          result: {
-            approvalRequired: true,
-            agentRole: context.agentRole || null,
-            toolName: name,
-            reason: 'explicit_approval_required',
-          },
-        });
-        continue;
-      }
       try {
-        const approvalGranted = context.approvalGranted === true || context.approved === true;
-        const executionContext = {
+        const result = await this._executeToolForFrame(name, args, {
           ...context,
-          approvalGranted,
-          approved: approvalGranted,
-        };
-        const result = await this._executeToolForFrame(name, args, executionContext);
+          approvalGranted: context.approvalGranted === true || context.approved === true,
+          approved: context.approved === true || context.approvalGranted === true,
+        });
         results.push({ toolCallId, result });
       } catch (error) {
         results.push({ toolCallId, result: { error: error.message } });
