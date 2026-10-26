@@ -37,6 +37,58 @@ export function row(matrix, rowIndex) {
   return out;
 }
 
+/** Slice a contiguous feature range from a matrix, preserving gradients. */
+export function sliceColumns(matrix, start, end) {
+  if (!(matrix instanceof Tensor) || matrix.shape.length !== 2) throw new TypeError("sliceColumns expects a rank-2 Tensor");
+  const [rows, cols] = matrix.shape;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > cols) {
+    throw new RangeError("column slice must be a non-empty in-bounds range");
+  }
+  const width = end - start;
+  const data = new Float64Array(rows * width);
+  for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+    data.set(matrix.data.slice(rowIndex * cols + start, rowIndex * cols + end), rowIndex * width);
+  }
+  const out = new Tensor(data, [rows, width]);
+  out.parents = [matrix];
+  out._backward = () => {
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      for (let col = 0; col < width; col += 1) matrix.grad[rowIndex * cols + start + col] += out.grad[rowIndex * width + col];
+    }
+  };
+  return out;
+}
+
+/** Concatenate equal-row-count matrices by feature columns, preserving gradients. */
+export function concatColumns(matrices) {
+  if (!Array.isArray(matrices) || matrices.length === 0 || matrices.some((item) => !(item instanceof Tensor) || item.shape.length !== 2)) {
+    throw new TypeError("concatColumns expects a non-empty list of matrices");
+  }
+  const rows = matrices[0].shape[0];
+  if (matrices.some((item) => item.shape[0] !== rows)) throw new RangeError("all matrices must have the same row count");
+  const widths = matrices.map((item) => item.shape[1]);
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  const out = new Tensor(new Float64Array(rows * totalWidth), [rows, totalWidth]);
+  for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+    let offset = rowIndex * totalWidth;
+    matrices.forEach((item, index) => {
+      out.data.set(item.data.slice(rowIndex * widths[index], (rowIndex + 1) * widths[index]), offset);
+      offset += widths[index];
+    });
+  }
+  out.parents = matrices;
+  out._backward = () => {
+    for (let rowIndex = 0; rowIndex < rows; rowIndex += 1) {
+      let offset = rowIndex * totalWidth;
+      matrices.forEach((item, index) => {
+        for (let col = 0; col < widths[index]; col += 1) item.grad[rowIndex * widths[index] + col] += out.grad[offset + col];
+        offset += widths[index];
+      });
+    }
+  };
+  return out;
+}
+
 /** Numerically stable softmax for a rank-1 logits vector. */
 export function softmax(logits) {
   if (!(logits instanceof Tensor) || logits.shape.length !== 1) {
