@@ -54,6 +54,15 @@ describe('Br3eze OS managed application platform', () => {
     expect(apps.describe('demo.app').state).toBe('stopped');
   });
 
+  test('records failed application startup instead of leaving a stale installed state', async () => {
+    const apps = new ApplicationManager({ supervisor: new ServiceSupervisor() });
+    apps.register({ id: 'broken.app', version: '1.0.0', entryService: 'broken.service' }, {
+      id: 'broken.service', start: async () => { throw new Error('startup failed'); }, stop: async () => {},
+    });
+    await expect(apps.start('broken.app')).rejects.toThrow('startup failed');
+    expect(apps.describe('broken.app').state).toBe('failed');
+  });
+
   test('rejects invalid manifests and mismatched services', () => {
     const apps = new ApplicationManager({ supervisor: new ServiceSupervisor() });
     expect(() => apps.register({ id: 'bad app', version: '1.0.0', entryService: 'svc' }, { id: 'svc', start() {}, stop() {} })).toThrow('manifest.id');
