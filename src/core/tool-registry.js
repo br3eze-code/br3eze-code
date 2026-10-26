@@ -44,6 +44,7 @@ class ToolRegistry {
     this.requireExecutionTask = options.requireExecutionTask !== false;
     this._manifestCache = null;
     this._metrics = new Map();
+    for (const skill of options.skills || []) this.registerSkill(skill);
   }
 
   /**
