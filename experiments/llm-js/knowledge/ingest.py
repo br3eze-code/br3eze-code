@@ -92,13 +92,14 @@ def build(args: argparse.Namespace) -> dict[str,Any]:
    clean="\n".join(line.rstrip() for line in clean.splitlines()).strip()
    if not clean: raise RuntimeError("no extractable text; image embeddings/captions are not generated")
    digest=sha256(clean.encode("utf-8"))
-   if digest in seen: totals["duplicates"]+=1; continue
+   duplicate_content = digest in seen
+   if duplicate_content: totals["duplicates"]+=1
    seen.add(digest); totals["redactions"]+=sum(counts.values())
    rows.append({"schemaVersion":SCHEMA_VERSION,"documentId":sha256((relative+":"+digest).encode())[:24],
     "source":{"uri":relative,"sourceType":"local-file","mediaType":path.suffix.lower().lstrip("."),
      "contentHash":"sha256:"+sha256(path.read_bytes()),"licenseStatus":args.license_status,
      "retrievedAt":datetime.now(timezone.utc).isoformat()},
-    "content":{"modality":modality,"text":clean,"contentHash":"sha256:"+digest,**({"extraction":extra} if extra else {})},
+    "content":{"modality":modality,"text":clean,"contentHash":"sha256:"+digest,"duplicateContent":duplicate_content,**({"extraction":extra} if extra else {})},
     "quality":{"reviewStatus":"pending","privacyStatus":"needs-human-review","redactions":counts}})
   except (OSError,UnicodeError,RuntimeError,ValueError) as exc: skipped.append({"source":relative,"reason":str(exc)})
  with out_file.open("w",encoding="utf-8",newline="\n") as stream:
