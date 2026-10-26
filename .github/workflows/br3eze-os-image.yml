@@ -1,0 +1,51 @@
+name: Br3eze OS image
+
+on:
+  pull_request:
+    paths:
+      - 'os/level3/**'
+      - '.github/workflows/br3eze-os-image.yml'
+  workflow_dispatch:
+  push:
+    tags:
+      - 'os-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate build script and live-build config
+        run: |
+          bash -n os/level3/build-live-image.sh
+          sh -n os/level3/live-build/auto/config
+          test -s os/level3/README.md
+          test -s os/level3/live-build/config/package-lists/br3eze-os.list.chroot
+          grep -q 'linux-image-amd64' os/level3/live-build/config/package-lists/br3eze-os.list.chroot
+          grep -q 'network-manager' os/level3/live-build/config/package-lists/br3eze-os.list.chroot
+          grep -q 'NoNewPrivileges=true' os/level3/live-build/config/includes.chroot/etc/systemd/system/agentos.service
+
+  build-iso:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/os-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install live-build tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
+      - name: Build bootable ISO
+        run: sudo --preserve-env=GITHUB_WORKSPACE BR3EZE_OUT_DIR="$GITHUB_WORKSPACE/out" ./os/level3/build-live-image.sh
+      - name: Upload ISO and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: br3eze-os-iso
+          path: |
+            out/*.iso
+            out/*.sha256
+          if-no-files-found: error
+          retention-days: 14
