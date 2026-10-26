@@ -28,9 +28,11 @@ def sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 def normalize_title(title: str) -> str:
+    if not isinstance(title, str) or any(ord(ch) < 32 or ord(ch) == 127 for ch in title):
+        raise ValueError("title must be text without control characters")
     title = " ".join(title.strip().split())
-    if not title or len(title) > 255 or any(ord(ch) < 32 for ch in title):
-        raise ValueError("title must be non-empty, at most 255 characters, and contain no control characters")
+    if not title or len(title) > 255:
+        raise ValueError("title must be non-empty and at most 255 characters")
     return title
 
 def parse_api_response(payload: dict[str, Any], max_chars: int = DEFAULT_MAX_CHARS) -> dict[str, Any]:
