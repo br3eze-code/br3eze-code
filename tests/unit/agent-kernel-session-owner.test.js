@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, test, jest } from '@jest/globals';
 import AgentKernel from '../../src/core/agentKernel.js';
 import { SessionEventStore } from '../../src/core/session/SessionEventStore.js';
 import { AgentRuntime } from '../../src/core/agentRuntime.js';
