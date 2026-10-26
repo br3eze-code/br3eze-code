@@ -5,7 +5,8 @@ import supabaseDatabaseAdapter from '../adapters/persistence/supabase-database.j
 import BillingAdapter from '../adapters/payments/universal-billing.js';
 import FinancialService from '../services/financial.js';
 import { registerDatabaseProvider } from '../core/database.js';
-import { registerPersistenceProvider } from '../core/firebase.js';
+import { registerPersistenceProvider } from '../core/persistence.js';
+import * as productQueryAdapter from '../adapters/persistence/product-query-service.js';
 import { registerBillingProvider } from '../core/universal-billing.js';
 import { registerFinancialProvider } from '../core/financial.js';
 import nodeRegistry from '../core/node-registry.js';
@@ -38,7 +39,11 @@ export function bootstrapAgentOS() {
   const useSupabaseDatabase = requestedProvider === 'supabase' || (requestedProvider === 'auto' && hasSupabase);
   const activeDatabaseAdapter = useSupabaseDatabase ? supabaseDatabaseAdapter : databaseAdapter;
   registerDatabaseProvider(activeDatabaseAdapter);
-  registerPersistenceProvider(firebaseAdapter.default || firebaseAdapter);
+  registerPersistenceProvider({
+    ...activeDatabaseAdapter,
+    getProductQueryService: productQueryAdapter.getProductQueryService,
+    resetProductQueryServiceBridge: productQueryAdapter.resetProductQueryServiceBridge,
+  });
   registerBillingProvider(BillingAdapter);
   registerFinancialProvider(FinancialService);
   if (networkAdapter) nodeRegistry.setManagerFactory(networkAdapter.createManager);
