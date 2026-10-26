@@ -171,7 +171,8 @@ def main() -> int:
     )
     trainer.train()
     trainer.save_model(str(args.output_dir / "best-adapter"))
-    tokenizer.save_pretrained(str(args.output_dir / "best-adapter"))
+    if trainer.is_world_process_zero():
+        tokenizer.save_pretrained(str(args.output_dir / "best-adapter"))
     metrics = trainer.evaluate()
     if trainer.is_world_process_zero():
         args.output_dir.mkdir(parents=True, exist_ok=True)
