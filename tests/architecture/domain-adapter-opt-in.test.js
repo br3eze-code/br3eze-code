@@ -6,6 +6,12 @@ import loadAllDomains from '../../src/core/loadDomain.js';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 describe('optional domain adapter boot boundary', () => {
+  test('package entry points to the canonical runtime, not the removed gateway facade', () => {
+    const packageJson = JSON.parse(read('../../package.json'));
+    expect(packageJson.main).toBe('src/core/agentRuntime.js');
+    expect(() => read('../../src/core/agentRuntime.js')).not.toThrow();
+  });
+
   test('host bootstrap does not statically import or register RouterOS by default', () => {
     const source = read('../../src/host/bootstrap.js');
     expect(source).not.toContain("import * as networkAdapter from '../adapters/network/mikrotik.js'");
