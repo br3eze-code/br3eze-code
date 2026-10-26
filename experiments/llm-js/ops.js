@@ -24,6 +24,19 @@ export function embedding(weight, tokenIds) {
   return out;
 }
 
+/** Select one row from a matrix while preserving gradient flow. */
+export function row(matrix, rowIndex) {
+  if (!(matrix instanceof Tensor) || matrix.shape.length !== 2) throw new TypeError("row expects a rank-2 Tensor");
+  if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= matrix.shape[0]) throw new RangeError("rowIndex is out of range");
+  const width = matrix.shape[1];
+  const out = new Tensor(matrix.data.slice(rowIndex * width, (rowIndex + 1) * width), [width]);
+  out.parents = [matrix];
+  out._backward = () => {
+    for (let col = 0; col < width; col += 1) matrix.grad[rowIndex * width + col] += out.grad[col];
+  };
+  return out;
+}
+
 /** Numerically stable softmax for a rank-1 logits vector. */
 export function softmax(logits) {
   if (!(logits instanceof Tensor) || logits.shape.length !== 1) {
