@@ -16,6 +16,7 @@ function createModel() {
 
 test("runner trains selected head parameters and leaves frozen base weights unchanged", async () => {
   const model = createModel();
+  const pretrainingOptimizer = model.optimizer;
   const baseBefore = Array.from(model.params.tokenEmbedding.data);
   const headBefore = Array.from(model.params.lmHeadWeight.data);
   const result = await runFineTuning(model, model.optimizer, [
@@ -29,6 +30,9 @@ test("runner trains selected head parameters and leaves frozen base weights unch
 
   assert.equal(result.history.length, 2);
   assert.equal(result.trainable.length, 2);
+  assert.notEqual(model.optimizer, pretrainingOptimizer);
+  assert.equal(pretrainingOptimizer.stepCount, 0);
+  assert.equal(model.optimizer.stepCount, 2);
   assert.deepEqual(Array.from(model.params.tokenEmbedding.data), baseBefore);
   assert.notDeepEqual(Array.from(model.params.lmHeadWeight.data), headBefore);
   assert.ok(model.frozenParameters.every((parameter) => parameter.grad.every((value) => value === 0)));
