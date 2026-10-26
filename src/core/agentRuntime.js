@@ -17,14 +17,14 @@ import { ApprovalWorkflow } from './approval-gates.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
-  { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
-  { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
-  { name: 'agent.remove', keywords: ['agent', 'remove', 'delete', 'retire'] },
-  { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
-  { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
-  { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] },
-  { name: 'system.stats', keywords: ['system', 'stats', 'cpu', 'memory'] },
+  { name: 'agent.create', requiredKeywords: ['agent'], keywords: ['create', 'register', 'new'] },
+  { name: 'agent.run', requiredKeywords: ['agent'], keywords: ['run', 'execute'] },
+  { name: 'agent.remove', requiredKeywords: ['agent'], keywords: ['remove', 'delete', 'retire'] },
+  { name: 'workflow.run', requiredKeywords: ['workflow'], keywords: ['run', 'flow', 'process'] },
+  { name: 'tool.execute', requiredKeywords: ['tool'], keywords: ['execute', 'action'] },
+  { name: 'task.status', requiredKeywords: ['task'], keywords: ['status', 'progress'] },
+  { name: 'runtime.status', requiredKeywords: ['runtime'], keywords: ['status', 'health', 'state'] },
+  { name: 'system.stats', requiredKeywords: ['system'], keywords: ['stats', 'cpu', 'memory'] },
   { name: 'ping', keywords: ['ping', 'latency', 'host'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
@@ -66,7 +66,10 @@ function normalizeToolParameters(parameters) {
   return { type: 'object', properties: {} };
 }
 
-function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
+function scorePrompt(tokens, entry) {
+  if (entry.requiredKeywords && !entry.requiredKeywords.every((keyword) => tokens.has(keyword))) return 0;
+  return entry.keywords.filter((keyword) => tokens.has(keyword)).length + (entry.requiredKeywords?.length || 0);
+}
 
 class UsageSummary {
   constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
