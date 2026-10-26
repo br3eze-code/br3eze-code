@@ -262,3 +262,29 @@ TinyGPT is a correctness-first CPU learning implementation, not a production or 
 - `llm.c` is a low-level C/CUDA training and performance-engineering reference.
 - `makemore` and `nanoGPT` are useful educational references for language-model structure and training loops.
 - This project translates those learning goals into original JavaScript and an optional standard pretrained fine-tuning bridge. Node.js CPU tensor code should not be expected to match CUDA performance.
+
+## Train on the Br3eze repository
+
+Build a filtered, reproducible corpus from eligible source code and documentation in the checked-out repository:
+
+```bash
+node experiments/llm-js/build-repo-training-data.mjs --out-dir artifacts/training-data
+```
+
+This writes `br3eze-repo.txt` for the educational TinyGPT trainer and `br3eze-repo.jsonl` for the pretrained-model LoRA CLI. The builder skips generated/dependency directories, binary and oversized files, environment files, and common credential patterns; it redacts several common token shapes. **Review the generated corpus before training**—heuristic secret filtering cannot guarantee that all credentials or personal data are removed. Do not place production exports, customer records, or secrets in the training corpus.
+
+Run a small CPU baseline:
+
+```bash
+node experiments/llm-js/train-gpt.js --input artifacts/training-data/br3eze-repo.txt --steps 10 --context 32 --width 8 --heads 2 --layers 1 --hidden 32 --seed 42 --generate 0 --checkpoint artifacts/training-data/br3eze-tinygpt.json
+```
+
+For a pretrained model, use the JSONL corpus with the existing LoRA bridge:
+
+```bash
+node experiments/llm-js/finetune-pretrained.js --model <local-model-path-or-hugging-face-id> --input artifacts/training-data/br3eze-repo.jsonl --steps 100 --output artifacts/br3eze-repo-adapter
+```
+
+The repository workflow `.github/workflows/repo-data-training.yml` runs the corpus tests and a small TinyGPT baseline on pushes to `feat/llm-js-training`; its corpus and checkpoint are retained as a short-lived Actions artifact. This baseline validates the pipeline, not model quality. A character-level TinyGPT trained for a few steps is **not** a capable coding assistant. Meaningful specialization requires a suitable licensed pretrained base model, representative reviewed examples, evaluation data held out from training, and sufficient compute.
+
+The Formula Chat pattern port is domain-neutral: model-selected tools, schema validation, explicit authorization, bounded execution, preserved provenance, and synthesis grounded in tool results. The F1-specific SQL schema, data and retrieval implementation are not copied into AgentOS core.
