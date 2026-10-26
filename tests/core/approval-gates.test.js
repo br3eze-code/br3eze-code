@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { ApprovalWorkflow } from '../../src/core/approval-gates.js';
 
 describe('ApprovalGate', () => {
