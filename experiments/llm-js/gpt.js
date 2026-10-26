@@ -106,7 +106,7 @@ export class TinyGPT {
 
   forward(tokenIds) {
     if (!Array.isArray(tokenIds) || tokenIds.length < 1 || tokenIds.length > this.contextSize) {
-      throw new RangeError(`tokenIds must contain 1..${this.contextSize} token IDs`);
+      throw new RangeError(`tokenIds must contain 1..${this.contextSize} token IDs (contextSize limit)`);
     }
     const positions = tokenIds.map((_token, index) => index);
     const tokenVectors = embedding(this.params.tokenEmbedding, tokenIds);
