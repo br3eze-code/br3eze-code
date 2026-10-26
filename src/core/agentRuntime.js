@@ -17,6 +17,8 @@ import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
+const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
+
 const DEFAULT_TOOL_MANIFEST = [
   { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
   { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
@@ -553,7 +555,7 @@ class AgentRuntime extends EventEmitter {
     const roleMutationRequiresApproval = Boolean(context.agentRole)
       && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
     const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
-    const approvalGranted = context.approvalGranted === true
+    const approvalGranted = context[APPROVAL_AUTHORIZATION] === true
       && typeof context.approvalId === 'string'
       && context.approvalId.trim().length > 0;
     const taskRegistry = getTaskRegistry();
@@ -638,6 +640,7 @@ class AgentRuntime extends EventEmitter {
         ...context,
         approvalId: actionId,
         approvalGranted: true,
+        [APPROVAL_AUTHORIZATION]: true,
       }),
     });
   }
