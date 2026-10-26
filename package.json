@@ -45,7 +45,8 @@
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
-    "vercel:build": "npm run build && node scripts/vercel-build.mjs"
+    "vercel:build": "npm run build && node scripts/vercel-build.mjs",
+    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs"
   },
   "publishConfig": {
     "access": "public",
