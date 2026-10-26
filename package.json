@@ -1,6 +1,6 @@
 {
   "name": "br3eze-code",
-  "version": "2026.9.15",
+  "version": "2026.10.21",
   "description": "Domain-agnostic agent runtime and harness for tools, skills, workflows, plugins, and model providers",
   "main": "src/core/gateway.js",
   "bin": {
@@ -243,6 +243,7 @@
     "cordova-sqlite-storage": "^7.0.0",
     "electron": "^43.4.0",
     "electron-builder": "^26.15.0",
+    "eslint": "8.57.1",
     "eslint-config-prettier": "*",
     "eslint-plugin-prettier": "*",
     "javascript-obfuscator": "^5.4.0",
@@ -252,8 +253,7 @@
     "supertest": "^6.3.0",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
-    "typescript": "^5.3.3",
-    "eslint": "^8.57.1"
+    "typescript": "^5.3.3"
   },
   "cordova": {
     "platforms": [
