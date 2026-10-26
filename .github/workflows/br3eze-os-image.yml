@@ -48,7 +48,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
       - name: Build bootable ISO
-        run: ./os/level3/build-image.sh
+        run: bash os/level3/build-image.sh
       - name: Verify image and checksum
         run: |
           test -s os/level3/br3eze-os-amd64.hybrid.iso
