@@ -6,10 +6,8 @@ import chalk from 'chalk';
 import { STATE_PATH, getConfig } from '../../core/config.js';
 import { logger } from '../../core/logger.js';
 import { getDatabase } from '../../core/database.js';
-import { getManager as getMikroTik } from '../../core/mikrotik.js';
 import FinancialService from '../../core/financial.js';
 import UniversalBilling from '../../core/universal-billing.js';
-import DiscoveryService from '../../core/discovery.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
 import nodeRegistry from '../../core/node-registry.js';
 import { getAgentRuntime } from '../../core/agentRuntime.js';
@@ -281,21 +279,37 @@ export default (program) => {
             try {
                 // 1. Core Services Initialization
                 const config = getConfig();
+                // Domain adapters are opt-in at the composition boundary. The
+                // legacy default remains network for existing deployments; set
+                // AGENTOS_DOMAIN=retail|logistics|support to avoid loading RouterOS.
+                const domain = String(process.env.AGENTOS_DOMAIN || config.domain || 'network').trim().toLowerCase();
+                const networkEnabled = ['network', 'wifi', 'wifi-billing'].includes(domain);
+                let mikrotik = null;
+                let discovery = null;
+                if (networkEnabled) {
+                    const [{ getManager: getMikroTik }, { default: DiscoveryService }] = await Promise.all([
+                        import('../../core/mikrotik.js'),
+                        import('../../core/discovery.js')
+                    ]);
+                    mikrotik = getMikroTik();
+                    discovery = new DiscoveryService({ mikrotik });
+                }
 
-                const mikrotik = getMikroTik();
                 const database = await getDatabase();
                 const financial = new FinancialService({ database });
                 const billing = new UniversalBilling({ database });
-                const discovery = new DiscoveryService({ mikrotik });
                 const memoryManager = new MemoryManager(config.memory?.adapter || 'memory');
                 await memoryManager.initialize();
 
                 // Set Globals
-                global.mikrotik = mikrotik;
+                if (networkEnabled) global.mikrotik = mikrotik;
+                else delete global.mikrotik;
                 global.database = database;
                 global.financial = financial;
                 global.billing = billing;
-                global.discovery = discovery;
+                if (networkEnabled) global.discovery = discovery;
+                else delete global.discovery;
+                global.AGENTOS_DOMAIN = domain;
                 global.memoryManager = memoryManager;
                 global.nodeRegistry = nodeRegistry;
 
@@ -326,11 +340,13 @@ export default (program) => {
                     logger.warn(`TaskScheduler not started: ${err.message}`);
                 }
 
-                // 3. Connect to MikroTik (non-fatal)
-                try {
-                    await mikrotik.connect();
-                } catch (err) {
-                    logger.warn(`MikroTik connection failed: ${err.message}`);
+                // 3. Connect to RouterOS only when the network domain is enabled.
+                if (networkEnabled && mikrotik) {
+                    try {
+                        await mikrotik.connect();
+                    } catch (err) {
+                        logger.warn(`MikroTik connection failed: ${err.message}`);
+                    }
                 }
 
                 // 4. Pre-flight: check port availability before binding
