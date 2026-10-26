@@ -13,7 +13,7 @@ import { AgentLoop, TURN_STATES } from './agent-loop.js';
 import { validateModelPort, createModelRequest } from './ports/model.js';
 import toolRegistry from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
-import { ApprovalGate } from './approval-gates.js';
+import { ApprovalWorkflow } from './approval-gates.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -127,7 +127,7 @@ class AgentRuntime extends EventEmitter {
     this.skillRegistry = config.skillRegistry || null;
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
-    this.approvalGate = config.approvalGate || new ApprovalGate(config.approvalOptions || {});
+    this.approvalGate = config.approvalGate || new ApprovalWorkflow(config.approvalOptions || {});
     this.sessionManager = config.sessionManager || null;
     this.memoryStore = config.memoryStore || null;
     this.injectedToolExecutor = typeof config.toolExecutor === 'function';
