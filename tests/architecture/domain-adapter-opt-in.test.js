@@ -45,5 +45,7 @@ describe('optional domain adapter boot boundary', () => {
     expect(source).not.toContain("import { getManager as getMikroTik } from '../../core/mikrotik.js'");
     expect(source).toContain("import('../../core/mikrotik.js')");
     expect(source).toContain('if (networkEnabled && mikrotik)');
+    expect(source).toContain('toolRegistry.excludedSkills = new Set');
+    expect(source).toContain("'mikrotik', 'mesh', 'voucher'");
   });
 });
