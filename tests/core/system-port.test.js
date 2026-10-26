@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createSystemPort } from '../../src/core/ports/system.js';
 
 describe('provider-neutral system port', () => {
