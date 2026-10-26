@@ -54,7 +54,7 @@ describe('Br3eze OS platform runtime composition', () => {
       toolRegistry: { execute: async () => ({}), getTool: () => null, getAllTools: () => [] },
       localState: state,
       ipcAuthorize: ({ action, topic, tenantId, userId }) =>
-        action === 'publish' && action !== 'subscribe' && topic === 'demo.events' && tenantId === 'tenant-a' && userId === 'user-a',
+        action === 'publish' && topic === 'demo.events' && tenantId === 'tenant-a' && userId === 'user-a',
     });
     await expect(runtime.getAppState({ tenantId: 'tenant-a', appId: 'demo.app', key: 'key' })).resolves.toBe('value');
     await expect(runtime.setAppState({ tenantId: 'tenant-a', appId: 'demo.app', key: 'key', value: 1 })).resolves.toEqual({ saved: true });
