@@ -25,3 +25,5 @@ jobs:
         run: node experiments/llm-js/train.js --steps 20 --generate 20 --checkpoint "$RUNNER_TEMP/llm-js-checkpoint.json"
       - name: Smoke-test TinyGPT training
         run: node experiments/llm-js/train-gpt.js --steps 2 --context 4 --width 2 --hidden 4 --generate 2 --checkpoint "$RUNNER_TEMP/tiny-gpt-checkpoint.json"
+      - name: Smoke-test configurable Transformer training
+        run: node experiments/llm-js/train-transformer.js --steps 2 --context 8 --width 4 --heads 2 --layers 1 --hidden 8 --generate 5 --checkpoint "$RUNNER_TEMP/transformer-checkpoint.json"
