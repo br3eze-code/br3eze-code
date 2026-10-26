@@ -19,7 +19,7 @@ async function loadAllDomains(config = {}, registry = defaultRegistry) {
     return registry;
   }
 
-  const requestedDomains = config.enabledDomains ?? config.domain ?? process.env.AGENTOS_DOMAIN;
+  const requestedDomains = process.env.AGENTOS_DOMAIN ?? config.enabledDomains ?? config.domain;
   const domainAllowlist = requestedDomains == null || requestedDomains === ''
     ? null
     : new Set((Array.isArray(requestedDomains) ? requestedDomains : String(requestedDomains).split(','))
