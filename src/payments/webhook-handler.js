@@ -6,7 +6,9 @@ export function createWebhookHandler(paymentPlatform, onPaymentSuccess = async (
   return async (req, res) => {
     const provider = req.params.provider;
     try {
-      const result = await paymentPlatform.webhook(provider, req.body, req.headers);
+      const verifyWebhook = paymentPlatform.webhook || paymentPlatform.handleWebhook;
+      if (typeof verifyWebhook !== 'function') throw new TypeError('Payment platform must implement webhook() or handleWebhook()');
+      const result = await verifyWebhook.call(paymentPlatform, provider, req.body, req.headers);
       switch (result?.type) {
         case 'payment_success': await onPaymentSuccess(result); break;
         case 'payment_failed': await onPaymentFailed(result); break;
