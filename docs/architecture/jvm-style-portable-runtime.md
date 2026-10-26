@@ -14,13 +14,14 @@ Borrow the useful architectural ideas of the JVM without claiming to implement J
 ## Modules
 
 - `ProviderRegistry` is the SPI catalog. Providers declare an ID, kind, semantic version, capabilities and optional priority. Registration is explicit; importing a module never silently grants permissions.
+- `provider-contracts.js` validates the minimum implementation method for each provider kind: model `execute`, storage `get`, network `request`, hardware `probe`, messaging `send`, identity `authenticate`, custom `initialize`.
 - `HardwarePort` exposes a normalized best-effort profile. Unknown hardware facts remain unknown instead of being guessed. Platform-specific probes belong in adapters.
-- `nodeHardwareProvider` is one optional Node.js host adapter. Browser, embedded, remote and other operating-system adapters can implement the same probe contract.
+- `nodeHardwareProvider` is one optional Node.js host adapter. `createNodeRuntimeEnvironment()` is a Node composition root that explicitly registers it. Browser, embedded, remote and other operating-system adapters can implement the same contracts.
 - `RuntimeEnvironment` composes provider registry, IPC, permissions and the service supervisor. It does not own agent execution; the existing canonical `AgentRuntime` remains the sole agent executor.
 
 ## Provider contract
 
-A provider declares `id`, `kind`, `version`, and `capabilities`. The registry treats implementation methods as adapter-owned and does not call them automatically. Callers should validate the relevant method contract at the boundary where the provider is consumed. Prefer an explicit provider ID when reproducibility matters; priority-based selection is a fallback, not a security decision.
+A provider declares `id`, `kind`, `version`, and `capabilities`. The registry treats implementation methods as adapter-owned and does not call them automatically. Validate a provider's method contract at the adapter registration boundary. Prefer an explicit provider ID when reproducibility matters; priority-based selection is a fallback, not a security decision.
 
 Kinds currently include model, storage, network, hardware, messaging, identity and custom. New kinds can be introduced deliberately as the platform evolves.
 
