@@ -43,15 +43,17 @@ export class HardwareCapabilityRegistry {
       throw new TypeError('adapter.capabilities must be a non-empty array');
     }
 
+    const seen = new Set();
     const pending = adapter.capabilities.map((capability) => {
       if (!capability || typeof capability !== 'object') throw new TypeError('capability must be an object');
       assertName(capability.name, 'capability.name');
       if (!ACCESS.has(capability.access)) throw new TypeError('capability.access must be read or write');
       if (typeof capability.execute !== 'function') throw new TypeError('capability.execute must be a function');
       const fullName = `hardware.${adapter.id}.${capability.name}`;
-      if (this.capabilities.has(fullName) || pendingNameExists(this.capabilities, pendingSafeName(adapter.id, capability.name))) {
+      if (this.capabilities.has(fullName) || seen.has(fullName)) {
         throw new Error(`Hardware capability already registered: ${fullName}`);
       }
+      seen.add(fullName);
       return { fullName, adapter, capability: { ...capability, schema: normalizeSchema(capability.schema) } };
     });
 
@@ -117,7 +119,14 @@ export class HardwareCapabilityRegistry {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(new Error('hardware operation timed out')), this.timeoutMs);
+    let timeout;
+    const timeoutFailure = new Promise((_, reject) => {
+      timeout = setTimeout(() => {
+        const error = new Error(`hardware operation timed out after ${this.timeoutMs}ms`);
+        controller.abort(error);
+        reject(error);
+      }, this.timeoutMs);
+    });
     const signal = context.signal;
     const abortFromCaller = () => controller.abort(signal.reason || new Error('hardware operation cancelled'));
     if (signal?.aborted) abortFromCaller();
@@ -126,7 +135,7 @@ export class HardwareCapabilityRegistry {
     const operationId = randomUUID();
     try {
       if (controller.signal.aborted) throw controller.signal.reason || new Error('hardware operation cancelled');
-      return await entry.capability.execute(args, {
+      const operation = Promise.resolve().then(() => entry.capability.execute(args, {
         tenantId,
         userId,
         deviceId: entry.adapter.deviceId || entry.adapter.id,
@@ -136,7 +145,8 @@ export class HardwareCapabilityRegistry {
         signal: controller.signal,
         approved: entry.capability.access === 'write' && (context.approvalGranted === true || context.approved === true),
         approvalId: context.approvalId || null,
-      });
+      }));
+      return await Promise.race([operation, timeoutFailure]);
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener('abort', abortFromCaller);
@@ -144,11 +154,5 @@ export class HardwareCapabilityRegistry {
   }
 }
 
-function pendingSafeName(adapterId, capabilityName) {
-  return `hardware.${adapterId}.${capabilityName}`;
-}
-function pendingNameExists(registry, fullName) {
-  return registry.has(fullName);
-}
 
 export default HardwareCapabilityRegistry;
