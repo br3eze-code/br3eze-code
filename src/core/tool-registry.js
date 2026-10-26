@@ -55,19 +55,28 @@ class ToolRegistry {
     if (!skill?.name || typeof skill.name !== 'string') throw new TypeError('skill name is required');
     if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);
     if (!Array.isArray(skill.tools)) throw new TypeError(`Skill "${skill.name}" must provide a tools array`);
-    this.skills.set(skill.name, { ...skill, enabled: skill.enabled !== false });
-    for (const tool of skill.tools) {
+
+    // Validate the complete definition before mutating the registry. A malformed
+    // skill must not leave a partially registered set of capabilities.
+    const prepared = skill.tools.map((tool) => {
       if (!tool?.name || typeof (tool.handler || tool.execute) !== 'function') {
         throw new TypeError(`Skill "${skill.name}" tools require a name and handler function`);
       }
       const fullName = tool.name.includes('.') ? tool.name : `${skill.name}.${tool.name}`;
-      this.register(fullName, {
-        ...tool,
-        handler: tool.handler || tool.execute,
-        skill: skill.name,
-        domain: tool.domain || skill.domain || fullName.split('.')[0],
-      });
-    }
+      if (this.tools.has(fullName)) throw new Error(`Tool "${fullName}" already registered`);
+      return {
+        fullName,
+        definition: {
+          ...tool,
+          handler: tool.handler || tool.execute,
+          skill: skill.name,
+          domain: tool.domain || skill.domain || fullName.split('.')[0],
+        },
+      };
+    });
+
+    this.skills.set(skill.name, { ...skill, enabled: skill.enabled !== false });
+    for (const item of prepared) this.register(item.fullName, item.definition);
     return this;
   }
 
