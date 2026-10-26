@@ -11,9 +11,9 @@ describe('Br3eze OS platform runtime composition', () => {
         capabilities: [{ name: 'identity', platforms: ['test'], invoke: async (_input, context) => ({ platform: context.platform }) }],
       }],
     });
-    expect(runtime.listPlatformCapabilities({ tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:test.host:identity'], platform: 'test' })).toHaveLength(1);
+    expect(runtime.listPlatformCapabilities({ platform: 'test' })).toHaveLength(1);
     await runtime.startPlatformAdapter('test.host');
-    await expect(runtime.invokePlatformCapability('platform.test.host.identity', {}, { platform: 'test' }))
+    await expect(runtime.invokePlatformCapability('platform.test.host.identity', {}, { tenantId: 'tenant-a', userId: 'user-a', authorizedCapabilities: ['platform:test.host:identity'], platform: 'test' }))
       .resolves.toEqual({ platform: 'test' });
   });
 
