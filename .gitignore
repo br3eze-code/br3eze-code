@@ -160,3 +160,6 @@ server/agentos.db
 
 # AgentOS local mutable runtime state
 state/
+
+# Generated repository training corpora and model checkpoints
+artifacts/training-data/
