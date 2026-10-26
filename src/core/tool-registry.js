@@ -94,6 +94,34 @@ class ToolRegistry {
     return this;
   }
 
+  /** Compatibility entry point for host code registering one tool definition. */
+  registerTool(toolDef = {}) {
+    const fullName = toolDef.fullName || toolDef.name;
+    if (!fullName || typeof fullName !== 'string') throw new TypeError('tool name is required');
+    if (this.tools.has(fullName)) throw new Error(`Tool "${fullName}" already registered`);
+    this.register(fullName, toolDef);
+    return this;
+  }
+
+  /** Run a skill's explicitly supplied fast-path matcher; no dynamic code discovery. */
+  matchFastPath(input) {
+    for (const skill of this.skills.values()) {
+      if (skill.enabled === false || typeof skill.match !== 'function') continue;
+      const match = skill.match(input);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  /** Public, handler-free tool declarations for model/framework adapters. */
+  toolDeclarations() {
+    return this.getManifest().tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description || tool.name,
+      parameters: tool.parameters || { type: 'object', properties: {} },
+    }));
+  }
+
   register(fullName, toolDef = {}) {
     if (!fullName || typeof fullName !== 'string') throw new TypeError('tool name is required');
     if (typeof toolDef.execute !== 'function' && typeof toolDef.handler !== 'function') throw new TypeError(`Tool "${fullName}" must provide execute() or handler()`);
@@ -242,7 +270,7 @@ class ToolRegistry {
   getToolsForDomain(domain) { return this.getToolsByDomain(domain); }
   getSkillNames() { return [...this.skills.keys()]; }
   getToolCount() { return this.tools.size; }
-  getToolsBySkill(skillName) { const skill = this.skills.get(skillName); return skill ? [...skill.tools.values()] : []; }
+  getToolsBySkill(skillName) { return [...this.tools.values()].filter((tool) => tool.skill === skillName); }
   getSkill(skillName) { return this.skills.get(skillName) || null; }
   getSkillInfo(skillName) { const skill = this.skills.get(skillName); return skill ? { ...skill.manifest, toolCount: skill.tools.size, enabled: skill.enabled, loadedAt: skill.loadedAt } : null; }
   setSkillEnabled(skillName, enabled) { const skill = this.skills.get(skillName); if (skill) { skill.enabled = Boolean(enabled); this._manifestCache = null; } }
