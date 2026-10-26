@@ -131,14 +131,76 @@ MODEL_BASE_URL=http://127.0.0.1:8080/v1 MODEL_ID=local-model node experiments/ll
 
 Set `MODEL_API_KEY` only if your server requires a bearer token. The smoke test reports the endpoint, served model, elapsed time, usage metadata, and generated text; it fails with a useful error if the endpoint is unreachable or rejects the request. It does not launch the server or download model weights.
 
-### 3. Keep training and inference separate
+### 3. Formula Chat pattern: model-selected tools with guarded execution
+
+`tool-agent.js` ports the reusable application pattern from `br3eze-code/formula-chat`: the model chooses when to call one or more tools, receives their results, and composes an answer. The domain-specific Formula 1 tools themselves are **not** copied. AgentOS supplies its own tools through the existing canonical registry or adapter layer.
+
+```js
+import { createOpenAICompatibleAdapter } from "./experiments/llm-js/harness.js";
+import { runToolAgent } from "./experiments/llm-js/tool-agent.js";
+
+const model = createOpenAICompatibleAdapter({
+  baseUrl: process.env.MODEL_BASE_URL ?? "http://127.0.0.1:8080/v1",
+  model: process.env.MODEL_ID ?? "local-model",
+  apiKey: process.env.MODEL_API_KEY
+});
+
+const tools = [
+  {
+    name: "search_knowledge",
+    description: "Search an approved knowledge source for relevant passages.",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string", minLength: 1, maxLength: 500 } },
+      required: ["query"],
+      additionalProperties: false
+    },
+    execute: async ({ query }, context) => knowledgeAdapter.search({ query, tenantId: context.tenantId })
+  },
+  {
+    name: "query_records",
+    description: "Read approved structured records using a constrained query interface.",
+    parameters: {
+      type: "object",
+      properties: { question: { type: "string", minLength: 1, maxLength: 500 } },
+      required: ["question"],
+      additionalProperties: false
+    },
+    execute: async ({ question }, context) => recordsAdapter.query({ question, tenantId: context.tenantId })
+  }
+];
+
+const result = await runToolAgent({
+  model,
+  messages: [{ role: "user", content: "Answer using the available evidence." }],
+  tools,
+  context: { tenantId: "tenant-1", userId: "user-1" },
+  // Connect this to the application's permission/capability policy.
+  authorizeTool: async ({ tool, context }) =>
+    Boolean(context.userId && context.tenantId && allowedCapabilities(context).includes(tool.name)),
+  onEvent: (event) => auditSafeToolEvent(event)
+});
+console.log(result.answer);
+```
+
+The example assumes `knowledgeAdapter`, `recordsAdapter`, `allowedCapabilities`, and `auditSafeToolEvent` are application-provided functions; they are intentionally not fabricated by this experiment. Do not implement a general-purpose SQL executor that runs arbitrary model-generated SQL. If a SQL adapter is needed, use a read-only database identity, an allowlisted schema, a single-statement parser/validator, statement timeout and row limits.
+
+Security contract: tool names and JSON arguments are validated; execution requires an explicit `authorizeTool` callback that returns exactly `true`; tool count per turn is bounded by `maxSteps`; calls and results produce lifecycle events. Authorization must be wired to real AgentOS tenant/user/capability policy before production. The runner is an experimental orchestration helper, not a replacement for `ToolRegistry`, `ToolPolicy`, `ToolExecutor`, or the canonical AgentRuntime.
+
+Run the focused tests:
+
+```bash
+node --test experiments/llm-js/harness.test.js experiments/llm-js/tool-agent.test.js
+```
+
+### 4. Keep training and inference separate
 
 - `finetune-pretrained.js` orchestrates LoRA fine-tuning of compatible Hugging Face causal language models via the optional Transformers/PEFT backend.
 - The saved output is an **adapter**, not a standalone model. Record the exact base model/revision and tokenizer alongside it; inference must load the base model and apply that adapter using a compatible runtime.
 - `harness.js` currently consumes an already-running inference endpoint. It does not load GGUF/safetensors weights directly, run a training job, execute tools, or enforce AgentOS authorization by itself.
 - `finetune.js`, `gpt.js`, and the tensor/autograd files remain the educational, pure-JavaScript TinyGPT path.
 
-### 4. Production harness boundaries
+### 5. Production harness boundaries
 
 Keep a stable internal request/response contract independent of backend-specific APIs. Next layers should be added behind the contract: model metadata and capability discovery, context-window budgeting, retry policy for transient failures, request IDs/telemetry, adapter-aware loading, evaluation gates, and explicit tool-call validation/authorization. Do not allow model-generated tool names or arguments to execute directly without schema validation and AgentOS permission checks. Keep secrets in environment/secret management, not model manifests or logs.
 
