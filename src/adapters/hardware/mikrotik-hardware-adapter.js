@@ -12,6 +12,7 @@ const EMPTY_OBJECT_SCHEMA = Object.freeze({
  */
 export function createMikroTikHardwareAdapter(options = {}) {
   const id = options.id || 'mikrotik';
+  const ownsManager = !options.manager;
   const manager = options.manager || new MikroTikManager(options.connection || options);
 
   const read = (toolName) => async (_args, context) => {
@@ -53,7 +54,8 @@ export function createMikroTikHardwareAdapter(options = {}) {
       },
     ],
     async close() {
-      await manager.disconnect?.();
+      // The gateway may inject its shared manager; only dispose resources we own.
+      if (ownsManager) await manager.disconnect?.();
     },
   };
 }
