@@ -19,7 +19,7 @@ On a Debian/Ubuntu build host with root-capable build tools:
 cd os/level3
 sudo apt-get update
 sudo apt-get install -y live-build debootstrap xorriso squashfs-tools
-./build-image.sh
+bash build-image.sh
 ```
 
 The resulting ISO is produced in `os/level3/br3eze-os-amd64.hybrid.iso` (or the path reported by live-build). The script deliberately refuses to run as root directly; invoke it with a normal user that can use `sudo`.
