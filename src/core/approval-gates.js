@@ -10,7 +10,7 @@ const now = () => new Date().toISOString();
  * atomic compareAndSet(key, expectedStatus, nextRecord) for single-use approvals.
  * Approval is fail-closed when atomic transitions are unavailable.
  */
-export class ApprovalGate {
+export class ApprovalWorkflow {
   constructor({ persistence = requirePersistenceProvider, notify = dispatchNotification, ttlMs = 30 * 60 * 1000 } = {}) {
     this.persistence = persistence;
     this.notify = notify;
@@ -84,4 +84,4 @@ export class ApprovalGate {
     }
   }
 }
-export default ApprovalGate;
+export default ApprovalWorkflow;
