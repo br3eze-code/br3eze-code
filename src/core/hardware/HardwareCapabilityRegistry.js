@@ -16,6 +16,45 @@ function normalizeSchema(schema = {}) {
   return schema;
 }
 
+function validateArguments(schema, args) {
+  if (schema.type && schema.type !== 'object') throw new TypeError('hardware capability schema root must be an object');
+  if (!args || typeof args !== 'object' || Array.isArray(args)) {
+    throw new TypeError('hardware capability arguments must be an object');
+  }
+  for (const key of schema.required || []) {
+    if (!Object.prototype.hasOwnProperty.call(args, key)) throw new TypeError(`missing required hardware argument: ${key}`);
+  }
+  const properties = schema.properties || {};
+  if (schema.additionalProperties === false) {
+    for (const key of Object.keys(args)) {
+      if (!Object.prototype.hasOwnProperty.call(properties, key)) throw new TypeError(`unknown hardware argument: ${key}`);
+    }
+  }
+  for (const [key, value] of Object.entries(args)) {
+    const rule = properties[key];
+    if (!rule) continue;
+    const types = {
+      object: value !== null && typeof value === 'object' && !Array.isArray(value),
+      array: Array.isArray(value),
+      integer: Number.isInteger(value),
+      number: typeof value === 'number' && Number.isFinite(value),
+      null: value === null,
+      string: typeof value === 'string',
+      boolean: typeof value === 'boolean',
+    };
+    if (rule.type && !types[rule.type]) throw new TypeError(`invalid type for hardware argument: ${key}`);
+    if (rule.enum && !rule.enum.some((allowed) => Object.is(allowed, value))) {
+      throw new TypeError(`invalid value for hardware argument: ${key}`);
+    }
+    if (typeof value === 'number' && ((rule.minimum !== undefined && value < rule.minimum) || (rule.maximum !== undefined && value > rule.maximum))) {
+      throw new TypeError(`out-of-range hardware argument: ${key}`);
+    }
+    if (typeof value === 'string' && rule.maxLength !== undefined && value.length > rule.maxLength) {
+      throw new TypeError(`hardware argument too long: ${key}`);
+    }
+  }
+}
+
 /**
  * Domain-neutral hardware capability port.
  *
@@ -122,6 +161,8 @@ export class HardwareCapabilityRegistry {
     if (entry.capability.access === 'write' && context.approvalGranted !== true && context.approved !== true) {
       throw new Error(`hardware write requires explicit approval: ${fullName}`);
     }
+
+    validateArguments(entry.capability.schema, args);
 
     const controller = new AbortController();
     let timeout;
