@@ -87,8 +87,12 @@ class ToolRegistry {
     try {
       const entries = await fsp.readdir(this.skillsPath, { withFileTypes: true });
       const directories = entries.filter((entry) => entry.isDirectory());
-      for (const name of this.skills.keys()) {
-        if (this.excludedSkills.has(String(name).toLowerCase())) await this.unloadSkill(name);
+      for (const [name, skill] of this.skills) {
+        const registeredName = String(name).toLowerCase();
+        const directoryName = path.basename(skill.path || '').toLowerCase();
+        if (this.excludedSkills.has(registeredName) || this.excludedSkills.has(directoryName)) {
+          await this.unloadSkill(name);
+        }
       }
       const selected = directories.filter((entry) => !this.excludedSkills.has(entry.name.toLowerCase()));
       await Promise.all(selected.map((entry) => this.loadSkill(entry.name)));
