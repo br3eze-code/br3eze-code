@@ -9,8 +9,8 @@ export function configureHttpApplication({
     staticDirectory,
     jsonLimit = '10mb'
 }) {
-    if (!express || typeof express !== 'function') {
-        throw new TypeError('configureHttpApplication requires an Express factory');
+    if (typeof express !== 'function' || typeof express.json !== 'function' || typeof express.static !== 'function') {
+        throw new TypeError('configureHttpApplication requires an Express factory with json() and static() middleware');
     }
     if (typeof helmet !== 'function' || typeof cors !== 'function') {
         throw new TypeError('configureHttpApplication requires helmet and cors middleware');
