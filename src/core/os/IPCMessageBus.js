@@ -38,7 +38,10 @@ export class IPCMessageBus {
     let allowed = false;
     try { allowed = await this.authorize({ action, topic, ...principal }) === true; }
     catch { allowed = false; }
-    if (!allowed) throw new Error(`missing_permission:ipc.${action}:${topic}`);
+    if (!allowed) {
+      try { this.onAudit({ type: 'ipc.authorization.denied', action, topic, tenantId: principal.tenantId, principalId: principal.principalId, at: new Date().toISOString() }); } catch {}
+      throw new Error(`missing_permission:ipc.${action}:${topic}`);
+    }
   }
 
   async subscribe({ topic, subscriberId, tenantId, userId } = {}, handler) {
