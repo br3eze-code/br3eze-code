@@ -139,7 +139,8 @@ async function authenticateSupabaseBearer(token) {
 export async function authenticateBearer(token, { userTokenSecret } = {}) {
   if (!token) return null;
 
-  const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || process.env.GATEWAY_TOKEN || '';
+  // A signing secret is not a service credential; only an explicitly configured token grants service authority.
+  const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || '';
   if (serviceToken && safeEqual(token, serviceToken)) {
     return Object.freeze({
       id: 'agentos-service',
