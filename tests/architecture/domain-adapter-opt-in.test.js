@@ -1,5 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { readFileSync } from 'node:fs';
+import { ToolRegistry } from '../../src/core/tool-registry.js';
+import loadAllDomains from '../../src/core/loadDomain.js';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
@@ -10,6 +12,12 @@ describe('optional domain adapter boot boundary', () => {
     expect(source).not.toContain("import { registerNetworkProvider } from '../core/mikrotik.js'");
     expect(source).toContain("NETWORK_DOMAINS.has(ACTIVE_DOMAIN)");
     expect(source).toContain("import('../adapters/network/mikrotik.js')");
+  });
+
+  test('an explicitly selected domain excludes unrelated domain adapters', async () => {
+    const registry = new ToolRegistry({ requireExecutionTask: false });
+    await loadAllDomains({ domain: '__no_domain__' }, registry);
+    expect(registry.domains.size).toBe(0);
   });
 
   test('CLI only loads network command modules for a network domain', () => {
