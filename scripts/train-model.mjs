@@ -26,8 +26,8 @@ try {
   const rows = await readJsonlDataset(dataPath);
   const result = await trainClassifier(rows, {
     outputDir,
-    epochs: Number(args.epochs || 80),
-    batchSize: Number(args['batch-size'] || 8),
+    epochs: Number(args.epochs || 300),
+    batchSize: Number(args['batch-size'] || 4),
   });
   console.log(JSON.stringify({ status: 'trained', ...result }, null, 2));
 } catch (error) {
