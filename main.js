@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import './src/host/bootstrap.js';
 import _cmd_onboard from './src/cli/commands/onboard.js';
 import _cmd_ask from './src/cli/commands/ask.js';
@@ -22,7 +23,6 @@ import _boxen from 'boxen';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import 'dotenv/config';
 import { BRAND, CONFIG_PATH, STATE_PATH, getConfig } from './src/core/config.js';
 import { getDatabase } from './src/core/database.js';
 import { logger } from './src/core/logger.js';
