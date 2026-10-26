@@ -332,6 +332,16 @@ export default (program) => {
                     toolRegistry,
                     ...(modelPort ? { model: modelPort } : {}),
                 });
+                // Device access is an adapter on the canonical runtime; reuse the
+                // existing network manager and expose only declared read capabilities.
+                if (networkEnabled && mikrotik) {
+                    const { createMikroTikHardwareAdapter } = await import('../../adapters/hardware/mikrotik-hardware-adapter.js');
+                    runtime.registerHardwareAdapter(createMikroTikHardwareAdapter({
+                        id: 'routeros',
+                        deviceId: config.network?.siteId || config.siteId || 'default-site',
+                        manager: mikrotik,
+                    }));
+                }
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;
                 global.askEngine = runtime;
