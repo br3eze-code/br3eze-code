@@ -10,7 +10,6 @@ from peft import LoraConfig, TaskType, get_peft_model
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
-    DataCollatorForLanguageModeling,
     Trainer,
     TrainingArguments,
 )
@@ -97,6 +96,19 @@ class TokenizedDataset(torch.utils.data.Dataset):
         return self.items[index]
 
 
+class CausalLMCollator:
+    """Pad batches and mask padding positions without masking EOS tokens when pad==eos."""
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
+
+    def __call__(self, features):
+        batch = self.tokenizer.pad(features, padding=True, return_tensors="pt")
+        labels = batch["input_ids"].clone()
+        labels[batch["attention_mask"] == 0] = -100
+        batch["labels"] = labels
+        return batch
+
+
 def main():
     args = parse_args()
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
@@ -162,7 +174,7 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False),
+        data_collator=CausalLMCollator(tokenizer),
     )
     trainer.train()
     metrics = trainer.evaluate()
