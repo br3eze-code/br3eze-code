@@ -211,5 +211,4 @@ export async function testConnection(options = {}) {
     await manager.disconnect();
   }
 }
-export async function testConnection(options = {}) { try { const m = createManager(options); const ok = await m.connect(); await m.disconnect(); return ok; } catch { return false; } }
 export default MikroTikManager;
