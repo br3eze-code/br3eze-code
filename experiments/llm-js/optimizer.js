@@ -1,6 +1,6 @@
 /**
  * AdamW optimizer for the tiny Tensor engine.
- * Keeps optimizer state outside model parameters; checkpointing optimizer state is a later milestone.
+ * Optimizer moments can be serialized alongside model weights for resumable training.
  */
 export class AdamW {
   constructor({ beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8, weightDecay = 0.01 } = {}) {
@@ -43,5 +43,41 @@ export class AdamW {
         parameter.data[i] -= learningRate * (mHat / (Math.sqrt(vHat) + this.epsilon) + decay * parameter.data[i]);
       }
     }
+  }
+
+  toJSON(parameters) {
+    if (!Array.isArray(parameters)) throw new TypeError("toJSON expects the ordered parameter list");
+    return {
+      beta1: this.beta1,
+      beta2: this.beta2,
+      epsilon: this.epsilon,
+      weightDecay: this.weightDecay,
+      stepCount: this.stepCount,
+      states: parameters.map((parameter) => {
+        const state = this.states.get(parameter);
+        return state ? { m: Array.from(state.m), v: Array.from(state.v) } : null;
+      })
+    };
+  }
+
+  restoreState(parameters, snapshot) {
+    if (!snapshot || !Array.isArray(snapshot.states) || snapshot.states.length !== parameters.length ||
+        !Number.isInteger(snapshot.stepCount) || snapshot.stepCount < 0) {
+      throw new TypeError("invalid AdamW optimizer checkpoint");
+    }
+    for (const [key, current] of [["beta1", this.beta1], ["beta2", this.beta2], ["epsilon", this.epsilon], ["weightDecay", this.weightDecay]]) {
+      if (snapshot[key] !== current) throw new RangeError(`AdamW checkpoint ${key} mismatch`);
+    }
+    snapshot.states.forEach((saved, index) => {
+      if (saved === null) return;
+      const parameter = parameters[index];
+      if (!saved || !Array.isArray(saved.m) || !Array.isArray(saved.v) ||
+          saved.m.length !== parameter.size || saved.v.length !== parameter.size ||
+          saved.m.some((value) => !Number.isFinite(value)) || saved.v.some((value) => !Number.isFinite(value) || value < 0)) {
+        throw new RangeError(`invalid AdamW moment state for parameter ${index}`);
+      }
+      this.states.set(parameter, { m: Float64Array.from(saved.m), v: Float64Array.from(saved.v) });
+    });
+    this.stepCount = snapshot.stepCount;
   }
 }
