@@ -88,6 +88,37 @@ export class MCPClientAdapter {
     });
   }
 
+  /**
+   * Register remote capabilities in the canonical ToolRegistry.
+   * Tenant-scoped authorization is required at discovery and invocation;
+   * all imported remote tools require human approval until a narrower policy
+   * is explicitly configured by the host.
+   */
+  async registerTools(registry, context = {}) {
+    if (!registry || typeof registry.register !== 'function') {
+      throw new TypeError('CANONICAL_TOOL_REGISTRY_REQUIRED');
+    }
+    const tools = this.connected ? await this.listTools(context) : await this.connect(context);
+    for (const tool of tools) {
+      const schema = {
+        ...tool.schema,
+        risk: 'high',
+        requiresApproval: true,
+        permissions: ['mcp.tools.call'],
+      };
+      registry.register(tool.name, {
+        ...tool,
+        schema,
+        risk: 'high',
+        requiresApproval: true,
+        permissions: ['mcp.tools.call'],
+        domain: 'mcp',
+        passContext: true,
+      });
+    }
+    return tools.map((tool) => tool.name);
+  }
+
   async callTool(name, arguments_ = {}, context = {}) {
     if (!name) throw new TypeError('MCP_TOOL_NAME_REQUIRED');
     await this._authorize('mcp.tools.call', context, { name });

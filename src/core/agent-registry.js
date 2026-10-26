@@ -47,6 +47,19 @@ export class AgentRegistry {
     return agent;
   }
 
+  create(definition = {}) {
+    return this.register(definition);
+  }
+
+  remove(ref) {
+    const agent = this.get(ref);
+    if (!agent) return null;
+    for (const [key, value] of this.agents.entries()) {
+      if (value === agent) this.agents.delete(key);
+    }
+    return agent;
+  }
+
   registerMany(definitions = []) {
     for (const definition of definitions) this.register(definition);
     return this;

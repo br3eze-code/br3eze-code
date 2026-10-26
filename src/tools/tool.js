@@ -77,9 +77,18 @@ const tools = {
         return logs.slice(-Number(lines));
     },
 
+    // Canonical provider-specific name. Generic system.reboot belongs to the
+    // host system port and must resolve the requested target to an adapter.
+    'mikrotik.system.reboot': async (conn) => {
+        await conn.menu('/system').exec('reboot');
+        return { status: 'rebooting', provider: 'mikrotik' };
+    },
+
+    // Deprecated compatibility alias for existing RouterOS callers. Do not
+    // expose this alias as the cross-platform system.reboot implementation.
     'system.reboot': async (conn) => {
         await conn.menu('/system').exec('reboot');
-        return { status: 'rebooting' };
+        return { status: 'rebooting', provider: 'mikrotik', deprecatedAlias: true };
     },
 
     // ── Network ────────────────────────────────────────────

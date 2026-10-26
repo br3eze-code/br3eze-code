@@ -13,10 +13,13 @@ import { AgentLoop, TURN_STATES } from './agent-loop.js';
 import { validateModelPort, createModelRequest } from './ports/model.js';
 import toolRegistry from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
+import { ApprovalWorkflow } from './approval-gates.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
+  { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
   { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
+  { name: 'agent.remove', keywords: ['agent', 'remove', 'delete', 'retire'] },
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
   { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
@@ -126,6 +129,7 @@ class AgentRuntime extends EventEmitter {
     this.skillRegistry = config.skillRegistry || null;
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
+    this.approvalGate = config.approvalGate || new ApprovalWorkflow(config.approvalOptions || {});
     this.sessionManager = config.sessionManager || null;
     this.memoryStore = config.memoryStore || null;
     this.injectedToolExecutor = typeof config.toolExecutor === 'function';
@@ -536,13 +540,8 @@ class AgentRuntime extends EventEmitter {
     });
 
     if (requiresApproval && !approvalGranted) {
-      return {
-        approvalRequired: true,
-        agentRole: context.agentRole || null,
-        toolName,
-        taskId: task.taskId,
-        phase: 'approve',
-      };
+      const pending = await this.approvalGate.request({ toolName, params, context: { ...context, tenantId, userId } });
+      return { ...pending, approvalRequired: true, agentRole: context.agentRole || null, taskId: task.taskId, phase: 'approve' };
     }
 
     if (requiresApproval) {
@@ -599,6 +598,19 @@ class AgentRuntime extends EventEmitter {
       }
     }
     return results;
+  }
+
+  /** Approve and resume a persisted action after host-provided authorization. */
+  async approveAction({ actionId, actor, tenantId, authorize } = {}) {
+    return this.approvalGate.resume({
+      actionId, actor, tenantId, authorize,
+      execute: (toolName, params, context) => this._executeToolForFrame(toolName, params, {
+        ...context,
+        approvalId: actionId,
+        approvalGranted: true,
+        approved: true,
+      }),
+    });
   }
 
   /** Public compatibility entry point; execution still crosses the canonical task gate. */

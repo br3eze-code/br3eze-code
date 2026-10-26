@@ -1,5 +1,6 @@
 import { describe, expect, jest, test } from '@jest/globals';
 import { AgentOSFrameworkAdapter, assertAdapterContract } from '../../src/adapters/frameworks/AgentOSFrameworkAdapter.js';
+import { FrameworkAdapterRegistry, assertFrameworkAdapter } from '../../src/core/agent-runtime/FrameworkAdapter.js';
 import { MCPAdapter } from '../../src/adapters/protocols/MCPAdapter.js';
 import { A2AAdapter } from '../../src/adapters/protocols/A2AAdapter.js';
 
@@ -7,7 +8,7 @@ function fakeFactory() {
   const calls = [];
   const factory = {};
   for (const name of [
-    'createAgent', 'runAgent', 'handoff', 'createChild',
+    'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild',
     'defineWorkflow', 'runWorkflow', 'resumeWorkflow',
     'registerTool', 'executeTool', 'checkGuardrail',
     'readMemory', 'writeMemory', 'readTrace', 'evaluate',
@@ -28,7 +29,39 @@ describe('framework and protocol adapters', () => {
 
     expect(assertAdapterContract(adapter)).toBe(true);
     await adapter.runAgent({ id: 'a' }, { input: 'x' }, { tenantId: 't1', userId: 'u1' });
+    await adapter.removeAgent('a', { tenantId: 't1', userId: 'u1' });
     expect(factory.calls.some((call) => call.name === 'runAgent')).toBe(true);
+    expect(factory.calls.some((call) => call.name === 'removeAgent')).toBe(true);
+  });
+
+  test('partial framework adapter advertises only implemented capabilities', async () => {
+    const adapter = new AgentOSFrameworkAdapter({
+      id: 'partial',
+      factory: { runAgent: async (agent, input) => ({ agent, input }) },
+    });
+
+    expect(adapter.capabilities()).toEqual(['agent.run']);
+    expect(assertAdapterContract(adapter, { requiredCapabilities: ['agent.run'] })).toBe(true);
+    expect(() => assertAdapterContract(adapter, { requiredCapabilities: ['workflow.run'] })).toThrow(/missing workflow.run/i);
+    await expect(adapter.runAgent({ id: 'a' }, 'hello')).resolves.toEqual({
+      agent: { id: 'a' },
+      input: 'hello',
+    });
+    await expect(adapter.runWorkflow('workflow', {})).rejects.toMatchObject({
+      code: 'CAPABILITY_UNAVAILABLE',
+    });
+  });
+
+  test('framework registry accepts explicit partial contracts but validates declared capabilities', () => {
+    const adapter = new AgentOSFrameworkAdapter({
+      id: 'partial',
+      factory: { runAgent: async () => ({ ok: true }) },
+    });
+    const registry = new FrameworkAdapterRegistry();
+
+    expect(registry.register('partial', adapter, { requiredCapabilities: [] })).toBe(adapter);
+    expect(registry.get('partial')).toBe(adapter);
+    expect(() => assertFrameworkAdapter(adapter, { requiredCapabilities: ['workflow.run'] })).toThrow(/missing capabilities/i);
   });
 
   test('MCP adapter requires and forwards tenant scope', async () => {

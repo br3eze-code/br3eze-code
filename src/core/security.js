@@ -12,7 +12,7 @@ import { logger } from './logger.js';
  * survives process restarts. Without one, a random process key is used and a
  * warning is emitted because ciphertext cannot be decrypted after restart.
  */
-class SecurityManager {
+export class SecurityManager {
   constructor() {
     const configuredKey = process.env.AGENTOS_MASTER_KEY;
     if (configuredKey) {
