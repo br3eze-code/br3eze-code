@@ -4,6 +4,8 @@
  * This deliberately does not download weights or start a model server.
  */
 import { createOpenAICompatibleAdapter } from "./harness.js";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 function readOption(args, name, fallback) {
   const index = args.indexOf(name);
@@ -44,7 +46,7 @@ export async function smokeOpenModel(args = process.argv.slice(2)) {
   }, null, 2));
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   smokeOpenModel().catch((error) => {
     console.error(`open-model smoke test failed: ${error.message}`);
     process.exitCode = 1;
