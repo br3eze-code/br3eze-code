@@ -153,3 +153,11 @@ Keep these capabilities provider-neutral and route all execution through the sam
 - **Integration lifecycle:** provider.list, provider.health, plugin.install, plugin.enable, plugin.disable, plugin.remove.
 
 For every capability, require a versioned schema, server-derived tenant/user context, policy checks, audit events, bounded execution, and a test of denial paths. Destructive or externally consequential operations require approval and idempotency where appropriate. Do not add names to the public manifest until the runtime can either execute them through a registered handler or return an explicit unsupported-capability error.
+
+### First-class agent and reporting capabilities (2026-10-26)
+
+- `agent.get` and `agent.call` are now exposed by the provider-neutral `src/core/ports/agent-lifecycle.js` port. Both require server-derived tenant/user context and authorization; `agent.call` delegates to the host-injected canonical runtime executor rather than starting another loop.
+- `report` is now defined by `src/core/ports/report.js`. It emits a versioned structured report from an injected trusted data source, including provenance, record count, optional source summary/warnings, and generation time. It does not invent missing metrics.
+- Focused tests were added for authorized lookup, runtime delegation, report source validation, and denial paths.
+- These are **first-class port contracts, not yet production-wired public capabilities**. Before exposing them in the public tool manifest, wire tenant-scoped registry/storage and report query adapters into the composition root, enforce object-level tenant isolation on reads, and add end-to-end ToolRegistry/AgentRuntime tests. Do not claim durable multi-tenant agent storage from the current in-memory registry.
+
