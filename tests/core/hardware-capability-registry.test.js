@@ -1,5 +1,6 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { HardwareCapabilityRegistry } from '../../src/core/hardware/HardwareCapabilityRegistry.js';
+import { ToolRegistry } from '../../src/core/tool-registry.js';
 
 const auth = { tenantId: 'tenant-a', userId: 'operator-1' };
 
@@ -92,6 +93,38 @@ describe('HardwareCapabilityRegistry', () => {
     expect(registry.listCapabilities()).toHaveLength(0);
   });
 
+
+
+  test('executes through the real canonical ToolRegistry capability gate', async () => {
+    const execute = jest.fn(async (_args, context) => ({ tenantId: context.tenantId, deviceId: context.deviceId }));
+    const toolRegistry = new ToolRegistry({ requireExecutionTask: false });
+    const hardware = new HardwareCapabilityRegistry();
+    hardware.registerAdapter({
+      id: 'router-a',
+      capabilities: [{
+        name: 'status',
+        access: 'read',
+        schema: { type: 'object', properties: {}, additionalProperties: false },
+        execute,
+      }],
+    });
+    hardware.mount(toolRegistry);
+
+    await expect(toolRegistry.execute('hardware.router-a.status', {}, {
+      tenantId: 'tenant-a',
+      userId: 'operator-1',
+      phase: 'execute',
+      authorizedCapabilities: ['hardware:router-a:status'],
+    })).resolves.toEqual({ tenantId: 'tenant-a', deviceId: 'router-a' });
+
+    await expect(toolRegistry.execute('hardware.router-a.status', {}, {
+      tenantId: 'tenant-a',
+      userId: 'operator-1',
+      phase: 'execute',
+      authorizedCapabilities: [],
+    })).rejects.toThrow('missing_permission:hardware:router-a:status');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 
   test('enforces operation deadlines and signals timeout to the adapter', async () => {
     let receivedSignal;
