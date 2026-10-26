@@ -7,7 +7,8 @@ describe('report port', () => {
   test('generates a versioned report from trusted source records', async () => {
     const queryRecords = jest.fn(async () => ({
       source: 'execution-store',
-      records: [{ executionId: 'exec-1', status: 'completed' }],
+      tenantId: 'tenant-a',
+      records: [{ executionId: 'exec-1', tenantId: 'tenant-a', status: 'completed' }],
       summary: { completed: 1 },
     }));
     const port = createReportPort({
@@ -37,5 +38,13 @@ describe('report port', () => {
     await expect(port.generate({ context })).rejects.toThrow('REPORT_FORBIDDEN');
     const invalid = createReportPort({ authorize: async () => true, queryRecords: async () => ({ records: null }) });
     await expect(invalid.generate({ context })).rejects.toThrow('REPORT_SOURCE_INVALID');
+    const wrongTenant = createReportPort({ authorize: async () => true, queryRecords: async () => ({
+      tenantId: 'tenant-b', records: [{ tenantId: 'tenant-b', id: 'private' }],
+    }) });
+    await expect(wrongTenant.generate({ context })).rejects.toThrow('REPORT_TENANT_SCOPE_VIOLATION');
+    const leakedRecord = createReportPort({ authorize: async () => true, queryRecords: async () => ({
+      tenantId: 'tenant-a', records: [{ tenantId: 'tenant-b', id: 'private' }],
+    }) });
+    await expect(leakedRecord.generate({ context })).rejects.toThrow('REPORT_RECORD_TENANT_SCOPE_VIOLATION');
   });
 });
