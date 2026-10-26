@@ -33,6 +33,7 @@ describe('ToolRegistry domain skill exclusions', () => {
     expect(loadSkill).toHaveBeenCalledWith('general');
     expect(loadSkill).not.toHaveBeenCalledWith('mikrotik');
     expect(loadSkill).not.toHaveBeenCalledWith('voucher');
+    loadSkill.mockRestore();
     expect(await registry.loadSkill('mikrotik')).toBe(false);
   });
 });

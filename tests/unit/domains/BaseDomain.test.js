@@ -86,7 +86,7 @@ describe('BaseDomain', () => {
       domain.registerTool({ name: 'ping', execute });
 
       const flat = domain.getTools();
-      const result = flat['testdomain.ping'].execute({ userId: 'u1' }, { host: '1.1.1.1' });
+      const result = flat['testdomain.ping'].execute({ host: '1.1.1.1' }, { userId: 'u1' });
 
       expect(execute).toHaveBeenCalledWith({ host: '1.1.1.1' });
       expect(result).toBe('done');

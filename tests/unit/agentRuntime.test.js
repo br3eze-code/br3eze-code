@@ -38,9 +38,10 @@ describe('TOOL_MANIFEST', () => {
     test('expected tools are present', () => {
         const names = new Set(TOOL_MANIFEST.map(t => t.name));
         expect(names.has('system.stats')).toBe(true);
-        expect(names.has('user.add')).toBe(true);
+        expect(names.has('user.add')).toBe(false);
         expect(names.has('ping')).toBe(true);
-        expect(names.has('firewall.block')).toBe(true);
+        expect(names.has('firewall.block')).toBe(false);
+        expect(names.has('system.reboot')).toBe(false);
     });
 });
 
@@ -68,19 +69,16 @@ describe('AgentRuntime.routePrompt', () => {
         expect(tools).toContain('ping');
     });
 
-    test('matches firewall.block for block/ban keywords', () => {
-        const tools = runtime.routePrompt('block and ban this ip blacklist');
-        expect(tools).toContain('firewall.block');
+    test('does not route unsupported firewall mutation intents', () => {
+        expect(runtime.routePrompt('block and ban this ip blacklist')).toEqual([]);
     });
 
-    test('matches user.add for add/create/register keywords', () => {
-        const tools = runtime.routePrompt('create a new user and register');
-        expect(tools).toContain('user.add');
+    test('does not route unsupported user mutation intents', () => {
+        expect(runtime.routePrompt('create a new user and register')).toEqual([]);
     });
 
-    test('matches system.reboot for restart/reboot keywords', () => {
-        const tools = runtime.routePrompt('reboot and restart the system');
-        expect(tools).toContain('system.reboot');
+    test('does not route reboot requests to a read-only stats tool', () => {
+        expect(runtime.routePrompt('reboot and restart the system')).toEqual([]);
     });
 
     test('respects limit parameter', () => {
@@ -123,15 +121,12 @@ describe('AgentRuntime.findTools', () => {
     let runtime;
     beforeEach(() => { runtime = new AgentRuntime(); });
 
-    test('finds by name substring', () => {
-        const tools = runtime.findTools('firewall');
-        expect(tools.length).toBeGreaterThan(0);
-        expect(tools.every(t => t.includes('firewall'))).toBe(true);
+    test('does not advertise unregistered firewall mutation tools', () => {
+        expect(runtime.findTools('firewall')).toEqual([]);
     });
 
-    test('finds by keyword', () => {
-        const tools = runtime.findTools('ban');
-        expect(tools).toContain('firewall.block');
+    test('does not advertise unsupported ban actions', () => {
+        expect(runtime.findTools('ban')).toEqual([]);
     });
 
     test('returns empty array for no match', () => {
