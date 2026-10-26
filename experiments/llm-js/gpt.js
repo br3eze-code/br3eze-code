@@ -2,6 +2,7 @@ import { Tensor } from "./tensor.js";
 import { embedding, row, crossEntropy, softmax } from "./ops.js";
 import { linear, layerNorm } from "./layers.js";
 import { decoderBlock } from "./transformer.js";
+import { AdamW } from "./optimizer.js";
 
 function seededRandom(seed) {
   let state = seed >>> 0;
@@ -61,6 +62,7 @@ export class TinyGPT {
       lmHeadWeight: init(d, vocabSize), lmHeadBias: zeros(vocabSize)
     };
     this.parameterList = Object.values(this.params);
+    this.optimizer = new AdamW();
   }
 
   forward(tokenIds) {
@@ -92,6 +94,7 @@ export class TinyGPT {
 
   trainStep(inputIds, targetIds, learningRate = 0.01, maxGradientNorm = 1) {
     if (!(learningRate > 0) || !Number.isFinite(learningRate)) throw new RangeError("learningRate must be positive and finite");
+    if (!(maxGradientNorm > 0) || !Number.isFinite(maxGradientNorm)) throw new RangeError("maxGradientNorm must be positive and finite");
     for (const parameter of this.parameterList) parameter.zeroGrad();
     const loss = this.loss(inputIds, targetIds);
     loss.backward();
