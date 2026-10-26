@@ -28,7 +28,13 @@ export function createReportPort({ authorize, queryRecords, clock = () => new Da
       if (!await authorize(request, context)) throw new Error('REPORT_FORBIDDEN');
       const result = await queryRecords(request, context);
       if (!result || !Array.isArray(result.records)) throw new Error('REPORT_SOURCE_INVALID');
+      // A report adapter must attest which tenant its query was scoped to.
+      // Do not trust filters alone: model-supplied filters are not an access boundary.
+      if (result.tenantId !== context.tenantId) throw new Error('REPORT_TENANT_SCOPE_VIOLATION');
       const records = result.records;
+      if (records.some((record) => !record || typeof record !== 'object' || record.tenantId !== context.tenantId)) {
+        throw new Error('REPORT_RECORD_TENANT_SCOPE_VIOLATION');
+      }
       return Object.freeze({
         capability: 'report',
         schemaVersion: '1.0',
