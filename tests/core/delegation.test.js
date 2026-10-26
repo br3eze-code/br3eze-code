@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { createDelegationTool } from '../../src/core/delegation.js';
 
 describe('createDelegationTool', () => {
