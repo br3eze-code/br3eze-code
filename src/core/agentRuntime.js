@@ -203,6 +203,27 @@ class AgentRuntime extends EventEmitter {
   startService(serviceId, context = {}) { return this.serviceSupervisor.start(serviceId, context); }
   stopService(serviceId, context = {}) { return this.serviceSupervisor.stop(serviceId, context); }
   listServices() { return this.serviceSupervisor.list(); }
+  stopAllServices(context = {}) { return this.serviceSupervisor.stopAll(context); }
+
+  /** Graceful best-effort shutdown of managed applications, services, and host adapters. */
+  async shutdownOS(context = {}) {
+    const applications = [];
+    for (const app of [...this.applications.list()].reverse()) {
+      if (app.state === 'running') {
+        try { applications.push(await this.applications.stop(app.id, context)); }
+        catch (error) { applications.push({ id: app.id, state: 'failed', error: error.message }); }
+      }
+    }
+    const services = await this.serviceSupervisor.stopAll(context);
+    const adapters = [];
+    for (const adapter of [...this.platformAdapters.listAdapters()].reverse()) {
+      if (adapter.state === 'ready' || adapter.state === 'failed') {
+        try { adapters.push(await this.platformAdapters.stop(adapter.id, context)); }
+        catch (error) { adapters.push({ id: adapter.id, state: 'failed', error: error.message }); }
+      }
+    }
+    return { applications, services, adapters };
+  }
 
   /** Register an application manifest and its trusted entry service. */
   registerApplication(manifest, service) { this.applications.register(manifest, service); return this; }
