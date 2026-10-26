@@ -11,7 +11,7 @@ describe('capability and task execution boundary', () => {
 
   test('financial/procurement mutation cannot execute before plan and draft', () => {
     const tasks = new TaskRegistry();
-    const task = tasks.create('buy equipment', { action: 'purchase.order', context: { tenantId: 't1', userId: 'u1', domainId: 'commerce' } });
+    const task = tasks.create('buy equipment', { action: 'purchase.order', requiresExecutionApproval: true, context: { tenantId: 't1', userId: 'u1', domainId: 'commerce' } });
     expect(task.execution.approvalRequired).toBe(true);
     expect(() => tasks.beginExecution(task.taskId)).toThrow('completed plan and draft');
     tasks.markPlanReady(task.taskId, { requirements: ['item', 'quantity', 'budget'] });

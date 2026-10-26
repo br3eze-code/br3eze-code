@@ -29,8 +29,19 @@ describe('TaskStatus', () => {
 // ── TaskRegistry — CRUD ───────────────────────────────────────────────────────
 
 describe('TaskRegistry — create', () => {
+    test('rejects task creation without authenticated tenant context', () => {
+        const unscoped = new TaskRegistry();
+        expect(() => unscoped.create('unscoped task')).toThrow(/authenticated tenant context required/);
+    });
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('returns a task with required fields', () => {
         const task = registry.create('check system stats');
@@ -75,7 +86,14 @@ describe('TaskRegistry — create', () => {
 
 describe('TaskRegistry — get', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('returns task by id', () => {
         const task = registry.create('find me');
@@ -89,7 +107,14 @@ describe('TaskRegistry — get', () => {
 
 describe('TaskRegistry — list', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('returns all tasks when no filter', () => {
         registry.create('a');
@@ -114,7 +139,14 @@ describe('TaskRegistry — list', () => {
 
 describe('TaskRegistry — update', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('merges patch into task', () => {
         const task = registry.create('original');
@@ -145,7 +177,14 @@ describe('TaskRegistry — update', () => {
 
 describe('TaskRegistry — appendOutput', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('appends message and updates output string', () => {
         const task = registry.create('output test');
@@ -173,7 +212,14 @@ describe('TaskRegistry — appendOutput', () => {
 
 describe('TaskRegistry — setStatus', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('updates task status', () => {
         const task = registry.create('run me');
@@ -203,7 +249,14 @@ describe('TaskRegistry — setStatus', () => {
 
 describe('TaskRegistry — stop', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('sets task to STOPPED status', () => {
         const task = registry.create('stop me');
@@ -214,7 +267,14 @@ describe('TaskRegistry — stop', () => {
 
 describe('TaskRegistry — assignTeam', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('assigns teamId to task', () => {
         const task = registry.create('team task');
@@ -225,7 +285,14 @@ describe('TaskRegistry — assignTeam', () => {
 
 describe('TaskRegistry — summary', () => {
     let registry;
-    beforeEach(() => { registry = new TaskRegistry(); });
+    beforeEach(() => {
+        registry = new TaskRegistry();
+        const create = registry.create.bind(registry);
+        registry.create = (prompt, options = {}) => create(prompt, {
+            ...options,
+            context: options.context || { tenantId: 'tenant-test', userId: 'user-test' },
+        });
+    });
 
     test('returns counts for all statuses', () => {
         const t1 = registry.create('a');

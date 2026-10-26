@@ -36,13 +36,18 @@ class GeminiProvider extends BaseProvider {
     async generate(messages, tools = []) {
         if (!this.client) await this.initialize();
 
+        const systemText = [
+            this.config.systemPrompt,
+            ...messages.filter((message) => message?.role === 'system').map((message) => message.content),
+        ].filter(Boolean).join('\n\n');
+        const conversationMessages = messages.filter((message) => message?.role !== 'system');
         const model = this.client.getGenerativeModel({
             model: this.model,
             tools: tools.length ? [{ functionDeclarations: tools }] : [],
-            systemInstruction: this.config.systemPrompt ? { role: 'system', parts: [{ text: this.config.systemPrompt }] } : undefined
+            systemInstruction: systemText ? { role: 'system', parts: [{ text: String(systemText) }] } : undefined
         });
 
-        const history = messages.slice(0, -1).map(m => ({
+        const history = conversationMessages.slice(0, -1).map(m => ({
             role: m.role === 'assistant' ? 'model' : 'user',
             parts: Array.isArray(m.blocks)
                 ? m.blocks.map(b => {
@@ -54,7 +59,7 @@ class GeminiProvider extends BaseProvider {
                 : [{ text: m.content || '' }],
         }));
 
-        const last = messages[messages.length - 1];
+        const last = conversationMessages[conversationMessages.length - 1] || { role: 'user', content: '' };
         const lastParts = Array.isArray(last.blocks)
             ? last.blocks.map(b => {
                 if (b.type === 'text') return { text: b.text };

@@ -41,6 +41,35 @@ describe('domain-neutral runtime capabilities', () => {
     });
   });
 
+  test('adapts the runtime model request to the provider-manager contract', async () => {
+    const execute = jest.fn(async () => ({ content: 'model response' }));
+    const registry = {
+      getTool: jest.fn(),
+      execute: jest.fn(),
+      getAllTools: () => [],
+      getToolsForLLM: () => [],
+      registerTool: jest.fn(),
+      registerSkill: jest.fn(),
+      loadSkills: jest.fn(),
+    };
+    const runtime = new AgentRuntime({
+      toolRegistry: registry,
+      providerManager: { execute },
+    });
+
+    const result = await runtime.execute({
+      content: 'hello',
+      context: { tenantId: 'tenant-1' },
+    });
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    const [messages, tools, context] = execute.mock.calls[0];
+    expect(messages).toEqual([{ role: 'user', content: 'hello' }]);
+    expect(tools).toEqual([]);
+    expect(context).toMatchObject({ tenantId: 'tenant-1' });
+    expect(result.response).toBe('model response');
+  });
+
   test('evaluates completed tenant-scoped execution', async () => {
     const suite = new EvaluationSuite({ evaluators: createBasicEvaluators() });
     const report = await suite.run({

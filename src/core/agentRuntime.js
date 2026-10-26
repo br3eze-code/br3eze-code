@@ -26,7 +26,7 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'user.add', keywords: ['user', 'add', 'create', 'register'] },
   { name: 'firewall.block', keywords: ['firewall', 'block', 'ban', 'blacklist'] },
   { name: 'ping', keywords: ['ping', 'latency', 'host'] }
-];
+  ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
 /** Stable request contract owned by the canonical runtime. */
@@ -49,6 +49,21 @@ export function validateRuntime(runtime) {
   if (!runtime || typeof runtime !== 'object') throw new TypeError('runtime must be an object');
   if (typeof runtime.execute !== 'function') throw new TypeError('runtime must implement execute(frame)');
   return runtime;
+}
+
+function normalizeToolParameters(parameters) {
+  if (Array.isArray(parameters)) {
+    const properties = Object.fromEntries(parameters
+      .filter((parameter) => parameter?.name)
+      .map((parameter) => [parameter.name, {
+        type: parameter.type || 'string',
+        description: parameter.description || `${parameter.name} parameter`,
+      }]));
+    const required = parameters.filter((parameter) => parameter?.required && parameter.name).map((parameter) => parameter.name);
+    return { type: 'object', properties, ...(required.length ? { required } : {}) };
+  }
+  if (parameters && typeof parameters === 'object') return parameters;
+  return { type: 'object', properties: {} };
 }
 
 function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
@@ -100,7 +115,6 @@ class AgentRuntime extends EventEmitter {
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || toolRegistry;
-    this.toolManifest = Array.isArray(config.toolManifest) ? [...config.toolManifest] : [...DEFAULT_TOOL_MANIFEST];
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -108,17 +122,40 @@ class AgentRuntime extends EventEmitter {
         logger,
         config,
     });
-  this.skillRegistry = config.skillRegistry || null;
+    this.toolManifest = Array.isArray(config.toolManifest) ? [...config.toolManifest] : [...DEFAULT_TOOL_MANIFEST];
+    this.skillRegistry = config.skillRegistry || null;
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
     this.sessionManager = config.sessionManager || null;
     this.memoryStore = config.memoryStore || null;
-    this.toolExecutor = typeof config.toolExecutor === 'function'
+    this.injectedToolExecutor = typeof config.toolExecutor === 'function';
+    this.toolExecutor = this.injectedToolExecutor
       ? config.toolExecutor
       : this.toolRegistry?.execute?.bind(this.toolRegistry) || null;
     this.verificationEngine = config.verificationEngine || new VerificationEngine(config.verificationChecks || {});
-    this.model = config.model || (this.providerManager ? { execute: (messages, tools) => this.providerManager.execute(messages, tools) } : null);
+    this.model = config.model || (this.providerManager ? {
+      execute: (request) => this.providerManager.execute(request.messages, request.tools, request.context),
+    } : null);
     if (this.model) validateModelPort(this.model);
+  }
+
+  /** Inject the host-composed model port without creating a second runtime. */
+  setModel(model) {
+    this.model = validateModelPort(model);
+    return this;
+  }
+
+  /** Replace infrastructure at the composition boundary while preserving runtime identity. */
+  setToolRegistry(toolRegistry) {
+    if (!toolRegistry || typeof toolRegistry !== 'object') {
+      throw new TypeError('toolRegistry must be an object');
+    }
+    this.toolRegistry = toolRegistry;
+    this.injectedToolExecutor = false;
+    this.toolExecutor = typeof toolRegistry.execute === 'function'
+      ? toolRegistry.execute.bind(toolRegistry)
+      : null;
+    return this;
   }
 
   getCapabilityManifest() {
@@ -137,23 +174,26 @@ class AgentRuntime extends EventEmitter {
 
   routePrompt(prompt, limit = 5) {
     const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  const manifest = registeredTools.length
-  ? registeredTools.map(tool => ({
-  name: tool.fullName || tool.name,
-  keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
-  }))
-  : this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const manifest = registeredTools.length
+      ? registeredTools.map(tool => ({
+        name: tool.fullName || tool.name,
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
+      }))
+      : this.toolManifest || DEFAULT_TOOL_MANIFEST;
     return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
       .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
   }
 
   registerTool(tool) {
-  if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
-  else this.toolManifest.push(tool);
-  return this;
+    if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
+    else this.toolManifest.push(tool);
+    return this;
   }
-  registerSkill(skill) { if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill); return this; }
+  registerSkill(skill) {
+    if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
+    return this;
+  }
   async loadSkills() { await this.toolRegistry.loadSkills?.(); return this; }
   registerPlugin(plugin) { this.pluginRegistry.register(plugin); return this; }
   async loadPlugin(plugin) { await this.pluginLoader.load(plugin); return this; }
@@ -174,28 +214,30 @@ class AgentRuntime extends EventEmitter {
    * Canonical convenience entry point. All public run-style callers converge here.
    */
   async run(input, context = {}) {
-  return this.execute({ content: input, context });
+    return this.execute({ content: input, context });
   }
+  /** Stream a response through the canonical runtime; model ports may provide token events. */
+  async *stream(prompt, options = {}) {
+    const input = String(prompt ?? '');
+    if (this.model && typeof this.model.stream === 'function') {
+      const events = this.model.stream({
+        messages: options.messages || [{ role: 'user', content: input }],
+        tools: options.tools || this.toolManifest || DEFAULT_TOOL_MANIFEST,
+        context: options.context || {},
+        signal: options.signal || null,
+      });
+      for await (const event of events) yield event;
+      return;
+    }
 
-  async chat(messages = [], context = {}) {
-  if (!Array.isArray(messages) || messages.length === 0) {
-    throw new TypeError('AgentRuntime.chat requires messages[]');
-  }
-  const latest = [...messages].reverse().find((message) => message?.role === 'user' || message?.content);
-  const prompt = typeof latest?.content === 'string' ? latest.content : JSON.stringify(latest?.content ?? '');
-  return this.run(prompt, { ...context, messages });
-  }
-
-  async *stream(input, context = {}) {
-  yield { type: 'start' };
-  try {
-    const result = await this.run(input, context);
-    yield { type: 'result', data: result };
+    const result = await this.execute({
+      content: input,
+      sessionId: options.sessionId,
+      context: options.context || {},
+    });
+    const text = String(result?.response ?? result?.content ?? '');
+    yield { type: 'text', text, content: text };
     yield { type: 'done' };
-  } catch (error) {
-    yield { type: 'error', message: error.message };
-    throw error;
-  }
   }
 
   async execute(frame = {}) {
@@ -244,9 +286,27 @@ class AgentRuntime extends EventEmitter {
     const messages = Array.isArray(frame.messages)
       ? [...frame.messages]
       : [...loaded, { role: 'user', content: String(frame.content) }];
+    const registryTools = this.toolRegistry?.getToolsForLLM?.();
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const registryDeclarations = registeredTools.map((tool) => {
+      const schema = tool.schema || {};
+      return {
+        name: tool.fullName || tool.name,
+        description: schema.description || tool.description || '',
+        parameters: normalizeToolParameters(schema.parameters),
+      };
+    }).filter((tool) => tool.name);
+    const registryOwnsToolDiscovery = typeof this.toolRegistry?.getToolsForLLM === 'function'
+      || typeof this.toolRegistry?.getAllTools === 'function';
     const tools = Array.isArray(frame.tools)
       ? frame.tools
-      : this.toolRegistry?.getToolsForLLM?.() || this.toolManifest || DEFAULT_TOOL_MANIFEST;
+      : (Array.isArray(registryTools) && registryTools.length)
+        ? registryTools
+        : registryDeclarations.length
+          ? registryDeclarations
+          : registryOwnsToolDiscovery
+            ? []
+            : this.toolManifest || DEFAULT_TOOL_MANIFEST;
     const loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, this.defaultConfig.maxTurns - 1)) });
     loop.transition(TURN_STATES.UNDERSTANDING);
     loop.transition(TURN_STATES.PLANNING, { toolCount: tools.length });
@@ -288,7 +348,7 @@ class AgentRuntime extends EventEmitter {
           try { args = JSON.parse(args); } catch { args = {}; }
         }
         try {
-          const result = await this.toolExecutor(name, args, frame);
+          const result = await this._executeToolForFrame(name, args, frame);
           toolsUsed.push(name);
           messages.push({ role: 'tool', toolCallId: call.id, content: JSON.stringify(result) });
         } catch (error) {
@@ -406,7 +466,94 @@ class AgentRuntime extends EventEmitter {
     }
   }
 
+  async _executeToolForFrame(toolName, params, frame = {}) {
+    const context = { ...frame, ...(frame.context || {}) };
+    if (this.injectedToolExecutor) {
+      if (!this.toolExecutor) throw new Error('No tool executor configured');
+      return this.toolExecutor(toolName, params, context);
+    }
+    if (!this.toolRegistry) return this.executeTool(toolName, params, context);
+
+    const tenantId = context.tenantId || context.tenant_id;
+    const userId = context.userId || context.user_id || context.uid;
+    if (!tenantId || !userId) {
+      // The registry rejects tool execution without authenticated scope and a task.
+      return this.executeTool(toolName, params, { ...context, phase: 'execute', action: toolName });
+    }
+
+    const taskRegistry = getTaskRegistry();
+    const task = taskRegistry.create(`Execute tool ${toolName}`, {
+      action: toolName,
+      owner: { userId, platformId: context.platformId || null },
+      context: { ...context, tenantId, userId },
+      input: params,
+      requiresExecutionApproval: Boolean(this.toolRegistry.getTool(toolName)?.capability?.requiresApproval),
+    });
+    taskRegistry.setStatus(task.taskId, TaskStatus.RUNNING);
+    try {
+      const result = await this.executeTool(toolName, params, {
+        ...context, tenantId, userId, taskId: task.taskId, action: toolName, phase: 'execute',
+      });
+      taskRegistry.setStatus(task.taskId, TaskStatus.COMPLETED);
+      return result;
+    } catch (error) {
+      taskRegistry.setStatus(task.taskId, TaskStatus.FAILED, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a batch of model/framework tool calls through the canonical runtime
+   * path. This compatibility entry point delegates to the same scoped task
+   * lifecycle used by AgentRuntime's model loop.
+   */
+  async executeTools(toolCalls = [], context = {}) {
+    if (!Array.isArray(toolCalls)) throw new TypeError('toolCalls must be an array');
+    const results = [];
+    for (const call of toolCalls) {
+      const toolCallId = call?.id || call?.toolCallId || null;
+      const name = String(call?.name || '').replace(/__/g, '.');
+      let args = call?.arguments ?? call?.args ?? {};
+      if (typeof args === 'string') {
+        try { args = JSON.parse(args); } catch { args = {}; }
+      }
+      const tool = this.toolRegistry?.getTool?.(name);
+      const mutationForScopedRole = Boolean(context.agentRole)
+        && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(name);
+      const approvalRequired = Boolean(tool?.capability?.requiresApproval || mutationForScopedRole);
+      if (approvalRequired && context.approvalGranted !== true && context.approved !== true) {
+        results.push({
+          toolCallId,
+          result: {
+            approvalRequired: true,
+            agentRole: context.agentRole || null,
+            toolName: name,
+            reason: 'explicit_approval_required',
+          },
+        });
+        continue;
+      }
+      try {
+        const approvalGranted = context.approvalGranted === true || context.approved === true;
+        const executionContext = {
+          ...context,
+          approvalGranted,
+          approved: approvalGranted,
+        };
+        const result = await this._executeToolForFrame(name, args, executionContext);
+        results.push({ toolCallId, result });
+      } catch (error) {
+        results.push({ toolCallId, result: { error: error.message } });
+      }
+    }
+    return results;
+  }
+
   async executeTool(toolName, params = {}, context = {}) {
+    if (this.injectedToolExecutor) {
+      if (!this.toolExecutor) throw new Error('No tool executor configured');
+      return this.toolExecutor(toolName, params, context);
+    }
     if (!this.toolRegistry) {
       if (!this.toolExecutor) throw new Error('No tool executor configured');
       return this.toolExecutor(toolName, params, context);
@@ -420,23 +567,34 @@ class AgentRuntime extends EventEmitter {
   }
 
   listTools() {
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
   }
   findTools(query) {
-    const needle = String(query).toLowerCase();
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  const manifest = registeredTools.length
-  ? registeredTools.map(tool => ({
-  name: tool.fullName || tool.name,
-  keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/),
-  }))
-  : this.toolManifest || DEFAULT_TOOL_MANIFEST;
-  return manifest.filter(t => t.name.includes(needle) || (t.keywords || []).some(k => String(k).includes(needle))).map(t => t.name);
+    const needle = String(query || '').toLowerCase();
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const manifest = [
+      ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
+      ...registeredTools.map(tool => ({
+        name: tool.fullName || tool.name,
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/),
+      })),
+    ];
+    return manifest.filter(t => t.name.includes(needle) || (t.keywords || []).some(k => String(k).includes(needle))).map(t => t.name);
   }
 }
 
 let _runtime = null;
-function getAgentRuntime(config = {}) { if (!_runtime) _runtime = new AgentRuntime(config); return _runtime; }
+function getAgentRuntime(config = {}) {
+  if (!_runtime) {
+    _runtime = new AgentRuntime(config);
+  } else {
+    // Composition roots may be loaded after the singleton was first requested.
+    // Configure the existing owner rather than constructing a competing runtime.
+    if (config.toolRegistry) _runtime.setToolRegistry(config.toolRegistry);
+    if (config.model) _runtime.setModel(config.model);
+  }
+  return _runtime;
+}
 export { AgentRuntime, RuntimeSession, TurnResult, UsageSummary, getAgentRuntime };
 export default { AgentRuntime, RuntimeSession, getAgentRuntime, TOOL_MANIFEST };
