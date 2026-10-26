@@ -2,6 +2,35 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { authenticateBearer, issueUserToken, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
 
 describe('canonical identity authorization', () => {
+  test('requires an explicit service token and never treats the signing secret as service authority', async () => {
+    const previous = {
+      service: process.env.AGENTOS_SERVICE_TOKEN,
+      gateway: process.env.GATEWAY_TOKEN,
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseAnon: process.env.SUPABASE_ANON_KEY,
+    };
+    process.env.AGENTOS_SERVICE_TOKEN = 'explicit-service-token';
+    process.env.GATEWAY_TOKEN = 'gateway-signing-secret';
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_ANON_KEY;
+    try {
+      expect(await authenticateBearer('explicit-service-token')).toMatchObject({
+        provider: 'service',
+        permissions: ['*'],
+      });
+      expect(await authenticateBearer('gateway-signing-secret')).toBeNull();
+    } finally {
+      if (previous.service === undefined) delete process.env.AGENTOS_SERVICE_TOKEN;
+      else process.env.AGENTOS_SERVICE_TOKEN = previous.service;
+      if (previous.gateway === undefined) delete process.env.GATEWAY_TOKEN;
+      else process.env.GATEWAY_TOKEN = previous.gateway;
+      if (previous.supabaseUrl === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = previous.supabaseUrl;
+      if (previous.supabaseAnon === undefined) delete process.env.SUPABASE_ANON_KEY;
+      else process.env.SUPABASE_ANON_KEY = previous.supabaseAnon;
+    }
+  });
+
   test('issues and verifies short-lived signed user tokens without exposing the signing secret', async () => {
     const secret = 'test-signing-secret-that-is-long-enough';
     const token = issueUserToken({ uid: 'user-123', username: 'test-user', role: 'PARTNER' }, secret);
