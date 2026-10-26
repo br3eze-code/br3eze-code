@@ -15,6 +15,7 @@ import toolRegistry from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
+import { PlatformAdapterRegistry } from './platform/PlatformAdapterRegistry.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -120,6 +121,9 @@ class AgentRuntime extends EventEmitter {
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || toolRegistry;
     this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
+    // Portable host capabilities share this runtime; they do not create another executor.
+    this.platformAdapters = config.platformAdapters || new PlatformAdapterRegistry(config.platformOptions || {});
+    for (const adapter of (config.platformHostAdapters || [])) this.registerPlatformAdapter(adapter);
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -158,6 +162,31 @@ class AgentRuntime extends EventEmitter {
 
   listHardwareCapabilities() {
     return this.hardwareCapabilities.listCapabilities();
+  }
+
+  /** Register a platform adapter through the canonical runtime owner. */
+  registerPlatformAdapter(adapter) {
+    this.platformAdapters.register(adapter);
+    return this;
+  }
+
+  /** Start a declared host adapter; adapter lifecycle stays under runtime ownership. */
+  startPlatformAdapter(adapterId, context = {}) {
+    return this.platformAdapters.start(adapterId, context);
+  }
+
+  /** Read-only discovery of capabilities available on a target host. */
+  listPlatformCapabilities(options = {}) {
+    return this.platformAdapters.listCapabilities(options);
+  }
+
+  /** Invoke a declared platform capability through the runtime-owned registry. */
+  invokePlatformCapability(capabilityId, input = {}, context = {}) {
+    return this.platformAdapters.invoke(capabilityId, input, context);
+  }
+
+  stopPlatformAdapter(adapterId, context = {}) {
+    return this.platformAdapters.stop(adapterId, context);
   }
 
   /** Inject the host-composed model port without creating a second runtime. */
