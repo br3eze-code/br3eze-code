@@ -12,3 +12,6 @@ export * from './database.js';
 export * from './onboarding.js';
 export * from './session-store.js';
 export * from './subagent-store.js';
+export * from './agent-lifecycle.js';
+export * from './report.js';
+export * from './system.js';
