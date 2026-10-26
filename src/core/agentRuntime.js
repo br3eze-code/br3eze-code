@@ -17,7 +17,9 @@ import { ApprovalWorkflow } from './approval-gates.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
+  { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
   { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
+  { name: 'agent.remove', keywords: ['agent', 'remove', 'delete', 'retire'] },
   { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
   { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
