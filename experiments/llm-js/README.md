@@ -82,6 +82,58 @@ The current backend targets common Llama/Mistral/Qwen-style attention projection
 
 **Important:** LoRA fine-tuning updates a small adapter rather than all base-model weights. It can specialize a pretrained model for a task, but it does not create a new foundation model, guarantee improved quality, or automatically connect the model to AgentOS. The Python bridge is deliberate: practical pretrained-model training currently relies on the PyTorch/Transformers ecosystem; the CLI, validation and workflow orchestration remain Node.js.
 
+## Open-weight model harness (Node.js)
+
+`harness.js` is the provider-neutral inference boundary. It talks to any local or remote server that implements the OpenAI-compatible `/v1/chat/completions` API; the server loads and executes the model, while Br3eze owns routing and orchestration. It includes request validation, timeout/abort support, normalized outputs, token streaming, and a logical-name registry.
+
+### 1. Start an open model server
+
+Install a runtime such as llama.cpp or vLLM separately and download a model whose license and hardware requirements suit your use. For example, with a llama.cpp build and a compatible GGUF file, start its server on loopback using the server's supported model and port options. Keep the model server bound to localhost unless you have configured authentication and network access controls.
+
+### 2. Call it from Node.js
+
+```js
+import { createOpenAICompatibleAdapter, ModelHarness } from "./experiments/llm-js/harness.js";
+
+const harness = new ModelHarness().register(
+  "local-reasoner",
+  createOpenAICompatibleAdapter({
+    baseUrl: process.env.MODEL_BASE_URL ?? "http://127.0.0.1:8080/v1",
+    model: process.env.MODEL_ID ?? "local-model",
+    apiKey: process.env.MODEL_API_KEY
+  })
+);
+
+const answer = await harness.generate("local-reasoner", {
+  messages: [
+    { role: "system", content: "Be accurate. State uncertainty instead of inventing facts." },
+    { role: "user", content: "Explain what a model harness does." }
+  ],
+  temperature: 0.2,
+  maxTokens: 256
+});
+console.log(answer.text);
+
+// Streaming is also supported:
+for await (const piece of harness.stream("local-reasoner", {
+  messages: [{ role: "user", content: "Explain LoRA briefly." }],
+  maxTokens: 128
+})) process.stdout.write(piece);
+```
+
+Run the contract tests with `node --test experiments/llm-js/harness.test.js`. These use a mocked HTTP server response and do not download model weights.
+
+### 3. Keep training and inference separate
+
+- `finetune-pretrained.js` orchestrates LoRA fine-tuning of compatible Hugging Face causal language models via the optional Transformers/PEFT backend.
+- The saved output is an **adapter**, not a standalone model. Record the exact base model/revision and tokenizer alongside it; inference must load the base model and apply that adapter using a compatible runtime.
+- `harness.js` currently consumes an already-running inference endpoint. It does not load GGUF/safetensors weights directly, run a training job, execute tools, or enforce AgentOS authorization by itself.
+- `finetune.js`, `gpt.js`, and the tensor/autograd files remain the educational, pure-JavaScript TinyGPT path.
+
+### 4. Production harness boundaries
+
+Keep a stable internal request/response contract independent of backend-specific APIs. Next layers should be added behind the contract: model metadata and capability discovery, context-window budgeting, retry policy for transient failures, request IDs/telemetry, adapter-aware loading, evaluation gates, and explicit tool-call validation/authorization. Do not allow model-generated tool names or arguments to execute directly without schema validation and AgentOS permission checks. Keep secrets in environment/secret management, not model manifests or logs.
+
 ## Native Node.js TinyGPT checkpoint fine-tuning
 
 The dependency-free path below fine-tunes a compatible TinyGPT checkpoint created by `train-gpt.js`. The checkpoint must include the original character vocabulary; this implementation rejects unseen characters rather than silently changing token IDs.
