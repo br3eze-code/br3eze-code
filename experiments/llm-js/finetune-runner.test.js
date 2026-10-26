@@ -38,12 +38,12 @@ test("runner accepts checkpoint objects and rejects empty datasets", async () =>
   const source = createModel();
   const checkpoint = source.toJSON();
   const model = createModel();
-  const original = Array.from(source.params.lmHeadWeight.data);
-  model.params.lmHeadWeight.data.fill(0);
+  const originalEmbedding = Array.from(source.params.tokenEmbedding.data);
+  model.params.tokenEmbedding.data.fill(0);
   await runFineTuning(model, model.optimizer, [
     { inputs: [0, 1], targets: [1, 2] }
-  ], { checkpoint, epochs: 1, logger: () => {} });
-  assert.deepEqual(Array.from(model.params.lmHeadWeight.data), original);
+  ], { checkpoint, epochs: 1, unfreezeHeadOnly: true, logger: () => {} });
+  assert.deepEqual(Array.from(model.params.tokenEmbedding.data), originalEmbedding);
 
   await assert.rejects(
     runFineTuning(createModel(), createModel().optimizer, [], { epochs: 1, logger: () => {} }),
