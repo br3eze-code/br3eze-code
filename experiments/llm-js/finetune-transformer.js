@@ -76,7 +76,7 @@ export async function finetuneTransformerCli(args = process.argv.slice(2)) {
   const finalValidation = evaluate();
   const outputPath = resolve(option(args, "--output", "experiments/llm-js/transformer-finetuned.json"));
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, JSON.stringify({ ...model.toJSON(), format: "br3eze-transformer-training-v1", vocabulary }), "utf8");
+  await writeFile(outputPath, JSON.stringify({ format: "br3eze-transformer-training-v1", vocabulary, model: model.toJSON() }), "utf8");
   process.stdout.write(`trainable=${policy.trainableCount} frozen=${policy.frozenCount} validationLossBefore=${initialValidation.toFixed(4)} validationLossAfter=${finalValidation.toFixed(4)}\ncheckpoint=${outputPath}\n`);
   return { initialValidation, finalValidation, trainableCount: policy.trainableCount, frozenCount: policy.frozenCount, outputPath };
 }
