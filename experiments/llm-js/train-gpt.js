@@ -20,6 +20,7 @@ function numberOption(args, name, fallback) {
 
 export async function trainGPTCli(args = process.argv.slice(2)) {
   const inputPath = option(args, "--input", null);
+  const resumePath = option(args, "--resume", null);
   const text = inputPath ? await readFile(resolve(inputPath), "utf8") : DEFAULT_TEXT;
   const characters = [...text];
   if (characters.length < 4) throw new Error("Training input must contain at least 4 characters");
@@ -42,16 +43,26 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
   if (!(learningRate > 0) || learningRate > 1) throw new Error("--lr must be > 0 and <= 1");
   if (!Number.isInteger(generatedLength) || generatedLength < 0 || generatedLength > 10000) throw new Error("--generate must be an integer from 0 to 10000");
 
-  const vocabulary = buildVocabulary(text);
+  const saved = resumePath ? JSON.parse(await readFile(resolve(resumePath), "utf8")) : null;
+  if (saved && (!saved.tokenizer || saved.tokenizer.type !== "character" || !Array.isArray(saved.tokenizer.vocabulary))) {
+    throw new Error("Resume checkpoint must include a character tokenizer vocabulary");
+  }
+  const vocabulary = saved ? saved.tokenizer.vocabulary : buildVocabulary(text);
+  const vocabularySet = new Set(vocabulary);
+  const unknownCharacters = [...new Set(characters.filter((character) => !vocabularySet.has(character)))];
+  if (unknownCharacters.length) throw new Error(`Input contains ${unknownCharacters.length} characters absent from the checkpoint vocabulary; resume with the original corpus`);
   const tokenIds = characters.map((character) => vocabulary.indexOf(character));
-  const splitIndex = Math.min(tokenIds.length - 2, Math.max(2, Math.floor(tokenIds.length * 0.9)));
-  const trainSequenceLength = Math.min(contextSize, splitIndex - 1);
-  const validationSequenceLength = Math.min(contextSize, tokenIds.length - splitIndex - 1);
-  const rng = seededRandom(seed ^ 0x4c4c4d);
-  const model = new TinyGPT(vocabulary.length, {
-    contextSize, embeddingSize: width, hiddenSize, numHeads: heads, numLayers: layers, seed
-  });
+  const model = saved
+    ? TinyGPT.fromJSON(saved)
+    : new TinyGPT(vocabulary.length, {
+      contextSize, embeddingSize: width, hiddenSize, numHeads: heads, numLayers: layers, seed
+    });
+  if (model.vocabSize !== vocabulary.length) throw new Error("Checkpoint vocabulary size does not match model vocabulary size");
 
+  const splitIndex = Math.min(tokenIds.length - 2, Math.max(2, Math.floor(tokenIds.length * 0.9)));
+  const trainSequenceLength = Math.min(model.contextSize, splitIndex - 1);
+  const validationSequenceLength = Math.min(model.contextSize, tokenIds.length - splitIndex - 1);
+  const rng = seededRandom(seed ^ 0x4c4c4d);
   const sampleTrainWindow = () => {
     const maxStart = splitIndex - trainSequenceLength - 1;
     const start = Math.floor(rng() * (maxStart + 1));
@@ -74,8 +85,8 @@ export async function trainGPTCli(args = process.argv.slice(2)) {
 
   const finalValidationLoss = model.loss(validationInput, validationTarget).value;
   process.stdout.write(
-    `vocab=${vocabulary.length} context=${contextSize} width=${width} heads=${heads} layers=${layers} ` +
-    `trainChars=${splitIndex} validationChars=${tokenIds.length - splitIndex} ` +
+    `vocab=${vocabulary.length} context=${model.contextSize} width=${model.embeddingSize} heads=${model.numHeads} layers=${model.numLayers} ` +
+    `optimizerSteps=${model.optimizer.stepCount} trainChars=${splitIndex} validationChars=${tokenIds.length - splitIndex} ` +
     `initialValidationLoss=${initialValidationLoss.toFixed(4)} finalValidationLoss=${finalValidationLoss.toFixed(4)}\n`
   );
 
