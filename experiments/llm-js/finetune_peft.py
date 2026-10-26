@@ -66,7 +66,8 @@ class TokenizedDataset(torch.utils.data.Dataset):
     def __init__(self, records, tokenizer, max_length):
         self.items = []
         for row in records:
-            if "messages" in row:
+            is_chat = "messages" in row
+            if is_chat:
                 if not getattr(tokenizer, "chat_template", None):
                     raise ValueError(
                         "This model tokenizer has no chat template. Use {text: ...} records "
@@ -77,7 +78,13 @@ class TokenizedDataset(torch.utils.data.Dataset):
                 )
             else:
                 text = row["text"]
-            encoded = tokenizer(text, truncation=True, max_length=max_length, add_special_tokens=True)
+            # Chat templates already insert their special tokens; avoid adding them twice.
+            encoded = tokenizer(
+                text,
+                truncation=True,
+                max_length=max_length,
+                add_special_tokens=not is_chat,
+            )
             if len(encoded["input_ids"]) >= 2:
                 self.items.append({key: torch.tensor(value, dtype=torch.long) for key, value in encoded.items()})
         if not self.items:
