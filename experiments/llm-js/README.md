@@ -73,6 +73,21 @@ The current backend targets common Llama/Mistral/Qwen-style attention projection
 
 **Important:** LoRA fine-tuning updates a small adapter rather than all base-model weights. It can specialize a pretrained model for a task, but it does not create a new foundation model, guarantee improved quality, or automatically connect the model to AgentOS. The Python bridge is deliberate: practical pretrained-model training currently relies on the PyTorch/Transformers ecosystem; the CLI, validation and workflow orchestration remain Node.js.
 
+## Native Node.js TinyGPT checkpoint fine-tuning
+
+The dependency-free path below fine-tunes a compatible TinyGPT checkpoint created by `train-gpt.js`. The checkpoint must include the original character vocabulary; this implementation rejects unseen characters rather than silently changing token IDs.
+
+```bash
+node experiments/llm-js/train-gpt.js --input data/base.txt --steps 300 --context 32 --width 16 --heads 2 --layers 2 --hidden 64 --checkpoint artifacts/base.json
+node experiments/llm-js/finetune.js --checkpoint artifacts/base.json --input data/domain.txt --steps 100 --lr 0.001 --output artifacts/domain.json
+node experiments/llm-js/finetune.js --checkpoint artifacts/base.json --input data/domain.txt --unfreeze-head-only --steps 100 --output artifacts/head-only.json
+node experiments/llm-js/finetune.js --checkpoint artifacts/base.json --input data/domain.txt --freeze-base --steps 100 --output artifacts/frozen-base.json
+```
+
+Here `--checkpoint` is the input model and `--output` is the resulting checkpoint. `--freeze-base` and `--unfreeze-head-only` are mutually exclusive. The importer accepts this repository's checkpoint format and compatible state-dictionary tensors, validates shapes and can transpose rank-2 matrices. It does not load arbitrary safetensors or make architecture differences disappear: fused QKV, different normalization layouts, tokenizer mappings and vocabulary sizes require an explicit adapter.
+
+LoRA is not implemented in this TinyGPT path: adapter-aware Q/V hooks have not yet been added to the decoder forward graph. For general Hugging Face pretrained models, the separate `finetune-pretrained.js` CLI retains the optional Transformers/PEFT LoRA workflow.
+
 ## Tests
 
 ```bash
