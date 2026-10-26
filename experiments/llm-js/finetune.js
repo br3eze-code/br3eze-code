@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { TinyGPT } from "./gpt.js";
+import { AdamW } from "./optimizer.js";
 import { seededRandom } from "./model.js";
 import { importWeights } from "./import.js";
 
@@ -29,6 +30,15 @@ export function configureTrainableParameters(model, {
       ? entries.filter(([name]) => name === "lmHeadWeight" || name === "lmHeadBias" ||
           (trainFinalNorm && (name === "finalGamma" || name === "finalBeta")))
       : entries;
+  // Fine-tuning starts a fresh optimizer: pretraining moments are not reused.
+  // AdamW creates moment buffers lazily only for the active parameters passed to step().
+  const previousOptimizer = model.optimizer;
+  model.optimizer = new AdamW({
+    beta1: previousOptimizer?.beta1 ?? 0.9,
+    beta2: previousOptimizer?.beta2 ?? 0.999,
+    epsilon: previousOptimizer?.epsilon ?? 1e-8,
+    weightDecay: previousOptimizer?.weightDecay ?? 0.01
+  });
   model.trainableParameterNames = new Set(active.map(([name]) => name));
   model.trainableParameters = active.map(([, tensor]) => tensor);
   model.frozenParameters = entries.filter(([name]) => !model.trainableParameterNames.has(name)).map(([, tensor]) => tensor);
