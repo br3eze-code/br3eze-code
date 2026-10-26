@@ -1,4 +1,5 @@
 import { RouterOSClient } from 'routeros-client';
+import EventEmitter from 'node:events';
 
 export class MikroTikError extends Error {
   constructor(message, code = 'MIKROTIK_ERROR', cause = null) {
@@ -19,8 +20,9 @@ const TOOL_PATHS = {
   'nat.list': '/ip/firewall/nat', 'wireless.interfaces': '/interface/wireless'
 };
 
-export class MikroTikManager {
+export class MikroTikManager extends EventEmitter {
   constructor(options = {}) {
+    super();
     this.config = {
       host: options.host || options.ip || process.env.MIKROTIK_HOST || process.env.MIKROTIK_IP,
       user: options.user || options.username || process.env.MIKROTIK_USER,
@@ -37,17 +39,27 @@ export class MikroTikManager {
 
   get isConnected() { return this.state.isConnected; }
   get isConfigured() { return Boolean(this.config.host); }
+  getState() { return { ...this.state, host: this.config.host, availableTools: this.getAvailableTools().length }; }
+  getAvailableTools() { return [...new Set([...Object.keys(TOOL_PATHS), 'ping', 'user.add', 'user.remove', 'user.kick'])]; }
 
   async connect() {
     if (!this.config.host) return false;
     if (this.state.isConnected) return true;
     try {
       this.client = new RouterOSClient({ host: this.config.host, user: this.config.user, password: this.config.password, port: this.config.port, timeout: this.config.timeout, tls: this.config.tls });
-      this.conn = await Promise.race([
-        this.client.connect(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`Connection timed out after ${this.config.timeout}ms`)), this.config.timeout))
-      ]);
+      let timeoutId;
+      try {
+        this.conn = await Promise.race([
+          this.client.connect(),
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error(`Connection timed out after ${this.config.timeout}ms`)), this.config.timeout);
+          })
+        ]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
       this.state = { isConnected: true, lastError: null, lastConnectedAt: new Date().toISOString() };
+      this.emit('connected', { host: this.config.host, timestamp: this.state.lastConnectedAt });
       return true;
     } catch (error) {
       this.state.isConnected = false; this.state.lastError = error;
@@ -56,8 +68,10 @@ export class MikroTikManager {
   }
 
   async disconnect() {
+    const wasConnected = this.state.isConnected;
     try { await this.client?.disconnect?.(); } catch { /* adapter shutdown is best effort */ }
     this.state.isConnected = false; this.conn = null;
+    if (wasConnected) this.emit('disconnected', { host: this.config.host, timestamp: new Date().toISOString() });
   }
   destroy() { return this.disconnect(); }
 
@@ -73,7 +87,7 @@ export class MikroTikManager {
         case 'ping': return this._menu('/').call?.('ping', params) ?? [];
         case 'user.add':
         case 'mikrotik.hotspot.user.add':
-          await this.connect(); return this._menu('/ip/hotspot/user').add({ name: params.username || params.name, password: params.password, profile: params.profile || 'default' });
+          return this.addHotspotUser(params.username || params.name, params.password, params.profile || 'default');
         case 'user.remove':
         case 'mikrotik.hotspot.user.remove': {
           await this.connect(); const users = await this._menu('/ip/hotspot/user').where('name', params.username || params.name).get();
@@ -110,6 +124,56 @@ export class MikroTikManager {
 
   getSystemStats() { return this.executeTool('system.stats'); }
   getArpTable() { return this.executeTool('arp.table'); }
+  async addHotspotUser(username, password, profile = 'default') {
+    if (!username || !password) throw new TypeError('username and password are required');
+    await this.connect();
+    const profiles = await this._menu('/ip/hotspot/user/profile').get();
+    const dnsName = profiles?.[0]?.['dns-name'] || 'localhost';
+    const users = await this._menu('/ip/hotspot/user').where('name', username).get();
+    const existing = users?.find((user) => user.name === username);
+    const definition = { name: username, password, profile, disabled: 'no' };
+    if (existing?.['.id']) await this._menu('/ip/hotspot/user').update(existing['.id'], definition);
+    else await this._menu('/ip/hotspot/user').add(definition);
+    return `http://${dnsName}/login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+  }
+  async getUserStats(username) {
+    if (!username) throw new TypeError('username is required');
+    await this.connect();
+    const users = await this._menu('/ip/hotspot/user').where('name', username).get();
+    const user = users?.find((entry) => entry.name === username);
+    if (!user) return { success: false, username };
+    const activeUsers = await this._menu('/ip/hotspot/active').where('user', username).get();
+    const active = activeUsers?.find((entry) => entry.user === username) || null;
+    const parseBytes = (value) => {
+      const number = Number.parseInt(String(value || '0'), 10);
+      return Number.isFinite(number) ? number : 0;
+    };
+    const parseDuration = (value) => {
+      if (typeof value === 'number') return value;
+      const source = String(value || '');
+      const pattern = /(?:(\\d+)w)?(?:(\\d+)d)?(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?/;
+      const match = source.match(pattern);
+      if (!match || !match[0]) return 0;
+      return Number(match[1] || 0) * 604800 + Number(match[2] || 0) * 86400 + Number(match[3] || 0) * 3600 + Number(match[4] || 0) * 60 + Number(match[5] || 0);
+    };
+    const bytesIn = parseBytes(user['bytes-in']);
+    const bytesOut = parseBytes(user['bytes-out']);
+    const stats = {
+      success: true, username, bytesIn, bytesOut, bytesTotal: bytesIn + bytesOut,
+      uptime: parseDuration(user.uptime),
+      limitBytesTotal: parseBytes(user['limit-bytes-total']),
+      limitUptime: parseDuration(user['limit-uptime']),
+      isActive: Boolean(active),
+    };
+    if (active) stats.session = {
+      address: active.address || null,
+      uptime: parseDuration(active.uptime),
+      bytesIn: parseBytes(active['bytes-in']),
+      bytesOut: parseBytes(active['bytes-out']),
+      macAddress: active['mac-address'] || null,
+    };
+    return stats;
+  }
   async reboot({ approvalGranted = false } = {}) {
     if (approvalGranted !== true) throw new Error('Router reboot requires explicit approval');
     await this.connect();
@@ -127,5 +191,16 @@ export function createManager(options = {}) { return new MikroTikManager(options
 export function getManager(options = {}) { if (!manager) manager = createManager(options); return manager; }
 export function resetManager() { manager?.destroy?.(); manager = null; }
 export async function getMikroTikClient(options = {}) { const m = getManager(options); await m.connect(); return m; }
+export async function testConnection(options = {}) {
+  const manager = createManager({ ...options, timeout: options.timeout || 1000 });
+  try {
+    const success = await manager.connect();
+    return { success, message: success ? 'Connected successfully' : 'Connection unavailable' };
+  } catch (error) {
+    return { success: false, message: error.message };
+  } finally {
+    await manager.disconnect();
+  }
+}
 export async function testConnection(options = {}) { try { const m = createManager(options); const ok = await m.connect(); await m.disconnect(); return ok; } catch { return false; } }
 export default MikroTikManager;
