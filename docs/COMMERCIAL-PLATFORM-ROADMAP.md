@@ -125,3 +125,31 @@ The approval workflow now uses conditional `EXECUTING -> EXECUTED/FAILED` transi
 ### CI state rule
 
 A queued or running workflow is not a pass. The current PR head must pass the targeted tests, full suite, build/syntax and architecture gates, security checks, and deployment regression tests. Existing failures must be baselined against `main`; no test may be skipped or weakened just to turn the badge green.
+
+### Objective-by-objective delivery status (2026-10-26)
+
+This ledger separates code present on the feature branch from behavior proven in a deployed, production-wired path.
+
+| Original objective | Current evidence | Status |
+| --- | --- | --- |
+| One canonical execution owner (AgentRuntime / AgentLoop) | Runtime and loop exist; gateway uses runtime in at least one composition path, but legacy ask-engine.js still contains a separate ReAct implementation and domain tools. | **Partial** — finish call-site migration and prove no competing production loop. |
+| Domain-neutral core with ports/adapters | Model, system, persistence, notification, and framework contracts exist; default boot remains network; system port is not wired into the production composition root. | **Partial** — neutral default and composition-root wiring remain. |
+| Port useful behavior file-by-file from historical branches | Selected patterns and an initial PR checkpoint are recorded; the recovery ledger is a priority queue, not a complete audit of all historical PRs. | **In progress** — compare patches, tests, and current main for every candidate before marking absorbed. |
+| Preserve compatibility while deleting duplicates | Compatibility shims exist, but competing engine and domain declarations remain. | **Partial** — migrate callers first, then delete only verified superseded code. |
+| General-purpose agent lifecycle | Registry has create/remove methods; framework contract exposes create/run/remove; a provider-neutral lifecycle port now defines authorization, approval, and runtime delegation. | **Partial** — port is not wired to production ToolRegistry/runtime composition; registry persistence and tenant isolation need a production adapter. |
+| HITL/delegation and MCP/skill safety | Approval/delegation and MCP/manifest modules plus targeted tests exist on this branch. Roadmap explicitly says MCP and skill loading are not wired into production composition and skills are metadata-only. | **Partial** — wire adapters and prove end-to-end authorization/sandboxing. |
+| Full tests/build/security/deployment green | PR description records full-suite failures, Vercel voucher regression, and npm audit findings from the previous observed run. | **Not complete** — re-run on the current head and compare against main baseline. |
+| Ship verified work to main | PR #209 remains a draft and has not been merged. | **Not shipped to main** — branch commits are not equivalent to a main-branch release. |
+
+### Additional first-class capability families
+
+Keep these capabilities provider-neutral and route all execution through the same runtime and ToolRegistry. They are capability contracts, not claims that each handler is already implemented.
+
+- **Agent lifecycle:** agent.create, agent.run, agent.remove, agent.status, agent.list, agent.pause, agent.resume.
+- **Execution lifecycle:** execution.status, execution.cancel, execution.resume, execution.verify, execution.replay.
+- **Session and memory:** session.create, session.resume, session.close, memory.search, memory.read, memory.write.
+- **Workflow and task orchestration:** workflow.define, workflow.run, workflow.resume, workflow.cancel, task.create, task.status, task.cancel.
+- **Governance and observability:** approval.request, approval.status, capability.discover, audit.query, trace.read, evaluation.run.
+- **Integration lifecycle:** provider.list, provider.health, plugin.install, plugin.enable, plugin.disable, plugin.remove.
+
+For every capability, require a versioned schema, server-derived tenant/user context, policy checks, audit events, bounded execution, and a test of denial paths. Destructive or externally consequential operations require approval and idempotency where appropriate. Do not add names to the public manifest until the runtime can either execute them through a registered handler or return an explicit unsupported-capability error.
