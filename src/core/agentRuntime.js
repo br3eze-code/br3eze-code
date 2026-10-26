@@ -185,7 +185,14 @@ class AgentRuntime extends EventEmitter {
   async unloadPlugin(id) { return this.pluginLoader.unload(id); }
 
   async bootstrapSession(prompt, { sessionId = null, permissionMode = null, context = {}, wbs = null } = {}) {
-    const config = { ...this.defaultConfig, permissionMode: permissionMode || this.defaultConfig.permissionMode, toolExecutor: this.toolExecutor };
+    const config = {
+      ...this.defaultConfig,
+      permissionMode: permissionMode || this.defaultConfig.permissionMode,
+      toolExecutor: async (toolName) => {
+        const results = await this.executeTools([{ name: toolName, arguments: {} }], context);
+        return results[0]?.result;
+      },
+    };
     const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
     const promptWithWbs = `${prompt}${wbsText}`, matchedTools = this.routePrompt(promptWithWbs);
     const session = sessionId ? RuntimeSession.fromSession(sessionId, { prompt: promptWithWbs, matchedTools, permissionDenials: [], config }) : RuntimeSession.create({ prompt: promptWithWbs, matchedTools, permissionDenials: [], config });
@@ -239,7 +246,7 @@ class AgentRuntime extends EventEmitter {
         if (typeof args === 'string') {
           try { args = JSON.parse(args); } catch { args = {}; }
         }
-        results.push({ name, result: await this.executeTool(name, args, frame.context || frame) });
+        results.push({ name, result: await this._executeToolForFrame(name, args, frame.context || frame) });
       }
       return {
         response: results.length === 1 ? results[0].result : results,
@@ -397,7 +404,7 @@ class AgentRuntime extends EventEmitter {
         record.start();
         try {
           const run = executor || (async current => {
-            if (current.tool) return this.executeTool(current.tool, current.args || {});
+            if (current.tool) return this._executeToolForFrame(current.tool, current.args || {}, current.context || current);
             if (typeof current.run === 'function') return current.run(current);
             return { status: 'completed', taskId: current.id };
           });
