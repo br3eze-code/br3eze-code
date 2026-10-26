@@ -44,6 +44,75 @@ class ToolRegistry {
     this.requireExecutionTask = options.requireExecutionTask !== false;
     this._manifestCache = null;
     this._metrics = new Map();
+    for (const skill of options.skills || []) this.registerSkill(skill);
+  }
+
+  /**
+   * Register an in-memory skill through the canonical registry.
+   * Validation is completed before any registry state is mutated.
+   */
+  registerSkill(skill) {
+    if (!skill || typeof skill.name !== 'string' || !skill.name.trim()) {
+      throw new TypeError('skill name is required');
+    }
+    const skillName = skill.name.trim();
+    if (this.skills.has(skillName)) throw new Error(`Skill "${skillName}" already registered`);
+    if (!Array.isArray(skill.tools)) throw new TypeError(`Skill "${skillName}" must provide a tools array`);
+
+    const seen = new Set();
+    const prepared = skill.tools.map((tool) => {
+      if (!tool || typeof tool.name !== 'string' || !tool.name.trim() ||
+          typeof (tool.handler || tool.execute) !== 'function') {
+        throw new TypeError(`Skill "${skillName}" tools require a name and handler function`);
+      }
+      const localName = tool.name.trim();
+      const fullName = localName.includes('.') ? localName : `${skillName}.${localName}`;
+      if (this.tools.has(fullName) || seen.has(fullName)) {
+        throw new Error(`Tool "${fullName}" already registered`);
+      }
+      seen.add(fullName);
+      const schema = tool.schema || {};
+      // Validate phase/risk/approval metadata before mutating the registry.
+      describeCapability({
+        id: tool.capabilityId || fullName,
+        domain: tool.domain || fullName.split('.')[0],
+        skill: skillName,
+        tool: fullName,
+        phase: schema.phase || tool.phase || 'execute',
+        risk: schema.risk || tool.risk || 'low',
+        requiresApproval: schema.requiresApproval ?? tool.requiresApproval ?? false,
+        permissions: schema.permissions || tool.permissions || [],
+      });
+      return {
+        fullName,
+        definition: {
+          ...tool,
+          handler: tool.handler || tool.execute,
+          skill: skillName,
+          domain: tool.domain || skill.domain || fullName.split('.')[0],
+        },
+      };
+    });
+
+    this.skills.set(skillName, {
+      ...skill,
+      name: skillName,
+      manifest: { name: skillName, description: skill.description || '', version: skill.version || null },
+      tools: prepared.map((item) => item.fullName),
+      hooks: skill.hooks || {},
+      path: null,
+      enabled: skill.enabled !== false,
+      inMemory: true,
+    });
+    try {
+      for (const item of prepared) this.register(item.fullName, item.definition);
+    } catch (error) {
+      for (const item of prepared) this.tools.delete(item.fullName);
+      this.skills.delete(skillName);
+      this._manifestCache = null;
+      throw error;
+    }
+    return this;
   }
 
   registerDomain(domainName, toolDefs = []) {

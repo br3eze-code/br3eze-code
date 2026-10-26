@@ -26,9 +26,6 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'task.status', keywords: ['task', 'status', 'progress'] },
   { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] },
   { name: 'system.stats', keywords: ['system', 'stats', 'cpu', 'memory'] },
-  { name: 'system.reboot', keywords: ['system', 'reboot', 'restart'] },
-  { name: 'user.add', keywords: ['user', 'add', 'create', 'register'] },
-  { name: 'firewall.block', keywords: ['firewall', 'block', 'ban', 'blacklist'] },
   { name: 'ping', keywords: ['ping', 'latency', 'host'] }
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;

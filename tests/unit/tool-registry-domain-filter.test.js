@@ -36,3 +36,31 @@ describe('ToolRegistry domain skill exclusions', () => {
     expect(await registry.loadSkill('mikrotik')).toBe(false);
   });
 });
+
+describe('ToolRegistry in-memory skill registration', () => {
+  test('registers a validated skill in the canonical registry and unloads it cleanly', async () => {
+    const registry = new ToolRegistry({ requireExecutionTask: false, logger: { info() {}, warn() {}, error() {} } });
+    registry.registerSkill({
+      name: 'ephemeral',
+      description: 'in-memory test skill',
+      tools: [{ name: 'echo', description: 'echo input', execute: async (args) => args }],
+    });
+    expect(registry.tools.has('ephemeral.echo')).toBe(true);
+    expect(registry.skills.get('ephemeral').inMemory).toBe(true);
+    await expect(registry.unloadSkill('ephemeral')).resolves.toBe(true);
+    expect(registry.tools.has('ephemeral.echo')).toBe(false);
+  });
+
+  test('rejects duplicate tools atomically', () => {
+    const registry = new ToolRegistry({ logger: { info() {}, warn() {}, error() {} } });
+    expect(() => registry.registerSkill({
+      name: 'invalid',
+      tools: [
+        { name: 'same', execute: async () => 'first' },
+        { name: 'same', execute: async () => 'second' },
+      ],
+    })).toThrow(/already registered/);
+    expect(registry.skills.has('invalid')).toBe(false);
+    expect(registry.tools.has('invalid.same')).toBe(false);
+  });
+});
