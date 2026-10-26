@@ -25,6 +25,10 @@ const workflows = fs.readdirSync(workflowDir).filter((file) => file.endsWith('.y
 for (const file of workflows) {
   const text = fs.readFileSync(path.join(workflowDir, file), 'utf8');
 
+  if (/^(?:<<<<<<< .+|=======|>>>>>>> .+)$/m.test(text)) {
+    errors.push(`${file}: unresolved merge-conflict markers detected`);
+  }
+
   if (/node-version:\s*['"]?(?:18|20|21)(?:\.x)?['"]?/i.test(text)) {
     errors.push(`${file}: Node 18/20/21 is forbidden; use Node 22`);
   }

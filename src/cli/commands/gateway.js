@@ -13,14 +13,10 @@ import DiscoveryService from '../../core/discovery.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
 import nodeRegistry from '../../core/node-registry.js';
 import { getAgentRuntime } from '../../core/agentRuntime.js';
-import { ToolRegistry } from '../../core/ToolRegistry.js';
+import toolRegistry from '../../core/ToolRegistry.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createConfiguredProviderModelPort } from '../../adapters/models/configured-provider.js';
 import TaskScheduler from '../../core/taskScheduler.js';
-import v1Router from '../../api/routes/v1.js';
-import v2Router from '../../api/routes/v2.js';
-import v3Router from '../../api/routes/v3.js';
-import { createBatchRouter } from '../../interfaces/batch-api.js';
 
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
@@ -303,11 +299,15 @@ export default (program) => {
                 global.memoryManager = memoryManager;
                 global.nodeRegistry = nodeRegistry;
 
-                // 2. Canonical agent execution runtime
+                // 2. Canonical agent execution runtime. The provider is composed at
+                // the host boundary; core/runtime only sees the neutral model port.
+                toolRegistry.skillsPath = config.skillsPath || path.join(process.cwd(), 'skills');
+                const modelPort = await createConfiguredProviderModelPort({ config });
                 const runtime = getAgentRuntime({
                     permissionMode: 'PROMPT',
                     maxTurns: 8,
-                    toolRegistry: new ToolRegistry({ skillsPath: config.skillsPath || './skills' }),
+                    toolRegistry,
+                    ...(modelPort ? { model: modelPort } : {}),
                 });
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;
@@ -348,29 +348,11 @@ export default (program) => {
                     tester.listen(Port, '0.0.0.0');
                 });
 
-                // 5. Start Gateway. Every public surface is mounted under its
-                // version/domain namespace; the runtime remains the single execution owner.
-                const batchAgent = {
-                    handle: ({ tool, args, context }) => runtime.execute({
-                        content: tool,
-                        toolCalls: [{ name: tool, arguments: args }],
-                        context
-                    })
-                };
+                // 5. Start Gateway
                 const gateway = new AgentOSGateway({
                     ...config,
                     port: Port,
-                    verbose: options.verbose,
-                    routes: [
-                        { path: '/api/v1', router: v1Router },
-                        { path: '/api/rest', router: v1Router },
-                        { path: '/api/v2', router: v2Router },
-                        { path: '/api/v3', router: v3Router },
-                        { path: '/api', router: createBatchRouter({
-                            agent: batchAgent,
-                            authorize: (req) => req.authContext || req.user || null
-                        }) }
-                    ]
+                    verbose: options.verbose
                 });
                 gateway.runtime = runtime;
                 gateway.askEngine = runtime;

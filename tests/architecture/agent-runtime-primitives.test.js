@@ -10,7 +10,7 @@ describe('framework-neutral agent runtime', () => {
     const result = await graph.run('x', { tenantId: 't1', userId: 'u1', executionId: 'e1' });
     expect(result.status).toBe('completed');
     expect(result.output).toBe('x-a-b');
-    expect(store.load('e1').nodeId).toBe(END);
+    expect((await store.load('e1')).nodeId).toBe(END);
   });
 
   test('rejects missing scope', async () => {
