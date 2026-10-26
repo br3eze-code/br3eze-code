@@ -55,6 +55,17 @@ describe('capability manifest', () => {
     expect(source).not.toContain("req.headers['x-agent-capabilities']");
   });
 
+  test('v2 runtime routes derive authority from authenticated request identity', () => {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+    const source = fs.readFileSync(path.join(root, 'src/api/routes/v2.js'), 'utf8');
+    expect(source).toContain('function runtimeRequestContext(req');
+    expect(source).toContain('const user = req.user || {}');
+    expect(source).not.toContain("req.headers['x-agent-role']");
+    expect(source).not.toContain("req.headers['x-agent-capabilities']");
+    expect(source).not.toContain('global.ai || global.coordinator');
+    expect(source).not.toContain('global.agentRuntime || global.askEngine');
+  });
+
   test('administrators see all currently available tools without changing the source policy', () => {
     const manifest = buildCapabilityManifest({
       user: { id: 'admin-1', role: 'admin' },
