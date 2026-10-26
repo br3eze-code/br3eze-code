@@ -23,7 +23,6 @@
     "setup": "node bin/agentos.js onboard",
     "security:audit": "npm audit && node scripts/security-check.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-    "test:platform": "node --test tests/platform/*.test.js",
     "lint": "npx --yes eslint@8 src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
     "lint:ci": "npx --yes eslint@8 src/core/PluginManager.js src/core/WorkflowEngine.js src/plugins/custom/*.js scripts/check-syntax.mjs --quiet",
     "check:ci-quality": "node scripts/ci-quality-gate.mjs && node scripts/core-boundary-gate.mjs",
@@ -42,12 +41,13 @@
     "check:php:billing": "php -l www/webhook.php && php -l scripts/migrate-php-billing-tenants.php && php tests/php-fallback.smoke.php && php tests/php-route.smoke.php",
     "build:check": "node scripts/check-syntax.mjs",
     "build:types": "tsc --project tsconfig.json --noEmit",
-    "postinstall": "npm run build:product-query && node scripts/agentos-postinstall.js && node scripts/sync-php-platforms.mjs",
+    "postinstall": "npm run build:product-query && node scripts/agentos-postinstall.mjs && node scripts/sync-php-platforms.mjs",
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
-    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs"
+    "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
+    "test:platform": "node --test tests/platform/*.test.js"
   },
   "publishConfig": {
     "access": "public",
@@ -147,7 +147,7 @@
     "cron-parser": "^5.6.2",
     "debug": "^4.4.3",
     "digest-fetch": "^3.1.1",
-    "discord.js": "^14.26.0",
+    "discord.js": "^14.26.4",
     "dotenv": "^17.4.1",
     "express": "5.1.0",
     "express-rate-limit": "8.5.1",
@@ -167,7 +167,7 @@
     "joi": "^18.1.2",
     "js-yaml": "^4.3.0",
     "jsonwebtoken": "^9.0.0",
-    "midi-writer-js": "^3.2.0",
+    "midi-writer-js": "^3.2.1",
     "morgan": "^1.10.0",
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^1.2.0",
@@ -215,6 +215,9 @@
     "@babel/plugin-proposal-private-methods": "^7.18.6",
     "@babel/preset-env": "^7.23.3",
     "@babel/preset-react": "^7.22.0",
+    "@testing-library/jest-dom": "^6.1.4",
+    "@testing-library/react": "^14.1.0",
+    "@testing-library/user-event": "^14.5.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.46",
@@ -240,10 +243,59 @@
     "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-wifi-billing-agent",
     "cordova-sqlite-storage": "^7.0.0",
     "electron": "^43.4.0",
-    "electron-builder": "^26.0.0",
+    "electron-builder": "^26.15.0",
+    "eslint-config-prettier": "*",
+    "eslint-plugin-prettier": "*",
+    "javascript-obfuscator": "^5.4.0",
     "jest": "^29.7.0",
-    "nodemon": "^3.1.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.3.0"
+    "nodemon": "^3.1.11",
+    "prettier": "^3.2.5",
+    "supertest": "^6.3.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  },
+  "cordova": {
+    "platforms": [
+      "browser",
+      "android"
+    ]
+  },
+  "optionalDependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/br3eze-code"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.claude/worktrees/"
+    ],
+    "collectCoverageFrom": [
+      "src/core/*.js",
+      "src/utils/*.js",
+      "adapters/*.js",
+      "agents/*.js",
+      "tools/system/*.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ],
+    "testTimeout": 15000
+  },
+  "overrides": {
+    "osc": {
+      "ws": "8.21.0"
+    },
+    "pm2": {
+      "js-yaml": "4.3.1"
+    }
   }
 }
