@@ -1,6 +1,5 @@
 import EventEmitter from 'node:events';
 import { randomUUID } from 'node:crypto';
-import sdk from '../plugin-sdk/index.js';
 import { logger } from './logger.js';
 import { assertTenantScope } from './saas-boundary.js';
 import { AgentRegistry } from './agent-registry.js';
@@ -29,7 +28,11 @@ class AgentKernel extends EventEmitter {
 
   registerDomain(domainId, adapter) {
     if (!domainId || !adapter) throw new TypeError('domainId and adapter are required');
-    const entry = sdk.registerDomain(domainId, adapter);
+    const entry = {
+      domainId,
+      adapter,
+      capabilities: Array.isArray(adapter.capabilities) ? [...adapter.capabilities] : [],
+    };
     this.domains.set(domainId, entry);
     this.emit('domain:registered', { domainId, capabilities: entry.capabilities });
     return entry;
@@ -126,7 +129,6 @@ class AgentKernel extends EventEmitter {
       ready: this._ready,
       domains: [...this.domains.keys()],
       agents: this.agentRegistry.list().length,
-      sdk: sdk.snapshot(),
     };
   }
 
