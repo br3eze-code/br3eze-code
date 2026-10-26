@@ -1,59 +1,20 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import sdk from '../plugin-sdk/index.js';
-import { getSQLite } from './sqlite-db.js';
-
-let cachedService = null;
-let attemptedLoad = false;
-
-function compiledServiceUrl() {
-  const candidates = [
-    path.resolve(process.cwd(), 'dist/core/product-query-service.js'),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../dist/core/product-query-service.js'),
-  ];
-  const file = candidates.find((candidate) => fs.existsSync(candidate));
-  return file ? pathToFileURL(file).href : null;
-}
-
-async function loadCompiledService() {
-  const url = compiledServiceUrl();
-  return url ? import(url) : null;
-}
+/**
+ * Provider-neutral bridge to the host's product query capability.
+ * Concrete SQLite/Firebase composition lives in src/adapters/persistence.
+ */
+import { getPersistenceProvider } from './persistence.js';
 
 async function getProductQueryService() {
-  if (cachedService) return cachedService;
-  if (attemptedLoad) return null;
-  attemptedLoad = true;
-
-  const module = await loadCompiledService();
-  if (!module) return null;
-
-  let sql;
-  try {
-    sql = new module.SqlProductAdapter(await getSQLite());
-  } catch {
-    sql = undefined;
-  }
-
-  let remote;
-  try {
-    const documentStore = sdk.hasProvider('document-store')
-      ? sdk.getProvider('document-store')
-      : null;
-    if (documentStore) remote = new module.FirebaseProductAdapter(documentStore);
-  } catch {
-    remote = undefined;
-  }
-
-  if (!sql && !remote) return null;
-  cachedService = new module.ProductQueryService({ sql, firebase: remote });
-  return cachedService;
+  const provider = getPersistenceProvider();
+  if (!provider || typeof provider.getProductQueryService !== 'function') return null;
+  return provider.getProductQueryService();
 }
 
-function resetProductQueryServiceBridge() {
-  cachedService = null;
-  attemptedLoad = false;
+async function resetProductQueryServiceBridge() {
+  const provider = getPersistenceProvider();
+  if (typeof provider?.resetProductQueryServiceBridge === 'function') {
+    await provider.resetProductQueryServiceBridge();
+  }
 }
 
 export { getProductQueryService, resetProductQueryServiceBridge };
