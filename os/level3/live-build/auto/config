@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+lb config noauto \
+  --mode debian \
+  --distribution trixie \
+  --architectures amd64 \
+  --binary-images iso-hybrid \
+  --archive-areas "main contrib non-free-firmware" \
+  --debian-installer false \
+  --bootappend-live "boot=live components hostname=br3eze-os username=br3eze" \
+  --iso-application "Br3eze OS" \
+  --iso-publisher "Br3eze Africa" \
+  --iso-volume "BR3EZE_OS" \
+  --apt-recommends true \
+  --apt-indices false \
+  --memtest none \
+  --firmware-chroot true \
+  --firmware-binary true \
+  "${@}"
