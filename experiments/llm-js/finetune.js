@@ -67,7 +67,22 @@ export async function finetuneCli(args = process.argv.slice(2)) {
   const vocabularySet = new Set(vocabulary);
   const unknown = [...new Set([...text].filter((char) => !vocabularySet.has(char)))];
   if (unknown.length) throw new Error(`Corpus has ${unknown.length} character(s) missing from checkpoint vocabulary. Expand/retrain tokenizer before fine-tuning.`);
-  const model = TinyGPT.fromJSON(checkpoint);
+  const config = checkpoint.config ?? checkpoint;
+  const isNativeCheckpoint = checkpoint.format === "br3eze-llm-js-tiny-gpt-v1";
+  const model = isNativeCheckpoint
+    ? TinyGPT.fromJSON(checkpoint)
+    : new TinyGPT(
+      config.vocabSize ?? config.vocab_size ?? vocabulary.length,
+      {
+        contextSize: config.contextSize ?? config.n_positions ?? config.max_position_embeddings ?? 32,
+        embeddingSize: config.embeddingSize ?? config.n_embd ?? config.hidden_size ?? 16,
+        hiddenSize: config.hiddenSize ?? config.n_inner ?? (config.n_embd ?? config.hidden_size ?? 16) * 4,
+        numHeads: config.numHeads ?? config.n_head ?? config.num_attention_heads ?? 1,
+        numLayers: config.numLayers ?? config.n_layer ?? config.num_hidden_layers ?? 1,
+        seed: config.seed ?? 42
+      }
+    );
+  if (model.vocabSize !== vocabulary.length) throw new Error("Checkpoint vocabulary size does not match tokenizer vocabulary");
   importWeights(model, checkpoint, { strict: true });
   const policy = configureTrainableParameters(model, {
     freezeBase: args.includes("--freeze-base"),
