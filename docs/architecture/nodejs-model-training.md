@@ -57,7 +57,7 @@ The output contains the predicted label and per-class confidence scores. These s
 
 ## Relationship to the model port
 
-This model returns a label and scores; it is not a conversational model and does not implement `src/core/ports/model.js`'s completion contract. It can become a routing or classification capability behind the existing runtime. For a locally hosted chat model, use the existing configured provider path (for example the local/Ollama adapter) or add a separately tested adapter implementing the model port. LLM fine-tuning requires a pretrained language model and a compatible training backend; this classifier is not that.
+This model returns a label and scores; it is not a conversational model and does not implement `src/core/ports/model.js`'s completion contract. The `src/ml/classifier-tool.js` adapter exposes it as the standard `ml.classify` tool contract. Register that tool with the host runtime; it performs classification only and does not authorize downstream actions. For a locally hosted chat model, use the existing configured provider path (for example the local/Ollama adapter) or add a separately tested adapter implementing the model port. LLM fine-tuning requires a pretrained language model and a compatible training backend; this classifier is not that.
 
 ## Commands
 
