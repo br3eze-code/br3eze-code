@@ -50,6 +50,21 @@ describe('ApprovalGate', () => {
     expect(records.get('agentos:approval:' + pending.actionId).status).toBe('PENDING');
   });
 
+  test('does not overwrite a concurrent terminal state after execution', async () => {
+    const pending = await gate.request({ toolName: 'billing.refund', params: {}, context: { tenantId: 'a', userId: 'u' } });
+    const execute = jest.fn(async () => {
+      const key = 'agentos:approval:' + pending.actionId;
+      records.set(key, { ...records.get(key), status: 'CANCELLED' });
+      return { refunded: true };
+    });
+    await expect(gate.resume({
+      actionId: pending.actionId, actor: 'admin', tenantId: 'a',
+      authorize: async () => true, execute,
+    })).rejects.toThrow(/manual reconciliation/);
+    expect(records.get('agentos:approval:' + pending.actionId).status).toBe('CANCELLED');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   test('atomically finalizes failed execution and rejects replay', async () => {
     const pending = await gate.request({ toolName: 'billing.refund', params: {}, context: { tenantId: 'a', userId: 'u' } });
     const execute = jest.fn(async () => { throw new Error('provider unavailable'); });
