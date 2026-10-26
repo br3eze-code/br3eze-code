@@ -4,6 +4,7 @@
 .env.production
 .env.test
 .env.development
+.whatsapp-auth/
 *.key
 *.pem
 *.keystore
