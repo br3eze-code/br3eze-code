@@ -28,7 +28,7 @@ function matrix(rows, cols, rng, scale) {
  * It uses one causal attention head and one feed-forward decoder block.
  */
 export class TinyGPT {
-  constructor(vocabSize, { contextSize = 32, embeddingSize = 16, hiddenSize = embeddingSize * 4, seed = 42 } = {}) {
+  constructor(vocabSize, { contextSize = 32, embeddingSize = 16, hiddenSize = embeddingSize * 4, numHeads = 1, seed = 42 } = {}) {
     if (!Number.isInteger(vocabSize) || vocabSize < 2) throw new RangeError("vocabSize must be an integer >= 2");
     for (const [name, value] of [["contextSize", contextSize], ["embeddingSize", embeddingSize], ["hiddenSize", hiddenSize]]) {
       if (!Number.isInteger(value) || value < 1) throw new RangeError(`${name} must be a positive integer`);
@@ -37,6 +37,8 @@ export class TinyGPT {
     this.contextSize = contextSize;
     this.embeddingSize = embeddingSize;
     this.hiddenSize = hiddenSize;
+    if (!Number.isInteger(numHeads) || numHeads < 1 || embeddingSize % numHeads !== 0) throw new RangeError("numHeads must evenly divide embeddingSize");
+    this.numHeads = numHeads;
     this.seed = seed;
     const rng = seededRandom(seed);
     const d = embeddingSize;
@@ -69,7 +71,7 @@ export class TinyGPT {
     const tokenVectors = embedding(this.params.tokenEmbedding, tokenIds);
     const positionVectors = embedding(this.params.positionEmbedding, positions);
     const combined = tokenVectors.add(positionVectors);
-    const decoded = decoderBlock(combined, this.params);
+    const decoded = decoderBlock(combined, { ...this.params, numHeads: this.numHeads });
     const normalized = layerNorm(decoded, this.params.finalGamma, this.params.finalBeta);
     return linear(normalized, this.params.lmHeadWeight, this.params.lmHeadBias);
   }
@@ -135,6 +137,7 @@ export class TinyGPT {
       contextSize: this.contextSize,
       embeddingSize: this.embeddingSize,
       hiddenSize: this.hiddenSize,
+      numHeads: this.numHeads,
       seed: this.seed,
       parameters: Object.fromEntries(Object.entries(this.params).map(([name, tensor]) => [name, {
         shape: tensor.shape,
