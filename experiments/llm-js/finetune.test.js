@@ -16,7 +16,7 @@ test("strict import copies checkpoint weights and rejects shape mismatches", () 
   assert.equal(result.imported.length, Object.keys(model.params).length);
   assert.deepEqual(Array.from(model.params.lmHeadWeight.data), checkpoint.parameters.lmHeadWeight.data);
   const wrong = structuredClone(checkpoint);
-  wrong.parameters.lmHeadWeight.shape = [5, 4];
+  wrong.parameters.lmHeadWeight.shape = [5, 5];
   assert.throws(() => importWeights(model, wrong), /shape mismatch/);
 });
 
