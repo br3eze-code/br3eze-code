@@ -1,6 +1,6 @@
 # Branch pattern recovery ledger
 
-Base: `main` at the start of the recovery pass. Working branch: `port/missing-branch-patterns`.
+Historical source inventory from the initial recovery pass. The active integration branch is now `refactor/general-purpose-single-runtime`; see `docs/audits/pr-history-review-2026-10-26.md` for the current PR #1–#222 inventory and status dispositions.
 
 This is a file-by-file recovery, not a wholesale branch merge. Re-run GitHub comparisons before final merge because branch heads can move. A branch that is behind `main` with zero ahead commits contributes no unique committed file changes at the compared head; this does not prove every idea in its old PR discussion was implemented.
 
@@ -48,3 +48,10 @@ This is a file-by-file recovery, not a wholesale branch merge. Re-run GitHub com
 ## Claims we do not make
 
 The scalar autograd foundation is not itself a GPT. A tiny smoke-training run is not evidence of a capable conversational model. The classifier is not the GPT. AgentRuntime remains the only intended production execution owner; experimental model code must not become a second agent runtime.
+
+
+## Repository-wide integration update (2026-10-26)
+
+The active integration branch has now ported the isolated LLM-JS lab, RouterOS dataset preparation, knowledge ingestion/connectors, page-cited PDF/table extraction, lexical and small semantic indexes, bounded Wikimedia title import, classifier CLI/library, scalar autograd tests, repository-hygiene gate, and the initial hardware capability boundary. The classifier's feature normalizer now fits on training rows only, with a regression test.
+
+The earlier source-branch comparison rows above are historical observations, not current branch comparisons. The current integration branch is PR #223. Its workflows must be checked at the latest head before merge; the source PR #220 had broad test failures, and Vercel's deployment status has hit a build-rate limit. No claim of full-suite success or live hardware verification is made.
