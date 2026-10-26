@@ -60,7 +60,7 @@ The `messages` format requires a tokenizer with a chat template. Use lawful, rep
 ### Run fine-tuning
 
 ```bash
-node experiments/llm-js/finetune.js \
+node experiments/llm-js/finetune-pretrained.js \
   --model <hugging-face-model-id-or-local-path> \
   --input experiments/llm-js/fixtures/fine-tune.jsonl \
   --steps 20 \
