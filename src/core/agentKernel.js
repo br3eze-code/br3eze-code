@@ -180,7 +180,7 @@ class AgentKernel extends EventEmitter {
     const domain = context.domain ? this.resolveDomain(context) : this.domains.values().next().value;
     if (!domain) throw new Error('No domain registered — cannot execute tool');
     const skill = (typeof domain.adapter.getSkills === 'function' ? domain.adapter.getSkills() || [] : [])
-      .find((entry) => entry?.name === toolName || `${domain.domainId}.${entry?.name}` === toolName);
+      .find((entry) => entry?.name === toolName || (entry?.name && (entry.name.includes('.') ? entry.name : `${domain.domainId}.${entry.name}`) === toolName));
     if (!skill) throw new Error(`Tool not found: ${toolName}`);
     const fullName = skill.name.includes('.') ? skill.name : `${domain.domainId}.${skill.name}`;
     const result = await this.runtime.execute({

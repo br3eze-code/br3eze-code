@@ -23,6 +23,8 @@ jobs:
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
       - name: Validate repository hygiene
         run: node --test scripts/repository-hygiene-gate.test.mjs && node scripts/repository-hygiene-gate.mjs
+      - name: Audit runtime boundaries
+        run: npm run audit:runtime-boundaries
       - name: Build check
         run: npm run build:check
       - name: Test

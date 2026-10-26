@@ -9,6 +9,7 @@ describe('AgentKernel ownership boundary', () => {
     const store = new SessionEventStore();
     const runtime = new AgentRuntime({ toolRegistry: new ToolRegistry({ logger: { info() {}, warn() {}, error() {} } }) });
     const kernel = new AgentKernel({ sessionEventStore: store, runtime });
+    const runtimeExecute = jest.spyOn(runtime, 'execute');
     const adapter = {
       name: 'test-domain',
       capabilities: ['ping'],
@@ -29,6 +30,11 @@ describe('AgentKernel ownership boundary', () => {
     });
 
     expect(result).toEqual({ ok: true, tenantId: 'tenant-1', userId: 'user-1' });
+    expect(runtimeExecute).toHaveBeenCalledWith(expect.objectContaining({
+      content: 'Dispatch to test',
+      context: expect.objectContaining({ tenantId: 'tenant-1', userId: 'user-1' }),
+      toolCalls: [{ name: 'test.dispatch', arguments: {} }],
+    }));
     const events = await store.read(sessionId);
     expect(events).toHaveLength(3);
     expect(events.map(event => event.type)).toEqual([
