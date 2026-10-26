@@ -348,6 +348,19 @@ The runtime should complete work because acceptance criteria are verified, not b
 
 The execution path should remain followable from request to capability to verification without traversing several competing orchestration systems.
 
-## Status
+## Consolidation status: target contract vs. live implementation
 
-AgentOS is actively consolidating a historically evolved codebase toward this architecture. The goal is not to add more agent abstractions. The goal is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**
+The architecture above is the **target contract**, not proof that every production entry point already follows it. The repository's own boot-chain notes identify separate live request paths for the CLI/HTTP ask engine and the WebSocket/channel AI coordinator. Until those paths are traced and migrated, AgentRuntime must not be described as the sole production execution owner.
+
+Consolidation is performed on one working branch from `main`. Other branches are treated as pattern sources, not wholesale merge candidates: compare each branch against current `main`, inspect the changed files, port only the useful behavior, preserve current contracts, add regression tests, and remove old implementations only after their callers have moved.
+
+### Required order of work
+
+1. Map the actual production boot chain and all model/tool execution entry points.
+2. Choose one runtime owner and route every request path through its public contract.
+3. Port ahead-branch patterns file by file only when they improve the canonical design.
+4. Keep domain-specific behavior in skills, plugins, and adapters; keep the runtime independent of networking, payments, persistence vendors, and channel providers.
+5. Add regression tests before deleting duplicate implementations.
+6. Run tests, build, lint, architecture checks, and deployment validation before merging the working branch into `main`.
+
+The goal is not to add more agent abstractions. It is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**
