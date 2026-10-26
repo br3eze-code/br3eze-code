@@ -66,7 +66,7 @@ class ToolRegistry {
         throw new TypeError(`Skill "${skillName}" tools require a name and handler function`);
       }
       const localName = tool.name.trim();
-      const fullName = localName.includes('.') ? localName : `${skillName}.${localName}`;
+      const fullName = typeof tool.fullName === 'string' && tool.fullName.trim() ? tool.fullName.trim() : (localName.includes('.') ? localName : `${skillName}.${localName}`);
       if (this.tools.has(fullName) || seen.has(fullName)) {
         throw new Error(`Tool "${fullName}" already registered`);
       }

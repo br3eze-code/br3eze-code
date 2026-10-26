@@ -207,12 +207,16 @@ describe('AgentRuntime capability ownership', () => {
         const runtime = new AgentRuntime();
         expect(runtime.toolRegistry).toBeDefined();
         runtime.registerTool({
-            name: 'example.lookup',
+            name: 'lookup',
+            fullName: 'example.lookup',
             description: 'Look up an entity',
+            parameters: { type: 'object', properties: { query: { type: 'string' } } },
             execute: async () => ({ ok: true }),
         });
         const manifest = runtime.getCapabilityManifest();
         expect(manifest.tools.some(tool => tool.name === 'example.lookup')).toBe(true);
+        expect(runtime.toolRegistry.getTool('example.lookup')).toBeDefined();
+        expect(runtime.toolRegistry.getTool('example.lookup').schema.parameters.properties.query.type).toBe('string');
     });
 
     test('loads plugins through the runtime-owned plugin registry', async () => {

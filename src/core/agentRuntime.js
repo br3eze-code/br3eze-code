@@ -236,19 +236,31 @@ class AgentRuntime extends EventEmitter {
   }
 
   registerTool(tool) {
-    if (!tool || typeof tool.name !== 'string' || !tool.name.trim() || typeof tool.execute !== 'function') {
-      throw new TypeError('registerTool requires a name and execute() function');
+    const localName = typeof tool?.name === 'string' ? tool.name.trim() : '';
+    const fullName = typeof tool?.fullName === 'string' && tool.fullName.trim()
+      ? tool.fullName.trim()
+      : localName;
+    const execute = tool?.execute || tool?.handler;
+    if (!fullName || typeof execute !== 'function') {
+      throw new TypeError('registerTool requires a name/fullName and execute() or handler() function');
     }
+    const schema = {
+      ...(tool.schema || {}),
+      parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+      risk: tool.schema?.risk || tool.risk || 'low',
+      requiresApproval: tool.schema?.requiresApproval ?? tool.requiresApproval ?? false,
+      permissions: tool.schema?.permissions || tool.permissions || [],
+    };
+    const normalized = { ...tool, name: fullName, fullName, execute, schema };
     if (typeof this.toolRegistry?.registerTool === 'function') {
-      this.toolRegistry.registerTool(tool);
+      this.toolRegistry.registerTool(normalized);
     } else if (typeof this.toolRegistry?.register === 'function') {
-      const { name, execute, passContext, ...metadata } = tool;
-      const handler = passContext
+      const handler = normalized.passContext
         ? (args = {}, context = {}) => execute(args, context)
         : execute;
-      this.toolRegistry.register(name.trim(), { ...metadata, execute, handler, passContext: Boolean(passContext) });
+      this.toolRegistry.register(fullName, { ...normalized, handler });
     } else if (Array.isArray(this.toolManifest)) {
-      this.toolManifest.push(tool);
+      this.toolManifest.push(normalized);
     }
     return this;
   }
