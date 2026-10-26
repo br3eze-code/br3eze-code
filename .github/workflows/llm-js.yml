@@ -1,0 +1,55 @@
+name: llm-js tests
+
+on:
+  pull_request:
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js.yml"
+  push:
+    branches: [main, feat/llm-js-training]
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test knowledge-ingestion, chunking, retrieval and RouterOS dataset pipelines
+        run: |
+          python -m unittest discover -s experiments/llm-js/knowledge -p 'test_*.py'
+          python -m unittest experiments/llm-js/networking/ml/test_prepare_dataset.py
+      - name: Check Python pipeline syntax
+        run: python -m py_compile experiments/llm-js/knowledge/ingest.py experiments/llm-js/knowledge/test_ingest.py experiments/llm-js/knowledge/chunk_documents.py experiments/llm-js/knowledge/retrieve.py experiments/llm-js/knowledge/test_chunk_retrieve.py experiments/llm-js/knowledge/source_connectors.py experiments/llm-js/knowledge/build_index.py experiments/llm-js/knowledge/search_index.py experiments/llm-js/knowledge/test_connectors_index.py experiments/llm-js/knowledge/extract_pdf_layout.py experiments/llm-js/knowledge/test_extract_pdf_layout.py experiments/llm-js/knowledge/embedding_port.py experiments/llm-js/knowledge/vector_index.py experiments/llm-js/knowledge/test_vector_index.py experiments/llm-js/networking/ml/prepare_dataset.py experiments/llm-js/networking/ml/train_sft.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run llm-js unit tests
+        run: node --test experiments/llm-js/*.test.js
+      - name: Verify measurable Transformer training, held-out evaluation, and checkpoint round trip
+        run: node experiments/llm-js/verify-training.js /tmp/verified-transformer-checkpoint.json
+      - name: Upload verified training report and checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: transformer-training-verification
+          path: |
+            /tmp/verified-transformer-checkpoint.json
+            /tmp/verified-transformer-checkpoint.json.report.json
+          if-no-files-found: error
+      - name: Smoke-test bigram training
+        run: node experiments/llm-js/train.js --steps 20 --generate 20 --checkpoint /tmp/llm-js-checkpoint.json
+      - name: Train TinyGPT
+        run: node experiments/llm-js/train-gpt.js --input experiments/llm-js/fixtures/tiny-corpus.txt --steps 2 --context 4 --width 2 --heads 2 --layers 2 --hidden 4 --generate 2 --checkpoint /tmp/tiny-gpt-checkpoint.json
+      - name: Resume TinyGPT from checkpoint
+        run: node experiments/llm-js/train-gpt.js --input experiments/llm-js/fixtures/tiny-corpus.txt --resume /tmp/tiny-gpt-checkpoint.json --steps 1 --generate 2 --checkpoint /tmp/tiny-gpt-resumed.json
+      - name: Smoke-test depth-based Transformer preset
+        run: node experiments/llm-js/train-transformer.js --input experiments/llm-js/fixtures/tiny-corpus.txt --depth 2 --context 4 --steps 2 --generate 2 --checkpoint /tmp/depth-transformer.json
+      - name: Smoke-test native Transformer fine-tuning
+        run: node experiments/llm-js/finetune-transformer.js --checkpoint /tmp/depth-transformer.json --input experiments/llm-js/fixtures/tiny-corpus.txt --steps 2 --freeze-base --lr 0.001 --output /tmp/depth-transformer-finetuned.json
