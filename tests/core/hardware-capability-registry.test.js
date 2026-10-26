@@ -51,6 +51,34 @@ describe('HardwareCapabilityRegistry', () => {
     );
   });
 
+
+  test('validates capability arguments before any device call', async () => {
+    const execute = jest.fn(async () => ({ moved: true }));
+    const registry = new HardwareCapabilityRegistry();
+    registry.registerAdapter({
+      id: 'robot-1',
+      capabilities: [{
+        name: 'move',
+        access: 'write',
+        schema: {
+          type: 'object',
+          properties: { direction: { type: 'string', enum: ['forward', 'backward'] } },
+          required: ['direction'],
+          additionalProperties: false,
+        },
+        execute,
+      }],
+    });
+
+    await expect(registry.execute('hardware.robot-1.move', {}, { ...auth, approved: true }))
+      .rejects.toThrow('missing required hardware argument');
+    await expect(registry.execute('hardware.robot-1.move', { direction: 'forward', shell: 'anything' }, { ...auth, approved: true }))
+      .rejects.toThrow('unknown hardware argument');
+    await expect(registry.execute('hardware.robot-1.move', { direction: 'left' }, { ...auth, approved: true }))
+      .rejects.toThrow('invalid value');
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   test('rejects duplicate adapter and capability names before mounting', () => {
     const registry = new HardwareCapabilityRegistry();
     const adapter = {
