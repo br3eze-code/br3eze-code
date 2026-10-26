@@ -2,6 +2,13 @@ name: Br3eze OS Image
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feat/level-3-linux-distribution
+    paths:
+      - "os/level3/**"
+      - "docs/architecture/level-3-linux-distribution.md"
+      - ".github/workflows/br3eze-os-image.yml"
   pull_request:
     paths:
       - "os/level3/**"
