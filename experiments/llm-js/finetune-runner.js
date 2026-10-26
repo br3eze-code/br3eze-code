@@ -15,8 +15,11 @@ export async function runFineTuning(model, optimizer = model?.optimizer, dataset
   if (!optimizer || typeof optimizer.step !== "function") {
     throw new TypeError("optimizer must implement step(parameters, learningRate, options)");
   }
-  if (!dataset || !(Array.isArray(dataset) || typeof dataset[Symbol.iterator] === "function" || typeof dataset === "function")) {
-    throw new TypeError("dataset must be a re-iterable collection or a function returning an iterable");
+  const isDatasetFactory = typeof dataset === "function";
+  const isReusableIterable = Array.isArray(dataset) ||
+    (dataset && typeof dataset[Symbol.iterator] === "function" && dataset[Symbol.iterator]() !== dataset);
+  if (!isDatasetFactory && !isReusableIterable) {
+    throw new TypeError("dataset must be a re-iterable collection or a function returning a fresh iterable");
   }
 
   if (args.checkpoint) {
