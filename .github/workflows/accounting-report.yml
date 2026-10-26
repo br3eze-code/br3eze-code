@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload reports artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Fix: use consistent name derived from date (not run_id)
           name: ${{ steps.artifact_name.outputs.name }}
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload summary JSON
         if: always() && hashFiles('reports/accounting/summary.json') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Fix: consistent name so notify-success can download it
           name: report-summary-json-${{ steps.dates.outputs.from }}
