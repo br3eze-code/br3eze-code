@@ -116,6 +116,54 @@ export class Tensor {
     return out;
   }
 
+  transpose() {
+    if (this.shape.length !== 2) throw new TypeError("transpose expects a rank-2 Tensor");
+    const [rows, cols] = this.shape;
+    const out = new Tensor(new Float64Array(this.size), [cols, rows]);
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) out.data[c * rows + r] = this.data[r * cols + c];
+    }
+    out.parents = [this];
+    out._backward = () => {
+      for (let r = 0; r < rows; r += 1) {
+        for (let c = 0; c < cols; c += 1) this.grad[r * cols + c] += out.grad[c * rows + r];
+      }
+    };
+    return out;
+  }
+
+  softmaxRows() {
+    if (this.shape.length !== 2) throw new TypeError("softmaxRows expects a rank-2 Tensor");
+    const [rows, cols] = this.shape;
+    const out = new Tensor(new Float64Array(this.size), this.shape);
+    for (let r = 0; r < rows; r += 1) {
+      let max = -Infinity;
+      for (let c = 0; c < cols; c += 1) max = Math.max(max, this.data[r * cols + c]);
+      let total = 0;
+      for (let c = 0; c < cols; c += 1) {
+        const value = Math.exp(this.data[r * cols + c] - max);
+        out.data[r * cols + c] = value;
+        total += value;
+      }
+      for (let c = 0; c < cols; c += 1) out.data[r * cols + c] /= total;
+    }
+    out.parents = [this];
+    out._backward = () => {
+      for (let r = 0; r < rows; r += 1) {
+        let weightedGradient = 0;
+        for (let c = 0; c < cols; c += 1) {
+          const i = r * cols + c;
+          weightedGradient += out.grad[i] * out.data[i];
+        }
+        for (let c = 0; c < cols; c += 1) {
+          const i = r * cols + c;
+          this.grad[i] += out.data[i] * (out.grad[i] - weightedGradient);
+        }
+      }
+    };
+    return out;
+  }
+
   relu() {
     const out = new Tensor(this.data.map((x) => Math.max(0, x)), this.shape);
     out.parents = [this];
