@@ -17,6 +17,7 @@ Borrow the useful architectural ideas of the JVM without claiming to implement J
 - `provider-contracts.js` validates the minimum implementation method for each provider kind: model `execute`, storage `get`, network `request`, hardware `probe`, messaging `send`, identity `authenticate`, custom `initialize`.
 - `HardwarePort` exposes a normalized best-effort profile. Unknown hardware facts remain unknown instead of being guessed. Platform-specific probes belong in adapters.
 - `nodeHardwareProvider` is one optional Node.js host adapter. `createNodeRuntimeEnvironment()` is a Node composition root that explicitly registers it. Browser, embedded, remote and other operating-system adapters can implement the same contracts.
+- `WorkloadManager` validates manifests and delegates lifecycle to an explicitly registered runtime runner; it never evaluates code itself.
 - `RuntimeEnvironment` composes provider registry, IPC, permissions and the service supervisor. It does not own agent execution; the existing canonical `AgentRuntime` remains the sole agent executor.
 
 ## Provider contract
@@ -29,8 +30,8 @@ Kinds currently include model, storage, network, hardware, messaging, identity a
 
 This registry is not a sandbox. Provider code executes with the host process's privileges. A permission declaration is not sufficient to isolate a provider. Untrusted provider code requires process/VM isolation and policy-enforced host bridges. Hardware profiles are best effort and may expose less information on browsers, mobile systems, containers or restricted environments.
 
-The IPC bus is currently in-process. Package verification, signatures, cross-process IPC, durable service recovery, CPU/memory quotas and secure plugin loading remain later stages.
+The IPC bus is currently in-process. Package verification, signatures, cross-process IPC, durable service recovery, CPU/memory quotas and secure plugin loading remain later stages. A workload runner is trusted code unless it provides actual process/VM isolation and policy-enforced host bridges.
 
 ## Test
 
-Run `node --test tests/platform/platform-foundation.test.js tests/platform/portable-runtime.test.js`.
+Run `node --test tests/platform/platform-foundation.test.js tests/platform/portable-runtime.test.js tests/platform/workload-manager.test.js`.
