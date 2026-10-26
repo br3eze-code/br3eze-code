@@ -161,3 +161,26 @@ For every capability, require a versioned schema, server-derived tenant/user con
 - Focused tests were added for authorized lookup, runtime delegation, report source validation, and denial paths.
 - These are **first-class port contracts, not yet production-wired public capabilities**. Before exposing them in the public tool manifest, wire tenant-scoped registry/storage and report query adapters into the composition root, enforce object-level tenant isolation on reads, and add end-to-end ToolRegistry/AgentRuntime tests. Do not claim durable multi-tenant agent storage from the current in-memory registry.
 
+### External architecture research and pattern decisions (2026-10-26)
+
+Research references reviewed:
+- DeepSeek Harness architecture: https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/architecture.md
+- DeepSeek Harness core spine: https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/core.md
+- LangGraph persistence/checkpointing: https://github.com/langchain-ai/docs/blob/main/src/oss/langgraph/persistence.mdx
+- LangGraph human-in-the-loop: https://github.com/langchain-ai/docs/blob/main/src/oss/langchain/human-in-the-loop.mdx
+- MCP tool contract/security: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2026-07-28/server/tools.mdx
+
+Patterns worth porting—not copying whole frameworks:
+1. **Swappable composition:** DeepSeek Harness treats loop, tool registry, session log, model adapter and persistence as replaceable plugins. AgentOS should make its ports installable through one composition root and support teardown/unregistration, while retaining its own product/runtime API.
+2. **One durable execution spine:** session facts and tool results should be append-only/replayable; execution, checkpoint and report APIs must reference canonical execution IDs rather than start parallel loops.
+3. **Persistence semantics are explicit:** distinguish session/run checkpoints from cross-session memory; in-memory stores are development/test implementations, not production durability.
+4. **Human approval must survive process restarts:** approval state is persisted, scoped, expiry-bound and replay-resistant; resumption returns through the same runtime/tool authorization gate.
+5. **Tool metadata is untrusted:** MCP names need stable server namespaces, schema validation, output limits, authorization on every call and a human review policy for sensitive operations.
+
+Changes made from this research:
+- Added `src/adapters/agents/tenant-scoped-registry.js`, which requires a tenant-aware backing store and never falls back to the process-global registry. Reads, creates and removals carry tenant scope; cross-tenant records are rejected.
+- Hardened `src/core/ports/report.js`: a report source must explicitly attest its tenant scope, and every returned record must belong to that tenant. Tests cover source-level and record-level cross-tenant leakage.
+- Added adapter tests for missing tenant identity, missing scoped-store methods, and a backing store returning a foreign tenant's record.
+
+**Not yet claimed as production complete:** the new adapter is a contract adapter; no concrete durable tenant-aware store is wired in the production composition root yet. The report port likewise needs a real tenant-filtered execution/audit data source. Do not add these capabilities to the public runtime manifest until end-to-end ToolRegistry tests prove authorization, tenant isolation, approval, traceability and persistence.
+
