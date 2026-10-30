@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import { renderMarkdown, renderCode, renderDiff } from '../../src/cli/terminal-renderer.js';
 import { navigationCommand } from '../../src/cli/terminal-session.js';

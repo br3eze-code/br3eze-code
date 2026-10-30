@@ -23,7 +23,7 @@ describe('PHP data endpoint contract', () => {
   });
 
   test('frontend routes product reads through DataStore', () => {
-    expect(read('www/js/shop.js')).toContain('this.products = await DataStore.getProducts();');
+    expect(read('www/js/shop.js')).toMatch(/this\.products\s*=\s*await DataStore\.query\('products'/);
     expect(read('www/js/06.firebase.js')).toContain("apiData('products')");
   });
 });
