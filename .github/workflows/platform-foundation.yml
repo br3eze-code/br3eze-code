@@ -5,6 +5,7 @@ on:
       - 'src/platform/**'
       - 'tests/platform/**'
       - 'docs/architecture/level-2-application-platform.md'
+      - 'docs/architecture/jvm-style-portable-runtime.md'
       - '.github/workflows/platform-foundation.yml'
   push:
     branches: [main]
@@ -20,4 +21,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test tests/platform/platform-foundation.test.js
+      - run: node --test tests/platform/platform-foundation.test.js tests/platform/portable-runtime.test.js tests/platform/workload-manager.test.js
