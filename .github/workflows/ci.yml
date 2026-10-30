@@ -49,6 +49,8 @@ jobs:
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
           PORT: 3000
           GATEWAY_PORT: 19876
+      - name: Test Node.js-native suites
+        run: npm run test:node
       - name: Syntax check
         run: npm run build:check
       - name: Type check (jsconfig + tsconfig)
