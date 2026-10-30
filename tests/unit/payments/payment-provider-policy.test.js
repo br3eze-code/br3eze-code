@@ -12,10 +12,15 @@ describe('payment provider country policy', () => {
     );
   });
 
-  test('allows Zimbabwe-native providers for Zimbabwe merchants', () => {
-    for (const provider of ['paynow', 'ecocash', 'netone', 'pesapay', 'smilepay', 'contipay', 'zuripay']) {
+  test('allows only explicitly enabled Zimbabwe-native providers for Zimbabwe merchants', () => {
+    for (const provider of ['paynow', 'ecocash', 'netone', 'pesapay', 'smilepay', 'contipay']) {
       expect(isProviderAllowed(provider, 'ZW')).toBe(true);
     }
+    // Provider eligibility must be explicit; an unverified provider remains blocked.
+    expect(isProviderAllowed('zuripay', 'ZW')).toBe(false);
+    expect(() => assertProviderAllowed('zuripay', 'ZW')).toThrow(
+      "Payment provider 'zuripay' is not enabled for merchant country 'ZW'"
+    );
   });
 
   test('preserves Stripe eligibility outside the explicit Zimbabwe block', () => {
