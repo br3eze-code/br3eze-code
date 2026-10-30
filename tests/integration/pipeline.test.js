@@ -246,6 +246,22 @@ describe('Integration — VoucherAgent + EventBus', () => {
     beforeEach(() => { jest.resetModules(); });
 
     test('generate → redeem emits events in correct order', async () => {
+        const vouchers = new Map();
+        jest.unstable_mockModule('../../src/core/database.js', () => ({
+            getDatabase: async () => ({
+                getVoucher: async (code) => vouchers.get(code) || null,
+                createVoucher: async (code, value) => {
+                    const saved = { ...value, code };
+                    vouchers.set(code, saved);
+                    return saved;
+                },
+                updateVoucher: async (code, updates) => {
+                    const saved = { ...vouchers.get(code), ...updates };
+                    vouchers.set(code, saved);
+                    return saved;
+                }
+            })
+        }));
         const { default: eventBus } = await import('../../src/core/eventBus.js');
         const { default: voucher }  = await import('../../src/core/voucher.js');
         const events   = [];
@@ -254,7 +270,7 @@ describe('Integration — VoucherAgent + EventBus', () => {
         eventBus.on('voucher.redeemed', e => events.push({ type: 'redeemed', code: e.code }));
 
         const code = await voucher.generate('1day');
-        voucher.redeem(code, 'user-001');
+        await voucher.redeem(code, 'user-001');
 
         expect(events[0].type).toBe('created');
         expect(events[1].type).toBe('redeemed');
