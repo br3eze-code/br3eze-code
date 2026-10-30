@@ -47,7 +47,8 @@
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
-    "test:platform": "node --test tests/platform/*.test.js"
+    "test:platform": "node --test tests/platform/*.test.js",
+    "test:node": "node --test tests/unit/phase9-approval-prompt.test.js tests/platform/*.test.js"
   },
   "publishConfig": {
     "access": "public",
@@ -276,7 +277,8 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/.claude/worktrees/",
-      "/tests/platform/"
+      "/tests/platform/",
+      "/tests/unit/phase9-approval-prompt.test.js"
     ],
     "collectCoverageFrom": [
       "src/core/*.js",
