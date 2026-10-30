@@ -1,6 +1,8 @@
-# AgentOS
+# Br3eze Code — AgentOS Runtime Platform
 
-**Domain-agnostic agent harness for tools, skills, plugins, workflows, and model providers.**
+**Br3eze Code is a domain-agnostic, provider-neutral application runtime and platform.** AgentOS is its canonical agent harness: it runs tools, skills, plugins, workflows, and model providers through one permissioned execution boundary. Br3eze OS is the Linux-based distribution target that can host this platform; it is not a separate agent runtime or a claim that the repository already contains a custom kernel.
+
+**Definition and boundaries:** Br3eze Code is the overall software project; AgentOS is the managed agent/runtime layer; the Level 2 platform adds app manifests, provider SPIs, services, permissions and IPC; Br3eze OS Level 3 packages a Linux kernel and userland into a bootable distribution. Domain behavior (Wi-Fi, commerce, coding, documents, or future use cases) belongs in extensions, not in the generic core. See [the project definition](docs/architecture/br3eze-code-definition.md) and [the Level 3 OS status](os/level3/README.md).
 
 AgentOS is a runtime-first agent platform. The core does not know whether a capability belongs to networking, coding, finance, commerce, documents, infrastructure, or something not yet invented. Domains are extensions.
 
