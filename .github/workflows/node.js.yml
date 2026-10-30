@@ -32,3 +32,6 @@ jobs:
           LLM_PROVIDER: gemini
           PORT: 3000
           GATEWAY_PORT: 19876
+
+      - name: Test Node.js-native suites
+        run: npm run test:node
