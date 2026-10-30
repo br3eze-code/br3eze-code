@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import EventEmitter from 'node:events';
-import AgentRuntime from './agentRuntime.js';
+import { AgentRuntime } from './agentRuntime.js';
 import { ToolRegistry } from './ToolRegistry.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
