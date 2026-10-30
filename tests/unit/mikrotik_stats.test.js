@@ -75,7 +75,7 @@ jest.unstable_mockModule('../../src/core/config.js', () => ({
     getConfig: () => ({ mikrotik: {} }) 
 }));
 
-const { MikroTikManager } = await import('../../src/core/mikrotik.js');
+const { MikroTikManager } = await import('../../src/adapters/network/mikrotik.js');
 
 describe('MikroTikManager — getUserStats', () => {
     let manager;
