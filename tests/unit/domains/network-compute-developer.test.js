@@ -12,22 +12,29 @@ describe('NetworkDomain', () => {
     expect(domain.getSkills().map(t => t.name).sort()).toEqual(['monitor', 'ping']);
   });
 
-  test('ping() returns a reachable-host shape with a default target', async () => {
+  test('ping() returns a host and a platform-independent result shape', async () => {
     const result = await domain.execute({ tool: 'ping', params: undefined });
-    expect(result).toMatchObject({ host: '8.8.8.8', status: 'reachable', packetLoss: '0%' });
-    expect(result.latency).toMatch(/^\d+ms$/);
+    expect(result.host).toBe('8.8.8.8');
+    expect(['reachable', 'unreachable']).toContain(result.status);
+    expect(typeof result.latencyMs).toBe('number');
   });
 
-  test('ping() honors an explicit host', async () => {
+  test('ping() honors an explicit host without requiring external network access', async () => {
     const result = await domain.execute({ tool: 'ping', params: '1.1.1.1' });
     expect(result.host).toBe('1.1.1.1');
+    expect(['reachable', 'unreachable']).toContain(result.status);
   });
 
-  test('monitor() returns interface stats with a default interface', async () => {
+  test('monitor() returns interface details from the host operating system', async () => {
     const result = await domain.execute({ tool: 'monitor', params: undefined });
-    expect(result).toMatchObject({ interface: 'ether1', status: 'up' });
-    expect(result.rx).toMatch(/Mbps$/);
-    expect(result.tx).toMatch(/Mbps$/);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    for (const iface of result) {
+      expect(iface).toHaveProperty('interface');
+      expect(typeof iface.exists).toBe('boolean');
+      expect(['up', 'down']).toContain(iface.status);
+      expect(Array.isArray(iface.addresses)).toBe(true);
+    }
   });
 });
 
@@ -49,13 +56,15 @@ describe('ComputeDomain', () => {
     expect(result.memory.rss).toMatch(/MB$/);
   });
 
-  test('processes() returns a list of task entries with id and status', async () => {
+  test('processes() returns runtime process information', async () => {
     const result = await domain.execute({ tool: 'processes', params: undefined });
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
     for (const proc of result) {
-      expect(proc).toHaveProperty('id');
-      expect(proc).toHaveProperty('status');
+      expect(proc).toHaveProperty('pid');
+      expect(proc).toHaveProperty('status', 'running');
+      expect(proc).toHaveProperty('platform');
+      expect(proc).toHaveProperty('arch');
     }
   });
 });
