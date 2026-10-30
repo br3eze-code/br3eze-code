@@ -44,6 +44,56 @@ class ToolRegistry {
     this.requireExecutionTask = options.requireExecutionTask !== false;
     this._manifestCache = null;
     this._metrics = new Map();
+    for (const skill of options.skills || []) this.registerSkill(skill);
+  }
+
+  /**
+   * Register a code-defined skill through the canonical tool registry.
+   * Tool execution still passes through register()/execute() and its policy
+   * gates; this is not a second execution registry.
+   */
+  registerSkill(skill) {
+    if (!skill || typeof skill.name !== 'string' || !skill.name.trim()) {
+      throw new TypeError('skill name is required');
+    }
+    if (this.skills.has(skill.name)) throw new Error(`Skill "${skill.name}" already registered`);
+    if (!Array.isArray(skill.tools)) throw new TypeError('skill.tools must be an array');
+
+    const registeredTools = [];
+    for (const tool of skill.tools) {
+      if (!tool?.name || typeof tool.handler !== 'function') {
+        throw new TypeError(`Skill "${skill.name}" tools must provide name and handler()`);
+      }
+      const fullName = tool.name;
+      if (this.tools.has(fullName)) throw new Error(`Tool "${fullName}" already registered`);
+      this.register(fullName, {
+        ...tool,
+        skill: skill.name,
+        specialist: tool.specialist || skill.specialist || null,
+        handler: tool.handler,
+      });
+      registeredTools.push(this.tools.get(fullName));
+    }
+    this.skills.set(skill.name, {
+      manifest: skill,
+      tools: new Map(registeredTools.map((tool) => [tool.name || tool.fullName, tool])),
+      hooks: {},
+      path: null,
+      enabled: true,
+      loadedAt: new Date().toISOString(),
+    });
+    return this;
+  }
+
+  toolsForSpecialist(specialist) {
+    const toolNames = new Set(specialist?.tools || []);
+    const skillNames = new Set(specialist?.skills || specialist?.skillNames || []);
+    return this.getAllTools().filter((tool) =>
+      tool.specialist === specialist?.role
+      || tool.specialist === specialist?.id
+      || toolNames.has(tool.fullName || tool.name)
+      || skillNames.has(tool.skill)
+    );
   }
 
   registerDomain(domainName, toolDefs = []) {
