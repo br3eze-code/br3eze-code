@@ -3,13 +3,13 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-ENV NODE_ENV=production \
+ENV NODE_ENV=development \
     NPM_CONFIG_UPDATE_NOTIFIER=false \
     NPM_CONFIG_FUND=false
 
 COPY package.json package-lock.json ./
-# package-lock.json is currently stale relative to package.json; resolve from the manifest.
-RUN npm install --legacy-peer-deps --ignore-scripts --no-audit --no-fund
+# The build stage needs TypeScript from devDependencies; production-only installs omit it.
+RUN npm install --include=dev --legacy-peer-deps --ignore-scripts --no-audit --no-fund
 
 COPY . .
 RUN npm run build:product-query
