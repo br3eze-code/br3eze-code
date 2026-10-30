@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { OrganisationMatrix } from '../../src/core/organisation-matrix.js';
 
 describe('OrganisationMatrix', () => {
