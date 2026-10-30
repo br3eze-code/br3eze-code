@@ -1,4 +1,4 @@
-import { MikroTikManager, testConnection, ConnectionError, ToolExecutionError } from '../src/core/mikrotik.js';
+import { MikroTikManager, testConnection, ConnectionError, ToolExecutionError } from '../src/adapters/network/mikrotik.js';
 
 describe('MikroTikManager', () => {
   let manager;
