@@ -3,6 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import sdk from '../plugin-sdk/index.js';
 import { getSQLite } from './sqlite-db.js';
+import { getPersistenceProvider } from './persistence.js';
 
 let cachedService = null;
 let attemptedLoad = false;
@@ -29,18 +30,24 @@ async function getProductQueryService() {
   const module = await loadCompiledService();
   if (!module) return null;
 
+  // Core asks the persistence port first; legacy adapters remain as a
+  // compatibility fallback until all hosts register the port directly.
+  const persistence = getPersistenceProvider();
   let sql;
   try {
-    sql = new module.SqlProductAdapter(await getSQLite());
+    const database = persistence?.getSQLite
+      ? await persistence.getSQLite()
+      : await getSQLite();
+    sql = new module.SqlProductAdapter(database);
   } catch {
     sql = undefined;
   }
 
   let remote;
   try {
-    const documentStore = sdk.hasProvider('document-store')
-      ? sdk.getProvider('document-store')
-      : null;
+    const documentStore = persistence?.getDocumentStore
+      ? await persistence.getDocumentStore()
+      : (sdk.hasProvider('document-store') ? sdk.getProvider('document-store') : null);
     if (documentStore) remote = new module.FirebaseProductAdapter(documentStore);
   } catch {
     remote = undefined;
