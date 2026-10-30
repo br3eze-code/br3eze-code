@@ -142,7 +142,17 @@ export function diagnoseRouterOS(evidence) {
   const probes = evidence.probes;
 
   if (wan && !wan.running) add("wan-link-down", 0.99, ["WAN interface is not running"]);
-  if (!defaultRoute) add("default-route-missing", 0.98, ["No active default route was observed"]);
+  // An empty/missing route payload is not sufficient by itself: require a
+  // collected interface snapshot and gateway probe before diagnosing route loss.
+  if (Array.isArray(evidence.routes) && evidence.routes.length === 0 &&
+      Array.isArray(evidence.interfaces) && evidence.interfaces.length > 0 &&
+      probes?.gateway && typeof probes.gateway.reachable === "boolean") {
+    add("default-route-missing", 0.98, ["No routes were returned", "The interface snapshot and gateway probe were collected"]);
+  } else if (defaultRoute === undefined && Array.isArray(evidence.routes) && evidence.routes.length > 0 &&
+      Array.isArray(evidence.interfaces) && evidence.interfaces.length > 0 &&
+      probes?.gateway && typeof probes.gateway.reachable === "boolean") {
+    add("default-route-missing", 0.98, ["No active default route was observed", "The interface snapshot and gateway probe were collected"]);
+  }
   if (dhcp && dhcp.serverRunning && dhcp.activeLeases >= dhcp.poolCapacity && !dhcp.offersObserved) {
     add("dhcp-pool-exhausted", 0.97, ["DHCP pool is full", "No DHCP offers were observed"]);
   }
