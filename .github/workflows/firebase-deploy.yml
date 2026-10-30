@@ -65,12 +65,18 @@ jobs:
 
       - name: Validate secrets
         id: validate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
-            echo "❌ FIREBASE_SERVICE_ACCOUNT secret not set — cannot authenticate to Firebase."
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is missing; Firebase deploy cannot authenticate."
             exit 1
           fi
-          echo "✓ Secrets present"
+          if ! printf '%s' "$FIREBASE_SERVICE_ACCOUNT" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const x=JSON.parse(s);if(!x.client_email||!x.private_key||!x.project_id)process.exit(1)}catch{process.exit(1)}})"; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT must be valid service-account JSON with client_email, private_key, and project_id."
+            exit 1
+          fi
+          echo "✓ Firebase service-account JSON is structurally valid"
 
       - name: Configure Firebase credentials
         run: |
