@@ -30,8 +30,12 @@ describe('configureHttpApplication', () => {
 
   test('rejects missing domain-neutral composition dependencies', () => {
     expect(() => configureHttpApplication({})).toThrow(TypeError);
+    const express = Object.assign(jest.fn(() => ({ use: jest.fn() })), {
+      json: jest.fn(),
+      static: jest.fn()
+    });
     expect(() => configureHttpApplication({
-      express: () => ({ use: jest.fn() }),
+      express,
       helmet: () => {},
       cors: () => {},
       staticDirectory: ''
