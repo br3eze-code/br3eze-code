@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import EventEmitter from 'events';
 import { createActionWbs, updateActionWbs, summarizeActionWbs } from './action-wbs.js';
@@ -16,16 +17,24 @@ function scopeMatches(task, scope = {}) {
 
 class TaskRegistry extends EventEmitter {
   constructor({ store = null, staleAfterMs = 30 * 60 * 1000, clock = () => Date.now() } = {}) {
-    super(); this.tasks = new Map(); this.counter = 0; this.store = store; this.staleAfterMs = staleAfterMs; this.clock = clock;
+    super(); this.tasks = new Map(); this.idempotencyKeys = new Map(); this.counter = 0; this.store = store; this.staleAfterMs = staleAfterMs; this.clock = clock;
     if (this.store?.list) this.hydrate(this.store.list());
   }
 
-  create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = false } = {}) {
+  create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = false, idempotencyKey = null } = {}) {
     if (!context?.tenantId || !context?.userId) throw new Error('authenticated tenant context required');
+    if (idempotencyKey != null && (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > 200 || !/^[\\x21-\\x7E]+$/.test(idempotencyKey))) throw new TypeError('Invalid idempotency key');
+    const requestHash = createHash('sha256').update(JSON.stringify({ prompt, action, teamId, tenantId: context.tenantId, userId: context.userId, domainId: context.domainId || null, siteId: context.siteId || null, input })).digest('hex');
+    if (idempotencyKey && this.idempotencyKeys.has(idempotencyKey)) {
+      const existing = this.tasks.get(this.idempotencyKeys.get(idempotencyKey)) || this.store?.get?.(this.idempotencyKeys.get(idempotencyKey));
+      if (!existing || !scopeMatches(existing, { tenantId: context.tenantId, userId: context.userId })) throw Object.assign(new Error('Idempotency key is already used outside this task scope'), { code: 'IDEMPOTENCY_SCOPE_CONFLICT', status: 409 });
+      if (existing.requestHash !== requestHash) throw Object.assign(new Error('Idempotency key was already used for a different request'), { code: 'IDEMPOTENCY_PAYLOAD_CONFLICT', status: 409 });
+      return existing;
+    }
     const taskId = uuidv4(), now = this.clock();
     const taskWbs = wbs || createActionWbs(action || 'assist.task', { context, input: { text: prompt, action, ...input } });
     const task = {
-      taskId, prompt, description, status: TaskStatus.CREATED, createdAt: now, updatedAt: now, messages: [], output: '', teamId, action,
+      taskId, prompt, description, status: TaskStatus.CREATED, createdAt: now, updatedAt: now, messages: [], output: '', teamId, action, requestHash, idempotencyKey,
       owner: owner ? { userId: owner.userId || null, platformId: owner.platformId || null } : null,
       scope: { tenantId: context.tenantId, domainId: context.domainId || null, siteId: context.siteId || null, userId: context.userId, channel: context.channel || null },
       wbs: taskWbs, wbsSummary: summarizeActionWbs(taskWbs),
@@ -33,7 +42,7 @@ class TaskRegistry extends EventEmitter {
       execution: { phase: TaskPhase.PLAN, planReady: false, draftReady: false, approvalRequired: Boolean(requiresExecutionApproval), approved: false, approvalId: null, executionStartedAt: null, verifiedAt: null },
       checkpoints: [], events: [], nextActionProposal: null
     };
-    task.nextActionProposal = createNextActionProposal({ task, context, now }); this.tasks.set(taskId, task); this.counter++; this._persist(task, 'task.created'); this.emit('task:created', task); return task;
+    task.nextActionProposal = createNextActionProposal({ task, context, now }); this.tasks.set(taskId, task); if (idempotencyKey) this.idempotencyKeys.set(idempotencyKey, taskId); this.counter++; this._persist(task, 'task.created'); this.emit('task:created', task); return task;
   }
 
   _persist(task, type = 'task.updated', details = {}) {
@@ -54,7 +63,13 @@ class TaskRegistry extends EventEmitter {
     return [...merged.values()].filter((task) => (!statusFilter || task.status === statusFilter) && scopeMatches(task, scope));
   }
   listForUser(userId, scope = {}) { return this.list(null, { ...scope, userId }); }
-  hydrate(tasks = []) { for (const task of tasks) if (task?.taskId) { if (!Array.isArray(task.events)) task.events = []; this.tasks.set(task.taskId, task); } this.counter = this.tasks.size; return this.tasks.size; }
+  hydrate(tasks = []) { for (const task of tasks) if (task?.taskId) { if (!Array.isArray(task.events)) task.events = []; this.tasks.set(task.taskId, task); if (task.idempotencyKey) this.idempotencyKeys.set(task.idempotencyKey, task.taskId); } this.counter = this.tasks.size; return this.tasks.size; }
+
+  findByIdempotencyKey(idempotencyKey, scope = {}) {
+    if (!idempotencyKey || !this.idempotencyKeys.has(idempotencyKey)) return null;
+    const task = this.get(this.idempotencyKeys.get(idempotencyKey));
+    return task && scopeMatches(task, scope) ? task : null;
+  }
 
   /** Mark in-flight work as interrupted after a process restart; never replay side effects automatically. */
   recoverInterrupted() {
