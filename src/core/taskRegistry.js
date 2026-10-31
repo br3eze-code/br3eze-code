@@ -112,7 +112,11 @@ let _instance = null;
 function getTaskRegistry(options) {
   if (!_instance) {
     const explicitStore = options && Object.prototype.hasOwnProperty.call(options, 'store');
-    const store = explicitStore ? options.store : new FileTaskStore({ directory: path.join(STATE_PATH, 'tasks') });
+    const store = explicitStore
+      ? options.store
+      : process.env.NODE_ENV === 'test' && !process.env.AGENTOS_TASK_STORE_DIR
+        ? null
+        : new FileTaskStore({ directory: process.env.AGENTOS_TASK_STORE_DIR || path.join(STATE_PATH, 'tasks') });
     _instance = new TaskRegistry({ ...options, store });
     _instance.recoverInterrupted();
   }
