@@ -765,8 +765,14 @@
 <!-- CDN Libraries -->
 <script src="js/offline-runtime.js"></script>
 
+<!-- Provider port must exist before provider adapters register capabilities. -->
+<script src="js/05.provider-adapter.js"></script>
 
-
+<!-- Firebase compat SDKs are pinned and loaded before the Firebase adapter. -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 
 <script src="js/env.js"></script>
 <script src="js/03.notifications.js"></script>
