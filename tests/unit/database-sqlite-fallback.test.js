@@ -37,9 +37,9 @@ describe('SQLite fallback for user lookups (Firebase unavailable)', () => {
     // No Firebase credentials in test env -> src/core/firebase.js's init()
     // resolves to null db/auth, so Database._init() falls through to the
     // SQLite-only path (this.db stays null, this.sqlite gets set).
-    const { getDatabase } = await import('../../src/core/database.js');
+    const { getDatabase } = await import('../../src/adapters/persistence/database.js');
     db = await getDatabase();
-    ({ SQLiteDB } = await import('../../src/core/sqlite-db.js'));
+    ({ SQLiteDB } = await import('../../src/adapters/persistence/sqlite-db.js'));
     // better-sqlite3 is a native addon; some sandboxed environments can't
     // build it (no network access to fetch prebuilt binaries / node
     // headers). When that happens Database._init()'s try/catch swallows
