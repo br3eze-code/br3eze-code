@@ -1,0 +1,79 @@
+name: Br3eze kernel build
+
+on:
+  pull_request:
+    paths:
+      - 'os/kernel/**'
+      - '.github/workflows/br3eze-kernel.yml'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags:
+      - 'kernel-v*'
+    paths:
+      - 'os/kernel/**'
+      - '.github/workflows/br3eze-kernel.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout Br3eze Code
+        uses: actions/checkout@v4
+      - name: Install kernel build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev libelf-dev dwarves git python3 rsync cpio
+      - name: Fetch pinned upstream kernel release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init linux
+          git -C linux remote add origin https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+          git -C linux fetch --depth=1 origin refs/tags/v6.12:refs/tags/v6.12
+          git -C linux checkout --detach refs/tags/v6.12
+          printf 'source_tag=v6.12\nsource_commit=%s\n' "$(git -C linux rev-parse HEAD)" | tee kernel-source.txt
+      - name: Configure Br3eze kernel
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cp os/kernel/config/br3eze-x86_64.fragment linux/br3eze-x86_64.fragment
+          make -C linux x86_64_defconfig
+          linux/scripts/kconfig/merge_config.sh -m -O linux linux/.config linux/br3eze-x86_64.fragment
+          make -C linux olddefconfig
+          cp linux/.config kernel.config
+          grep -E '^(CONFIG_(X86_64|BLK_DEV_INITRD|DEVTMPFS|VIRTIO|VIRTIO_BLK|VIRTIO_NET|EXT4_FS|NAMESPACES|CGROUPS)=|# CONFIG_(X86_64|BLK_DEV_INITRD|DEVTMPFS|VIRTIO_BLK|VIRTIO_NET|EXT4_FS) is not set)' kernel.config || true
+          grep -q '^CONFIG_X86_64=y$' kernel.config
+          grep -q '^CONFIG_BLK_DEV_INITRD=y$' kernel.config
+          grep -q '^CONFIG_VIRTIO_BLK=y$' kernel.config
+          grep -q '^CONFIG_VIRTIO_NET=y$' kernel.config
+          grep -q '^CONFIG_EXT4_FS=y$' kernel.config
+      - name: Compile kernel and modules
+        run: |
+          set -Eeuo pipefail
+          make -C linux -j"$(nproc)" bzImage modules
+      - name: Stage build metadata and artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p out/br3eze-kernel
+          install -m 0644 linux/arch/x86/boot/bzImage out/br3eze-kernel/vmlinuz-br3eze-x86_64
+          install -m 0644 kernel.config out/br3eze-kernel/kernel.config
+          install -m 0644 kernel-source.txt out/br3eze-kernel/source.txt
+          make -C linux kernelrelease > out/br3eze-kernel/kernelrelease.txt
+          { gcc --version | head -n 1; } > out/br3eze-kernel/compiler.txt
+          sha256sum out/br3eze-kernel/vmlinuz-br3eze-x86_64 out/br3eze-kernel/kernel.config out/br3eze-kernel/source.txt > out/br3eze-kernel/SHA256SUMS
+          cat > out/br3eze-kernel/BUILD-STATUS.txt <<'EOF'
+          Kernel build artifacts were produced by CI. This is not yet proof of bootability or hardware qualification.
+          EOF
+      - name: Upload kernel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: br3eze-kernel-x86_64
+          path: out/br3eze-kernel/
+          if-no-files-found: error
+          retention-days: 14
