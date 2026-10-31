@@ -2,9 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
-import { isMissionReady } from './diagnostics.js';
 import { logger } from './logger.js';
-import { getUserTask } from './user-task-service.js';
 import { getUserTask } from './user-task-service.js';
 
 /**
@@ -65,12 +63,6 @@ async function submitMission(input, authenticatedUser = {}) {
     const submission = validateMissionSubmission(input);
     const dispatchId = uuidv4();
     const registry   = getTaskRegistry();
-    const runtime    = getAgentRuntime();
-
-    // Pre-flight readiness check 
-    // We run a quick diagnostic — but don't hard-block; just warn
-    const readyCheck = await isMissionReady({ diagnostics: { rpcOk: true, stateWritable: true, sessionStoreWritable: true, routerHealth: 'healthy' } });
-
     // Derive scope only from verified auth claims, never from request-body fields.
     const userId = authenticatedUser.userId || authenticatedUser.uid || authenticatedUser.sub || authenticatedUser.id;
     if (!userId) throw Object.assign(new Error('Authenticated user context is required'), { status: 401 });
