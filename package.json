@@ -50,6 +50,8 @@
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
+    "model:train": "node scripts/train-model.mjs",
+    "model:predict": "node scripts/predict-model.mjs",
     "test:platform": "node --test tests/platform/*.test.js",
     "test:node": "node --test tests/unit/phase9-approval-prompt.test.js tests/unit/phase9-terminal-boundary.test.js tests/platform/*.test.js"
   },
