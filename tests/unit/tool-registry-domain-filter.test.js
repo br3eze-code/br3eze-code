@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test, jest } from '@jest/globals';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { afterEach, describe, expect, test } from '@jest/globals';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ToolRegistry } from '../../src/core/tool-registry.js';
@@ -16,23 +16,23 @@ describe('ToolRegistry domain skill exclusions', () => {
   test('does not load excluded domain skills while retaining general skills', async () => {
     const skillsPath = mkdtempSync(path.join(os.tmpdir(), 'agentos-skills-'));
     temporaryDirectories.push(skillsPath);
-    mkdirSync(path.join(skillsPath, 'general'));
-    mkdirSync(path.join(skillsPath, 'mikrotik'));
-    mkdirSync(path.join(skillsPath, 'voucher'));
+    for (const skill of ['general', 'mikrotik', 'voucher']) {
+      const skillPath = path.join(skillsPath, skill);
+      mkdirSync(skillPath);
+      writeFileSync(path.join(skillPath, 'SKILL.md'), `# ${skill}\n\nTest skill.`);
+    }
 
     const registry = new ToolRegistry({
       skillsPath,
       excludedSkills: ['MikroTik', 'voucher'],
       logger: { info() {}, warn() {}, error() {} },
     });
-    const loadSkill = jest.spyOn(registry, 'loadSkill').mockResolvedValue(true);
 
     await registry.loadSkills();
 
-    expect(loadSkill).toHaveBeenCalledTimes(1);
-    expect(loadSkill).toHaveBeenCalledWith('general');
-    expect(loadSkill).not.toHaveBeenCalledWith('mikrotik');
-    expect(loadSkill).not.toHaveBeenCalledWith('voucher');
+    expect(registry.skills.has('general')).toBe(true);
+    expect(registry.skills.has('mikrotik')).toBe(false);
+    expect(registry.skills.has('voucher')).toBe(false);
     expect(await registry.loadSkill('mikrotik')).toBe(false);
   });
 });
