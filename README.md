@@ -370,3 +370,26 @@ Consolidation is performed on one working branch from `main`. Other branches are
 6. Run tests, build, lint, architecture checks, and deployment validation before merging the working branch into `main`.
 
 The goal is not to add more agent abstractions. It is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**
+
+
+## Verification status (2026-10-30)
+
+This status separates documented intent from evidence. It must be updated only when a check has actually been run against the relevant commit.
+
+| Area | Current claim | Evidence needed to promote the claim |
+|---|---|---|
+| Architecture | The repository documents a canonical AgentRuntime, but live CLI/HTTP and WebSocket/channel paths still need tracing and consolidation. | Trace each production entry point to tool execution; add tests proving they converge on the same runtime and authorization boundary. |
+| Domain neutrality | Partial. `AGENTOS_DOMAIN` controls some conditional adapter/CLI loading; legacy networking, voucher, finance, and printer declarations remain in the ask engine. | Test a non-network boot with network adapters unavailable, and prove domain capabilities are supplied by optional packages. |
+| Tests and build | Not certified green by this README. A test-contract repair has been proposed/merged, but that alone is not proof the complete suite passes. | Run `npm test -- --runInBand`, `npm run lint`, `npm run build`, `npm run build:types`, `npm run check:ci-quality`, and `npm run check:architecture` on the same commit; record outcomes and commit SHA. |
+| Deployment | Recent Vercel commit statuses reported failures; deployment is not certified healthy. | Inspect the failing deployment logs, fix the root cause, redeploy, and verify the deployed commit matches the tested commit. |
+| Security | Security checks and historical-secret exposure are separate concerns. Passing a scanner does not revoke credentials previously committed to Git history. | Rotate any exposed credentials, verify least-privilege permissions, and retain current scan results. |
+
+### What “implemented” means here
+
+- **Documented/targeted:** an architectural contract or intended behavior is described, but no passing test evidence is claimed.
+- **Implemented, validation pending:** code exists, but the required checks have not been confirmed green on the commit being discussed.
+- **Verified:** the relevant automated test or deployment check passed on a named commit, with its result available for review.
+- **Known issue:** evidence shows a failure or a migration gap; it must not be described as complete.
+
+Do not interpret the example embedding, directory tree, feature list, or architecture diagrams as proof that every API shown is production-ready. Confirm exports, signatures, runtime wiring, permissions, persistence behavior, and integration tests against the current source before relying on an example in production.
+
