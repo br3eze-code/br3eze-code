@@ -47,7 +47,7 @@ Goal / schedule / approved event
 
 ## Persistence and recovery contract
 
-The live API, mission dispatch, user-task service, diagnostics, and system spine use `src/core/taskRegistry.js`. Its store option is now wired to `src/core/file-task-store.js` by default for the single-host prototype. Records are written one task per JSON file using same-directory temporary files and atomic rename; the default directory is `~/.agentos/state/tasks` (profile-specific `STATE_PATH` applies). The legacy `src/taskRegistry.js` still exists and remains a consolidation item; do not add another registry. This file store is single-host persistence, not a multi-process queue, distributed lease system, or database transaction log.
+The live API, mission dispatch, user-task service, diagnostics, and system spine use `src/core/taskRegistry.js`. Its store option is wired to `src/core/file-task-store.js` by default for the single-host prototype. Task snapshots are written one JSON file per task using same-directory temporary files and atomic rename. Lifecycle events are appended to a per-task JSONL journal and fsynced; snapshots also retain event IDs and summaries. API mission creation accepts `Idempotency-Key`, fingerprints the request, and returns the original task for a matching retry while rejecting conflicting payload or scope reuse. This is single-process/single-host deduplication: snapshot and event writes are not a cross-process transaction, and external side effects are not exactly-once. The default directory is `~/.agentos/state/tasks` (profile-specific `STATE_PATH` applies). The legacy `src/taskRegistry.js` remains a consolidation item; do not add another registry.
 
 The durable task lifecycle must support:
 
@@ -55,9 +55,11 @@ The durable task lifecycle must support:
 - [x] atomic replacement of individual task snapshots;
 - [x] task ownership checks on the single-task read, cancellation, and stream paths;
 - [x] safe restart classification: persisted `running` tasks are marked failed/interrupted and are not replayed automatically;
-- [ ] append-only execution events and atomic state transitions;
+- [x] append-only per-task JSONL lifecycle events with event IDs and fsync;
+- [ ] atomic state transitions across task snapshots and event journal;
 - [ ] claim/lease expiry for multi-worker operation;
-- [ ] idempotency keys for task submission and external side effects;
+- [x] idempotency keys and request fingerprints for task submission retries within one process/host;
+- [ ] idempotency keys or equivalent guarantees for external side effects;
 - [ ] retryable/blocked recovery after verified idempotency guarantees;
 - bounded retries with backoff and terminal failure;
 - retention, backup, and restore procedures;
