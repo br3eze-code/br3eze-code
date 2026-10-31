@@ -32,7 +32,7 @@ describe('AgentOS A2A task/WBS protocol', () => {
 
   test('rejects an A2A message with a missing task scope', () => {
     const registry = new TaskRegistry();
-    const task = registry.create('test mission', { action: 'assist.task' });
+    const task = registry.create('test mission', { action: 'assist.task', context: { tenantId: 'tenant-1', projectId: 'project-1', domain: 'test', userId: 'user-1' } });
     expect(() => createA2AMessage({
       taskId: task.taskId,
       sender: 'a', recipient: 'b', capability: 'catalog.read',
