@@ -1,7 +1,6 @@
 import express from 'express';
 import '../src/host/bootstrap.js';
 import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/core/missionDispatch.js';
-import { getTaskRegistry } from '../src/core/taskRegistry.js';
 import { getUserTask } from '../src/core/user-task-service.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
 import { requireUser } from '../src/api/middleware/auth-provider.js';
