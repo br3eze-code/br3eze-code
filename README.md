@@ -369,7 +369,7 @@ The execution path should remain followable from request to capability to verifi
 
 The architecture above is the **target contract**, not proof that every production entry point already follows it. The repository's own boot-chain notes identify separate live request paths for the CLI/HTTP ask engine and the WebSocket/channel AI coordinator. Until those paths are traced and migrated, AgentRuntime must not be described as the sole production execution owner.
 
-Consolidation is performed on one working branch from `main`. Other branches are treated as pattern sources, not wholesale merge candidates: compare each branch against current `main`, inspect the changed files, port only the useful behavior, preserve current contracts, add regression tests, and remove old implementations only after their callers have moved.
+Consolidation uses focused working branches from current `main`, not a permanent parallel integration runtime. Other branches are pattern sources, not wholesale merge candidates: compare each branch against current `main`, inspect changed files, port only useful behavior, preserve current contracts, add regression tests, and close source PRs only after their useful changes are absorbed. Duplicate branch refs may remain until explicitly cleaned up.
 
 ### Required order of work
 
@@ -383,17 +383,21 @@ Consolidation is performed on one working branch from `main`. Other branches are
 The goal is not to add more agent abstractions. It is to **make one runtime authoritative, migrate useful behavior into it, remove duplicate execution paths, and keep domain integrations at the edges.**
 
 
-## Verification status (2026-10-30)
+## Verification status (2026-10-31)
 
-This status separates documented intent from evidence. It must be updated only when a check has actually been run against the relevant commit.
+This status separates code present in `main` from checks that have actually passed. Current main's CI, security, deployment and OS-build workflows have been triggered, but several jobs are still queued or in progress.
 
 | Area | Current claim | Evidence needed to promote the claim |
 |---|---|---|
-| Architecture | The repository documents a canonical AgentRuntime, but live CLI/HTTP and WebSocket/channel paths still need tracing and consolidation. | Trace each production entry point to tool execution; add tests proving they converge on the same runtime and authorization boundary. |
-| Domain neutrality | Partial. `AGENTOS_DOMAIN` controls some conditional adapter/CLI loading; legacy networking, voucher, finance, and printer declarations remain in the ask engine. | Test a non-network boot with network adapters unavailable, and prove domain capabilities are supplied by optional packages. |
-| Tests and build | Not certified green by this README. A test-contract repair has been proposed/merged, but that alone is not proof the complete suite passes. | Run `npm test -- --runInBand`, `npm run lint`, `npm run build`, `npm run build:types`, `npm run check:ci-quality`, and `npm run check:architecture` on the same commit; record outcomes and commit SHA. |
-| Deployment | Recent Vercel commit statuses reported failures; deployment is not certified healthy. | Inspect the failing deployment logs, fix the root cause, redeploy, and verify the deployed commit matches the tested commit. |
-| Security | Security checks and historical-secret exposure are separate concerns. Passing a scanner does not revoke credentials previously committed to Git history. | Rotate any exposed credentials, verify least-privilege permissions, and retain current scan results. |
+| Runtime ownership | `AgentKernel` now delegates through the canonical `AgentRuntime`; hardware capabilities, scoped delegation, and host-authorized approval are wired into that boundary. | Verify every production CLI/HTTP and WebSocket/channel request path converges on the same runtime and authorization boundary. |
+| Domain neutrality | Partial. Domain selection and adapter boundaries exist, but legacy domain-specific modules remain. | Test a non-network boot with network adapters unavailable and prove optional domains load without network-specific dependencies. |
+| Level 2 platform | The managed platform foundation is present: manifests, provider contracts, permissions, IPC, lifecycle supervision, workload management, and host adapters. | Obtain a green platform and integration test run on current main. |
+| Level 3 kernel | A Linux v6.12 x86_64 config fragment and reproducible kernel build workflow are merged. The current kernel build is in progress; no successful artifact or boot is claimed yet. | Complete the kernel build, inspect artifact checksums, then boot-test the image in QEMU and qualify target hardware. |
+| Knowledge and training | Ingestion/retrieval, Wikimedia source adapter, Node.js transformer training, classifier training and dataset tooling are in main. Targeted LLM-training and general-transformer workflows passed on the tested PR revision. | Re-run targeted workflows on current main and retain held-out evaluation/checkpoint reports. |
+| Tests and build | Current main is **not certified green**. A recent integration-head run reported 31 failing suites and 93 failing tests; current main's newer checks have not yet completed. | Run `npm test -- --runInBand`, `npm run lint`, `npm run build`, `npm run build:types`, `npm run check:ci-quality`, and `npm run check:architecture` on the same commit and record results. |
+| Deployment | Vercel and other deployment checks for current main are pending; production deployment is not certified healthy. | Inspect failed/pending deployment logs, fix the root cause, and verify the deployed commit matches the tested commit. |
+| Security | Tracked local artifacts were removed from the current tree and a repository-hygiene gate was added. This does not erase secrets from Git history. | Rotate any exposed gateway token/signing credentials, review historical exposure, and confirm current security scans pass. |
+| Branch consolidation | Focused PRs have absorbed the useful runtime, platform, knowledge, training, security, payment, and deployment patterns. No open PRs remained immediately before the kernel foundation was merged; the kernel foundation is now in main. | Review remaining source branches for unique changes before cleaning up their refs; never delete or overwrite unabsorbed work. |
 
 ### What “implemented” means here
 
