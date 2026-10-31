@@ -1,4 +1,6 @@
 # 🔥 SECRETS - NEVER COMMIT THESE
+.claude/settings.local.json
+agentos*.env
 .env
 .env.local
 .env.production
@@ -19,7 +21,6 @@ secrets/
 
 # 📦 Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 /plugins/
 /platforms/
