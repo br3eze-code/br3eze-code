@@ -5,6 +5,7 @@ import { PermissionMode } from './permissions.js';
 import { isMissionReady } from './diagnostics.js';
 import { logger } from './logger.js';
 import { getUserTask } from './user-task-service.js';
+import { getUserTask } from './user-task-service.js';
 
 /**
  * MissionDispatch — structured mission submission and dispatch runner
@@ -70,10 +71,15 @@ async function submitMission(input, authenticatedUser = {}) {
     // We run a quick diagnostic — but don't hard-block; just warn
     const readyCheck = await isMissionReady({ diagnostics: { rpcOk: true, stateWritable: true, sessionStoreWritable: true, routerHealth: 'healthy' } });
 
-    // Create task record
+    // Derive scope only from verified auth claims, never from request-body fields.
+    const userId = authenticatedUser.userId || authenticatedUser.uid || authenticatedUser.sub || authenticatedUser.id;
+    if (!userId) throw Object.assign(new Error('Authenticated user context is required'), { status: 401 });
+    const tenantId = authenticatedUser.tenantId || authenticatedUser.tenant_id || `user:${userId}`;
     const task = registry.create(submission.mission, {
         description: `Mission: ${submission.mission.slice(0, 60)}`,
-        teamId:      submission.agentId || null
+        teamId: submission.agentId || null,
+        owner: { userId },
+        context: { tenantId, userId, role: authenticatedUser.role || null, channel: 'api' }
     });
 
     // Map thinking level → runtime config
@@ -136,11 +142,9 @@ async function _runMissionAsync(taskId, dispatchId, mission, opts) {
     }
 }
 
-async function abortMission(taskId) {
+async function abortMission(taskId, authenticatedUser = {}) {
     const registry = getTaskRegistry();
-    const task     = registry.get(taskId);
-
-    if (!task) throw Object.assign(new Error(`Task not found: ${taskId}`), { status: 404 });
+    const task = getUserTask(taskId, authenticatedUser);
     if (task.status !== TaskStatus.RUNNING) {
         throw Object.assign(new Error(`Task ${taskId} is not running (status: ${task.status})`), { status: 409 });
     }
@@ -168,7 +172,10 @@ async function abortMission(taskId) {
  */
 function streamTaskFeed(req, res) {
     const { taskId } = req.params;
-    const registry   = getTaskRegistry();
+    const registry = getTaskRegistry();
+    let task;
+    try { task = getUserTask(taskId, req.user); }
+    catch (error) { return res.status(error.status || 404).json({ error: error.message, code: error.code }); }
 
     res.setHeader('Content-Type',  'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -179,14 +186,7 @@ function streamTaskFeed(req, res) {
         res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
-    // Send initial snapshot
-    const task = registry.get(taskId);
-    if (!task) {
-        send('task-error', { error: `Task not found: ${taskId}` });
-        res.end();
-        return;
-    }
-
+    // Send initial authorized snapshot
     send('task', {
         type:   'task',
         detail: _buildTaskDetail(task)
