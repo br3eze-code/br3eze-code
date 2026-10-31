@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://br3eze.africa/schemas/agentos-knowledge-document-1.0.json",
+  "title": "AgentOS Knowledge Document",
+  "type": "object",
+  "required": ["schemaVersion", "documentId", "source", "content", "quality"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "documentId": {"type": "string", "minLength": 1},
+    "source": {"type": "object", "required": ["uri", "sourceType", "mediaType", "contentHash", "licenseStatus", "retrievedAt"], "properties": {
+      "uri": {"type": "string", "minLength": 1},
+      "sourceType": {"type": "string"},
+      "mediaType": {"type": "string"},
+      "contentHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+      "licenseStatus": {"enum": ["REVIEW_REQUIRED", "APPROVED", "RESTRICTED"]},
+      "retrievedAt": {"type": "string", "format": "date-time"}
+    }, "additionalProperties": true},
+    "content": {"type": "object", "required": ["modality", "text", "contentHash"], "properties": {
+      "modality": {"type": "string"}, "text": {"type": "string"},
+      "contentHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+    }, "additionalProperties": true},
+    "quality": {"type": "object", "required": ["reviewStatus", "privacyStatus", "redactions"], "properties": {
+      "reviewStatus": {"enum": ["pending", "approved", "rejected"]},
+      "privacyStatus": {"enum": ["needs-human-review", "approved", "restricted"]},
+      "redactions": {"type": "object"}
+    }, "additionalProperties": true}
+  },
+  "additionalProperties": false
+}
