@@ -53,9 +53,19 @@ class BaseDomain {
     for (const tool of this.tools) {
       out[`${this.name}.${tool.name}`] = {
         description: tool.description || tool.name,
-        parameters:  tool.parameters  || {},
-        risk:        tool.risk        || 'low',
-        execute:     (ctx, params) => {
+        parameters: tool.parameters || tool.schema?.parameters || { type: 'object', properties: {} },
+        risk: tool.risk || tool.schema?.risk || 'low',
+        requiresApproval: tool.requiresApproval ?? tool.schema?.requiresApproval ?? false,
+        permissions: tool.permissions || tool.schema?.permissions || [],
+        passContext: Boolean(tool.passContext),
+        schema: {
+          ...(tool.schema || {}),
+          parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+          risk: tool.schema?.risk || tool.risk || 'low',
+          requiresApproval: tool.schema?.requiresApproval ?? tool.requiresApproval ?? false,
+          permissions: tool.schema?.permissions || tool.permissions || [],
+        },
+        execute: (params = {}, ctx = {}) => {
           const args = params === undefined ? [] : (Array.isArray(params) ? params : [params]);
           return tool.passContext ? tool.execute(...args, ctx) : tool.execute(...args);
         },
