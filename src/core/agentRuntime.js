@@ -14,6 +14,7 @@ import { validateModelPort, createModelRequest } from './ports/model.js';
 import toolRegistry from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
+import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const DEFAULT_TOOL_MANIFEST = [
@@ -118,6 +119,7 @@ class AgentRuntime extends EventEmitter {
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || toolRegistry;
+    this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -141,6 +143,7 @@ class AgentRuntime extends EventEmitter {
       execute: (request) => this.providerManager.execute(request.messages, request.tools, request.context),
     } : null);
     if (this.model) validateModelPort(this.model);
+    for (const adapter of (config.hardwareAdapters || [])) this.registerHardwareAdapter(adapter);
   }
 
   /** Inject the host-composed model port without creating a second runtime. */
