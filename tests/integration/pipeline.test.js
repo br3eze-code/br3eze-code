@@ -61,7 +61,7 @@ describe('Integration — TaskRegistry + EventBus', () => {
         // Wire registry events onto bus
         registry.on('task:created', t => eventBus.emit('task:created', t));
 
-        const task = registry.create('scan network');
+        const task = registry.create('scan network', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
         expect(busHandler).toHaveBeenCalledWith(expect.objectContaining({ prompt: 'scan network' }));
     });
 
@@ -73,7 +73,7 @@ describe('Integration — TaskRegistry + EventBus', () => {
         registry.on('task:running',   () => events.push('running'));
         registry.on('task:completed', () => events.push('completed'));
 
-        const task = registry.create('full lifecycle');
+        const task = registry.create('full lifecycle', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
         registry.setStatus(task.taskId, TaskStatus.RUNNING);
         registry.setStatus(task.taskId, TaskStatus.COMPLETED);
 
@@ -82,10 +82,10 @@ describe('Integration — TaskRegistry + EventBus', () => {
 
     test('summary correctly counts multiple tasks across statuses', () => {
         const registry = new TaskRegistry();
-        const t1 = registry.create('a');
-        const t2 = registry.create('b');
-        const t3 = registry.create('c');
-        const t4 = registry.create('d');
+        const t1 = registry.create('a', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
+        const t2 = registry.create('b', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
+        const t3 = registry.create('c', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
+        const t4 = registry.create('d', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
 
         registry.setStatus(t1.taskId, TaskStatus.RUNNING);
         registry.setStatus(t2.taskId, TaskStatus.COMPLETED);
@@ -101,7 +101,7 @@ describe('Integration — TaskRegistry + EventBus', () => {
 
     test('appendOutput accumulates messages correctly', () => {
         const registry = new TaskRegistry();
-        const task     = registry.create('gather stats');
+        const task     = registry.create('gather stats', { context: { tenantId: 'tenant-test', userId: 'user-test' } });
 
         registry.appendOutput(task.taskId, 'user',      'run stats');
         registry.appendOutput(task.taskId, 'assistant', 'cpu: 12%');
