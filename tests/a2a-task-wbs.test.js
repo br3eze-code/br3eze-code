@@ -32,12 +32,13 @@ describe('AgentOS A2A task/WBS protocol', () => {
 
   test('rejects an A2A message with a missing task scope', () => {
     const registry = new TaskRegistry();
-    const task = registry.create('test mission', { action: 'assist.task' });
+    const task = registry.create('test mission', { action: 'assist.task', context: { tenantId: 'tenant-1', userId: 'user-1' } });
     expect(() => createA2AMessage({
       taskId: task.taskId,
       sender: 'a', recipient: 'b', capability: 'catalog.read',
       fromRole: 'cpo', toRole: 'cfo', wbsId: task.wbs[0].id,
-      scope: { tenantId: 't', projectId: 'p', domain: 'd' }
+      scope: { tenantId: 't', projectId: 'p', domain: 'd' },
+      registry
     })).toThrow(/Invalid A2A message/);
   });
 });
