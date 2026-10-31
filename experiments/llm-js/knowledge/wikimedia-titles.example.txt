@@ -1,0 +1,7 @@
+# One explicitly selected English Wikipedia article title per line.
+# Review sources and licensing before using any material for model training.
+Artificial intelligence
+Machine learning
+Computer network
+Database
+Software engineering

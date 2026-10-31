@@ -1,0 +1,35 @@
+name: Knowledge foundation tests
+
+on:
+  pull_request:
+    paths:
+      - "experiments/llm-js/knowledge/**"
+      - "experiments/llm-js/networking/routeros-lab.js"
+      - ".github/workflows/knowledge-foundation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "experiments/llm-js/knowledge/**"
+      - "experiments/llm-js/networking/routeros-lab.js"
+      - ".github/workflows/knowledge-foundation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  knowledge-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test ingestion, chunking, retrieval and vector index
+        run: python -m unittest discover -s experiments/llm-js/knowledge -p 'test_*.py'
+      - name: Check Python pipeline syntax
+        run: python -m py_compile experiments/llm-js/knowledge/*.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check simulated RouterOS lab syntax
+        run: node --check experiments/llm-js/networking/routeros-lab.js

@@ -1,0 +1,33 @@
+name: Node.js LLM training lab
+
+on:
+  pull_request:
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js-training.yml"
+  push:
+    branches: [main]
+    paths:
+      - "experiments/llm-js/**"
+      - ".github/workflows/llm-js-training.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  node-training-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Node.js transformer and training tests
+        run: node --test experiments/llm-js/*.test.js
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test networking dataset preparation
+        run: python -m unittest experiments/llm-js/networking/ml/test_prepare_dataset.py
+      - name: Check training pipeline syntax
+        run: python -m py_compile experiments/llm-js/networking/ml/prepare_dataset.py experiments/llm-js/networking/ml/train_sft.py experiments/llm-js/finetune_peft.py
