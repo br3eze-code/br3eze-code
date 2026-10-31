@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - feat/level-3-linux-distribution
+      - main
     paths:
       - "os/level3/**"
       - "docs/architecture/level-3-linux-distribution.md"
