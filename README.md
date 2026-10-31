@@ -307,9 +307,9 @@ The runtime remains the same.
 
 The implementation contract for a persistent business operator is documented in [Autonomous Operator architecture](docs/architecture/autonomous-operator.md). It defines durable task execution, restart recovery, budget/time/concurrency limits, tool permissions, audit evidence, staged deployment, and a go/no-go test gate.
 
-**Status: design and implementation plan only.** This section does not claim the operator is already durable or production-ready. In particular, `src/taskRegistry.js` is process-local, and the repository contains a separate `src/core/taskRegistry.js`; trace the live execution path and consolidate onto the existing canonical registry/persistence boundary before adding another scheduler or task store.
+**Status: first durability milestone implemented on the working branch; CI and deployment are not yet verified.** The live API task path uses `src/core/taskRegistry.js`, now backed by an atomic local file store under `STATE_PATH/tasks`, and persisted in-flight tasks are marked interrupted after restart rather than blindly replayed. Task reads, cancellation, and live feeds are scoped to the authenticated owner. The legacy `src/taskRegistry.js` remains a consolidation item. This is single-host persistence—not a distributed queue, multi-worker lease system, or production certification.
 
-First end-to-end target: repository maintenance that inspects a repo, runs allowlisted checks, prepares a patch on a branch, verifies the result, and opens a review PR. Automatic merging, production deployment, external customer messaging, and spending remain approval-gated by default.
+Next engineering gate: run the new persistence/restart tests and full repository checks, then add durable event history, idempotency, bounded retries, and a real worker lifecycle. First end-to-end target remains repository maintenance that runs allowlisted checks and opens a review PR. Automatic merging, production deployment, external customer messaging, and spending remain approval-gated by default.
 
 ## Development
 
