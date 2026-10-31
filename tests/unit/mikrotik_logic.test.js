@@ -58,7 +58,7 @@ jest.unstable_mockModule('routeros-client', () => ({
     RouterOSClient: jest.fn(() => mockClient)
 }));
 
-const { MikroTikManager, ToolExecutionError } = await import('../../src/core/mikrotik.js');
+const { MikroTikManager, ToolExecutionError } = await import('../../src/adapters/network/mikrotik.js');
 const { logger } = await import('../../src/core/logger.js');
 
 describe('MikroTikManager Logic', () => {

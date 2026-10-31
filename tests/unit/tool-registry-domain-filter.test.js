@@ -25,7 +25,9 @@ describe('ToolRegistry domain skill exclusions', () => {
       excludedSkills: ['MikroTik', 'voucher'],
       logger: { info() {}, warn() {}, error() {} },
     });
-    const loadSkill = jest.spyOn(registry, 'loadSkill').mockResolvedValue(true);
+    // Spy without replacing the implementation: the test must exercise the
+    // registry's real exclusion checks rather than mock every skill as loaded.
+    const loadSkill = jest.spyOn(registry, 'loadSkill');
 
     await registry.loadSkills();
 

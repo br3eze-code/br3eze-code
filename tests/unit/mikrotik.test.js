@@ -30,7 +30,7 @@ jest.unstable_mockModule('node-cache', () => ({
 jest.unstable_mockModule('../../src/core/logger.js',  () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));
 jest.unstable_mockModule('../../src/core/config.js',  () => ({ getConfig: () => ({ mikrotik: { host: '192.168.88.1', user: 'admin', password: '', port: 8728 } }) }));
 
-const { MikroTikManager, MikroTikError, ConnectionError, ToolExecutionError, testConnection } = await import('../../src/core/mikrotik.js');
+const { MikroTikManager, MikroTikError, ConnectionError, ToolExecutionError, testConnection } = await import('../../src/adapters/network/mikrotik.js');
 
 // ── MikroTikError ─────────────────────────────────────────────────────────────
 

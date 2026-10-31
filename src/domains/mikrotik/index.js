@@ -1,5 +1,5 @@
 import BaseDomain from '../BaseDomain.js';
-import { MikroTikManager } from '../../core/mikrotik.js';
+import { MikroTikManager } from '../../adapters/network/mikrotik.js';
 
 class MikroTikDomain extends BaseDomain {
   constructor(config) {

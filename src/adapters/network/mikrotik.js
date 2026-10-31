@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { RouterOSClient } from 'routeros-client';
 
 export class MikroTikError extends Error {
@@ -19,8 +20,28 @@ const TOOL_PATHS = {
   'nat.list': '/ip/firewall/nat', 'wireless.interfaces': '/interface/wireless'
 };
 
-export class MikroTikManager {
+function parseRouterOSDuration(value) {
+  if (typeof value !== 'string' || !value) return 0;
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(value)) {
+    const [hours, minutes, seconds] = value.split(':').map(Number);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+  const units = { w: 604800, d: 86400, h: 3600, m: 60, s: 1 };
+  return [...value.matchAll(/(\d+)(w|d|h|m|s)/g)]
+    .reduce((total, match) => total + Number(match[1]) * units[match[2]], 0);
+}
+
+function parseRouterOSBytes(value) {
+  if (typeof value === 'number') return value;
+  const match = String(value ?? '0').trim().match(/^(\d+(?:\.\d+)?)\s*([KMGTP]?)i?B?$/i);
+  if (!match) return Number(value) || 0;
+  const powers = { '': 0, K: 1, M: 2, G: 3, T: 4, P: 5 };
+  return Number(match[1]) * (1024 ** powers[match[2].toUpperCase()]);
+}
+
+export class MikroTikManager extends EventEmitter {
   constructor(options = {}) {
+    super();
     this.config = {
       host: options.host || options.ip || process.env.MIKROTIK_HOST || process.env.MIKROTIK_IP,
       user: options.user || options.username || process.env.MIKROTIK_USER,
@@ -36,6 +57,18 @@ export class MikroTikManager {
   }
 
   get isConnected() { return this.state.isConnected; }
+  get isConfigured() { return Boolean(this.config.host && this.config.user); }
+
+  getState() {
+    return {
+      ...this.state,
+      host: this.config.host || null,
+      isConnected: this.isConnected,
+      availableTools: this.getAvailableTools().length
+    };
+  }
+
+  getAvailableTools() { return Object.keys(TOOL_PATHS).concat(['ping', 'user.add', 'user.remove', 'user.kick']); }
 
   async connect() {
     if (!this.config.host) return false;
@@ -47,6 +80,7 @@ export class MikroTikManager {
         new Promise((_, reject) => setTimeout(() => reject(new Error(`Connection timed out after ${this.config.timeout}ms`)), this.config.timeout))
       ]);
       this.state = { isConnected: true, lastError: null, lastConnectedAt: new Date().toISOString() };
+      this.emit('connected', { host: this.config.host, timestamp: this.state.lastConnectedAt });
       return true;
     } catch (error) {
       this.state.isConnected = false; this.state.lastError = error;
@@ -56,9 +90,12 @@ export class MikroTikManager {
 
   async disconnect() {
     try { await this.client?.disconnect?.(); } catch { /* adapter shutdown is best effort */ }
-    this.state.isConnected = false; this.conn = null;
+    const wasConnected = this.state.isConnected;
+    this.state.isConnected = false;
+    this.conn = null;
+    if (wasConnected) this.emit('disconnected', { host: this.config.host, timestamp: new Date().toISOString() });
   }
-  destroy() { return this.disconnect(); }
+  destroy() { this.removeAllListeners(); return this.disconnect(); }
 
   _menu(path) {
     if (!this.conn) throw new ConnectionError('Router is not connected');
@@ -99,6 +136,9 @@ export class MikroTikManager {
         case 'firewall.list': return this._get('/ip/firewall/filter');
         case 'nat.list': return this._get('/ip/firewall/nat');
         case 'hotspot.profiles': return this._get('/ip/hotspot/user/profile');
+        case 'system.reboot':
+          await this.connect();
+          return this._menu('/system').call('reboot', {});
         default: throw new Error(`Unsupported MikroTik tool: ${toolName}`);
       }
     } catch (error) {
@@ -109,8 +149,40 @@ export class MikroTikManager {
 
   getSystemStats() { return this.executeTool('system.stats'); }
   getActiveUsers() { return this.executeTool('users.active'); }
+  getArpTable() { return this.executeTool('arp.table'); }
+  reboot() { return this.executeTool('system.reboot'); }
   addUser(username, password, profile = 'default') { return this.executeTool('user.add', { username, password, profile }); }
   kickUser(username) { return this.executeTool('user.kick', { username }); }
+
+  async getUserStats(username) {
+    if (!username) throw new TypeError('username is required');
+    await this.connect();
+    const users = await this._menu('/ip/hotspot/user').where('name', username).get();
+    const user = users?.[0];
+    if (!user) throw new ToolExecutionError('user.stats', `User '${username}' not found`);
+    const activeUsers = await this._menu('/ip/hotspot/active').where('user', username).get();
+    const session = activeUsers?.[0];
+    const bytesIn = parseRouterOSBytes(user['bytes-in']);
+    const bytesOut = parseRouterOSBytes(user['bytes-out']);
+    return {
+      success: true,
+      username,
+      bytesIn,
+      bytesOut,
+      bytesTotal: bytesIn + bytesOut,
+      uptime: parseRouterOSDuration(user.uptime),
+      limitBytesTotal: parseRouterOSBytes(user['limit-bytes-total']),
+      limitUptime: parseRouterOSDuration(user['limit-uptime']),
+      isActive: Boolean(session),
+      ...(session ? { session: {
+        address: session.address,
+        uptime: parseRouterOSDuration(session.uptime),
+        bytesIn: parseRouterOSBytes(session['bytes-in']),
+        bytesOut: parseRouterOSBytes(session['bytes-out']),
+        macAddress: session['mac-address']
+      } } : {})
+    };
+  }
 }
 
 let manager;
@@ -118,5 +190,5 @@ export function createManager(options = {}) { return new MikroTikManager(options
 export function getManager(options = {}) { if (!manager) manager = createManager(options); return manager; }
 export function resetManager() { manager?.destroy?.(); manager = null; }
 export async function getMikroTikClient(options = {}) { const m = getManager(options); await m.connect(); return m; }
-export async function testConnection(options = {}) { try { const m = createManager(options); const ok = await m.connect(); await m.disconnect(); return ok; } catch { return false; } }
+export async function testConnection(options = {}) { try { const m = createManager(options); const ok = await m.connect(); await m.disconnect(); return { success: ok, message: ok ? 'Connected' : 'Missing host configuration' }; } catch (error) { return { success: false, message: error.message }; } }
 export default MikroTikManager;
