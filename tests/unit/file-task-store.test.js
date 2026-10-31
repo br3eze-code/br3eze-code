@@ -40,6 +40,10 @@ describe('FileTaskStore', () => {
     const restarted = new TaskRegistry({ store: new FileTaskStore({ directory: store.directory }) });
     expect(restarted.list(TaskStatus.COMPLETED)).toHaveLength(1);
     expect(restarted.get(task.taskId).status).toBe(TaskStatus.COMPLETED);
+    expect(restarted.get(task.taskId).events.map(event => event.type)).toEqual(expect.arrayContaining(['task.created', 'task.status-changed']));
+    expect(restarted.get(task.taskId).events.every(event => event.taskId === task.taskId && event.eventId)).toBe(true);
+    expect(store.readEvents(task.taskId).map(event => event.type)).toEqual(expect.arrayContaining(['task.created', 'task.status-changed']));
+    expect(store.readEvents(task.taskId).every(event => event.taskId === task.taskId && event.eventId)).toBe(true);
   });
 
   test('recovers running tasks as interrupted instead of replaying them', () => {
@@ -55,8 +59,34 @@ describe('FileTaskStore', () => {
     expect(restarted.get(task.taskId).messages.at(-1).content).toMatch(/automatic replay is disabled/);
   });
 
+  test('returns the original task for the same idempotency key after restart', () => {
+    const store = makeStore();
+    const first = new TaskRegistry({ store });
+    const task = first.create('idempotent mission', { context, idempotencyKey: 'request-123' });
+
+    const restarted = new TaskRegistry({ store: new FileTaskStore({ directory: store.directory }) });
+    const duplicate = restarted.create('idempotent mission', { context, idempotencyKey: 'request-123' });
+
+    expect(duplicate.taskId).toBe(task.taskId);
+    expect(restarted.list()).toHaveLength(1);
+  });
+
+  test('rejects reuse of an idempotency key for a different request or owner', () => {
+    const store = makeStore();
+    const registry = new TaskRegistry({ store });
+    registry.create('first request', { context, idempotencyKey: 'request-456' });
+
+    expect(() => registry.create('different request', { context, idempotencyKey: 'request-456' }))
+      .toThrow(/different request/);
+    expect(() => registry.create('first request', {
+      context: { tenantId: 'tenant-other', userId: 'user-other' },
+      idempotencyKey: 'request-456',
+    })).toThrow(/outside this task scope/);
+  });
+
   test('rejects unsafe task identifiers', () => {
     const store = makeStore();
     expect(() => store.get('../secrets')).toThrow(/Invalid task id/);
+    expect(() => store.readEvents('../secrets')).toThrow(/Invalid task id/);
   });
 });

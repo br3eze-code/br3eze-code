@@ -21,6 +21,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - name: Build required native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
       - name: Validate repository hygiene
         run: node --test scripts/repository-hygiene-gate.test.mjs && node scripts/repository-hygiene-gate.mjs
       - name: Build check

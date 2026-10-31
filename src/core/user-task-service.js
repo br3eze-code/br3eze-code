@@ -16,9 +16,12 @@ function normalizeScope(context = {}) {
 function assertTaskAccess(task, context = {}) {
   if (!task) throw Object.assign(new Error('Task not found'), { code: 'TASK_NOT_FOUND', status: 404 });
   const scope = normalizeScope(context);
-  const sameScope = ['tenantId', 'domainId', 'siteId'].every((key) => !task.scope?.[key] || !scope[key] || task.scope[key] === scope[key]);
+  const manager = canManageAll(context);
+  const sameTenant = !task.scope?.tenantId || task.scope.tenantId === scope.tenantId;
+  const explicitScopeConflict = ['domainId', 'siteId'].some((key) => task.scope?.[key] && scope[key] && task.scope[key] !== scope[key]);
+  const missingRequiredScope = !manager && ['domainId', 'siteId'].some((key) => task.scope?.[key] && !scope[key]);
   const owner = task.scope?.userId === scope.userId || task.owner?.userId === scope.userId;
-  if (!sameScope || (!owner && !canManageAll(context))) {
+  if (!sameTenant || explicitScopeConflict || missingRequiredScope || (!owner && !manager)) {
     throw Object.assign(new Error('Task is outside your authorized scope'), { code: 'TASK_FORBIDDEN', status: 403 });
   }
   return task;

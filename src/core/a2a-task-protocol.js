@@ -9,8 +9,8 @@ function id(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
-function requireTask(taskId) {
-  const task = getTaskRegistry().get(taskId);
+function requireTask(taskId, registry = getTaskRegistry()) {
+  const task = registry.get(taskId);
   if (!task) {
     const error = new Error(`Task not found: ${taskId}`);
     error.code = 'A2A_TASK_NOT_FOUND';
@@ -23,8 +23,8 @@ function currentWbsStep(task) {
   return (task.wbs || []).find(step => step.status === 'running') || null;
 }
 
-export function createAgentTeam({ taskId, members = [], name = null } = {}) {
-  const task = requireTask(taskId);
+export function createAgentTeam({ taskId, members = [], name = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   if (!Array.isArray(members) || members.length === 0) {
     throw new Error('Agent team requires at least one member');
   }
@@ -39,22 +39,24 @@ export function createAgentTeam({ taskId, members = [], name = null } = {}) {
   task.teamId = teamId;
   task.team = { teamId, name: name || teamId, state: 'forming', members: normalized, createdAt: Date.now() };
   task.updatedAt = Date.now();
-  getTaskRegistry().emit('team:created', task);
+  registry.update(taskId, { team: task.team, teamId, updatedAt: task.updatedAt });
+  registry.emit('team:created', task);
   return task.team;
 }
 
-export function startAgentTeam(taskId) {
-  const task = requireTask(taskId);
+export function startAgentTeam(taskId, registry = getTaskRegistry()) {
+  const task = requireTask(taskId, registry);
   if (!task.team) throw new Error('Task has no agent team');
   task.team.state = 'running';
   task.status = 'running';
   task.updatedAt = Date.now();
-  getTaskRegistry().emit('team:started', task);
+  registry.update(taskId, { team: task.team, status: task.status, updatedAt: task.updatedAt });
+  registry.emit('team:started', task);
   return task.team;
 }
 
-export function createA2AMessage({ taskId, sender, recipient, capability, type = 'delegate', fromRole, toRole, scope, wbsId, handoffId = null, payload = {}, approval = null } = {}) {
-  const task = requireTask(taskId);
+export function createA2AMessage({ taskId, sender, recipient, capability, type = 'delegate', fromRole, toRole, scope, wbsId, handoffId = null, payload = {}, approval = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   if (!MESSAGE_TYPES.includes(type)) throw new Error(`Unsupported A2A message type: ${type}`);
   const step = (task.wbs || []).find(item => item.id === wbsId) || currentWbsStep(task);
   const message = {
@@ -98,31 +100,31 @@ export function dispatchA2A({ message, transport = null } = {}) {
   return Promise.resolve({ event, result: { accepted: true, messageId: message.messageId, taskId: message.taskId } });
 }
 
-export function handoffWbsStep({ taskId, fromAgent, toAgent, capability, scope, payload = {}, approval = null } = {}) {
-  const task = requireTask(taskId);
+export function handoffWbsStep({ taskId, fromAgent, toAgent, capability, scope, payload = {}, approval = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   const step = currentWbsStep(task);
   if (!step) throw new Error('No running WBS step available for handoff');
   const message = createA2AMessage({
     taskId, sender: fromAgent, recipient: toAgent, capability,
     type: 'handoff', fromRole: fromAgent.role, toRole: toAgent.role,
-    scope: scope || task.scope, wbsId: step.id, payload, approval
+    scope: scope || task.scope, wbsId: step.id, payload, approval, registry
   });
-  getTaskRegistry().appendOutput(taskId, 'agent', `A2A handoff ${message.messageId}: ${fromAgent.agentId} -> ${toAgent.agentId}`);
+  registry.appendOutput(taskId, 'agent', `A2A handoff ${message.messageId}: ${fromAgent.agentId} -> ${toAgent.agentId}`);
   emitAgentosA2AEvent('a2a.handoff.created', { taskId, messageId: message.messageId, wbsId: step.id });
   return message;
 }
 
-export function completeAgentWbsStep({ taskId, stepId, agentId, result = null } = {}) {
-  const task = requireTask(taskId);
+export function completeAgentWbsStep({ taskId, stepId, agentId, result = null, registry = getTaskRegistry() } = {}) {
+  const task = requireTask(taskId, registry);
   const step = (task.wbs || []).find(item => item.id === stepId);
   if (!step) throw new Error(`WBS step not found: ${stepId}`);
-  const updated = getTaskRegistry().completeWbsStep(taskId, stepId, result);
+  const updated = registry.completeWbsStep(taskId, stepId, result);
   emitAgentosA2AEvent('a2a.wbs.completed', { taskId, stepId, agentId, result });
   return updated;
 }
 
-export function getTeamTask(taskId) {
-  const task = requireTask(taskId);
+export function getTeamTask(taskId, registry = getTaskRegistry()) {
+  const task = requireTask(taskId, registry);
   return {
     taskId: task.taskId,
     status: task.status,

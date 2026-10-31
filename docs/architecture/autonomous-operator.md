@@ -47,7 +47,7 @@ Goal / schedule / approved event
 
 ## Persistence and recovery contract
 
-The live API, mission dispatch, user-task service, diagnostics, and system spine use `src/core/taskRegistry.js`. Its store option is now wired to `src/core/file-task-store.js` by default for the single-host prototype. Records are written one task per JSON file using same-directory temporary files and atomic rename; the default directory is `~/.agentos/state/tasks` (profile-specific `STATE_PATH` applies). The legacy `src/taskRegistry.js` still exists and remains a consolidation item; do not add another registry. This file store is single-host persistence, not a multi-process queue, distributed lease system, or database transaction log.
+The live API, mission dispatch, user-task service, diagnostics, and system spine use `src/core/taskRegistry.js`. Its store option is now wired to `src/core/file-task-store.js` by default for the single-host prototype. Records are written one task per JSON file using same-directory temporary files and atomic rename; each state change is also appended to a per-task JSONL journal and fsynced. API task creation accepts an `Idempotency-Key`; the key and request fingerprint persist with the task so retries return the original task and conflicting reuse is rejected. This is single-process/single-host deduplication, not a cross-process atomic claim or exactly-once side-effect guarantee. The default directory is `~/.agentos/state/tasks` (profile-specific `STATE_PATH` applies). The legacy `src/taskRegistry.js` still exists and remains a consolidation item; do not add another registry. This file store is single-host persistence, not a multi-process queue, distributed lease system, or database transaction log.
 
 The durable task lifecycle must support:
 
@@ -55,7 +55,8 @@ The durable task lifecycle must support:
 - [x] atomic replacement of individual task snapshots;
 - [x] task ownership checks on the single-task read, cancellation, and stream paths;
 - [x] safe restart classification: persisted `running` tasks are marked failed/interrupted and are not replayed automatically;
-- [ ] append-only execution events and atomic state transitions;
+- [x] lifecycle events retained with each task snapshot;
+- [ ] independent append-only event journal and transactional state transitions;
 - [ ] claim/lease expiry for multi-worker operation;
 - [ ] idempotency keys for task submission and external side effects;
 - [ ] retryable/blocked recovery after verified idempotency guarantees;

@@ -2,7 +2,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { getAgentRuntime } from './agentRuntime.js';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
-import { isMissionReady } from './diagnostics.js';
 import { logger } from './logger.js';
 import { getUserTask } from './user-task-service.js';
 
@@ -60,21 +59,29 @@ function validateMissionSubmission(input) {
  * @param {object} input  MissionSubmission
  * @returns {Promise<object>} MissionResponse
  */
-async function submitMission(input, authenticatedUser = {}) {
+async function submitMission(input, authenticatedUser = {}, { idempotencyKey = null } = {}) {
     const submission = validateMissionSubmission(input);
-    const dispatchId = uuidv4();
     const registry   = getTaskRegistry();
-    const runtime    = getAgentRuntime();
-
-    // Pre-flight readiness check 
-    // We run a quick diagnostic — but don't hard-block; just warn
-    const readyCheck = await isMissionReady({ diagnostics: { rpcOk: true, stateWritable: true, sessionStoreWritable: true, routerHealth: 'healthy' } });
-
-    // Create task record
+    // Derive scope only from verified auth claims, never from request-body fields.
+    const userId = authenticatedUser.userId || authenticatedUser.uid || authenticatedUser.sub || authenticatedUser.id;
+    if (!userId) throw Object.assign(new Error('Authenticated user context is required'), { status: 401 });
+    const tenantId = authenticatedUser.tenantId || authenticatedUser.tenant_id || `user:${userId}`;
+    const priorTask = idempotencyKey ? registry.findByIdempotencyKey(idempotencyKey, { tenantId, userId }) : null;
     const task = registry.create(submission.mission, {
+        idempotencyKey,
         description: `Mission: ${submission.mission.slice(0, 60)}`,
-        teamId:      submission.agentId || null
+        teamId: submission.agentId || null,
+        owner: { userId },
+        context: { tenantId, userId, role: authenticatedUser.role || null, channel: 'api' }
     });
+
+    // A repeated key returns the original task and never starts a second runner.
+    if (priorTask) {
+        return { dispatchId: priorTask.dispatchId || priorTask.taskId, runId: priorTask.taskId, agentId: submission.agentId || 'primary', status: priorTask.status, summary: `Existing mission returned for idempotency key`, payloads: [] };
+    }
+
+    const dispatchId = uuidv4();
+    registry.update(task.taskId, { dispatchId });
 
     // Map thinking level → runtime config
     const maxTurns = THINKING_TURNS[submission.thinking] || 8;
@@ -85,7 +92,8 @@ async function submitMission(input, authenticatedUser = {}) {
 
     _runMissionAsync(task.taskId, dispatchId, submission.mission, {
         maxTurns,
-        permissionMode: submission.thinking === ThinkingLevel.HIGH ? PermissionMode.AUTO : PermissionMode.PROMPT
+        // Thinking depth must never silently grant tool authority; execution stays approval/prompt-gated.
+        permissionMode: PermissionMode.PROMPT
     }).catch(err => {
         registry.setStatus(task.taskId, TaskStatus.FAILED, err.message);
         logger.error(`Mission [${dispatchId}] failed:`, err.message);
@@ -136,11 +144,9 @@ async function _runMissionAsync(taskId, dispatchId, mission, opts) {
     }
 }
 
-async function abortMission(taskId) {
+async function abortMission(taskId, authenticatedUser = {}) {
     const registry = getTaskRegistry();
-    const task     = registry.get(taskId);
-
-    if (!task) throw Object.assign(new Error(`Task not found: ${taskId}`), { status: 404 });
+    const task = getUserTask(taskId, authenticatedUser);
     if (task.status !== TaskStatus.RUNNING) {
         throw Object.assign(new Error(`Task ${taskId} is not running (status: ${task.status})`), { status: 409 });
     }
@@ -168,7 +174,10 @@ async function abortMission(taskId) {
  */
 function streamTaskFeed(req, res) {
     const { taskId } = req.params;
-    const registry   = getTaskRegistry();
+    const registry = getTaskRegistry();
+    let task;
+    try { task = getUserTask(taskId, req.user); }
+    catch (error) { return res.status(error.status || 404).json({ error: error.message, code: error.code }); }
 
     res.setHeader('Content-Type',  'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -179,14 +188,7 @@ function streamTaskFeed(req, res) {
         res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     };
 
-    // Send initial snapshot
-    const task = registry.get(taskId);
-    if (!task) {
-        send('task-error', { error: `Task not found: ${taskId}` });
-        res.end();
-        return;
-    }
-
+    // Send initial authorized snapshot
     send('task', {
         type:   'task',
         detail: _buildTaskDetail(task)
@@ -257,7 +259,7 @@ function _buildTaskDetail(task) {
 
 async function handleSubmitMission(req, res) {
     try {
-        const response = await submitMission(req.body, req.user);
+        const response = await submitMission(req.body, req.user, { idempotencyKey: req.get?.('Idempotency-Key') || req.headers?.['idempotency-key'] || null });
         res.status(202).json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
