@@ -332,6 +332,15 @@ export default (program) => {
                     toolRegistry,
                     ...(modelPort ? { model: modelPort } : {}),
                 });
+                // Reuse the configured network manager; device I/O stays behind a read-only adapter.
+                if (networkEnabled && mikrotik) {
+                    const { createMikroTikHardwareAdapter } = await import('../../adapters/hardware/mikrotik-hardware-adapter.js');
+                    runtime.registerHardwareAdapter(createMikroTikHardwareAdapter({
+                        id: 'routeros',
+                        deviceId: config.network?.siteId || config.siteId || 'default-site',
+                        manager: mikrotik,
+                    }));
+                }
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;
                 global.askEngine = runtime;
