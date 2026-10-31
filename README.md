@@ -385,7 +385,7 @@ The goal is not to add more agent abstractions. It is to **make one runtime auth
 
 ## Verification status (2026-10-31)
 
-This status separates code present in `main` from checks that have actually passed. Current main is `5f9f00b9b804113ca0fd12b6b1c641d2c36fede1`; its CI, security, deployment and OS-build workflows have been triggered, but several jobs are still queued or in progress.
+This status separates code present in `main` from checks that have actually passed. Current main's CI, security, deployment and OS-build workflows have been triggered, but several jobs are still queued or in progress.
 
 | Area | Current claim | Evidence needed to promote the claim |
 |---|---|---|
