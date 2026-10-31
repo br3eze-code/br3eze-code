@@ -23,9 +23,14 @@ fi
 
 # Debian Live's configuration is kept in this directory so the image build is reviewable.
 sudo lb config \
+  --mode debian \
   --distribution trixie \
   --architectures amd64 \
   --binary-images iso-hybrid \
+  --archive-areas "main contrib non-free-firmware" \
+  --debian-installer false \
+  --firmware-chroot true \
+  --firmware-binary true \
   --bootappend-live "boot=live components quiet"
 
 sudo rm -f -- binary.hybrid.iso br3eze-os-amd64.hybrid.iso br3eze-os-amd64.hybrid.iso.sha256
