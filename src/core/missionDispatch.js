@@ -4,6 +4,7 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
 import { isMissionReady } from './diagnostics.js';
 import { logger } from './logger.js';
+import { getUserTask } from './user-task-service.js';
 
 /**
  * MissionDispatch — structured mission submission and dispatch runner
@@ -59,7 +60,7 @@ function validateMissionSubmission(input) {
  * @param {object} input  MissionSubmission
  * @returns {Promise<object>} MissionResponse
  */
-async function submitMission(input) {
+async function submitMission(input, authenticatedUser = {}) {
     const submission = validateMissionSubmission(input);
     const dispatchId = uuidv4();
     const registry   = getTaskRegistry();
@@ -256,7 +257,7 @@ function _buildTaskDetail(task) {
 
 async function handleSubmitMission(req, res) {
     try {
-        const response = await submitMission(req.body);
+        const response = await submitMission(req.body, req.user);
         res.status(202).json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
@@ -265,7 +266,7 @@ async function handleSubmitMission(req, res) {
 
 async function handleAbortMission(req, res) {
     try {
-        const response = await abortMission(req.params.taskId);
+        const response = await abortMission(req.params.taskId, req.user);
         res.json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
