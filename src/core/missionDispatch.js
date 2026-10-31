@@ -91,7 +91,8 @@ async function submitMission(input, authenticatedUser = {}) {
 
     _runMissionAsync(task.taskId, dispatchId, submission.mission, {
         maxTurns,
-        permissionMode: submission.thinking === ThinkingLevel.HIGH ? PermissionMode.AUTO : PermissionMode.PROMPT
+        // Thinking depth must never silently grant tool authority; execution stays approval/prompt-gated.
+        permissionMode: PermissionMode.PROMPT
     }).catch(err => {
         registry.setStatus(task.taskId, TaskStatus.FAILED, err.message);
         logger.error(`Mission [${dispatchId}] failed:`, err.message);
