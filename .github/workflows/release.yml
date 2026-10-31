@@ -85,6 +85,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }} [skip ci]"
+          # Main can advance while the release job is running (for example, a manifest sync).
+          # Rebase the generated version bump onto the latest main before pushing.
+          git pull --rebase origin main
           git push
 
       - name: Create GitHub Release
