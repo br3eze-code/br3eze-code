@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate build script syntax
         run: bash -n os/level3/build-image.sh
+      - name: Require Debian live-build mode
+        run: grep -q -- '--mode debian' os/level3/build-image.sh
       - name: Validate required build inputs
         run: |
           test -s os/level3/README.md
