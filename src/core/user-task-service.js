@@ -3,12 +3,13 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 const canManageAll = (context = {}) => ['admin', 'owner', 'tenant_admin', 'reseller'].includes(String(context.role || context.userDoc?.role || '').toLowerCase());
 
 function normalizeScope(context = {}) {
+  const userId = context.userId || context.uid || context.sub || context.id || context.userDoc?.id || null;
   return {
-    tenantId: context.tenantId || context.userDoc?.tenantId || null,
+    tenantId: context.tenantId || context.tenant_id || context.userDoc?.tenantId || (userId ? `user:${userId}` : null),
     domainId: context.domainId || context.userDoc?.domainId || null,
     siteId: context.siteId || context.userDoc?.siteId || null,
     channel: context.channel || null,
-    userId: context.userId || null
+    userId
   };
 }
 
@@ -31,8 +32,8 @@ export function createUserTask({ prompt, action = 'assist.task', description = n
     action,
     description: description || `${action}: ${prompt.trim().slice(0, 80)}`,
     owner: { userId: scope.userId, platformId: context.platformId || null },
-    context,
-    teamId: context.tenantId || null,
+    context: { ...context, ...scope },
+    teamId: scope.tenantId || null,
     wbs: undefined,
     input
   });
