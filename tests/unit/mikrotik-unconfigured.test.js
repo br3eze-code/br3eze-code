@@ -1,12 +1,4 @@
-import { jest } from '@jest/globals';
-
-const connectSpy = jest.fn(() => Promise.reject(new Error('should not connect')));
-
-jest.unstable_mockModule('routeros-client', () => ({
-  RouterOSClient: class {
-    connect(...args) { return connectSpy(...args); }
-  }
-}), { virtual: true });
+import { afterEach, expect, jest, test } from '@jest/globals';
 
 jest.unstable_mockModule('node-cache', () => ({
   default: class {
@@ -17,24 +9,30 @@ jest.unstable_mockModule('node-cache', () => ({
   }
 }), { virtual: true });
 
-const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
-jest.unstable_mockModule('../../src/core/logger.js', () => ({ logger }));
-jest.unstable_mockModule('../../src/core/config.js', () => ({ getConfig: () => ({}) }));
+const { MikroTikManager, registerNetworkProvider, clearNetworkProvider } = await import('../../src/core/mikrotik.js');
 
-const { MikroTikManager } = await import('../../src/core/mikrotik.js');
+afterEach(() => clearNetworkProvider());
 
-test('unconfigured MikroTik remains silent and does not connect', async () => {
+test('network facade fails clearly when no adapter is registered', async () => {
+  clearNetworkProvider();
   const manager = new MikroTikManager();
 
-  expect(manager.isConfigured).toBe(false);
-  await expect(manager.connect()).resolves.toBe(false);
-  expect(connectSpy).not.toHaveBeenCalled();
-  expect(logger.info).not.toHaveBeenCalled();
-  expect(logger.warn).not.toHaveBeenCalled();
-  expect(logger.error).not.toHaveBeenCalled();
+  await expect(manager.connect()).rejects.toThrow('No network adapter registered');
 });
 
- test('configured-but-disconnected billing state remains distinguishable', () => {
-  const configured = new MikroTikManager({ host: '10.0.0.1' });
-  expect(configured.isConfigured).toBe(true);
+test('network facade delegates to the registered provider', async () => {
+  const provider = {
+    connect: jest.fn().mockResolvedValue(true),
+    disconnect: jest.fn().mockResolvedValue(true),
+    executeTool: jest.fn().mockResolvedValue({ ok: true }),
+  };
+  registerNetworkProvider(provider);
+  const manager = new MikroTikManager({ host: '10.0.0.1' });
+
+  await expect(manager.connect()).resolves.toBe(true);
+  await expect(manager.disconnect()).resolves.toBe(true);
+  await expect(manager.executeTool('status')).resolves.toEqual({ ok: true });
+  expect(provider.connect).toHaveBeenCalledTimes(1);
+  expect(provider.disconnect).toHaveBeenCalledTimes(1);
+  expect(provider.executeTool).toHaveBeenCalledWith('status');
 });
