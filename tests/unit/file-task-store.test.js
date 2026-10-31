@@ -57,6 +57,31 @@ describe('FileTaskStore', () => {
     expect(restarted.get(task.taskId).messages.at(-1).content).toMatch(/automatic replay is disabled/);
   });
 
+  test('returns the original task for the same idempotency key after restart', () => {
+    const store = makeStore();
+    const first = new TaskRegistry({ store });
+    const task = first.create('idempotent mission', { context, idempotencyKey: 'request-123' });
+
+    const restarted = new TaskRegistry({ store: new FileTaskStore({ directory: store.directory }) });
+    const duplicate = restarted.create('idempotent mission', { context, idempotencyKey: 'request-123' });
+
+    expect(duplicate.taskId).toBe(task.taskId);
+    expect(restarted.list()).toHaveLength(1);
+  });
+
+  test('rejects reuse of an idempotency key for a different request or owner', () => {
+    const store = makeStore();
+    const registry = new TaskRegistry({ store });
+    registry.create('first request', { context, idempotencyKey: 'request-456' });
+
+    expect(() => registry.create('different request', { context, idempotencyKey: 'request-456' }))
+      .toThrow(/different request/);
+    expect(() => registry.create('first request', {
+      context: { tenantId: 'tenant-other', userId: 'user-other' },
+      idempotencyKey: 'request-456',
+    })).toThrow(/outside this task scope/);
+  });
+
   test('rejects unsafe task identifiers', () => {
     const store = makeStore();
     expect(() => store.get('../secrets')).toThrow(/Invalid task id/);
