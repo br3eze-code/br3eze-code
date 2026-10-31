@@ -28,7 +28,7 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
   { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
   { name: 'ping', keywords: ['ping', 'latency', 'check host'] }
-];];
+];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
 /** Stable request contract owned by the canonical runtime. */
