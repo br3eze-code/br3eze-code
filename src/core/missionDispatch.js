@@ -4,6 +4,7 @@ import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { PermissionMode } from './permissions.js';
 import { isMissionReady } from './diagnostics.js';
 import { logger } from './logger.js';
+import { getUserTask } from './user-task-service.js';
 
 /**
  * MissionDispatch — structured mission submission and dispatch runner
@@ -265,7 +266,7 @@ async function handleSubmitMission(req, res) {
 
 async function handleAbortMission(req, res) {
     try {
-        const response = await abortMission(req.params.taskId);
+        const response = await abortMission(req.params.taskId, req.user);
         res.json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
