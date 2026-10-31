@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from 'uuid';
 import EventEmitter from 'events';
 import { createActionWbs, updateActionWbs, summarizeActionWbs } from './action-wbs.js';
 import { createNextActionProposal } from './next-action-planner.js';
+import path from 'node:path';
+import { STATE_PATH } from './config.js';
+import { FileTaskStore } from './file-task-store.js';
 
 const TaskStatus = Object.freeze({ CREATED: 'created', RUNNING: 'running', COMPLETED: 'completed', FAILED: 'failed', STOPPED: 'stopped' });
 const TaskPhase = Object.freeze({ PLAN: 'plan', DRAFT: 'draft', APPROVE: 'approve', EXECUTE: 'execute', OBSERVE: 'observe', VERIFY: 'verify', COMPLETE: 'complete' });
@@ -14,6 +17,7 @@ function scopeMatches(task, scope = {}) {
 class TaskRegistry extends EventEmitter {
   constructor({ store = null, staleAfterMs = 30 * 60 * 1000, clock = () => Date.now() } = {}) {
     super(); this.tasks = new Map(); this.counter = 0; this.store = store; this.staleAfterMs = staleAfterMs; this.clock = clock;
+    if (this.store?.list) this.hydrate(this.store.list());
   }
 
   create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = false } = {}) {
@@ -47,6 +51,18 @@ class TaskRegistry extends EventEmitter {
   }
   listForUser(userId, scope = {}) { return this.list(null, { ...scope, userId }); }
   hydrate(tasks = []) { for (const task of tasks) if (task?.taskId) this.tasks.set(task.taskId, task); this.counter = this.tasks.size; return this.tasks.size; }
+
+  /** Mark in-flight work as interrupted after a process restart; never replay side effects automatically. */
+  recoverInterrupted() {
+    const interrupted = this.list(TaskStatus.RUNNING);
+    for (const task of interrupted) {
+      this.setStatus(task.taskId, TaskStatus.FAILED, 'Process restarted while task was running; automatic replay is disabled pending verification');
+      task.recovery = { state: 'interrupted', recoveredAt: this.clock(), replayed: false };
+      task.updatedAt = this.clock();
+      this._persist(task);
+    }
+    return interrupted.length;
+  }
 
   updateWbs(taskId, stepId, patch = {}) { const task = this.get(taskId); if (!task) return null; task.wbs = updateActionWbs(task.wbs, stepId, patch); task.wbsSummary = summarizeActionWbs(task.wbs); task.nextActionProposal = createNextActionProposal({ task, context: task.planningContext || task.scope, now: this.clock() }); task.updatedAt = this.clock(); this._persist(task); this.emit('task:wbs-updated', task); return task; }
   completeWbsStep(taskId, stepId, result = null) { return this.updateWbs(taskId, stepId, { status: 'completed', result }); }
@@ -93,5 +109,13 @@ class TaskRegistry extends EventEmitter {
 }
 
 let _instance = null;
-function getTaskRegistry(options) { if (!_instance) _instance = new TaskRegistry(options); return _instance; }
+function getTaskRegistry(options) {
+  if (!_instance) {
+    const explicitStore = options && Object.prototype.hasOwnProperty.call(options, 'store');
+    const store = explicitStore ? options.store : new FileTaskStore({ directory: path.join(STATE_PATH, 'tasks') });
+    _instance = new TaskRegistry({ ...options, store });
+    _instance.recoverInterrupted();
+  }
+  return _instance;
+}
 export { TaskRegistry, TaskStatus, TaskPhase, TERMINAL_STATUSES, getTaskRegistry };
