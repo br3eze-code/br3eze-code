@@ -42,7 +42,7 @@ jobs:
           echo "📦 Canary: $CANARY"
 
       - name: Publish → GitHub Packages
-        run: npm publish --tag canary --access public
+        run: npm publish --tag canary --access public --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -53,10 +53,14 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Publish → npmjs.com
-        run: npm publish --tag canary --access public --provenance
+        run: |
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            npm publish --tag canary --access public --provenance --registry=https://registry.npmjs.org
+          else
+            echo "NPM_TOKEN is not configured; skipping optional npmjs.com canary publish."
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        continue-on-error: true
 
       - name: Summaryeze
         run: |
