@@ -36,7 +36,11 @@ jobs:
           node --input-type=commonjs <<'NODE'
           const fs = require('node:fs');
           const report = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
-          const counts = report.metadata?.vulnerabilities || {};
+          const counts = report.metadata?.vulnerabilities;
+          if (!counts) {
+            console.error(report.error?.summary || 'npm audit report is missing vulnerability metadata; scan result is unknown');
+            process.exit(2);
+          }
           for (const severity of ['critical', 'high', 'moderate', 'low', 'info']) {
             console.log(`${severity}: ${counts[severity] || 0}`);
           }
