@@ -23,7 +23,7 @@ class TaskRegistry extends EventEmitter {
 
   create(prompt, { description = null, teamId = null, action = null, owner = null, context = {}, wbs = null, input = {}, requiresExecutionApproval = false, idempotencyKey = null } = {}) {
     if (!context?.tenantId || !context?.userId) throw new Error('authenticated tenant context required');
-    if (idempotencyKey != null && (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > 200 || !/^[\\x21-\\x7E]+$/.test(idempotencyKey))) throw new TypeError('Invalid idempotency key');
+    if (idempotencyKey != null && (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1 || idempotencyKey.length > 200 || !/^[\x21-\x7E]+$/.test(idempotencyKey))) throw new TypeError('Invalid idempotency key');
     const requestHash = createHash('sha256').update(JSON.stringify({ prompt, action, teamId, tenantId: context.tenantId, userId: context.userId, domainId: context.domainId || null, siteId: context.siteId || null, input })).digest('hex');
     if (idempotencyKey && this.idempotencyKeys.has(idempotencyKey)) {
       const existing = this.tasks.get(this.idempotencyKeys.get(idempotencyKey)) || this.store?.get?.(this.idempotencyKeys.get(idempotencyKey));
