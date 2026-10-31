@@ -244,6 +244,17 @@ class ToolRegistry {
     });
   }
 
+  /** Match only explicitly registered skill fast paths; do not evaluate dynamic code. */
+  matchFastPath(input) {
+    for (const entry of this.skills.values()) {
+      const skill = entry?.manifest || entry;
+      if (entry?.enabled === false || skill?.enabled === false || typeof skill?.match !== 'function') continue;
+      const match = skill.match(input);
+      if (match) return match;
+    }
+    return null;
+  }
+
   getManifest() {
     if (this._manifestCache) return this._manifestCache;
     const tools = [...this.tools.values()].map((tool) => ({ name: tool.fullName, description: tool.schema?.description || '', parameters: tool.schema?.parameters || [], returns: tool.schema?.returns || 'any', domain: tool.domain, skill: tool.skill, phase: tool.capability.phase, risk: tool.capability.risk, requiresApproval: tool.capability.requiresApproval, permissions: tool.capability.permissions }));

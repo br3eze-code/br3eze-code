@@ -1,5 +1,5 @@
 import { describe, expect, test, jest } from '@jest/globals';
-import { AgentRuntime } from '../../src/core/agentRuntime.js';
+import { AgentRuntime, TOOL_MANIFEST } from '../../src/core/agentRuntime.js';
 import {
   EvaluationSuite,
   createBasicEvaluators,
@@ -12,6 +12,13 @@ import {
 } from '../../src/core/agent-runtime/index.js';
 
 describe('domain-neutral runtime capabilities', () => {
+  test('keeps reboot, user creation, and firewall mutations out of core defaults', () => {
+    const names = TOOL_MANIFEST.map((tool) => tool.name);
+    expect(names).not.toContain('system.reboot');
+    expect(names).not.toContain('user.add');
+    expect(names).not.toContain('firewall.block');
+  });
+
   test('routes direct capability calls through the canonical AgentRuntime boundary', async () => {
     const execute = jest.fn(async (name, args, context) => ({ name, args, tenantId: context.tenantId }));
     const registry = {
@@ -146,7 +153,7 @@ describe('domain-neutral runtime capabilities', () => {
   test('maps framework capability names to explicit adapter methods', () => {
     const registry = new FrameworkAdapterRegistry();
     const methods = [
-      'createAgent', 'runAgent', 'handoff', 'createChild',
+      'createAgent', 'runAgent', 'removeAgent', 'handoff', 'createChild',
       'defineWorkflow', 'runWorkflow', 'resumeWorkflow',
       'registerTool', 'executeTool', 'checkGuardrail',
       'readMemory', 'writeMemory', 'readTrace', 'evaluate',
