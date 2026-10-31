@@ -38,6 +38,32 @@ export class FileTaskStore {
     return target;
   }
 
+  appendEvent(taskId, event) {
+    if (!event || event.taskId !== taskId || typeof event.eventId !== 'string' || typeof event.type !== 'string') {
+      throw new TypeError('A task event with matching taskId, eventId, and type is required');
+    }
+    const file = path.join(this.directory, `${taskId}.events.jsonl`);
+    const fd = fs.openSync(file, 'a', 0o600);
+    try {
+      fs.writeSync(fd, `${JSON.stringify(event)}\\n`, null, 'utf8');
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    return file;
+  }
+
+  readEvents(taskId) {
+    const file = path.join(this.directory, `${taskId}.events.jsonl`);
+    try {
+      const source = fs.readFileSync(file, 'utf8');
+      return source.split('\\n').filter(Boolean).map((line) => JSON.parse(line));
+    } catch (error) {
+      if (error.code === 'ENOENT') return [];
+      throw error;
+    }
+  }
+
   get(taskId) {
     const file = this._file(taskId);
     try {
