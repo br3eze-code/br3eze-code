@@ -2,8 +2,8 @@
  * Small scalar reverse-mode automatic differentiation engine.
  *
  * Educational reference implementation inspired by the principles behind
- * Karpathy's micrograd/microgpt. It intentionally favors readable code over
- * tensor-level performance. It is not a production numerical backend.
+ * micrograd/microgpt. It favors readable code over tensor-level performance
+ * and is not a production numerical backend.
  */
 export class Value {
   constructor(data, children = [], backward = () => {}, label = '') {
@@ -54,9 +54,13 @@ export class Value {
     if (this.data < 0 && !Number.isInteger(exponent)) {
       throw new RangeError('Fractional powers of negative values are not real');
     }
-    if (this.data === 0 && exponent < 0) throw new RangeError('Zero cannot have a negative power');
-    const out = new Value(this.data ** exponent, [this], () => {
-      this.grad += exponent * (this.data ** (exponent - 1)) * out.grad;
+    if (this.data === 0 && exponent < 0) {
+      throw new RangeError('Zero cannot have a negative power');
+    }
+    const result = this.data ** exponent;
+    const out = new Value(result, [this], () => {
+      // The derivative of x**0 is zero, including at x=0.
+      this.grad += (exponent === 0 ? 0 : exponent * (this.data ** (exponent - 1))) * out.grad;
     });
     return out;
   }
