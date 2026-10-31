@@ -171,7 +171,7 @@
     "ink-text-input": "^6.0.0",
     "inquirer": "^8.2.7",
     "ioredis": "^5.3.2",
-    "joi": "^18.1.2",
+    "joi": "^18.3.1",
     "js-yaml": "^4.3.0",
     "jsonwebtoken": "^9.0.0",
     "midi-writer-js": "^3.2.1",
