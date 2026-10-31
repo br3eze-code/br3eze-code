@@ -1,0 +1,6 @@
+# Optional Python backend for pretrained open-weight model LoRA fine-tuning.
+# Install a PyTorch build appropriate for your CPU/CUDA hardware first when needed.
+torch
+transformers>=4.46
+peft>=0.13
+accelerate>=1.0
