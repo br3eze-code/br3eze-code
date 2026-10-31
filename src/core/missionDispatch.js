@@ -259,7 +259,7 @@ function _buildTaskDetail(task) {
 
 async function handleSubmitMission(req, res) {
     try {
-        const response = await submitMission(req.body, req.user, { idempotencyKey: req.get('Idempotency-Key') || null });
+        const response = await submitMission(req.body, req.user, { idempotencyKey: req.get?.('Idempotency-Key') || req.headers?.['idempotency-key'] || null });
         res.status(202).json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
