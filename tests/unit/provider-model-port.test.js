@@ -66,19 +66,33 @@ describe('provider model port adapter', () => {
     ]);
   });
 
+
+  test('parses provider JSON arguments and fails closed on malformed arguments', async () => {
+    const model = createProviderModelPort({
+      provider: { generate: async () => ({ toolCalls: [{ name: 'safe.echo', arguments: JSON.stringify({ value: 'ok' }) }] }) },
+    });
+    await expect(model.execute({})).resolves.toMatchObject({
+      toolCalls: [{ name: 'safe.echo', arguments: { value: 'ok' } }],
+    });
+    const malformed = createProviderModelPort({
+      provider: { generate: async () => ({ toolCalls: [{ name: 'safe.echo', arguments: 'not-json' }] }) },
+    });
+    await expect(malformed.execute({})).rejects.toThrow(/invalid JSON tool arguments/i);
+  });
+
   test('accepts OpenAI-style function calls and rejects missing providers', async () => {
     const model = createProviderModelPort({
       provider: {
         generate: async () => ({
           content: '',
-          toolCalls: [{ id: 'c2', function: { name: 'test.echo', arguments: '{"value":"ok"}' } }],
+          toolCalls: [{ id: 'c2', function: { name: 'test.echo', arguments: JSON.stringify({ value: 'ok' }) } }],
         }),
       },
     });
 
     await expect(model.execute({ tools: [{ type: 'function', function: { name: 'test.echo' } }] }))
       .resolves.toMatchObject({
-        toolCalls: [{ id: 'c2', name: 'test.echo', arguments: '{"value":"ok"}' }],
+        toolCalls: [{ id: 'c2', name: 'test.echo', arguments: { value: 'ok' } }],
       });
     expect(() => createProviderModelPort()).toThrow(/provider must implement generate/i);
   });
