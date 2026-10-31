@@ -47,7 +47,9 @@ class TaskRegistry extends EventEmitter {
 
   _persist(task, type = 'task.updated', details = {}) {
     if (!Array.isArray(task.events)) task.events = [];
-    task.events.push({ eventId: uuidv4(), taskId: task.taskId, type, timestamp: this.clock(), status: task.status, phase: task.execution?.phase || null, ...details });
+    const event = { eventId: uuidv4(), taskId: task.taskId, type, timestamp: this.clock(), status: task.status, phase: task.execution?.phase || null, ...details };
+    task.events.push(event);
+    this.store?.appendEvent?.(task.taskId, event);
     return this.store?.save?.(task);
   }
   get(taskId) {
