@@ -55,7 +55,8 @@ The durable task lifecycle must support:
 - [x] atomic replacement of individual task snapshots;
 - [x] task ownership checks on the single-task read, cancellation, and stream paths;
 - [x] safe restart classification: persisted `running` tasks are marked failed/interrupted and are not replayed automatically;
-- [ ] append-only execution events and atomic state transitions;
+- [x] lifecycle events retained with each task snapshot;
+- [ ] independent append-only event journal and transactional state transitions;
 - [ ] claim/lease expiry for multi-worker operation;
 - [ ] idempotency keys for task submission and external side effects;
 - [ ] retryable/blocked recovery after verified idempotency guarantees;
