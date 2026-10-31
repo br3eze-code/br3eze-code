@@ -41,28 +41,46 @@ class PaymentService {
     const { userId, voucherType, amount, currency, paymentMethod, customerPhone, customerEmail, metadata = {} } = params;
     const reference = `VOUCHER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const paymentResult = await this.platform.createPayment(paymentMethod, { amount, currency, description: `WiFi Voucher: ${voucherType}`, reference, phoneNumber: customerPhone, email: customerEmail, metadata: { userId, voucherType, ...metadata } });
-    if (this.db?.set) await this.db.set('transactions', paymentResult.transactionId, {
+    const transaction = {
       user_id: userId, voucher_type: voucherType, amount, currency, payment_method: paymentMethod,
       status: paymentResult.status, reference, transaction_id: paymentResult.transactionId,
       created_at: new Date().toISOString(), metadata: paymentResult
-    });
+    };
+    if (typeof this.db?.set === 'function') {
+      await this.db.set('transactions', paymentResult.transactionId, transaction);
+    } else if (typeof this.db?.collection === 'function') {
+      await this.db.collection('transactions').doc(paymentResult.transactionId).set(transaction);
+    }
     return { ...paymentResult, reference };
   }
 
   async processSuccessfulPayment(transactionId, provider) {
     const transaction = await this.platform.verifyPayment(provider, transactionId);
     if (!transaction.success) throw new Error('Payment not completed');
-    if (this.db?.update) await this.db.update('transactions', transactionId, {
+    const transactionUpdate = {
       status: 'completed', completed_at: new Date().toISOString(), payment_details: transaction
-    });
+    };
+    if (typeof this.db?.update === 'function') {
+      await this.db.update('transactions', transactionId, transactionUpdate);
+    } else if (typeof this.db?.collection === 'function') {
+      await this.db.collection('transactions').doc(transactionId).update(transactionUpdate);
+    }
     const voucherCode = this.generateVoucherCode();
     const voucher = { code: voucherCode, type: transaction.metadata?.voucherType || '1Day', amount: transaction.amount, currency: transaction.currency, transactionId, createdAt: new Date(), expiresAt: this.calculateExpiry(transaction.metadata?.voucherType), used: false };
-    if (this.db?.set) await this.db.set('vouchers', voucherCode, voucher);
+    if (typeof this.db?.set === 'function') {
+      await this.db.set('vouchers', voucherCode, voucher);
+    } else if (typeof this.db?.collection === 'function') {
+      await this.db.collection('vouchers').doc(voucherCode).set(voucher);
+    }
 
     return { success: true, voucher, transaction };
   }
 
-  async getAvailablePaymentMethods(context = {}) { return this.platform.getAvailablePaymentMethods(context); }
+  async getAvailablePaymentMethods(context = {}) {
+    const resolveMethods = this.platform?.getAvailablePaymentMethods || this.platform?.getAvailableMethods;
+    if (typeof resolveMethods !== 'function') return [];
+    return resolveMethods.call(this.platform, context);
+  }
 
   async processRefund(transactionId, provider, amount, reason) {
     const result = await this.platform.refund(provider, transactionId, amount, reason);
