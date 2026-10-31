@@ -3,6 +3,8 @@ set -u
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 out="$repo/.security-review/multi-manifest/raw/lockless"
 mkdir -p "$out"
+# Remove previous run outputs so deleted/renamed manifests cannot leave stale findings.
+find "$out" -maxdepth 1 -type f \( -name "*.json" -o -name "*.err" -o -name "*.install.log" \) -delete
 : > "$out/status.tsv"
 find "$repo" -path '*/node_modules' -prune -o -path '*/.git' -prune -o -path '*/.security-review' -prune -o -type f -name package.json -print | sort | while IFS= read -r manifest; do
   dir="$(dirname "$manifest")"
