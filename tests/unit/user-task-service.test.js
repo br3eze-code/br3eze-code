@@ -14,34 +14,22 @@ describe('task authorization scope', () => {
       tenantId: 'tenant-a',
     });
   });
-
   test('allows the owning user in the matching tenant', () => {
     expect(assertTaskAccess(task, { uid: 'user-a', tenantId: 'tenant-a' })).toBe(task);
   });
-
   test('rejects another user even when they share a tenant', () => {
-    expect(() => assertTaskAccess(task, { uid: 'user-b', tenantId: 'tenant-a' }))
-      .toThrow(/outside your authorized scope/);
+    expect(() => assertTaskAccess(task, { uid: 'user-b', tenantId: 'tenant-a' })).toThrow(/outside your authorized scope/);
   });
-
   test('rejects an owner when required domain scope is missing', () => {
     const scopedTask = { ...task, scope: { ...task.scope, domainId: 'domain-a' } };
-    expect(() => assertTaskAccess(scopedTask, { uid: 'user-a', tenantId: 'tenant-a' }))
-      .toThrow(/outside your authorized scope/);
+    expect(() => assertTaskAccess(scopedTask, { uid: 'user-a', tenantId: 'tenant-a' })).toThrow(/outside your authorized scope/);
   });
-
-  test('rejects an explicit domain or site mismatch', () => {
+  test('rejects explicit domain or site mismatches', () => {
     const scopedTask = { ...task, scope: { ...task.scope, domainId: 'domain-a', siteId: 'site-a' } };
-    expect(() => assertTaskAccess(scopedTask, {
-      uid: 'user-a', tenantId: 'tenant-a', domainId: 'domain-b', siteId: 'site-a',
-    })).toThrow(/outside your authorized scope/);
-    expect(() => assertTaskAccess(scopedTask, {
-      uid: 'user-a', tenantId: 'tenant-a', domainId: 'domain-a', siteId: 'site-b',
-    })).toThrow(/outside your authorized scope/);
+    expect(() => assertTaskAccess(scopedTask, { uid: 'user-a', tenantId: 'tenant-a', domainId: 'domain-b', siteId: 'site-a' })).toThrow(/outside your authorized scope/);
+    expect(() => assertTaskAccess(scopedTask, { uid: 'user-a', tenantId: 'tenant-a', domainId: 'domain-a', siteId: 'site-b' })).toThrow(/outside your authorized scope/);
   });
-
   test('rejects the owner when an explicit tenant claim conflicts', () => {
-    expect(() => assertTaskAccess(task, { uid: 'user-a', tenantId: 'tenant-b' }))
-      .toThrow(/outside your authorized scope/);
+    expect(() => assertTaskAccess(task, { uid: 'user-a', tenantId: 'tenant-b' })).toThrow(/outside your authorized scope/);
   });
 });

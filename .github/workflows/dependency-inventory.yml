@@ -19,18 +19,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
       - name: Prepare clean audit outputs
         run: |
           mkdir -p .security-review/multi-manifest/raw/root
           rm -f .security-review/multi-manifest/raw/root/npm-audit.json
           rm -f .security-review/multi-manifest/raw/cordova-sqlite-storage/npm-audit.json
           mkdir -p .security-review/multi-manifest/raw/cordova-sqlite-storage
-
       - name: Audit root lockfile
         shell: bash
         run: npm audit --json > .security-review/multi-manifest/raw/root/npm-audit.json || echo "Root audit returned findings or an error; inspect the JSON artifact."
-
       - name: Audit Cordova SQLite lockfile when present
         shell: bash
         run: |
@@ -39,14 +36,11 @@ jobs:
           else
             echo "No Cordova SQLite package-lock.json exists in this checkout; skipped."
           fi
-
       - name: Audit manifests without committed lockfiles
         run: bash scripts/audit-lockless-manifests.sh
-
       - name: Summarise independent audit surfaces
         if: always()
         run: node scripts/summarize-multi-manifest-audit.mjs
-
       - name: Upload raw reports and summary
         if: always()
         uses: actions/upload-artifact@v4
