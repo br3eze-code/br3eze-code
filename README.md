@@ -6,6 +6,17 @@ AgentOS is a runtime-first agent platform. The core does not know whether a capa
 
 > **Current architectural rule:** AgentRuntime is the canonical execution owner. Tools, skills, plugins, models, memory, policies, verification, and external adapters plug into that runtime; they do not create competing agent loops.
 
+## Train a small model with Node.js
+
+AgentOS includes a dependency-free JavaScript workflow for training a small classifier from numeric features. This is a starter ML model, not a conversational LLM, and it does not create a second agent runtime.
+
+```bash
+npm run model:train
+npm run model:predict -- --features 0.8,0.7,0.2
+```
+
+Use `--data` to provide a JSONL dataset and `--out` to select an artifact directory. The classifier can be exposed through the existing runtime tool contract using `createClassifierTool({ modelDir })` from `src/ml/classifier-tool.js`.
+
 ## Select a domain at boot
 
 Set `AGENTOS_DOMAIN` to the exact adapter directory name for a domain deployment. For example, `AGENTOS_DOMAIN=retail`, `AGENTOS_DOMAIN=logistics`, or `AGENTOS_DOMAIN=support` avoids loading the network-specific RouterOS adapter and network CLI commands. Add the matching `src/domains/<domain>/index.js` adapter when that domain is not already present.
