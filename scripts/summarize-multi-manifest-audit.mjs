@@ -9,8 +9,12 @@ const details = [];
 function readAudit(file, surface) {
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const v = data.metadata?.vulnerabilities ?? data.vulnerabilities ?? {};
-    const row = { surface, file: path.relative(repo, file), critical: v.critical ?? 0, high: v.high ?? 0, moderate: v.moderate ?? 0, low: v.low ?? 0, total: v.total ?? 0 };
+    const v = data.metadata?.vulnerabilities;
+    if (!v) {
+      rows.push({ surface, file: path.relative(repo, file), critical: 0, high: 0, moderate: 0, low: 0, total: 0, error: data.error?.summary || 'Audit report has no vulnerability metadata; result is unknown, not zero' });
+      return;
+    }
+    const row = { surface, file: path.relative(repo, file), critical: v.critical ?? 0, high: v.high ?? 0, moderate: v.moderate ?? 0, low: v.low ?? 0, total: v.total ?? 0, error: null };
     rows.push(row);
     for (const [key, advisory] of Object.entries(data.vulnerabilities ?? {})) {
       const via = Array.isArray(advisory.via) ? advisory.via : [];
@@ -45,9 +49,9 @@ const markdown = [
   '# Multi-manifest local dependency audit', '',
   `Generated: ${output.generatedAt}`, '',
   '## Aggregate local results', '',
-  '| Surface | Critical | High | Moderate | Low | Total |',
-  '|---|---:|---:|---:|---:|---:|',
-  ...rows.map((r) => `| ${r.surface} | ${r.critical} | ${r.high} | ${r.moderate} | ${r.low} | ${r.total} |`),
+  '| Surface | Critical | High | Moderate | Low | Total | Audit status |',
+  '|---|---:|---:|---:|---:|---:|---|',
+  ...rows.map((r) => `| ${r.surface} | ${r.critical} | ${r.high} | ${r.moderate} | ${r.low} | ${r.total} | ${r.error || \'ok\'} |`),
   `| **Sum of audit surfaces** | **${totals.critical}** | **${totals.high}** | **${totals.moderate}** | **${totals.low}** | **${totals.total}** |`, '',
   '## Interpretation', '',
   'These are local npm audit results across independently resolved package surfaces. They are not a deduplicated repository-wide count and must not be compared one-to-one with the GitHub Dependabot aggregate until advisory IDs and dependency paths are normalized.', '',
