@@ -303,6 +303,14 @@ commerce.order
 
 The runtime remains the same.
 
+## Autonomous Operator (server-first roadmap)
+
+The implementation contract for a persistent business operator is documented in [Autonomous Operator architecture](docs/architecture/autonomous-operator.md). It defines durable task execution, restart recovery, budget/time/concurrency limits, tool permissions, audit evidence, staged deployment, and a go/no-go test gate.
+
+**Status: design and implementation plan only.** This section does not claim the operator is already durable or production-ready. In particular, `src/taskRegistry.js` is process-local, and the repository contains a separate `src/core/taskRegistry.js`; trace the live execution path and consolidate onto the existing canonical registry/persistence boundary before adding another scheduler or task store.
+
+First end-to-end target: repository maintenance that inspects a repo, runs allowlisted checks, prepares a patch on a branch, verifies the result, and opens a review PR. Automatic merging, production deployment, external customer messaging, and spending remain approval-gated by default.
+
 ## Development
 
 Requirements:
