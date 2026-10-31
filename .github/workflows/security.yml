@@ -25,17 +25,28 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts --legacy-peer-deps
-      - name: Run npm audit
-        run: npm audit --audit-level=high --json > npm-audit.json
-      - name: Summarise audit
+      - name: Run full dependency audit
+        shell: bash
+        run: npm audit --json > npm-audit.json || echo "npm audit returned findings; continuing to summarize all severities"
+      - name: Summarise all advisories
+        if: always()
+        shell: bash
         run: |
-          CRITICAL=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.critical||0)")
-          HIGH=$(node -e "const r=require('./npm-audit.json'); console.log(r.metadata?.vulnerabilities?.high||0)")
-          echo "Critical: $CRITICAL  High: $HIGH"
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-            echo "High or critical vulnerabilities found. See npm-audit.json."
-            exit 1
-          fi
+          if [ ! -s npm-audit.json ]; then echo "npm audit produced no JSON report"; exit 1; fi
+          node --input-type=commonjs <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
+          const counts = report.metadata?.vulnerabilities || {};
+          for (const severity of ['critical', 'high', 'moderate', 'low', 'info']) {
+            console.log(`${severity}: ${counts[severity] || 0}`);
+          }
+          const advisories = Object.entries(report.vulnerabilities || {});
+          for (const [name, item] of advisories) {
+            const via = (item.via || []).filter(v => typeof v === 'object');
+            console.log(JSON.stringify({ package: name, severity: item.severity, direct: item.isDirect, range: item.range, fixAvailable: item.fixAvailable, advisories: via.map(v => ({ title: v.title, url: v.url, cves: v.cves, range: v.range })) }));
+          }
+          if ((counts.critical || 0) > 0 || (counts.high || 0) > 0) process.exitCode = 1;
+          NODE
       - uses: actions/upload-artifact@v7
         if: always()
         with:
