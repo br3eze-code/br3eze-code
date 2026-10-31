@@ -40,6 +40,8 @@ describe('FileTaskStore', () => {
     const restarted = new TaskRegistry({ store: new FileTaskStore({ directory: store.directory }) });
     expect(restarted.list(TaskStatus.COMPLETED)).toHaveLength(1);
     expect(restarted.get(task.taskId).status).toBe(TaskStatus.COMPLETED);
+    expect(restarted.get(task.taskId).events.map(event => event.type)).toEqual(expect.arrayContaining(['task.created', 'task.status-changed']));
+    expect(restarted.get(task.taskId).events.every(event => event.taskId === task.taskId && event.eventId)).toBe(true);
   });
 
   test('recovers running tasks as interrupted instead of replaying them', () => {
