@@ -96,6 +96,43 @@ class ToolRegistry {
     );
   }
 
+  /**
+   * Backward-compatible single-tool registration entry point. All tools still
+   * flow through the canonical register() method and its capability metadata.
+   */
+  registerTool(toolDef = {}) {
+    const name = toolDef.fullName || toolDef.name;
+    if (!name || typeof name !== 'string') throw new TypeError('tool name is required');
+    if (this.tools.has(name)) throw new Error(`Tool "${name}" already registered`);
+    const handler = toolDef.handler || toolDef.execute;
+    if (typeof handler !== 'function') throw new TypeError(`Tool "${name}" must provide handler() or execute()`);
+    this.register(name, { ...toolDef, handler });
+    return this.tools.get(name);
+  }
+
+  /**
+   * Ask registered skills for a deterministic fast-path match before invoking
+   * a model. Skills without a match(input) function are ignored.
+   */
+  matchFastPath(input) {
+    for (const skill of this.skills.values()) {
+      const match = skill.manifest?.match;
+      if (typeof match !== 'function') continue;
+      const result = match(input);
+      if (result !== null && result !== undefined) return result;
+    }
+    return null;
+  }
+
+  /** Return provider-neutral tool declarations for model/tool routing. */
+  toolDeclarations() {
+    return this.getAllTools().map((tool) => ({
+      name: tool.fullName || tool.name,
+      description: tool.schema?.description || tool.description || '',
+      parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+    }));
+  }
+
   registerDomain(domainName, toolDefs = []) {
     if (!domainName || typeof domainName !== 'string') throw new TypeError('domainName is required');
     if (!Array.isArray(toolDefs)) throw new TypeError('toolDefs must be an array');
