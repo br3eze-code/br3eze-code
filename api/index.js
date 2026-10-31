@@ -28,17 +28,17 @@ app.get('/api/tasks/:taskId', (req, res) => {
   catch (error) { return res.status(error.status || 500).json({ error: error.message, code: error.code }); }
 });
 app.get('/api/tasks/:taskId/team', (req, res) => {
-  try { return res.json(getTeamTask(req.params.taskId)); }
+  try { getUserTask(req.params.taskId, req.user); return res.json(getTeamTask(req.params.taskId)); }
   catch (error) { return res.status(error.code === 'A2A_TASK_NOT_FOUND' ? 404 : 400).json({ error: error.message, code: error.code }); }
 });
 app.get('/api/tasks/:taskId/stream', streamTaskFeed);
 app.post('/api/tasks/:taskId/cancel', handleAbortMission);
 app.post('/api/tasks/:taskId/team', (req, res) => {
-  try { return res.status(201).json(createAgentTeam({ taskId: req.params.taskId, ...req.body })); }
+  try { getUserTask(req.params.taskId, req.user); return res.status(201).json(createAgentTeam({ taskId: req.params.taskId, ...req.body })); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 app.post('/api/tasks/:taskId/team/start', (req, res) => {
-  try { return res.json(startAgentTeam(req.params.taskId)); }
+  try { getUserTask(req.params.taskId, req.user); return res.json(startAgentTeam(req.params.taskId)); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
@@ -52,7 +52,7 @@ app.post('/api/a2a/message', async (req, res) => {
 });
 
 app.post('/api/tasks/:taskId/wbs/:stepId/complete', requireUser, (req, res) => {
-  try { return res.json(completeAgentWbsStep({ taskId: req.params.taskId, stepId: req.params.stepId, ...req.body })); }
+  try { getUserTask(req.params.taskId, req.user); return res.json(completeAgentWbsStep({ taskId: req.params.taskId, stepId: req.params.stepId, ...req.body })); }
   catch (error) { return res.status(400).json({ error: error.message, code: error.code }); }
 });
 
