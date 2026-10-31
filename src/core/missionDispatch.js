@@ -59,7 +59,7 @@ function validateMissionSubmission(input) {
  * @param {object} input  MissionSubmission
  * @returns {Promise<object>} MissionResponse
  */
-async function submitMission(input) {
+async function submitMission(input, authenticatedUser = {}) {
     const submission = validateMissionSubmission(input);
     const dispatchId = uuidv4();
     const registry   = getTaskRegistry();
@@ -256,7 +256,7 @@ function _buildTaskDetail(task) {
 
 async function handleSubmitMission(req, res) {
     try {
-        const response = await submitMission(req.body);
+        const response = await submitMission(req.body, req.user);
         res.status(202).json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
