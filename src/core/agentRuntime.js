@@ -17,20 +17,18 @@ import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
+const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
 const DEFAULT_TOOL_MANIFEST = [
-  { name: 'agent.create', keywords: ['agent', 'create', 'register', 'new'] },
-  { name: 'agent.run', keywords: ['agent', 'run', 'execute'] },
-  { name: 'agent.remove', keywords: ['agent', 'remove', 'delete', 'retire'] },
-  { name: 'workflow.run', keywords: ['workflow', 'flow', 'process'] },
-  { name: 'tool.execute', keywords: ['tool', 'execute', 'action'] },
-  { name: 'task.status', keywords: ['task', 'status', 'progress'] },
-  { name: 'runtime.status', keywords: ['status', 'health', 'state', 'runtime'] },
-  { name: 'system.stats', keywords: ['system', 'stats', 'cpu', 'memory'] },
-  { name: 'system.reboot', keywords: ['system', 'reboot', 'restart'] },
-  { name: 'user.add', keywords: ['user', 'add', 'create', 'register'] },
-  { name: 'firewall.block', keywords: ['firewall', 'block', 'ban', 'blacklist'] },
-  { name: 'ping', keywords: ['ping', 'latency', 'host'] }
-];
+  { name: 'agent.create', keywords: ['create agent', 'new agent', 'register agent'] },
+  { name: 'agent.run', keywords: ['run agent', 'execute agent', 'start agent'] },
+  { name: 'agent.remove', keywords: ['remove agent', 'delete agent', 'retire agent'] },
+  { name: 'workflow.run', keywords: ['run workflow', 'workflow run', 'start workflow'] },
+  { name: 'tool.execute', keywords: ['execute tool', 'run tool', 'invoke tool'] },
+  { name: 'task.status', keywords: ['task status', 'task progress', 'status of task'] },
+  { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
+  { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
+  { name: 'ping', keywords: ['ping', 'latency', 'check host'] }
+];];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
 /** Stable request contract owned by the canonical runtime. */
@@ -202,9 +200,33 @@ class AgentRuntime extends EventEmitter {
   }
 
   registerTool(tool) {
-  if (typeof this.toolRegistry?.registerTool === 'function') this.toolRegistry.registerTool(tool);
-  else if (Array.isArray(this.toolManifest)) this.toolManifest.push(tool);
-  return this;
+    const localName = typeof tool?.name === 'string' ? tool.name.trim() : '';
+    const fullName = typeof tool?.fullName === 'string' && tool.fullName.trim()
+      ? tool.fullName.trim()
+      : localName;
+    const execute = tool?.execute || tool?.handler;
+    if (!fullName || typeof execute !== 'function') {
+      throw new TypeError('registerTool requires a name/fullName and execute() or handler() function');
+    }
+    const schema = {
+      ...(tool.schema || {}),
+      parameters: tool.schema?.parameters || tool.parameters || { type: 'object', properties: {} },
+      risk: tool.schema?.risk || tool.risk || 'low',
+      requiresApproval: tool.schema?.requiresApproval ?? tool.requiresApproval ?? false,
+      permissions: tool.schema?.permissions || tool.permissions || [],
+    };
+    const normalized = { ...tool, name: fullName, fullName, execute, schema };
+    if (typeof this.toolRegistry?.registerTool === 'function') {
+      this.toolRegistry.registerTool(normalized);
+    } else if (typeof this.toolRegistry?.register === 'function') {
+      const handler = normalized.passContext
+        ? (args = {}, context = {}) => execute(args, context)
+        : execute;
+      this.toolRegistry.register(fullName, { ...normalized, handler });
+    } else if (Array.isArray(this.toolManifest)) {
+      this.toolManifest.push(normalized);
+    }
+    return this;
   }
   registerSkill(skill) {
   if (typeof this.toolRegistry?.registerSkill === 'function') this.toolRegistry.registerSkill(skill);
@@ -517,38 +539,69 @@ class AgentRuntime extends EventEmitter {
       throw new Error('authenticated tenant context required for tool execution');
     }
 
+    if (Array.isArray(context.allowedToolNames) && !context.allowedToolNames.includes(toolName)) {
+      throw new Error(`Tool "${toolName}" is outside the delegated allowlist`);
+    }
     const tool = this.toolRegistry?.getTool?.(toolName);
     const roleMutationRequiresApproval = Boolean(context.agentRole)
       && /(?:^|\.)(create|update|delete|remove|refund|transfer|charge|settle|pay|block|reboot|disable|enable)$/i.test(toolName);
     const requiresApproval = Boolean(tool?.capability?.requiresApproval || roleMutationRequiresApproval);
-    const approvalGranted = context.approvalGranted === true || context.approved === true;
+    const approvalGranted = context[APPROVAL_AUTHORIZATION] === true
+      && typeof context.approvalId === 'string'
+      && context.approvalId.trim().length > 0;
     const taskRegistry = getTaskRegistry();
-    const task = taskRegistry.create(`Execute tool ${toolName}`, {
-      action: toolName,
-      owner: { userId, platformId: context.platformId || null },
-      context: { ...context, tenantId, userId },
-      input: params,
-      requiresExecutionApproval: requiresApproval,
-    });
+    const resumingApproval = approvalGranted && typeof context.taskId === 'string' && context.taskId.length > 0;
+    let task = resumingApproval ? taskRegistry.get(context.taskId) : null;
+    if (resumingApproval && (
+      !task ||
+      task.scope?.tenantId !== tenantId ||
+      task.scope?.userId !== userId ||
+      task.action !== toolName ||
+      !task.execution?.approvalRequired ||
+      task.execution?.approved ||
+      task.execution?.approvalId !== context.approvalId
+    )) {
+      throw new Error('Approved task is missing, out of scope, mismatched, or already used');
+    }
+    if (!task) {
+      task = taskRegistry.create(`Execute tool ${toolName}`, {
+        action: toolName,
+        owner: { userId, platformId: context.platformId || null },
+        context: { ...context, tenantId, userId },
+        input: params,
+        requiresExecutionApproval: requiresApproval,
+      });
+    }
 
-    taskRegistry.markPlanReady(task.taskId, {
-      action: toolName,
-      input: params,
-      scopedTo: { tenantId, userId },
-    });
-    taskRegistry.markDraftReady(task.taskId, {
-      action: toolName,
-      input: params,
-      requiresApproval,
-    });
+    if (!task.execution.planReady) {
+      taskRegistry.markPlanReady(task.taskId, {
+        action: toolName,
+        input: params,
+        scopedTo: { tenantId, userId },
+      });
+    }
+    if (!task.execution.draftReady) {
+      taskRegistry.markDraftReady(task.taskId, {
+        action: toolName,
+        input: params,
+        requiresApproval,
+      });
+    }
 
     if (requiresApproval && !approvalGranted) {
-      const pending = await this.approvalGate.request({ toolName, params, context: { ...context, tenantId, userId } });
+      const pending = await this.approvalGate.request({
+        toolName,
+        params,
+        context: { ...context, tenantId, userId, taskId: task.taskId },
+      });
+      taskRegistry.update(task.taskId, {
+        execution: { ...task.execution, approvalId: pending.actionId },
+      });
       return { ...pending, approvalRequired: true, agentRole: context.agentRole || null, taskId: task.taskId, phase: 'approve' };
     }
 
     if (requiresApproval) {
-      taskRegistry.approveExecution(task.taskId, context.approvalId || 'runtime-explicit-approval');
+      taskRegistry.approveExecution(task.taskId, context.approvalId);
     }
     taskRegistry.beginExecution(task.taskId);
 
