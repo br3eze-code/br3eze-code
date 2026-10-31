@@ -19,6 +19,8 @@ describe('AgentKernel ownership boundary', () => {
     kernel.on('dispatch:start', event => { sessionId = event.sessionId; });
     const result = await kernel.dispatch({ id: 'agent-1' }, {
       intent: { domain: 'test', text: 'ping' },
+      tenantId: 'tenant-1',
+      userId: 'user-1',
     });
 
     expect(result).toEqual({ ok: true });
