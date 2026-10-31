@@ -19,7 +19,7 @@ describe('ToolRegistry domain skill exclusions', () => {
     for (const skill of ['general', 'mikrotik', 'voucher']) {
       const skillPath = path.join(skillsPath, skill);
       mkdirSync(skillPath);
-      writeFileSync(path.join(skillPath, 'SKILL.md'), `# ${skill}\n\nTest skill.`);
+      writeFileSync(path.join(skillPath, 'manifest.yaml'), `name: ${skill}\nversion: 1.0.0\ntools: []\n`);
     }
 
     const registry = new ToolRegistry({
