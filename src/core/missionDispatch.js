@@ -59,20 +59,29 @@ function validateMissionSubmission(input) {
  * @param {object} input  MissionSubmission
  * @returns {Promise<object>} MissionResponse
  */
-async function submitMission(input, authenticatedUser = {}) {
+async function submitMission(input, authenticatedUser = {}, { idempotencyKey = null } = {}) {
     const submission = validateMissionSubmission(input);
-    const dispatchId = uuidv4();
     const registry   = getTaskRegistry();
     // Derive scope only from verified auth claims, never from request-body fields.
     const userId = authenticatedUser.userId || authenticatedUser.uid || authenticatedUser.sub || authenticatedUser.id;
     if (!userId) throw Object.assign(new Error('Authenticated user context is required'), { status: 401 });
     const tenantId = authenticatedUser.tenantId || authenticatedUser.tenant_id || `user:${userId}`;
+    const priorTask = idempotencyKey ? registry.findByIdempotencyKey(idempotencyKey, { tenantId, userId }) : null;
     const task = registry.create(submission.mission, {
+        idempotencyKey,
         description: `Mission: ${submission.mission.slice(0, 60)}`,
         teamId: submission.agentId || null,
         owner: { userId },
         context: { tenantId, userId, role: authenticatedUser.role || null, channel: 'api' }
     });
+
+    // A repeated key returns the original task and never starts a second runner.
+    if (priorTask) {
+        return { dispatchId: priorTask.dispatchId || priorTask.taskId, runId: priorTask.taskId, agentId: submission.agentId || 'primary', status: priorTask.status, summary: `Existing mission returned for idempotency key`, payloads: [] };
+    }
+
+    const dispatchId = uuidv4();
+    registry.update(task.taskId, { dispatchId });
 
     // Map thinking level → runtime config
     const maxTurns = THINKING_TURNS[submission.thinking] || 8;
@@ -250,7 +259,7 @@ function _buildTaskDetail(task) {
 
 async function handleSubmitMission(req, res) {
     try {
-        const response = await submitMission(req.body, req.user);
+        const response = await submitMission(req.body, req.user, { idempotencyKey: req.get('Idempotency-Key') || null });
         res.status(202).json(response);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message });
