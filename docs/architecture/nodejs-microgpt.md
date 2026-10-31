@@ -1,11 +1,11 @@
 # Node.js microGPT foundation
 
-This branch starts a native-JavaScript educational training path inspired by the readable algorithmic approach of Andrej Karpathy's micrograd, microgpt, nanoGPT, and llm.c. It does not copy their source files. The implementation is an independent, small reference engine intended to make the math and training steps inspectable.
+This is an educational native-JavaScript training path inspired by the readable algorithmic approach used in micrograd, microgpt, nanoGPT, and llm.c. The implementation is independently authored; it does not copy their source files.
 
 ## Current slice
 
 - `src/llm/autograd.js`: scalar reverse-mode automatic differentiation with add, subtract, multiply, divide, power, ReLU, tanh, exp, log, sum, and softmax.
-- `tests/unit/autograd.test.js`: checks the chain rule, gradient accumulation, softmax behavior, and invalid operations.
+- `tests/unit/autograd.test.js`: checks the chain rule, gradient accumulation, softmax behavior, invalid operations, and the zero-power derivative edge case.
 
 This is a prerequisite, not yet a GPT model. Do not describe the scalar engine alone as an LLM.
 
@@ -19,11 +19,11 @@ This is a prerequisite, not yet a GPT model. Do not describe the scalar engine a
 
 ## Design boundaries
 
-- This is a learning-scale model, not a competitor to hosted LLMs and not a way to train a large GPT model efficiently in ordinary Node.js.
-- Keep the training implementation under `src/llm/`; it must not become a second AgentRuntime.
-- AgentOS may later expose training and inference through explicit tools or adapters. Model-generated output must never bypass tool permissions or verification.
-- Training data and model checkpoints should be supplied/generated locally and ignored by Git unless explicitly reviewed for privacy, licensing, and size.
-- Use independently authored code and document the concepts and references. Do not copy long source passages from reference repositories.
+- This is a learning-scale model, not a competitor to hosted LLMs and not an efficient way to train a large GPT model in ordinary Node.js.
+- Keep training implementation under `src/llm/`; it must not become a second AgentRuntime.
+- AgentOS may expose training and inference through explicit tools or adapters. Model output must never bypass tool permissions or verification.
+- Training data and checkpoints should be supplied or generated locally and ignored by Git unless reviewed for privacy, licensing, and size.
+- Use independently authored code and document concepts and references; do not copy long source passages from reference repositories.
 
 ## References
 
