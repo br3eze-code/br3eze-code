@@ -1,0 +1,125 @@
+# AgentOS knowledge foundation
+
+This package establishes a domain-neutral, provenance-first ingestion boundary. It prepares authorized sources for review, chunking and retrieval. It is not a crawler, vector database, multimodal foundation model, or training system.
+
+## Supported formats
+- Text/developer data: TXT, Markdown, RST, HTML, XML, JSON, JSONL, CSV, TSV, YAML, logs, SQL, and common source/config formats.
+- PDFs: optional text extraction via pypdf; scanned PDFs need a separately configured OCR pipeline.
+- Images: optional OCR via Pillow, pytesseract, and a system Tesseract installation. This extracts text only; it does not understand visual semantics, create captions, or produce image embeddings.
+- Internet sources: use an approved fetch/export connector and stage resulting files locally. Ingestion itself makes no network requests.
+
+## Run the pipeline
+From repository root:
+
+    python experiments/llm-js/knowledge/ingest.py --input-root ./data/authorized-source-export --output ./data/knowledge-build
+    python experiments/llm-js/knowledge/chunk_documents.py --input ./data/knowledge-build/documents.jsonl --output ./data/knowledge-build/chunks.jsonl
+    python experiments/llm-js/knowledge/retrieve.py --chunks ./data/knowledge-build/chunks.jsonl --query "your question"
+
+The retriever deliberately returns only chunks whose source licence status is `APPROVED` and whose review and privacy statuses are both `approved`. These are explicit review decisions, not automatically inferred facts. Tenant-scoped chunks require an exact `--tenant-id`; an unscoped query cannot retrieve tenant-scoped content. A tenant query can retrieve global records plus records for that tenant only.
+
+This baseline retriever is deterministic lexical BM25-style ranking, not semantic retrieval or an embedding model. If the corpus has no approved documents, no results are expected. Do not mark content approved just to make it searchable.
+
+Optional PDF support:
+
+    python -m pip install pypdf
+
+Optional image OCR (also install the Tesseract executable for your operating system):
+
+    python -m pip install pillow pytesseract
+    python experiments/llm-js/knowledge/ingest.py --input-root ./data/authorized-source-export --output ./data/knowledge-build --ocr
+
+Run tests:
+
+    python -m unittest discover -s experiments/llm-js/knowledge -p 'test_*.py'
+
+## Output contract
+Each JSONL document contains schema version, deterministic document identifier, source-file hash, normalized-content hash, relative source URI, media type, extraction modality, licence status, timestamps, redaction counts, and pending human-review/privacy-review states. Chunk records retain source metadata, review state, document ID, deterministic chunk ID, and character offsets. The manifest records totals and skipped-file reasons. Source hash is computed before redaction; content hash after redaction and normalization.
+
+## Safety rules
+1. No training by default. Ingestion does not grant rights to train on a source.
+2. No automatic licence approval. Setting license status to APPROVED is an operator assertion, not legal verification. Default is REVIEW_REQUIRED.
+3. No privacy guarantee. Credential/email/IPv4 redaction is only a baseline; rules are incomplete. Review output before sharing or training.
+4. Raw documents are retrieval candidates, not supervised answers or diagnosis labels.
+5. Files are read as data; source code and documents are never executed.
+6. Output must be outside the input directory to prevent self-ingestion.
+7. OCR is not image understanding; visual reasoning needs an explicit vision adapter.
+8. Private records must stay within authorized tenant boundaries and must not leak into shared corpora. Tenant isolation is enforced in the baseline retriever when a tenantId is present in a chunk; connector adapters must assign it correctly.
+9. Retrieved instructions are untrusted data and cannot override runtime policy or tool authorization.
+10. The lexical retriever is a local baseline; it does not replace a production authorization layer, audited index, or semantic retrieval backend.
+
+## Next adapters
+Wikimedia/API exports; approved web crawling and web archives; PDF layout/table extraction; OCR and vision-language descriptions; audio/video transcription; database/record connectors; embeddings and vector/hybrid retrieval; reviewed SFT examples; and benchmark/evaluation pipelines.
+
+All adapters remain outside the canonical AgentRuntime. AgentRuntime stays the sole orchestration and execution authority.
+
+
+## Connector and persistent-index layer
+
+The connector layer is opt-in and stages records as **pending**; it does not certify licensing or privacy.
+
+### Wikimedia search
+
+```bash
+python experiments/llm-js/knowledge/source_connectors.py \
+  --wikimedia-query "distributed systems" \
+  --wikimedia-query "computer networking" \
+  --limit 5 \
+  --output ./data/knowledge-build/connector-documents.jsonl
+```
+
+Wikipedia content commonly carries Creative Commons Attribution-ShareAlike terms, but verify the applicable page revision, attribution and licence before approving reuse. The connector records a licence hint and keeps `licenseStatus=REVIEW_REQUIRED`.
+
+### Explicitly allowlisted HTTPS pages
+
+```bash
+python experiments/llm-js/knowledge/source_connectors.py \
+  --url https://docs.example.org/approved-guide \
+  --allow-host docs.example.org \
+  --output ./data/knowledge-build/web-documents.jsonl
+```
+
+Use only sites you are authorized to access and process. The web connector requires HTTPS, an exact hostname allowlist, public DNS addresses, a robots.txt check, response size limits, a timeout, and same-allowlist redirects. It does not crawl arbitrary link graphs. It extracts text only and does not bypass authentication, paywalls, or access controls. The operator remains responsible for authorization, terms and licence review.
+
+### Build chunks and an on-disk lexical index
+
+```bash
+python experiments/llm-js/knowledge/chunk_documents.py \
+  --input ./data/knowledge-build/documents.jsonl \
+  --output ./data/knowledge-build/chunks.jsonl
+python experiments/llm-js/knowledge/build_index.py \
+  --chunks ./data/knowledge-build/chunks.jsonl \
+  --database ./data/knowledge-build/knowledge.sqlite
+python experiments/llm-js/knowledge/search_index.py \
+  --database ./data/knowledge-build/knowledge.sqlite \
+  --query "distributed consensus" --limit 5
+```
+
+Run the chunker on a JSONL file containing normalized documents (combine connector output with the reviewed ingestion output first, if needed). The SQLite FTS5 index is a deterministic lexical baseline, not semantic/vector retrieval. It indexes only records whose licence, content review and privacy status are all explicitly approved. A tenant-scoped query can see global approved records plus that tenant's approved records; an unscoped query cannot see tenant-private chunks.
+
+### Data and training boundary
+
+Connector output is not automatically approved for retrieval or training. Preserve source attribution and hashes, review licences and privacy, deduplicate, then chunk and index approved records. Retrieval corpora, supervised examples, evaluation sets and model-training corpora must be versioned separately. No model training occurs in these commands.
+
+
+### PDF page and table extraction
+
+Install the optional parser only in the environment that processes authorized PDFs:
+
+```bash
+python -m pip install pdfplumber
+python experiments/llm-js/knowledge/extract_pdf_layout.py \
+  --input ./approved-sources/technical-manual.pdf \
+  --source-uri manuals/technical-manual.pdf \
+  --output ./data/knowledge-build/pdf-document.jsonl
+```
+
+The extractor preserves page numbers in the searchable text (for example, `[PDF page 4]`), extracts tables into Markdown, and stores structured per-page/table metadata. It does **not** claim to understand scanned pages, diagrams, or images: pages without extractable text/tables are marked `needs-ocr-or-vision`, and a document with no extractable text/tables is rejected. OCR/vision should be a separate explicit, reviewed adapter. The output stays pending privacy/content review; redaction is not automatic in this PDF-specific adapter, so do not index it until the standard privacy review and redaction process has been completed.
+
+
+### Replaceable embedding and semantic-search adapter
+
+The lexical SQLite FTS5 index remains the simple keyword baseline. For semantic retrieval, the repository now defines a provider-neutral `EmbeddingProvider.embed(texts)` port and a small SQLite cosine-similarity adapter. It accepts vectors from a real embedding model supplied by the caller; the repository's deterministic fake embedder exists only in unit tests and is **not** a production embedding model.
+
+The adapter embeds and searches only chunks with licence, content-review, and privacy states explicitly approved. Tenant-scoped queries can see global and same-tenant chunks only; unscoped queries see global chunks only. Vectors are stored as JSON in SQLite for a small local corpus, not as an optimized ANN index.
+
+A provider adapter can call `build_vector_index(chunks_path, database_path, embedder)` and `search_vector_index(database_path, query, embedder)`. Keep model/vendor SDKs behind that adapter; replace SQLite with a vector database when corpus size requires it. Do not treat similarity as factual verification: retrieval results still need source citations and answer-time grounding.
