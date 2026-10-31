@@ -42,6 +42,8 @@ describe('FileTaskStore', () => {
     expect(restarted.get(task.taskId).status).toBe(TaskStatus.COMPLETED);
     expect(restarted.get(task.taskId).events.map(event => event.type)).toEqual(expect.arrayContaining(['task.created', 'task.status-changed']));
     expect(restarted.get(task.taskId).events.every(event => event.taskId === task.taskId && event.eventId)).toBe(true);
+    expect(store.readEvents(task.taskId).map(event => event.type)).toEqual(expect.arrayContaining(['task.created', 'task.status-changed']));
+    expect(store.readEvents(task.taskId).every(event => event.taskId === task.taskId && event.eventId)).toBe(true);
   });
 
   test('recovers running tasks as interrupted instead of replaying them', () => {
@@ -85,5 +87,6 @@ describe('FileTaskStore', () => {
   test('rejects unsafe task identifiers', () => {
     const store = makeStore();
     expect(() => store.get('../secrets')).toThrow(/Invalid task id/);
+    expect(() => store.readEvents('../secrets')).toThrow(/Invalid task id/);
   });
 });
