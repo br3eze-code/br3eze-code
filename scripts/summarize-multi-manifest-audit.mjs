@@ -51,7 +51,7 @@ const markdown = [
   '## Aggregate local results', '',
   '| Surface | Critical | High | Moderate | Low | Total | Audit status |',
   '|---|---:|---:|---:|---:|---:|---|',
-  ...rows.map((r) => `| ${r.surface} | ${r.critical} | ${r.high} | ${r.moderate} | ${r.low} | ${r.total} | ${r.error || \'ok\'} |`),
+  ...rows.map((r) => `| ${r.surface} | ${r.critical} | ${r.high} | ${r.moderate} | ${r.low} | ${r.total} | ${r.error || "ok"} |`),
   `| **Sum of audit surfaces** | **${totals.critical}** | **${totals.high}** | **${totals.moderate}** | **${totals.low}** | **${totals.total}** |`, '',
   '## Interpretation', '',
   'These are local npm audit results across independently resolved package surfaces. They are not a deduplicated repository-wide count and must not be compared one-to-one with the GitHub Dependabot aggregate until advisory IDs and dependency paths are normalized.', '',
