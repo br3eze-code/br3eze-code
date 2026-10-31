@@ -2,6 +2,7 @@ import express from 'express';
 import '../src/host/bootstrap.js';
 import { handleSubmitMission, handleAbortMission, streamTaskFeed } from '../src/core/missionDispatch.js';
 import { getTaskRegistry } from '../src/core/taskRegistry.js';
+import { getUserTask } from '../src/core/user-task-service.js';
 import { createAgentTeam, startAgentTeam, createA2AMessage, dispatchA2A, completeAgentWbsStep, getTeamTask } from '../src/core/a2a-task-protocol.js';
 import { requireUser } from '../src/api/middleware/auth-provider.js';
 import shopRouter from '../src/api/routes/shop.js';
@@ -23,9 +24,8 @@ app.use('/api/auth/handoff', authHandoffRouter);
 app.use('/api/tasks', requireUser);
 app.post('/api/tasks', handleSubmitMission);
 app.get('/api/tasks/:taskId', (req, res) => {
-  const task = getTaskRegistry().get(req.params.taskId);
-  if (!task) return res.status(404).json({ error: 'Task not found' });
-  return res.json(task);
+  try { return res.json(getUserTask(req.params.taskId, req.user)); }
+  catch (error) { return res.status(error.status || 500).json({ error: error.message, code: error.code }); }
 });
 app.get('/api/tasks/:taskId/team', (req, res) => {
   try { return res.json(getTeamTask(req.params.taskId)); }
