@@ -40,6 +40,15 @@ describe('scalar autograd', () => {
     expect(logits[1].grad).toBeLessThan(0);
   });
 
+  test('power zero has a finite zero gradient at zero', () => {
+    const x = new Value(0);
+    const y = x.pow(0);
+    y.backward();
+
+    expect(y.data).toBe(1);
+    expect(x.grad).toBe(0);
+  });
+
   test('rejects invalid numeric operations', () => {
     expect(() => new Value(Number.NaN)).toThrow(/finite number/);
     expect(() => new Value(1).div(0)).toThrow(/Division by zero/);
