@@ -36,7 +36,7 @@ export function createProviderModelPort({ provider } = {}) {
           ? calls.filter((call) => call && (call.name || call.function?.name)).map((call) => ({
               id: call.id || call.callId || null,
               name: call.name || call.function?.name,
-              arguments: call.arguments ?? call.args ?? call.function?.arguments ?? {},
+              arguments: normalizeToolArguments(call.arguments ?? call.args ?? call.function?.arguments ?? {}),
             }))
           : [],
         provider: response?.provider || provider.name || null,
@@ -44,6 +44,23 @@ export function createProviderModelPort({ provider } = {}) {
       };
     },
   });
+}
+
+function normalizeToolArguments(value) {
+  if (value == null) return {};
+  if (typeof value === 'string') {
+    let parsed;
+    try { parsed = JSON.parse(value); }
+    catch { throw new TypeError('provider returned invalid JSON tool arguments'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new TypeError('provider tool arguments must decode to a JSON object');
+    }
+    return parsed;
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new TypeError('provider tool arguments must be an object');
+  }
+  return value;
 }
 
 function normalizeToolDeclarations(tools) {
