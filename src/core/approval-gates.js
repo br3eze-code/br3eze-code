@@ -27,7 +27,23 @@ export class ApprovalWorkflow {
     const record = {
       actionId, toolName, params, tenantId, requestedBy: userId,
       status: 'PENDING', createdAt: now(), expiresAt: new Date(Date.now() + this.ttlMs).toISOString(),
-      context: { tenantId, userId, domain: context.domain || null, roles: context.roles || [] },
+      taskId: context.taskId || null,
+      sessionId: context.sessionId || null,
+      context: {
+        tenantId, userId,
+        domain: context.domain || null,
+        domainId: context.domainId || null,
+        siteId: context.siteId || null,
+        channel: context.channel || null,
+        agentRole: context.agentRole || null,
+        roles: Array.isArray(context.roles) ? [...context.roles] : [],
+        authorizedCapabilities: Array.isArray(context.authorizedCapabilities) ? [...context.authorizedCapabilities] : [],
+        allowedToolNames: Array.isArray(context.allowedToolNames) ? [...context.allowedToolNames] : null,
+        delegationDepth: Number.isInteger(context.delegationDepth) ? context.delegationDepth : 0,
+        delegatedBy: context.delegatedBy || null,
+        taskId: context.taskId || null,
+        sessionId: context.sessionId || null,
+      },
     };
     await db.set(PREFIX + actionId, record);
     await this.notify({
@@ -74,8 +90,15 @@ export class ApprovalWorkflow {
     let result;
     try {
       result = await execute(approved.toolName, approved.params, {
-        tenantId: approved.tenantId, userId: approved.requestedBy,
-        approvalGranted: true, approved: true, approvalId: actionId, approvedBy: actor,
+        ...(approved.context || {}),
+        tenantId: approved.tenantId,
+        userId: approved.requestedBy,
+        taskId: approved.taskId || approved.context?.taskId || null,
+        sessionId: approved.sessionId || approved.context?.sessionId || null,
+        approvalGranted: true,
+        approved: true,
+        approvalId: actionId,
+        approvedBy: actor,
       });
     } catch (error) {
       const failed = { ...executing, status: 'FAILED', failedAt: now(), error: error?.message || String(error) };
