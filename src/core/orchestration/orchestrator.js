@@ -4,8 +4,9 @@ import { LoopEngine } from './loop-engine.js';
 export class AgentOSOrchestrator {
   constructor({ taskRegistry = getTaskRegistry(), loopEngine = new LoopEngine() } = {}) { this.taskRegistry = taskRegistry; this.loopEngine = loopEngine; }
 
-  async runWork({ workId, goal, acceptanceCriteria, tenantId, projectId = null, specialist = null, owner = null, userId = owner?.userId || 'system:orchestrator', plan, execute, verify }) {
-    if (!tenantId) throw new TypeError('tenantId is required to run scoped work');
+  async runWork({ workId, goal, acceptanceCriteria, tenantId, projectId = null, specialist = null, owner = null, userId = owner?.userId, plan, execute, verify }) {
+    if (!tenantId || typeof tenantId !== 'string' || !tenantId.trim()) throw new TypeError('tenantId is required to run scoped work');
+    if (typeof userId !== 'string' || !userId.trim()) throw new TypeError('authenticated userId is required to run scoped work');
     const task = this.taskRegistry.create(goal, { action: 'agentos.loop', teamId: specialist, owner: owner || { userId }, context: { tenantId, projectId, userId }, input: { workId, acceptanceCriteria } });
     this.taskRegistry.setStatus(task.taskId, TaskStatus.RUNNING, 'Loop execution started');
     const state = this.loopEngine.createState({ workId, taskId: task.taskId, tenantId, projectId, specialist, goal, acceptanceCriteria });
