@@ -1,11 +1,24 @@
-/** Domain-neutral onboarding boundary. Concrete provisioning is supplied by adapters. */
-let provider = null;
-export function registerOnboardingProvider(next) { if (!next) throw new TypeError('Onboarding provider required'); provider = next; return provider; }
-export function getOnboardingProvider() { return provider; }
-export async function onboardRouter(...args) { if (!provider?.onboardRouter) throw new Error('No onboarding provider registered'); return provider.onboardRouter(...args); }
-export async function onboardFleet(...args) { if (!provider?.onboardFleet) throw new Error('No onboarding provider registered'); return provider.onboardFleet(...args); }
-export async function provisionAgents(...args) { if (!provider?.provisionAgents) throw new Error('No onboarding provider registered'); return provider.provisionAgents(...args); }
-export async function generateSetupScript(...args) { if (!provider?.generateSetupScript) throw new Error('No onboarding provider registered'); return provider.generateSetupScript(...args); }
-export async function testMikroTikConnection(...args) { if (!provider?.testConnection) throw new Error('No network adapter registered'); return provider.testConnection(...args); }
+/** Compatibility facade for the canonical onboarding provider port. */
+export {
+  registerOnboardingProvider,
+  clearOnboardingProvider,
+  getOnboardingProvider,
+  onboardRouter,
+  onboardFleet,
+  provisionAgents,
+  generateSetupScript,
+  runWizard,
+} from './ports/onboarding.js';
+
+import { getOnboardingProvider } from './ports/onboarding.js';
+
+// Legacy export retained for callers that check for a template hook.
 export const templateRsc = null;
-export async function runWizard(...args) { if (!provider?.runWizard) throw new Error('No onboarding provider registered'); return provider.runWizard(...args); }
+
+export async function testMikroTikConnection(...args) {
+  const provider = getOnboardingProvider();
+  if (typeof provider?.testConnection !== 'function') {
+    throw new Error('No network adapter registered');
+  }
+  return provider.testConnection(...args);
+}
