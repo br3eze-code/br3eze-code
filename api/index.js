@@ -9,6 +9,7 @@ import v1Router from '../src/api/routes/v1.js';
 import v2Router from '../src/api/routes/v2.js';
 import v3Router from '../src/api/routes/v3.js';
 import authHandoffRouter from '../src/api/routes/auth-handoff.js';
+import proactiveProposalRouter from '../src/api/routes/proactive-proposals.js';
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.post('/api/tasks/:taskId/wbs/:stepId/complete', requireUser, (req, res) => {
 
 // Versioned APIs share the same human-auth boundary. Route modules remain focused on capabilities.
 app.use('/api/v1', requireUser, v1Router);
+app.use('/api/v1', proactiveProposalRouter);
 app.use('/api/v2', requireUser, v2Router);
 app.use('/api/v3', requireUser, v3Router);
 app.use('/api/v1/shop', requireUser, shopRouter);
