@@ -21,6 +21,10 @@ describe('MikroTik hardware adapter', () => {
     expect(manager.executeTool).toHaveBeenNthCalledWith(1, 'system.stats');
     expect(manager.executeTool).toHaveBeenNthCalledWith(2, 'interface.list');
     await adapter.close();
+    expect(manager.disconnect).not.toHaveBeenCalled();
+
+    const owned = createMikroTikHardwareAdapter({ manager, ownsManager: true });
+    await owned.close();
     expect(manager.disconnect).toHaveBeenCalledTimes(1);
   });
 
