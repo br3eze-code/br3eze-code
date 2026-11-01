@@ -17,7 +17,8 @@ const TOOL_PATHS = {
   'user.status': '/ip/hotspot/user', 'users.all': '/ip/hotspot/user', 'hotspot.profiles': '/ip/hotspot/user/profile',
   'dhcp.leases': '/ip/dhcp-server/lease', 'interface.list': '/interface', 'arp.table': '/ip/arp',
   'ip.addresses': '/ip/address', 'ip.routes': '/ip/route', 'dns': '/ip/dns', 'firewall.list': '/ip/firewall/filter',
-  'nat.list': '/ip/firewall/nat', 'wireless.interfaces': '/interface/wireless'
+  'nat.list': '/ip/firewall/nat', 'wireless.interfaces': '/interface/wireless',
+  'firewall.block': '/ip/firewall/address-list', 'firewall.unblock': '/ip/firewall/address-list'
 };
 
 function parseRouterOSDuration(value) {
@@ -134,6 +135,31 @@ export class MikroTikManager extends EventEmitter {
         case 'ip.routes': return this._get('/ip/route');
         case 'dns': return this._get('/ip/dns');
         case 'firewall.list': return this._get('/ip/firewall/filter');
+        case 'firewall.block': {
+          const address = params.address || params.target || params.ip;
+          if (typeof address !== 'string' || !/^(?:\\d{1,3}\\.){3}\\d{1,3}(?:\\/\\d{1,2})?$/.test(address)) {
+            throw new TypeError('firewall.block requires a valid IPv4 address or CIDR in params.address');
+          }
+          const [ip, prefix] = address.split('/');
+          if (ip.split('.').some((part) => Number(part) > 255) || (prefix !== undefined && Number(prefix) > 32)) {
+            throw new TypeError('firewall.block address is out of range');
+          }
+          await this.connect();
+          // RouterOS address-list entries only enforce blocking when the router
+          // has a firewall filter rule matching the "agentos-blocked" list.
+          return this._menu('/ip/firewall/address-list').add({ list: 'agentos-blocked', address: ip, comment: 'AgentOS managed block' });
+        }
+        case 'firewall.unblock': {
+          const address = params.address || params.target || params.ip;
+          if (typeof address !== 'string' || !/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(address) || address.split('.').some((part) => Number(part) > 255)) {
+            throw new TypeError('firewall.unblock requires a valid IPv4 address in params.address');
+          }
+          await this.connect();
+          const entries = await this._menu('/ip/firewall/address-list').where('list', 'agentos-blocked').where('address', address).get();
+          const ids = entries.map((entry) => entry['.id']).filter(Boolean);
+          for (const entryId of ids) await this._menu('/ip/firewall/address-list').remove(entryId);
+          return { address, removed: ids.length };
+        }
         case 'nat.list': return this._get('/ip/firewall/nat');
         case 'hotspot.profiles': return this._get('/ip/hotspot/user/profile');
         case 'system.reboot':
