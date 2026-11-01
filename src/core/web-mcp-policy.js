@@ -60,16 +60,32 @@ export function validateWebMcpRequest({ url, method = 'GET', allowedHosts = [], 
 }
 
 export function sanitizeWebMcpObservation(value, { maxChars = 12000 } = {}) {
+  const sensitiveKey = /(?:authorization|proxy.?authorization|cookie|set.?cookie|api.?key|token|secret|password|credential|private.?key|session)/i;
+  const seen = new WeakSet();
+  const scrub = (input, depth = 0) => {
+    if (typeof input === 'string') {
+      return input
+        .replace(/((?:authorization|proxy-authorization|cookie|set-cookie)\\s*[:=]\\s*)[^\\n;]+/gi, '$1[REDACTED]')
+        .replace(/((?:api[_-]?key|token|secret|password|credential)\\s*[:=]\\s*)[^\\s,;]+/gi, '$1[REDACTED]');
+    }
+    if (input === null || typeof input !== 'object') return input;
+    if (depth > 12) return '[TRUNCATED]';
+    if (seen.has(input)) return '[CIRCULAR]';
+    seen.add(input);
+    if (Array.isArray(input)) return input.map((item) => scrub(item, depth + 1));
+    return Object.fromEntries(Object.entries(input).map(([key, child]) => [
+      key,
+      sensitiveKey.test(key) ? '[REDACTED]' : scrub(child, depth + 1),
+    ]));
+  };
   let text;
   try {
-    text = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+    const safe = scrub(value ?? '');
+    text = typeof safe === 'string' ? safe : JSON.stringify(safe);
   } catch {
     text = '[unserializable observation]';
   }
-  return text
-    .replace(/((?:authorization|proxy-authorization|cookie|set-cookie)\s*[:=]\s*)[^\n;]+/gi, '$1[REDACTED]')
-    .replace(/((?:api[_-]?key|token|secret|password)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]')
-    .slice(0, Math.max(0, maxChars));
+  return text.slice(0, Math.max(0, maxChars));
 }
 
 export function webMcpActionManifest({ readOnly = true } = {}) {
