@@ -28,7 +28,13 @@ export function createMikroTikHardwareAdapter({ id = 'mikrotik', deviceId = null
       if (context.userId && typeof context.userId !== 'string') {
         throw new TypeError('userId must be a string');
       }
-      return manager.executeTool(tool);
+      const result = await manager.executeTool(tool);
+      if (context.signal?.aborted) {
+        throw context.signal.reason instanceof Error
+          ? context.signal.reason
+          : new Error('Operation cancelled');
+      }
+      return result;
     },
   }));
 
