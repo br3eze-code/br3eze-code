@@ -1,0 +1,4 @@
+Br3eze OS — Level 3 preview
+Debian Linux kernel + systemd + NetworkManager
+Live-session changes may not persist after reboot.
+Diagnostics: systemctl --failed | journalctl -b | nmcli device status
