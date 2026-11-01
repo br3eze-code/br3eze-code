@@ -115,8 +115,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish to GitHub Packages
+      - name: Prepare scoped package for GitHub Packages
         if: steps.bump.outputs.bumped == 'true'
-        run: npm publish --access public --registry=https://npm.pkg.github.com
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/agentos-github-package"
+          mkdir -p "$STAGE/unpacked"
+          npm pack --pack-destination "$STAGE"
+          TARBALL="$(find "$STAGE" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$TARBALL"
+          tar -xzf "$TARBALL" -C "$STAGE/unpacked"
+          cd "$STAGE/unpacked/package"
+          npm pkg set name="@br3eze-code/agentos"
+          npm publish --access public --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
