@@ -24,6 +24,10 @@ bash build-image.sh
 
 The resulting ISO is produced in `os/level3/br3eze-os-amd64.hybrid.iso` (or the path reported by live-build). The script deliberately refuses to run as root directly; invoke it with a normal user that can use `sudo`.
 
+## Optional AgentOS service template
+
+The image configuration includes `config/includes.chroot/etc/systemd/system/agentos.service` as a hardened, **disabled-by-default** template. The base ISO does not bundle AgentOS at `/opt/agentos`; the service is only eligible to start after a separately reviewed runtime install provides that entry point. It uses a transient systemd identity, dedicated state/log directories, and `STATE_PATH=/var/lib/agentos/state`. Do not enable it before the runtime and its required configuration have been installed and tested.
+
 ## Security and support boundaries
 
 - This image uses Debian's kernel and drivers; it does not create custom drivers or a new kernel.
