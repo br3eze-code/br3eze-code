@@ -137,7 +137,7 @@ export class MikroTikManager extends EventEmitter {
         case 'firewall.list': return this._get('/ip/firewall/filter');
         case 'firewall.block': {
           const address = params.address || params.target || params.ip;
-          if (typeof address !== 'string' || !/^(?:\\d{1,3}\\.){3}\\d{1,3}(?:\\/\\d{1,2})?$/.test(address)) {
+          if (typeof address !== 'string' || !/^(?:\d{1,3}\.){3}\d{1,3}(?:\/\d{1,2})?$/.test(address)) {
             throw new TypeError('firewall.block requires a valid IPv4 address or CIDR in params.address');
           }
           const [ip, prefix] = address.split('/');
@@ -151,7 +151,7 @@ export class MikroTikManager extends EventEmitter {
         }
         case 'firewall.unblock': {
           const address = params.address || params.target || params.ip;
-          if (typeof address !== 'string' || !/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(address) || address.split('.').some((part) => Number(part) > 255)) {
+          if (typeof address !== 'string' || !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(address) || address.split('.').some((part) => Number(part) > 255)) {
             throw new TypeError('firewall.unblock requires a valid IPv4 address in params.address');
           }
           await this.connect();
