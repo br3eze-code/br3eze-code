@@ -1,0 +1,39 @@
+[Unit]
+Description=Br3eze AgentOS runtime (optional, unprivileged service)
+Documentation=https://github.com/br3eze-code/br3eze-code
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/agentos/bin/agentos.js
+
+[Service]
+Type=simple
+DynamicUser=yes
+WorkingDirectory=/opt/agentos
+Environment=NODE_ENV=production
+Environment=STATE_PATH=/var/lib/agentos/state
+StateDirectory=agentos
+LogsDirectory=agentos
+ExecStart=/usr/bin/node /opt/agentos/bin/agentos.js gateway
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
