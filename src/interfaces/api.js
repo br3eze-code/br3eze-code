@@ -108,10 +108,18 @@ router.post('/voucher/generate', async (req, res) => {
     res.json({ code });
 });
 
-router.post('/voucher/redeem', (req, res) => {
-    const { code, user } = req.body;
-    voucherAgent.redeem(code, user);
-    res.json({ success: true });
+router.post('/voucher/redeem', async (req, res) => {
+    const { code, user } = req.body || {};
+    try {
+        const redemption = await voucherAgent.redeem(code, user);
+        return res.json({ success: true, redemption });
+    } catch (error) {
+        const clientError = /^(code and user are required|Invalid voucher|Already used)$/.test(error?.message || '');
+        return res.status(clientError ? 400 : 500).json({
+            success: false,
+            error: clientError ? error.message : 'Voucher redemption failed',
+        });
+    }
 });
 
 const app = express();
