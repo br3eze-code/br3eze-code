@@ -14,8 +14,11 @@ export const nodeHardwareProvider = Object.freeze({
     return {
       platform: process.platform,
       architecture: process.arch,
+      release: os.release(),
       cpuCount: os.cpus().length,
       totalMemoryBytes: os.totalmem(),
+      freeMemoryBytes: os.freemem(),
+      uptimeSeconds: os.uptime(),
       accelerators: [],
       features: ['node-runtime'],
       source: 'node:os',
