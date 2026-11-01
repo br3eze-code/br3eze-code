@@ -15,7 +15,7 @@ describe('per-user lifecycle graph synchronization', () => {
   let db;
 
   beforeAll(async () => {
-    const databaseModule = await import('../../src/core/database.js');
+    const databaseModule = await import('../../src/adapters/persistence/database.js');
     db = await databaseModule.getDatabase();
   });
 
