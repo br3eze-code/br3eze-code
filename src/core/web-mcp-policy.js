@@ -65,8 +65,8 @@ export function sanitizeWebMcpObservation(value, { maxChars = 12000 } = {}) {
   const scrub = (input, depth = 0) => {
     if (typeof input === 'string') {
       return input
-        .replace(/((?:authorization|proxy-authorization|cookie|set-cookie)\\s*[:=]\\s*)[^\\n;]+/gi, '$1[REDACTED]')
-        .replace(/((?:api[_-]?key|token|secret|password|credential)\\s*[:=]\\s*)[^\\s,;]+/gi, '$1[REDACTED]');
+        .replace(/((?:authorization|proxy-authorization|cookie|set-cookie)\s*[:=]\s*)[^\n;]+/gi, '$1[REDACTED]')
+        .replace(/((?:api[_-]?key|token|secret|password|credential)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
     }
     if (input === null || typeof input !== 'object') return input;
     if (depth > 12) return '[TRUNCATED]';
