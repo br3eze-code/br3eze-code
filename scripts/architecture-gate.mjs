@@ -38,4 +38,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`ARCHITECTURE GATE: PASS — ${kernelRoots.length}/${kernelRoots.length} kernel boundaries isolated (100%)`);
+console.log(`ARCHITECTURE GATE: PASS — selected checks passed for ${kernelRoots.length} declared files; this is not a full-repository boundary proof.`);
