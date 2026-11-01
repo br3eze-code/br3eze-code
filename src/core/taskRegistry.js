@@ -37,7 +37,7 @@ class TaskRegistry extends EventEmitter {
       taskId, prompt, description, status: TaskStatus.CREATED, createdAt: now, updatedAt: now, messages: [], output: '', teamId, action,
       idempotencyKey, requestHash,
       owner: owner ? { userId: owner.userId || null, platformId: owner.platformId || null } : null,
-      scope: { tenantId: context.tenantId, domainId: context.domainId || null, siteId: context.siteId || null, userId: context.userId, channel: context.channel || null },
+      scope: { tenantId: context.tenantId, userId: context.userId, projectId: context.projectId || null, domain: context.domain || null, domainId: context.domainId || context.domain || null, siteId: context.siteId || null, channel: context.channel || null },
       wbs: taskWbs, wbsSummary: summarizeActionWbs(taskWbs),
       planningContext: { ...context, tenantId: context.tenantId, userId: context.userId, authorizedCapabilities: Array.isArray(context.authorizedCapabilities || context.capabilities) ? [...(context.authorizedCapabilities || context.capabilities)] : [] },
       execution: { phase: TaskPhase.PLAN, planReady: false, draftReady: false, approvalRequired: Boolean(requiresExecutionApproval), approved: false, approvalId: null, executionStartedAt: null, verifiedAt: null },
