@@ -41,11 +41,21 @@ jobs:
           echo "canary=$CANARY" >> $GITHUB_OUTPUT
           echo "📦 Canary: $CANARY"
 
-      - name: Publish → GitHub Packages
-        run: npm publish --tag canary --access public --registry=https://npm.pkg.github.com
+      - name: Prepare scoped canary for GitHub Packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/agentos-github-canary"
+          mkdir -p "$STAGE/unpacked"
+          npm pack --pack-destination "$STAGE"
+          TARBALL="$(find "$STAGE" -maxdepth 1 -name '*.tgz' -print -quit)"
+          test -n "$TARBALL"
+          tar -xzf "$TARBALL" -C "$STAGE/unpacked"
+          cd "$STAGE/unpacked/package"
+          npm pkg set name="@br3eze-code/agentos"
+          npm publish --tag canary --access public --registry=https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Setup for npmjs.com
         uses: actions/setup-node@v4
         with:
@@ -69,5 +79,5 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Install with:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "npm install @br3eze-code@canary" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @br3eze-code/agentos@canary --registry=https://npm.pkg.github.com" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
