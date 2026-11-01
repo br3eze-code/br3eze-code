@@ -1,48 +1,41 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-describe('gateway next-action proposal routes', () => {
+describe('authenticated proactive proposal API', () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-  const source = fs.readFileSync(path.join(root, 'src/core/gateway-engine.js'), 'utf8');
+  const router = fs.readFileSync(path.join(root, 'src/api/routes/proactive-proposals.js'), 'utf8');
+  const api = fs.readFileSync(path.join(root, 'api/index.js'), 'utf8');
 
-  test('proposal routes are mounted after API authentication', () => {
-    const authIndex = source.indexOf("this.app.use('/api', async");
-    const readIndex = source.indexOf("this.app.get('/api/v1/tasks/:taskId/proposals'");
-    const decideIndex = source.indexOf("this.app.post('/api/v1/proposals/:proposalId/decide'");
-    expect(authIndex).toBeGreaterThanOrEqual(0);
-    expect(readIndex).toBeGreaterThan(authIndex);
-    expect(decideIndex).toBeGreaterThan(readIndex);
+  test('proposal routes are mounted in the versioned API and require authentication', () => {
+    expect(api).toContain("app.use('/api/v1', proactiveProposalRouter)");
+    expect(router).toContain("router.get('/tasks/:taskId/proposals', requireUser");
+    expect(router).toContain("router.post('/proposals/:proposalId/decide', requireUser");
+    expect(router).toContain("router.post('/analysis/:domain', requireUser");
   });
 
-  test('proposal routes require verified Firebase identity and canonical task access', () => {
-    const routeStart = source.indexOf("this.app.get('/api/v1/tasks/:taskId/proposals'");
-    const routeEnd = source.indexOf("// ── SSE streaming /ask", routeStart);
-    const routes = source.slice(routeStart, routeEnd);
-    expect(source).toContain('Firebase identity required for proposal access');
-    expect(routes).toContain('getUserTask(req.params.taskId, context)');
-    expect(routes).toContain('validateNextActionProposal');
-    expect(routes).toContain('recordProactiveDecision');
-    expect(routes).toContain('this.proactiveTelemetry.record');
+  test('proposal reads use canonical task access and validate stored proposals', () => {
+    expect(router).toContain('getUserTask(req.params.taskId, context)');
+    expect(router).toContain('validateNextActionProposal(proposal, { task, context })');
+    expect(router).toContain('telemetry.record');
   });
 
-  test('analysis context cannot be overridden by request-body identity fields', () => {
-    const routeStart = source.indexOf("this.app.post('/api/v1/analysis/:domain'");
-    const routeEnd = source.indexOf("this.app.get('/api/v1/tasks/:taskId/proposals'", routeStart);
-    const route = source.slice(routeStart, routeEnd);
-    expect(route.indexOf('...(req.body?.context || {})')).toBeLessThan(route.indexOf('...proposalContext(req)'));
-    expect(route).toContain("domain: req.params.domain");
+  test('request-body context cannot override authenticated identity or scope', () => {
+    const bodyContextIndex = router.indexOf('...(req.body?.context || {})');
+    const trustedContextIndex = router.indexOf('...trusted', bodyContextIndex);
+    expect(bodyContextIndex).toBeGreaterThanOrEqual(0);
+    expect(trustedContextIndex).toBeGreaterThan(bodyContextIndex);
+    expect(router).toContain('tenantId: user.tenantId || user.tenant_id');
+    expect(router).toContain('domainId: user.domainId || user.domain_id || null');
+    expect(router).toContain('siteId: user.siteId || user.site_id || null');
   });
 
-  test('decision vocabulary is not widened by the gateway', () => {
-    const routeStart = source.indexOf("this.app.post('/api/v1/proposals/:proposalId/decide'");
-    const routeEnd = source.indexOf('// ── A2A Protocol Routes', routeStart);
-    const route = source.slice(routeStart, routeEnd);
-    expect(route).toContain('recordProactiveDecision');
-    expect(route).not.toContain('req.body?.command');
-    expect(route).not.toContain('global.mikrotik');
+  test('decision handling is constrained to the proactive policy vocabulary', () => {
+    expect(router).toContain('recordProactiveDecision');
+    expect(router).toContain("decision.decision === 'approve'");
+    expect(router).toContain('PROPOSAL_APPROVAL_NOT_REQUIRED');
+    expect(router).toContain('getUserTask(task?.taskId, context)');
   });
 });
 
 export {};
-
