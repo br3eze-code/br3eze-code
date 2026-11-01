@@ -112,6 +112,7 @@ class ToolRegistry {
 
   register(fullName, toolDef = {}) {
     if (!fullName || typeof fullName !== 'string') throw new TypeError('tool name is required');
+    if (this.tools.has(fullName)) throw new Error(`Tool "${fullName}" already registered`);
     if (typeof toolDef.execute !== 'function' && typeof toolDef.handler !== 'function') throw new TypeError(`Tool "${fullName}" must provide execute() or handler()`);
     const [domain] = fullName.split('.');
     const handler = toolDef.handler || toolDef.execute;
@@ -260,6 +261,23 @@ class ToolRegistry {
     const tools = [...this.tools.values()].map((tool) => ({ name: tool.fullName, description: tool.schema?.description || '', parameters: tool.schema?.parameters || [], returns: tool.schema?.returns || 'any', domain: tool.domain, skill: tool.skill, phase: tool.capability.phase, risk: tool.capability.risk, requiresApproval: tool.capability.requiresApproval, permissions: tool.capability.permissions }));
     this._manifestCache = { version: '2.0.0', agent: 'AgentOS', domains: [...this.domains], skills: [...this.skills.keys()], tools, safety: { maxToolsPerRequest: 10, allowedOperations: tools.map((tool) => tool.name) } };
     return this._manifestCache;
+  }
+
+  /** Compatibility API for callers that register a complete tool definition. */
+  registerTool(toolDef = {}) {
+    if (!toolDef?.name || typeof toolDef.name !== 'string') throw new TypeError('tool name is required');
+    return this.register(toolDef.name, toolDef);
+  }
+
+  /** Return a detached, provider-neutral declaration list for model adapters. */
+  toolDeclarations() {
+    return this.getManifest().tools.map((tool) => ({
+      ...tool,
+      parameters: Array.isArray(tool.parameters)
+        ? tool.parameters.map((parameter) => ({ ...parameter }))
+        : { ...tool.parameters },
+      permissions: [...(tool.permissions || [])],
+    }));
   }
 
   invalidateManifest() { this._manifestCache = null; }
