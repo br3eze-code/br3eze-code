@@ -24,7 +24,7 @@ function proposalContext(req) {
       : [],
   };
   // Trusted identity/scope is merged last so request-body claims cannot impersonate a user.
-  return { ...(req.body?.context || {}), ...Object.fromEntries(Object.entries(trusted).filter(([, value]) => value !== null && value !== undefined)) };
+  return { ...(req.body?.context || {}), ...trusted };
 }
 
 function sendError(res, error) {
