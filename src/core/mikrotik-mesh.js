@@ -1,4 +1,5 @@
 import EventEmitter from 'node:events';
+import net from 'node:net';
 
 /**
  * Domain-neutral multi-node registry.
@@ -18,12 +19,18 @@ export class MeshRegistry extends EventEmitter {
     const id = site.id;
     if (!id || typeof id !== 'string') throw new TypeError('A stable node id is required');
     if (this.sites.has(id)) throw new Error(`Node already registered: ${id}`);
+    const host = site.host || site.config?.host || site.config?.address || null;
+    const addressType = typeof host === 'string' ? net.isIP(host) : 0;
+    const isPrivateIPv4 = addressType === 4 && (/^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^127\./.test(host) || /^169\.254\./.test(host));
+    const isPrivateIPv6 = addressType === 6 && (host === '::1' || /^fc/i.test(host) || /^fd/i.test(host) || /^fe80:/i.test(host));
+    if (site.publicAddress === true || (addressType !== 0 && !isPrivateIPv4 && !isPrivateIPv6)) throw new Error('Public router exposure is not allowed');
     this.sites.set(id, {
       id,
       name: site.name || id,
       tenantId: site.tenantId || null,
       scope: site.scope || null,
       config: site.config || {},
+      host,
       manager: null,
       status: 'registered',
       lastError: null,
@@ -87,17 +94,17 @@ export class MeshRegistry extends EventEmitter {
     if (typeof capability !== 'string' || !capability) throw new TypeError('A capability name is required');
     if (!this.readOnlyTools.has(capability) && context.confirmed !== true) {
       const error = new Error(`Confirmation required for mutating capability: ${capability}`);
-      error.code = 'NODE_CONFIRMATION_REQUIRED';
+      error.code = 'MESH_CONFIRMATION_REQUIRED';
       throw error;
     }
     if (!node.manager) await this.connect(id, context);
     const startedAt = Date.now();
     try {
       const result = await node.manager.execute?.(capability, params, context);
-      await this._audit({ action: 'execute', nodeId: id, tenantId: node.tenantId, capability, ok: true, durationMs: Date.now() - startedAt });
+      await this._audit({ action: 'execute', nodeId: id, tenantId: node.tenantId, capability, context: this._redactContext(context), ok: true, durationMs: Date.now() - startedAt });
       return { nodeId: id, capability, result };
     } catch (error) {
-      await this._audit({ action: 'execute', nodeId: id, tenantId: node.tenantId, capability, ok: false, error: error.message, durationMs: Date.now() - startedAt });
+      await this._audit({ action: 'execute', nodeId: id, tenantId: node.tenantId, capability, context: this._redactContext(context), ok: false, error: error.message, durationMs: Date.now() - startedAt });
       throw error;
     }
   }
@@ -124,6 +131,14 @@ export class MeshRegistry extends EventEmitter {
     const node = this.sites.get(id);
     this._authorize(node, context);
     try { await node?.manager?.destroy?.(); } finally { this.sites.delete(id); }
+  }
+
+  _redactContext(context = {}) {
+    const redacted = { ...context };
+    for (const key of ['authorization', 'token', 'password', 'secret', 'apiKey', 'api_key']) {
+      if (key in redacted) redacted[key] = '[REDACTED]';
+    }
+    return redacted;
   }
 
   async _audit(event) {
