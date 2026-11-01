@@ -2,107 +2,111 @@
 'use strict';
 
 /**
- * scripts/security-check.js
- * Security validation for CI/CD pipeline
- * 
- * Checks:
- * - No hardcoded secrets/credentials
- * - No dangerous dependencies
- * - No XSS/injection vulnerabilities
+ * Fail-closed repository security checks.
+ * Scans source/config files recursively without shell interpolation, then runs
+ * the locally installed ESLint binary. Scanner errors are never reported as a pass.
  */
-
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
-const log = (...a) => console.log(...a);
-const warn = (...a) => console.warn('⚠️ ', ...a);
-const err = (...a) => { console.error('❌', ...a); process.exit(1); };
-
+const log = (...args) => console.log(...args);
+const warn = (...args) => console.warn('⚠️', ...args);
 let issues = 0;
-
-// ── Check for hardcoded secrets ───────────────────────────────────────────
-log('🔐 Checking for hardcoded secrets...');
-
+let scanErrors = 0;
+const root = process.cwd();
+const ignoredDirectories = new Set([
+  '.git', 'node_modules', '.security-review', 'coverage', 'dist', 'build',
+  'platforms', 'www/lib', '.next', '.vercel',
+]);
+const ignoredFiles = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock']);
+const maxFileBytes = 1_000_000;
 const secretPatterns = [
-  { name: 'Private Key', rx: /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/ },
-  { name: 'AWS Key', rx: /AKIA[0-9A-Z]{16}/ },
-  { name: 'GitHub Token', rx: /gh[pousr]{1,2}_[A-Za-z0-9_]{36,255}/ },
-  { name: 'Firebase Key', rx: /"type"\s*:\s*"service_account"/ },
+  { name: 'Private key', rx: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/ },
+  { name: 'AWS access key', rx: /\bAKIA[0-9A-Z]{16}\b/ },
+  { name: 'GitHub token', rx: /\bgh[pousr]_[A-Za-z0-9_]{20,255}\b/ },
+  { name: 'Firebase service-account JSON', rx: /"type"\s*:\s*"service_account"/ },
+  { name: 'Credential assignment', rx: /\b(?:password|passwd|client_secret|api_key|access_token)\s*[:=]\s*["']?(?!\$\{|\$[A-Z_]+|<|CHANGE_ME|YOUR_|EXAMPLE)[A-Za-z0-9_\-/+=]{16,}/i },
 ];
-
-const filesToCheck = [
-  'package.json',
-  'src/**/*.js',
-  'bin/**/*.js',
-  'scripts/**/*.js',
-  '.env',
-];
-
-try {
-  for (const pattern of secretPatterns) {
-    const result = execSync(`grep -r "${pattern.rx.source}" ${filesToCheck.join(' ')} 2>/dev/null || true`, {
-      encoding: 'utf8',
-    }).trim();
-    
-    if (result) {
-      warn(`Found pattern: ${pattern.name}`);
-      issues++;
-    }
-  }
-} catch {
-  // grep may fail if files don't exist — that's OK
-}
-
-if (issues === 0) {
-  log('✓ No hardcoded secrets detected');
-}
-
-// ── Check dangerous dependencies ──────────────────────────────────────────
-log('\n📦 Checking dependencies...');
-
-const dangerousPkgs = new Set([
-  'eval',
-  'vm2',  // deprecated
-  'serialize-javascript', // has vulnerabilities
+const textExtensions = new Set([
+  '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.json', '.yml', '.yaml',
+  '.toml', '.ini', '.conf', '.config', '.html', '.htm', '.css', '.md',
+  '.sh', '.bash', '.ps1', '.sql', '.env', '.properties', '.xml',
 ]);
 
-try {
-  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  const allDeps = {
-    ...pkg.dependencies,
-    ...pkg.devDependencies,
-    ...pkg.optionalDependencies,
-  };
-
-  for (const dep of dangerousPkgs) {
-    if (allDeps[dep]) {
-      warn(`Found potentially dangerous package: ${dep}`);
-      issues++;
+function walk(directory) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(directory, entry.name);
+    const relative = path.relative(root, full);
+    if (entry.isDirectory()) {
+      if (!ignoredDirectories.has(entry.name)) walk(full);
+      continue;
+    }
+    if (!entry.isFile() || ignoredFiles.has(entry.name)) continue;
+    if (entry.name === '.env.example' || entry.name === '.env.sample') continue;
+    if (!textExtensions.has(path.extname(entry.name).toLowerCase()) && !entry.name.startsWith('.env')) continue;
+    let stat;
+    try { stat = fs.statSync(full); } catch (error) {
+      scanErrors++;
+      warn(`Could not stat ${relative}: ${error.message}`);
+      continue;
+    }
+    if (stat.size > maxFileBytes) continue;
+    let content;
+    try { content = fs.readFileSync(full, 'utf8'); } catch (error) {
+      scanErrors++;
+      warn(`Could not read ${relative}: ${error.message}`);
+      continue;
+    }
+    for (const pattern of secretPatterns) {
+      if (pattern.rx.test(content)) {
+        warn(`Possible ${pattern.name} in ${relative}`);
+        issues++;
+      }
     }
   }
-  
-  log('✓ Dependency check passed');
-} catch (e) {
-  warn(`Could not read package.json: ${e.message}`);
 }
 
-// ── ESLint security check ─────────────────────────────────────────────────
-log('\n🔍 Running ESLint security checks...');
-
+log('🔐 Scanning repository text/config files for likely secrets...');
 try {
-  execSync('npx eslint . --max-warnings 0 2>&1 || true', { stdio: 'inherit' });
-  log('✓ ESLint passed');
-} catch {
-  warn('ESLint warnings detected (non-fatal in CI)');
+  walk(root);
+} catch (error) {
+  scanErrors++;
+  warn(`Secret scan could not complete: ${error.message}`);
+}
+if (scanErrors > 0) {
+  console.error(`❌ Secret scan incomplete: ${scanErrors} read/walk error(s)`);
+  process.exitCode = 1;
+} else if (issues === 0) {
+  log('✓ No known secret patterns detected');
 }
 
-// ── Summary ───────────────────────────────────────────────────────────────
-log('\n' + '─'.repeat(50));
-if (issues === 0) {
-  log('✅ Security check passed with 0 issues');
-  process.exit(0);
+log('\n🔍 Running ESLint (failure is blocking)...');
+const eslintBin = path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint');
+if (!fs.existsSync(eslintBin)) {
+  console.error('❌ Local ESLint binary is missing; install locked dependencies before running security checks.');
+  process.exitCode = 1;
 } else {
-  warn(`Security check found ${issues} issue(s)`);
-  process.exit(1);
+  const lint = spawnSync(eslintBin, ['.', '--max-warnings', '0'], { stdio: 'inherit', shell: false });
+  if (lint.error) {
+    console.error(`❌ ESLint could not run: ${lint.error.message}`);
+    process.exitCode = 1;
+  } else if (lint.status !== 0) {
+    console.error(`❌ ESLint failed with exit code ${lint.status ?? 'unknown'}`);
+    process.exitCode = 1;
+  } else {
+    log('✓ ESLint passed');
+  }
+}
+
+log('\n' + '─'.repeat(50));
+if (issues > 0) {
+  console.error(`❌ Found ${issues} potential secret(s); review and rotate any real credentials.`);
+  process.exitCode = 1;
+}
+if (process.exitCode === 1) {
+  console.error('❌ Security checks failed or did not complete.');
+} else {
+  log('✅ Security checks passed. This is not a substitute for dependency or runtime vulnerability scanning.');
 }
