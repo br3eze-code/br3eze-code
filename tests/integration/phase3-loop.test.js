@@ -99,7 +99,7 @@ describe('Phase 3 bounded orchestration loop', () => {
     const { TaskRegistry, TaskStatus } = await import('../../src/core/taskRegistry.js');
     const registry = new TaskRegistry();
     const orchestrator = new AgentOSOrchestrator({ taskRegistry: registry, loopEngine: new LoopEngine({ idFactory: () => 'loop_orchestrated' }) });
-    const result = await orchestrator.runWork({ workId: 'WORK-1', goal: 'Create and reserve', acceptanceCriteria: ['reserved'], tenantId: 'tenant-1', specialist: 'orders', plan: async current => ({ tool: current.iteration === 1 ? 'orders.create' : 'inventory.reserve' }), execute: async tool => tool === 'orders.create' ? { success: true, evidence: [{ type: 'order.created' }] } : { success: true, data: { reserved: true }, evidence: [{ type: 'inventory.reserved' }] }, verify: async observed => observed.data?.reserved === true ? { accepted: true } : { accepted: false, retryable: true } });
+    const result = await orchestrator.runWork({ workId: 'WORK-1', goal: 'Create and reserve', acceptanceCriteria: ['reserved'], tenantId: 'tenant-1', userId: 'user-1', specialist: 'orders', plan: async current => ({ tool: current.iteration === 1 ? 'orders.create' : 'inventory.reserve' }), execute: async tool => tool === 'orders.create' ? { success: true, evidence: [{ type: 'order.created' }] } : { success: true, data: { reserved: true }, evidence: [{ type: 'inventory.reserved' }] }, verify: async observed => observed.data?.reserved === true ? { accepted: true } : { accepted: false, retryable: true } });
     expect(result.result.status).toBe('completed');
     expect(registry.get(result.taskId)).toMatchObject({ status: TaskStatus.COMPLETED, loopId: 'loop_orchestrated', executionState: 'COMPLETE' });
   });
