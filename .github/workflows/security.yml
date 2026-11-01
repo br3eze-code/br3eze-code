@@ -100,7 +100,6 @@ jobs:
       - uses: github/codeql-action/analyze@v3
         with:
           category: /language:javascript
-        continue-on-error: true # CodeQL quota issues shouldn't block
 
   secret-scan:
     name: Secret scan (gitleaks)
