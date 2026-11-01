@@ -8,7 +8,7 @@ const CAPABILITY_TO_TOOL = Object.freeze({
  * Exposes a narrow, read-only hardware capability surface over the existing
  * MikroTik manager. Mutations are deliberately not exposed by this adapter.
  */
-export function createMikroTikHardwareAdapter({ id = 'mikrotik', deviceId = null, manager } = {}) {
+export function createMikroTikHardwareAdapter({ id = 'mikrotik', deviceId = null, manager, ownsManager = false } = {}) {
   if (!manager || typeof manager.executeTool !== 'function') {
     throw new TypeError('MikroTik manager with executeTool(name) is required');
   }
@@ -44,7 +44,7 @@ export function createMikroTikHardwareAdapter({ id = 'mikrotik', deviceId = null
     provider: 'mikrotik',
     capabilities: Object.freeze(capabilities),
     async close() {
-      await manager.disconnect?.();
+      if (ownsManager) await manager.disconnect?.();
     },
   });
 }
