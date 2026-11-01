@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Br3eze AgentOS",
+    "slug": "br3eze-agentos",
+    "scheme": "br3eze-agentos",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "africa.br3eze.agentos",
+      "edgeToEdgeEnabled": true
+    },
+    "ios": {
+      "bundleIdentifier": "africa.br3eze.agentos",
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
