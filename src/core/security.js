@@ -4,22 +4,28 @@ import helmet from 'helmet';
 import hpp from 'hpp';
 import { logger } from './logger.js';
 
+const SENSITIVE_KEY_PARTS = [
+  'password', 'passwd', 'token', 'secret', 'key', 'credential',
+  'authorization', 'cookie', 'session', 'private', 'signature',
+];
+
 /**
  * SecurityManager — HTTP hardening, audit logging and authenticated encryption.
  *
- * AES-256-GCM is used with a fresh IV for every ciphertext. If a master key is
- * configured it is deterministically normalized to 32 bytes so encrypted data
- * survives process restarts. Without one, a random process key is used and a
- * warning is emitted because ciphertext cannot be decrypted after restart.
+ * Production requires a stable externally managed master key. Development may
+ * use an ephemeral key, with an explicit warning that ciphertext will not
+ * survive process restarts.
  */
 export class SecurityManager {
   constructor() {
     const configuredKey = process.env.AGENTOS_MASTER_KEY;
     if (configuredKey) {
       this.encryptionKey = SecurityManager.normalizeKey(configuredKey);
+    } else if (process.env.NODE_ENV === 'production') {
+      throw new Error('AGENTOS_MASTER_KEY is required in production; refusing to start with an ephemeral encryption key.');
     } else {
       this.encryptionKey = crypto.randomBytes(32);
-      logger.warn('[Security] AGENTOS_MASTER_KEY is not configured; encryption key is ephemeral for this process.');
+      logger.warn('[Security] AGENTOS_MASTER_KEY is not configured; development encryption key is ephemeral.');
     }
     this.failedAttempts = new Map();
     this.blockedIPs = new Set();
@@ -61,7 +67,7 @@ export class SecurityManager {
   }
 
   sanitizeHost(host) {
-    if (typeof host !== 'string' || !/^[\w\.-]+$/.test(host)) throw new Error('Invalid hostname format');
+    if (typeof host !== 'string' || !/^[\w.-]+$/.test(host)) throw new Error('Invalid hostname format');
     if (['127.0.0.1', 'localhost', '0.0.0.0', '::1'].includes(host.toLowerCase())) throw new Error('Forbidden host');
     return host;
   }
@@ -77,7 +83,9 @@ export class SecurityManager {
           directives: {
             defaultSrc: ["'self'"],
             connectSrc: ["'self'", 'wss:', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.googleapis.com', 'https://*.firebaseapp.com'],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://www.gstatic.com', 'https://apis.google.com'],
+            // unsafe-inline is retained for legacy UI compatibility; unsafe-eval
+            // is intentionally removed. Migrate inline scripts to nonces/hashes.
+            scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.gstatic.com', 'https://apis.google.com'],
             frameSrc: ["'self'", 'https://*.firebaseapp.com', 'https://*.google.com'],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
             fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
@@ -109,12 +117,20 @@ export class SecurityManager {
   }
 
   sanitizeBody(body) {
-    if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
-    const sensitive = ['password', 'token', 'secret', 'key', 'credential', 'authorization'];
-    return Object.fromEntries(Object.entries(body).map(([key, value]) => [
-      key,
-      sensitive.some((name) => key.toLowerCase().includes(name)) ? '[REDACTED]' : value,
-    ]));
+    const seen = new WeakSet();
+    const redact = (value, depth = 0) => {
+      if (value === null || typeof value !== 'object') return value;
+      if (depth > 12) return '[TRUNCATED]';
+      if (seen.has(value)) return '[CIRCULAR]';
+      seen.add(value);
+      if (Array.isArray(value)) return value.map((item) => redact(item, depth + 1));
+      return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const isSensitive = SENSITIVE_KEY_PARTS.some((part) => normalizedKey.includes(part.replace(/[^a-z0-9]/g, '')));
+        return [key, isSensitive ? '[REDACTED]' : redact(child, depth + 1)];
+      }));
+    };
+    return redact(body);
   }
 }
 
