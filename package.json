@@ -51,6 +51,7 @@
     "test:production": "npm test -- --runInBand --coverage=false",
     "vercel:build": "npm run build && node scripts/vercel-build.mjs",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
+    "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs",
     "model:train": "node scripts/train-model.mjs",
     "model:predict": "node scripts/predict-model.mjs",
     "test:platform": "node --test tests/platform/*.test.js",
