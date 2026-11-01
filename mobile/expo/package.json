@@ -1,0 +1,23 @@
+{
+  "name": "br3eze-agentos-expo",
+  "version": "1.0.0",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "doctor": "expo-doctor"
+  },
+  "dependencies": {
+    "expo": "~58.0.22",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-webview": "13.15.0"
+  },
+  "devDependencies": {
+    "expo-doctor": "^1.17.0"
+  }
+}
