@@ -100,7 +100,9 @@ export class MeshRegistry extends EventEmitter {
     if (!node.manager) await this.connect(id, context);
     const startedAt = Date.now();
     try {
-      const result = await node.manager.execute?.(capability, params, context);
+      const result = typeof node.manager.execute === 'function'
+        ? await node.manager.execute(capability, params, context)
+        : await node.manager.executeTool?.(capability, params, context);
       await this._audit({ action: 'execute', nodeId: id, tenantId: node.tenantId, capability, context: this._redactContext(context), ok: true, durationMs: Date.now() - startedAt });
       return { nodeId: id, capability, result };
     } catch (error) {
