@@ -24,6 +24,20 @@ describe('MikroTik hardware adapter', () => {
     expect(manager.disconnect).toHaveBeenCalledTimes(1);
   });
 
+  test('reports cancellation after an in-flight read resolves', async () => {
+    let resolveRead;
+    const manager = {
+      executeTool: jest.fn(() => new Promise((resolve) => { resolveRead = resolve; })),
+    };
+    const adapter = createMikroTikHardwareAdapter({ manager });
+    const controller = new AbortController();
+    const pending = adapter.capabilities[0].execute({}, { signal: controller.signal });
+    await Promise.resolve();
+    controller.abort(new Error('cancelled in flight'));
+    resolveRead({ ok: true });
+    await expect(pending).rejects.toThrow('cancelled in flight');
+  });
+
   test('does not dispatch when cancellation was already requested', async () => {
     const manager = { executeTool: jest.fn() };
     const adapter = createMikroTikHardwareAdapter({ manager });
