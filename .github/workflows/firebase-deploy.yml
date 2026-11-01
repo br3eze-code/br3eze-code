@@ -54,7 +54,7 @@ jobs:
           cache: npm
 
       - name: Install root dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
       - name: Install functions dependencies
         working-directory: server
