@@ -1,6 +1,6 @@
 {
   "name": "br3eze-code",
-  "version": "2026.11.57",
+  "version": "2026.11.59",
   "description": "Domain-agnostic agent runtime and harness for tools, skills, workflows, plugins, and model providers",
   "main": "src/core/agentRuntime.js",
   "bin": {
