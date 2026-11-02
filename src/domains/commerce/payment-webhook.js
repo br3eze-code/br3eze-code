@@ -29,6 +29,7 @@ export function createCommerceWebhookHandler(gateway, { db = null, scope = {} } 
     };
 
     const handler = createWebhookHandler(gateway, reconcile, reconcile);
-    return handler(req, res);
+    const normalizedRequest = { ...req, params: { ...req.params, provider } };
+    return handler(normalizedRequest, res);
   };
 }
