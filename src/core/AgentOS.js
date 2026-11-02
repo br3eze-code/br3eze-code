@@ -4,7 +4,6 @@ import { getAgentRuntime } from './agentRuntime.js';
 import { ToolRegistry } from './ToolRegistry.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
-import LLMCoordinator from './llm/LLMCoordinator.js';
 import WorkflowEngine from './WorkflowEngine.js';
 import TelemetryCollector from './TelemetryCollector.js';
 import HealthMonitor from './HealthMonitor.js';
@@ -46,7 +45,15 @@ class AgentOS extends EventEmitter {
     this.channels = new ChannelManager(this);
     this.memory = new MemoryManager(this.config.memoryAdapter || 'memory', { sessionEventStore: this.config.sessionEventStore });
     this.contextEngine = new ContextEngine();
-    this.llm = new LLMCoordinator(this.config.llmProvider || config.llm?.primary || 'ollama');
+    // Legacy llm.generate callers are routed through AgentRuntime's model port;
+    // this facade owns no provider client, retry loop, or model selection.
+    this.llm = Object.freeze({
+      initialize: async () => ({ ready: Boolean(this.runtime.model) }),
+      generate: async (prompt, options = {}) => {
+        if (typeof this.runtime.generateText !== 'function') throw new Error('Canonical runtime does not expose text generation');
+        return this.runtime.generateText(prompt, options);
+      },
+    });
     this.workflows = new WorkflowEngine(this);
     this.telemetry = new TelemetryCollector();
     this.health = new HealthMonitor(this);
