@@ -69,6 +69,7 @@ jobs:
           test -d www
           test -f www/index.html
           test -f api/index.js
+          test -f 'api/[...path].js'
           du -sh www
 
       - name: Validate deployment configuration
