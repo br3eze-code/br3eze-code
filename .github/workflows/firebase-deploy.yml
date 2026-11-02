@@ -117,6 +117,8 @@ jobs:
             echo "SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}"
             echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}"
             echo "SUPABASE_OAUTH_REDIRECT=${{ secrets.SUPABASE_OAUTH_REDIRECT }}"
+            echo "API_BASE_URL=${{ secrets.AGENTOS_API_BASE_URL || 'https://br3eze.africa' }}"
+            echo "AGENTOS_API_BASE_URL=${{ secrets.AGENTOS_API_BASE_URL || 'https://br3eze.africa' }}"
           } > .env
 
       - name: Write Functions runtime environment
