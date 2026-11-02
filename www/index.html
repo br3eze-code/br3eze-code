@@ -74,10 +74,10 @@
             </div>
             <form id="loginFormElement">
                 <div class="form-group">
-                    <label>Username, Phone or Email</label>
+                    <label>Email address</label>
                     <div class="input-wrapper">
                         <i class="fas fa-user"></i>
-                        <input type="text" placeholder="Username, phone, or email" id="loginIdentifier" required autocomplete="username">
+                        <input type="text" placeholder="name@example.com" id="loginIdentifier" required autocomplete="username">
                     </div>
                 </div>
                 <div class="form-group">
@@ -431,7 +431,7 @@
             <div class="card">
                 <h3>Change Password</h3>
                 <form id="changePasswordForm">
-                    <div class="form-group"><label>Current Password</label><input type="password" id="currentPassword" required autocomplete="current-password"></div>
+                    <div class="form-group"><label>Current Password (leave blank for Google accounts)</label><input type="password" id="currentPassword" autocomplete="current-password"></div>
                     <div class="form-group"><label>New Password</label><input type="password" id="newPassword" required minlength="6" autocomplete="new-password"></div>
                     <div class="form-group"><label>Confirm New Password</label><input type="password" id="confirmNewPassword" required minlength="6" autocomplete="new-password"></div>
                     <button type="submit" class="btn btn-primary">Update Password</button>
