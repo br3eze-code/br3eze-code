@@ -1167,6 +1167,36 @@ document.addEventListener('DOMContentLoaded', () => {
         auth.onAuthStateChanged(async user => {
             if (user) {
                 try {
+                    // A Firebase session is accepted only as the downstream
+                    // Firestore bridge for a matching Supabase human identity.
+                    const supabaseSession = window.SupabaseAuth?.getSession?.();
+                    let supabaseUser = null;
+                    if (supabaseSession?.access_token) {
+                        try { supabaseUser = await window.SupabaseAuth.getUser(); } catch {}
+                        supabaseUser ||= supabaseSession.user || null;
+                    }
+                    if (!supabaseSession?.access_token || !supabaseUser?.id) {
+                        await auth.signOut();
+                        currentUser = null;
+                        window.Loading.hide();
+                        showAuthScreen();
+                        return;
+                    }
+
+                    let tokenClaims = (await user.getIdTokenResult()).claims || {};
+                    if (tokenClaims.auth_provider !== 'supabase' || tokenClaims.supabase_uid !== supabaseUser.id) {
+                        if (!navigator.onLine) {
+                            throw new Error('Reconnect to refresh your Br3eze identity bridge.');
+                        }
+                        const bridgedUser = await window.SupabaseAuth.establishFirebaseSession(supabaseSession);
+                        if (!bridgedUser) throw new Error('Supabase identity bridge could not be established.');
+                        if (bridgedUser.uid !== user.uid) return; // A new auth-state event will load the mapped Firebase UID.
+                        tokenClaims = (await bridgedUser.getIdTokenResult(true)).claims || {};
+                        if (tokenClaims.auth_provider !== 'supabase' || tokenClaims.supabase_uid !== supabaseUser.id) {
+                            throw new Error('Firebase data token does not match the signed-in Supabase user.');
+                        }
+                    }
+
                     currentUser = await DataStore.getUser(user.uid);
                     syncOfflineUserContext(currentUser || user);
 
@@ -1177,11 +1207,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (currentUser) {
-                        // Self-heal login lookups so this account can sign in
-                        // by username/phone next time (see DataStore.writeLoginLookups).
                         DataStore.writeLoginLookups(currentUser).catch(() => {});
                         await showMainApp();
-                        handleStripeReturn(); // credit balance if returning from Stripe checkout
+                        handleStripeReturn();
                         setTimeout(() => maybePromptNotificationPermission(), 3000);
                         setTimeout(() => maybePromptLocationPermission(), 9000);
                         setTimeout(() => {
@@ -1191,13 +1219,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         }, 2000);
                     } else {
                         if (navigator.onLine) Auth.logout();
-                        else showToast("Offline: Profile unavailable.", "warning");
+                        else showToast('Offline: Profile unavailable.', 'warning');
                         window.Loading.hide();
                     }
                 } catch (e) {
-                    console.error("Profile Load Error", e);
+                    console.error('Profile Load Error', e);
                     window.Loading.hide();
-                    if (!navigator.onLine) showToast("Offline Mode Active", "info");
+                    if (!navigator.onLine) showToast('Offline Mode Active', 'info');
+                    else showToast(e.message || 'Could not validate your Br3eze session.', 'error');
                 }
             } else {
                 currentUser = null;
