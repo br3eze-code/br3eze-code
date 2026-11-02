@@ -1,5 +1,5 @@
 /* ==========================================================
-   06.firebase.js — Firebase init, auth/db/storage handles,
+   06.firebase.js — Firebase legacy data adapter only,
                     offline persistence, DataStore queries
    Depends on: Firebase SDK (loaded in index.html)
    ========================================================== */
@@ -21,20 +21,15 @@ if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.leng
     firebase.initializeApp(firebaseConfig);
 }
 
-const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
-const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
-const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
+const firebaseDataDb = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
+const firebaseDataStorage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
 
-window.AgentOSProviders?.registerAuth({
-    provider: 'firebase',
-    auth,
-    storage,
-    getCurrentUser: () => auth?.currentUser || null
-});
+// Human identity is Supabase. Firebase Auth is only a downstream Firestore
+// session established from a verified Supabase token by the server.
 
 // Enable offline persistence (Firestore)
-if (db) {
-    db.enablePersistence({ synchronizeTabs: true })
+if (firebaseDataDb) {
+    firebaseDataDb.enablePersistence({ synchronizeTabs: true })
         .catch(err => console.warn('[Firebase] Persistence:', err.code));
 }
 
@@ -53,35 +48,35 @@ const firebaseDataAdapter = {
     async getUser(uid) {
         const remote = await apiData('users', { id: uid });
         if (remote) return remote[0] || null;
-        const doc = await db.collection('users').doc(uid).get();
+        const doc = await firebaseDataDb.collection('users').doc(uid).get();
         return doc.exists ? { id: doc.id, ...doc.data() } : null;
     },
 
     async getAllUsers() {
         const remote = await apiData('users');
         if (remote) return remote;
-        const snap = await db.collection('users').orderBy('createdAt', 'desc').get();
+        const snap = await firebaseDataDb.collection('users').orderBy('createdAt', 'desc').get();
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
     async getProducts() {
         const remote = await apiData('products');
         if (remote) return remote;
-        const snap = await db.collection('products').where('active', '==', true).get();
+        const snap = await firebaseDataDb.collection('products').where('active', '==', true).get();
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
     async getPlans() {
         const remote = await apiData('plans');
         if (remote) return remote;
-        const snap = await db.collection('plans').orderBy('price').get();
+        const snap = await firebaseDataDb.collection('plans').orderBy('price').get();
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
 
     async getTickets() {
         const remote = await apiData('tickets');
         if (remote) return remote;
-        let q = db.collection('tickets').orderBy('lastUpdate', 'desc');
+        let q = firebaseDataDb.collection('tickets').orderBy('lastUpdate', 'desc');
         if (window.currentUser?.role !== 'admin') {
             q = q.where('userId', '==', window.currentUser.id);
         }
@@ -90,13 +85,13 @@ const firebaseDataAdapter = {
     },
 
     async getTicketReplies(tid) {
-        const snap = await db.collection('tickets').doc(tid)
+        const snap = await firebaseDataDb.collection('tickets').doc(tid)
             .collection('replies').orderBy('timestamp').get();
         return snap.docs.map(d => d.data());
     },
 
     async getNetworkSettings() {
-        const doc = await db.collection('settings').doc('network').get();
+        const doc = await firebaseDataDb.collection('settings').doc('network').get();
         return doc.exists ? doc.data() : { ssid: '', password: '' };
     }
 };
