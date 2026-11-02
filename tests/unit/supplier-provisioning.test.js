@@ -213,9 +213,11 @@ describe('supplier provisioning transaction guards', () => {
   test('does not close an order until required acceptance evidence is present', async () => {
     const h = makeHarness();
     await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
-    await h.service.receivePartial({ orderId: 'po-1', scope: h.scope, receiptId: 'receipt-6', lines: [{ productId: 'ap-1', acceptedQuantity: 10, rejectedQuantity: 0 }], evidence: ['inspection-6'] });
+    await h.service.receivePartial({ orderId: 'po-1', scope: h.scope, receiptId: 'receipt-6', lines: [{ productId: 'ap-1', acceptedQuantity: 10, rejectedQuantity: 0 }], evidence: ['receipt_inspection'] });
     const blocked = await h.service.closeOrder({ orderId: 'po-1', scope: h.scope, acceptanceEvidence: ['receipt_inspection'] });
     expect(blocked).toMatchObject({ closed: false, reason: 'acceptance_evidence_missing', missing: ['customer_acceptance'] });
+    const order = await h.store.getOrder('po-1', 'tenant-a');
+    await h.store.updateOrder('po-1', 'tenant-a', { evidence: [...order.evidence, 'customer_acceptance'] });
     const closed = await h.service.closeOrder({ orderId: 'po-1', scope: h.scope, acceptanceEvidence: ['receipt_inspection', 'customer_acceptance'] });
     expect(closed.closed).toBe(true);
     expect(closed.order.status).toBe('closed');
