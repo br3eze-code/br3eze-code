@@ -6,13 +6,12 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 3 * * 1' # Weekly Monday 03:00 UTC
+    - cron: '0 3 * * 1'
   workflow_dispatch:
 
+# Default to read-only. Only CodeQL receives security-events write access.
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 jobs:
   npm-audit:
@@ -44,11 +43,11 @@ jobs:
           for (const severity of ['critical', 'high', 'moderate', 'low', 'info']) {
             console.log(`${severity}: ${counts[severity] || 0}`);
           }
-          const advisories = Object.entries(report.vulnerabilities || {});
-          for (const [name, item] of advisories) {
+          for (const [name, item] of Object.entries(report.vulnerabilities || {})) {
             const via = (item.via || []).filter(v => typeof v === 'object');
             console.log(JSON.stringify({ package: name, severity: item.severity, direct: item.isDirect, range: item.range, fixAvailable: item.fixAvailable, advisories: via.map(v => ({ title: v.title, url: v.url, cves: v.cves, range: v.range })) }));
           }
+          // Fail closed for high/critical vulnerabilities; preserve the full report as an artifact.
           if ((counts.critical || 0) > 0 || (counts.high || 0) > 0) process.exitCode = 1;
           NODE
       - uses: actions/upload-artifact@v7
@@ -100,7 +99,6 @@ jobs:
       - uses: github/codeql-action/analyze@v3
         with:
           category: /language:javascript
-        continue-on-error: true # CodeQL quota issues shouldn't block
 
   secret-scan:
     name: Secret scan (gitleaks)
