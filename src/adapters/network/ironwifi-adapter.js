@@ -21,7 +21,7 @@ const WRITE_ACTIONS = new Set([
 
 function isAllowedHost(hostname) {
   const host = hostname.toLowerCase();
-  return [...ALLOWED_HOSTS].some((domain) => host === domain || host.endsWith(`.\u0024{domain}`));
+  return [...ALLOWED_HOSTS].some((domain) => host === domain || host.endsWith('.' + domain));
 }
 
 function normalizeBaseUrl(value = DEFAULT_BASE_URL) {
