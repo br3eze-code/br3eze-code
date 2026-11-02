@@ -170,6 +170,27 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
     } catch (error) { return errorResponse(res, error); }
   });
 
+  app.post('/api/v1/shop/supplier-orders/:orderId/invoice-match', authMiddleware, async (req, res) => {
+    try {
+      requireProcurementWrite(req);
+      const scope = await authenticatedScope(req, db);
+      const { invoice, approvalId } = req.body || {};
+      const approval = await loadApproval(db, approvalId, scope, 'settlement.release');
+      const result = await makeService().matchInvoice({ orderId: String(req.params.orderId), scope, invoice, approval });
+      return res.status(result.matched ? 200 : 409).json(result);
+    } catch (error) { return errorResponse(res, error); }
+  });
+
+  app.post('/api/v1/shop/supplier-orders/:orderId/close', authMiddleware, async (req, res) => {
+    try {
+      requireProcurementWrite(req);
+      const scope = await authenticatedScope(req, db);
+      const { acceptanceEvidence = [] } = req.body || {};
+      const result = await makeService().closeOrder({ orderId: String(req.params.orderId), scope, acceptanceEvidence });
+      return res.status(result.closed ? 200 : 409).json(result);
+    } catch (error) { return errorResponse(res, error); }
+  });
+
   return { makeService };
 }
 
