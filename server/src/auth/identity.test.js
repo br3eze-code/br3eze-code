@@ -1,7 +1,15 @@
 import { describe, expect, test, jest } from '@jest/globals';
-import { authenticateBearer, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
+import { authenticateBearer, extractBearerToken, hasPermission, ownsResource, normalizeIdentity } from './identity.js';
 
 describe('Supabase identity boundary', () => {
+  test('parses only standard bearer authorization headers', () => {
+    expect(extractBearerToken('Bearer access-token')).toBe('access-token');
+    expect(extractBearerToken('bearer   access-token  ')).toBe('access-token');
+    expect(extractBearerToken('Basic access-token')).toBeNull();
+    expect(extractBearerToken('Bearer')).toBeNull();
+    expect(extractBearerToken('')).toBeNull();
+  });
+
   test('requires a distinct configured service token for service authority', async () => {
     const previous = process.env.AGENTOS_SERVICE_TOKEN;
     process.env.AGENTOS_SERVICE_TOKEN = 'explicit-service-token';
