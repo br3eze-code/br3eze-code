@@ -75,13 +75,15 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
       productQueryService: {
         async search(input) {
           calls.push(input);
-          return { tenantId: 'tenant-a', items: [{ tenantId: 'tenant-a', id: 'p-1', name: 'Camera' }] };
+          return { tenantId: 'tenant-a', items: [{ tenantId: 'tenant-a', id: 'p-1', name: 'Camera', supplierId: 'supplier-a', supplierReferenceUrl: 'https://supplier.example/camera' }] };
         },
       },
     });
     expect(result).toMatchObject({ tenantId: 'tenant-a' });
     expect(calls[0].scope).toMatchObject({ tenantId: 'tenant-a', userId: 'user-1' });
     expect(calls[0].filters).toEqual({ name: 'Camera', include: ['description', 'availability'] });
+    expect(calls[0].include).toEqual(expect.arrayContaining(['supplierReferenceUrl', 'supplierId', 'supplierSku', 'supplierFulfillmentMode']));
+    expect(result.items[0]).toMatchObject({ supplierId: 'supplier-a', supplierReferenceUrl: 'https://supplier.example/camera' });
   });
 
   test('catalog publication is approval-gated and does not mutate pricing or inventory', async () => {
