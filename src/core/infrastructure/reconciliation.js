@@ -52,7 +52,7 @@ export function compareMigrationHistory({ local, remote }) {
     if (!Array.isArray(items)) throw new TypeError(label + ' migrations must be an array');
     const seen = new Set();
     for (const item of items) {
-      if (!item || !/^\\d{14}$/.test(item.version) || typeof item.name !== 'string' || !item.name.trim()) throw new TypeError('Invalid ' + label + ' migration');
+      if (!item || !/^\d{14}$/.test(item.version) || typeof item.name !== 'string' || !item.name.trim()) throw new TypeError('Invalid ' + label + ' migration');
       if (seen.has(item.version)) throw new TypeError('Duplicate ' + label + ' migration version: ' + item.version);
       seen.add(item.version);
     }
