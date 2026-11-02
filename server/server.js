@@ -30,6 +30,7 @@ import { configureHttpApplication } from './src/core/configureHttpApplication.js
 import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
 import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
+import { registerOrderTrackingRoutes } from './src/domains/commerce/order-tracking.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1366,6 +1367,14 @@ if (db) {
     registerSupplierProvisioningRoutes({ app, authMiddleware, db });
 } else {
     logger.warn('Supplier provisioning routes disabled: Firebase database is not configured');
+}
+
+// Customer order tracking and courier refresh are mounted only when the
+// authoritative Firestore commerce store is available.
+if (db) {
+    registerOrderTrackingRoutes({ app, authMiddleware, db, logger });
+} else {
+    logger.warn('Order tracking routes disabled: Firebase database is not configured');
 }
 
 // ── Stripe card top-up ──────────────────────────────────────────────────────
