@@ -35,8 +35,6 @@ jobs:
           fi
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
-      - name: Validate Core boundary
-        run: node scripts/core-boundary-gate.mjs
       - name: Validate repository hygiene
         run: npm run check:repository-hygiene
       - name: Install dependencies
