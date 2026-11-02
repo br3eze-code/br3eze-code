@@ -2,6 +2,7 @@ import { ProviderRegistry } from './provider-registry.js';
 import { ServiceSupervisor } from './service-supervisor.js';
 import { PermissionPolicy } from './permission-policy.js';
 import { IpcBus } from './ipc-bus.js';
+import { createManagedPlatform } from '../core/os/index.js';
 
 /**
  * Host-neutral platform container, analogous in intent (not implementation)
@@ -9,11 +10,36 @@ import { IpcBus } from './ipc-bus.js';
  * not create a second agent loop or execute arbitrary package entrypoints.
  */
 export class RuntimeEnvironment {
-  constructor({ ipcTopics = [], maxIpcPayloadBytes = 64 * 1024, permissions = new PermissionPolicy(), providers = new ProviderRegistry(), supervisor = new ServiceSupervisor() } = {}) {
+  constructor({
+    ipcTopics = [],
+    maxIpcPayloadBytes = 64 * 1024,
+    maxIpcSubscribers = 1024,
+    authorizeIpc,
+    onIpcAudit,
+    permissions = new PermissionPolicy(),
+    providers = new ProviderRegistry(),
+    supervisor = new ServiceSupervisor(),
+    stateStore = null,
+  } = {}) {
     this.permissions = permissions;
     this.providers = providers;
     this.supervisor = supervisor;
-    this.ipc = new IpcBus({ topics: ipcTopics, maxPayloadBytes: maxIpcPayloadBytes });
+    this.ipc = new IpcBus({
+      topics: ipcTopics,
+      maxPayloadBytes: maxIpcPayloadBytes,
+      maxSubscribers: maxIpcSubscribers,
+      ...(authorizeIpc ? { authorize: authorizeIpc } : {}),
+      ...(onIpcAudit ? { onAudit: onIpcAudit } : {}),
+    });
+    // The core composition owns service/app and IPC state. This class only
+    // adds provider/permission registries and the environment lifecycle.
+    this.managedPlatform = createManagedPlatform({
+      supervisor: this.supervisor,
+      ipc: this.ipc,
+      stateStore,
+    });
+    this.applications = this.managedPlatform.applications;
+    this.stateStore = this.managedPlatform.stateStore;
     this.state = 'created';
   }
 
