@@ -394,8 +394,8 @@ const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.fire
 const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
 
 function appApiUrl(path) {
-    if (/^https?:\\/\\//i.test(path)) return path;
-    const base = String(window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '').replace(/\\/$/, '');
+    if (/^https?:\/\//i.test(path)) return path;
+    const base = String(window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '').replace(/\/$/, '');
     return base + path;
 }
 window.currentUser = null;
