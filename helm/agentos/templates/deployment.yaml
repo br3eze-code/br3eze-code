@@ -6,11 +6,11 @@ spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "agentos.selectorLabels". | nindent 6 }}
+      {{- include "agentos.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "agentos.selectorLabels". | nindent 8 }}
+        {{- include "agentos.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "agentos.serviceAccountName" . }}
       containers:
