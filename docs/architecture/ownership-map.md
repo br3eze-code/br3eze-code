@@ -7,6 +7,8 @@ This document records the canonical owner for each cross-cutting concern. Compat
 | Concern | Canonical owner | Rules |
 | --- | --- | --- |
 | Agent execution and model/tool turns | `src/core/agentRuntime.js` | Only owner of agent turn execution. Hosts and harnesses obtain it through `getAgentRuntime()` unless a runtime is explicitly injected for isolation/testing. |
+| Model provider selection | `src/adapters/models/configured-provider.js` | Host-side provider selection produces the neutral model port; core does not instantiate provider SDKs. |
+| Tool-free text generation | `AgentRuntime.generateText()` | Reuses the canonical model port with tool execution disabled. |
 | Work-level plan/execute/observe/verify lifecycle | `src/core/orchestration/loop-engine.js` via `src/core/orchestration/orchestrator.js` | Runs a scoped work lifecycle; it does not create or own another AgentRuntime. |
 | Periodic system maintenance | `src/core/orchestrator.js` (`SystemLifecycleCoordinator`) | Schedules host-supplied maintenance/observation callbacks only; it is not the work orchestrator. |
 | Managed trusted-service lifecycle | `src/core/os/ServiceSupervisor.js` | Owns service state, dependencies, transition serialization, and reverse dependency shutdown. |
@@ -21,6 +23,8 @@ This document records the canonical owner for each cross-cutting concern. Compat
 
 ## Compatibility facades (not independent implementations)
 
+- `src/core/ask-engine.js` adapts the legacy AskEngine API to `AgentRuntime`; it owns no ReAct loop or provider.
+- `AgentOS.llm` is a compatibility facade over `AgentRuntime.generateText()`, not a second LLMCoordinator.
 - `src/platform/service-supervisor.js` adapts the legacy `register(id, service, options)` API to `src/core/os/ServiceSupervisor.js`.
 - `src/platform/ipc-bus.js` adapts the legacy topic API to `src/core/os/IPCMessageBus.js`.
 - `src/platform/local-state-store.js` re-exports the persistence adapter; it must not contain filesystem logic.
