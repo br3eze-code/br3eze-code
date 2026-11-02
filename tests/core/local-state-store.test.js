@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from '@jest/globals';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { LocalStateStore } from '../../src/core/os/LocalStateStore.js';
+import { LocalStateStore } from '../../src/adapters/persistence/local-state-store.js';
 
 describe('LocalStateStore', () => {
   let rootDir;
