@@ -11,6 +11,7 @@ const SUPABASE_SESSION_KEY = 'agentos_supabase_session';
 const SUPABASE_PROFILE_KEY = 'agentos_supabase_profile';
 const PKCE_VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
 const OAUTH_STATE_KEY = 'agentos_oauth_state';
+const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'github', 'azure', 'apple', 'facebook']);
 
 function supabaseHeaders(accessToken = '') {
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
@@ -93,7 +94,7 @@ async function createPkce() {
 
 async function loginWithProvider(provider) {
     provider = String(provider || '').trim().toLowerCase();
-    if (!provider) throw new Error('Authentication provider is required.');
+    if (!SUPPORTED_OAUTH_PROVIDERS.has(provider)) throw new Error('Unsupported OAuth provider. Enable Google, GitHub, Azure, Apple, or Facebook in Supabase Auth first.');
     if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase Auth is not configured.');
 
     const redirect = SUPABASE_OAUTH_REDIRECT ||
