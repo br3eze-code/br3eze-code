@@ -17,6 +17,11 @@ const ROLE_PERMISSIONS = Object.freeze({
   USER: ['profile.read', 'profile.update', 'orders.create', 'payments.create']
 });
 
+export function extractBearerToken(authorization) {
+  const match = String(authorization || '').match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() || null : null;
+}
+
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const left = Buffer.from(a);
