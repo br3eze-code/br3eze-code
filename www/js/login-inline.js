@@ -118,7 +118,7 @@ document.getElementById('signupFormElement')?.addEventListener('submit', async (
     try {
         await window.Auth.signup(email, password, fullname, username, confirmPassword);
         document.getElementById('loginIdentifier').value = email;
-        if (window.Auth.getSession?.()?.access_token) toggleAuthForm();
+        if (window.SupabaseAuth.getSession()?.access_token) toggleAuthForm();
     } catch (error) {
         showToast(error.message || 'Account creation failed.', 'error');
     }
