@@ -9,9 +9,6 @@ name: Firebase Deploy
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ['Release']
-    types: [completed]
   workflow_dispatch:
     inputs:
       only:
@@ -32,14 +29,8 @@ jobs:
   deploy:
     name: Deploy to Firebase
     runs-on: ubuntu-latest
-    # Deploy from main pushes, manual dispatches, or successful releases.
-    # A failed Release workflow must not silently suppress Firebase deployment.
-    if: >
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+    # Main pushes and manual dispatches are the only Firebase deployment paths.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     environment: production
     steps:
       - name: Checkout
