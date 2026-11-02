@@ -7,8 +7,16 @@ Snapshot: `main` at `4c6b7d97996034f21af5f9ce92a28d81c308f611`, before this audi
 - 60 branches returned by GitHub, including `main`.
 - 59 non-main branches.
 - 37 branches have zero commits ahead of main and are safe to prune when no unmerged work remains.
-- 22 branches still have unique commits. They are preserved until their unique work is reviewed and either ported or explicitly rejected.
+- 22 branches initially had unique commit histories. Three have now been reviewed and explicitly marked absorbed; 19 remain preserved for file-by-file review.
 - A file-by-file port does not make a branch's commits ancestors of main. The cleanup workflow therefore supports a reviewed manifest containing the exact branch head and the main commit where the work was absorbed.
+
+## Explicitly absorbed (3)
+
+- `port/nodejs-autograd-current-main`: six commits ahead but no changed files.
+- `feat/supplier-provisioning-transaction-guards`: main already contains a newer supplier service and more complete tests.
+- `patch/security-hardening-2026-11`: main contains the equivalent Web MCP policy and stronger current security-check implementation.
+
+These exact branch heads are recorded in `.github/branch-absorption.json`; the cleanup workflow may delete them after verifying the recorded main commit is still an ancestor.
 
 ## Ahead branches retained for review
 
@@ -31,18 +39,15 @@ Decision: do not replace current lockfiles with snapshots from branches hundreds
 - `refactor/general-purpose-single-runtime`
 - `refactor/linux-single-runtime-boundaries`
 - `port/security-hygiene-current-main`
-- `port/nodejs-autograd-current-main`
 
 Decision: selectively port unique files and patterns only. The general-runtime and missing-patterns branches overlap substantially. The Linux branch contains useful Level-2 service, IPC, app and local-state components, but its platform registry trusts caller-provided `authorizedCapabilities` and `approvalGranted`; its local file-state boundary also needs symlink hardening. Do not merge it wholesale.
 
 ### Security and dependency remediation
-- `patch/security-hardening-2026-11`
 - `snyk-fix-890df4e8aba327a7453085b9e48a48ee`
 
 Decision: inspect security changes against current main and retain only stronger, non-duplicated protections. The Snyk branch changes Joi without a matching lockfile update; do not merge it as-is.
 
 ### Operator, procurement, tests and documentation
-- `feat/supplier-provisioning-transaction-guards`
 - `test/persistence-and-mikrotik-adapter-paths`
 - `docs/current-main-verification-status`
 - `docs/readme-evidence-based-status`
