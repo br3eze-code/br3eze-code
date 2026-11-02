@@ -77,3 +77,35 @@ The old ledger describes a prior working branch and old comparison counts. It mu
 ## Conclusion
 
 The history does **not** support the claim that all closed branches were lost before absorption. A substantial portion of their unique code is present on `main` through later port/consolidation PRs. It also does **not** support the claim that every PR from #78 to #300 was fully absorbed: there are confirmed partial gaps, historical audit artifacts that were missing, and test/documentation work requiring review.
+
+
+## Exact branch-deletion trace
+
+GitHub Actions logs show **50 branch refs deleted** by the automated `Prune absorbed branches` workflow across six successful runs on 2026-11-02:
+
+| Workflow run | Deleted refs | Basis |
+| --- | ---: | --- |
+| `41487021985` | 38 | 37 branches were commit-ancestors of main; one additional branch had an explicit absorption record |
+| `41487419654` | 2 | Exact branch-head entries in the absorption manifest |
+| `41488092767` | 4 | Exact branch-head entries in the absorption manifest |
+| `41489623381` | 2 | Exact branch-head entries in the absorption manifest |
+| `41491053106` | 3 | Exact branch-head entries in the absorption manifest |
+| `41491425690` | 1 | Exact branch-head entry in the absorption manifest |
+| **Total** | **50** | **37 ancestry-verified + 13 explicitly reviewed** |
+
+The PR-related deleted branches included the LLM/Transformer, knowledge, A2A/HITL, partner, payments, Level 2/platform, Linux/kernel, supplier provisioning, security, CI/deployment, persistence and hardware work. The branch names and exact deletion reasons remain in the GitHub Actions logs and the absorption manifest history.
+
+### Two documentation omissions discovered
+
+The explicit file-by-file absorption records for these two branches did not include all historical audit artifacts in the main tree:
+
+- `port/missing-branch-patterns` (PR #216): `docs/audits/branch-pattern-port-ledger.md` was absent from main.
+- `refactor/general-purpose-single-runtime` (PR #223): `docs/audits/pr-history-review-2026-10-26.md` was absent from main.
+
+Both documents have now been recovered from their retained PR head commits and archived on main. The feature code was substantially represented, but the original branch cleanup was not a complete file-for-file absorption of those documentation paths.
+
+### Branch-pruner safety gap and correction
+
+The old workflow accepted a non-ancestor branch when the manifest contained only `branch`, `head`, `absorbedIn` and a free-text `reason`. It checked that the head SHA matched and the absorption commit was on main, but did not mechanically require a disposition for every changed file. That is how a branch could be labelled absorbed while an audit document was omitted.
+
+The workflow has now been tightened: non-ancestor deletion requires a `reviewedFiles` inventory that exactly covers the branch's changed paths. Each path must be marked `identical` (verified against main), `superseded` (with a target path present on main and a reason), or `excluded` (with a reason). Existing manifest entries without this inventory are no longer sufficient to authorize future deletion. Fully merged branches remain eligible through commit ancestry.

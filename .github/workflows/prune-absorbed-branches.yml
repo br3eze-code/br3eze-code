@@ -35,7 +35,7 @@ jobs:
           gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" | jq -s 'add' > "$prs_file"
 
           if [[ ! -f "$manifest" ]]; then
-            echo '{"version":1,"absorbed":[]}' > "$manifest"
+            echo '{"version":2,"absorbed":[]}' > "$manifest"
           fi
 
           deleted=()
@@ -53,24 +53,72 @@ jobs:
               safe=true
               reason="all branch commits are already ancestors of main"
             else
-              # File-by-file ports do not create merge ancestry. Require an
-              # explicit review record tied to this exact branch head and a
-              # main commit that is now part of origin/main.
+              # File-by-file ports need a complete, explicit inventory. A branch/head
+              # assertion alone is insufficient: every changed path must be accounted
+              # for and each disposition must be backed by a current-main check.
               entry="$(jq -c --arg branch "$branch" '.absorbed[]? | select(.branch == $branch)' "$manifest" | head -n 1 || true)"
               if [[ -n "$entry" ]]; then
                 expected_head="$(jq -r '.head' <<< "$entry")"
                 absorbed_in="$(jq -r '.absorbedIn' <<< "$entry")"
+                reviewed_count="$(jq '.reviewedFiles // [] | length' <<< "$entry")"
+                merge_base="$(git merge-base origin/main "$remote_ref" || true)"
+
                 if [[ "$head_sha" == "$expected_head" ]] &&
+                   [[ "$reviewed_count" -gt 0 ]] &&
+                   [[ -n "$merge_base" ]] &&
                    git cat-file -e "${absorbed_in}^{commit}" 2>/dev/null &&
                    git merge-base --is-ancestor "$absorbed_in" origin/main; then
-                  safe=true
-                  reason="explicitly reviewed and absorbed at $absorbed_in"
+                  changed_paths="$(git diff --name-only "$merge_base" "$remote_ref" | LC_ALL=C sort -u)"
+                  reviewed_paths="$(jq -r '.reviewedFiles[]?.path' <<< "$entry" | LC_ALL=C sort -u)"
+
+                  if [[ -n "$changed_paths" ]] &&
+                     diff -u <(printf '%s\n' "$changed_paths") <(printf '%s\n' "$reviewed_paths") >/dev/null; then
+                    files_safe=true
+                    while IFS= read -r path; do
+                      [[ -n "$path" ]] || continue
+                      item="$(jq -c --arg path "$path" '.reviewedFiles[] | select(.path == $path)' <<< "$entry" | head -n 1)"
+                      disposition="$(jq -r '.disposition // ""' <<< "$item")"
+                      target_path="$(jq -r '.targetPath // .path' <<< "$item")"
+                      file_reason="$(jq -r '.reason // ""' <<< "$item")"
+
+                      case "$disposition" in
+                        identical)
+                          if ! git cat-file -e "$remote_ref:$path" 2>/dev/null ||
+                             ! git cat-file -e "origin/main:$target_path" 2>/dev/null ||
+                             ! git diff --quiet "$remote_ref:$path" "origin/main:$target_path"; then
+                            files_safe=false
+                            break
+                          fi
+                          ;;
+                        superseded|excluded)
+                          if [[ -z "$file_reason" ]]; then
+                            files_safe=false
+                            break
+                          fi
+                          if [[ "$disposition" == "superseded" ]] &&
+                             ! git cat-file -e "origin/main:$target_path" 2>/dev/null; then
+                            files_safe=false
+                            break
+                          fi
+                          ;;
+                        *)
+                          files_safe=false
+                          break
+                          ;;
+                      esac
+                    done <<< "$changed_paths"
+
+                    if [[ "$files_safe" == true ]]; then
+                      safe=true
+                      reason="every changed path has an explicit verified disposition"
+                    fi
+                  fi
                 fi
               fi
             fi
 
             if [[ "$safe" != true ]]; then
-              skipped+=("$branch (ahead or not explicitly absorbed)")
+              skipped+=("$branch (ahead or not completely verified)")
               continue
             fi
 

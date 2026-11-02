@@ -1,83 +1,83 @@
 {
-  "version": 1,
+  "version": 2,
   "absorbed": [
     {
       "branch": "port/nodejs-autograd-current-main",
       "head": "3372cb21e9b6a94939617fb0fa33f2e4a0066f59",
       "absorbedIn": "4c6b7d97996034f21af5f9ce92a28d81c308f611",
-      "reason": "Six commits ahead but GitHub compare reports no changed files."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "feat/supplier-provisioning-transaction-guards",
       "head": "9315b73ee9efdb71ed6a1116a633b2e3797ff3f5",
       "absorbedIn": "4c6b7d97996034f21af5f9ce92a28d81c308f611",
-      "reason": "Main already contains a stronger supplier provisioning implementation and expanded tests."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "patch/security-hardening-2026-11",
       "head": "d2bd8a0adcc67735cf87245ef8695e1c82245ae7",
       "absorbedIn": "4c6b7d97996034f21af5f9ce92a28d81c308f611",
-      "reason": "Main security policy is identical and main security checks include stronger dependency denylist and pinned CI lint target."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "docs/current-main-verification-status",
       "head": "2aa79bfe30b99c28e7f487c520694634059328df",
       "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
-      "reason": "Main README contains a newer, more complete verification and operator status."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "docs/readme-evidence-based-status",
       "head": "e1bc60be275ba001a2d6518935b0cf64bf752271",
       "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
-      "reason": "Main README supersedes the older evidence-status table with newer implementation and CI facts."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "port/security-hygiene-current-main",
       "head": "d8acac3e953fa069496447f5cbe2bf77f754573b",
       "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
-      "reason": "Repository hygiene gate/tests are identical to main; main has stronger CI, gitignore and audit-report handling. Remaining extras are stale raw reports/migrations."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "v0/br3eze-code-22012066",
       "head": "5fbe0116e774bcf6f6e31e59a07609ccf6d6c073",
       "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
-      "reason": "Main README contains the useful architecture context plus newer implementation and verification status."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "feat/autonomous-operator-foundation",
       "head": "15399865f21e0aa19208c45c353b09a11f2c9937",
       "absorbedIn": "796a0a71868f15449523944a7eb9b8dbac75ba5d",
-      "reason": "Main already has newer task, A2A, runtime and API implementations; dependency inventory workflow and test-only no-file-store behavior were ported."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "test/persistence-and-mikrotik-adapter-paths",
       "head": "6256a676f2e4be52dd93dfa7a42951af62535875",
       "absorbedIn": "796a0a71868f15449523944a7eb9b8dbac75ba5d",
-      "reason": "Both changed test files are byte-identical to main; no unique source or test content remains."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "refactor/general-purpose-single-runtime",
       "head": "37b633f441a263450f122bc39dbe625fb62d9a2a",
       "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
-      "reason": "Reviewed the 53-commit delta and unique tree paths. LLM/knowledge/training and hardware/runtime patterns are already represented on main; legacy coordinator, policy and session implementations duplicate canonical runtime/ToolRegistry/SessionEventStore ownership; auth and payment migrations are superseded by current main implementations. Raw scan outputs and local secrets were deliberately excluded."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "port/missing-branch-patterns",
       "head": "c072940ab2e90ca6681b3a4307ad7d1b9923f839",
       "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
-      "reason": "Reviewed the 132-commit delta and unique paths. LLM/training patterns are already on main; product query adapter is superseded by the persistence-port-first product query bridge; legacy auth/session/policy/coordinator code duplicates current owners; payment and auth migrations are superseded by newer main migrations. Raw audit outputs were excluded."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "refactor/linux-single-runtime-boundaries",
       "head": "e1c1f10fd7c4e8de9cc7e77863a863b8b778a8f7",
       "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
-      "reason": "Ported local application state through the persistence adapter and canonical AgentRuntime; adapted read-only host diagnostics to the existing HardwareCapabilityRegistry. Existing main ServiceSupervisor, ApplicationManager, IPCMessageBus and HardwareCapabilityRegistry are the owners; the branch's second PlatformAdapterRegistry was rejected as duplicate. Local env, signing keystore and raw scan logs were excluded."
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     },
     {
       "branch": "snyk-fix-890df4e8aba327a7453085b9e48a48ee",
       "head": "ab020f3877b816883649974375ca9ecca6db5983",
-      "absorbedIn": "fa0694b20f0ffb8c155a96aae29ac9fa5e0a26a4",
-      "reason": "Redundant Snyk Joi manifest-only update: its package-lock still resolves Joi 18.2.9, so it provides no reproducible dependency upgrade. Keep the full Dependabot Joi package+lockfile candidate for review instead."
+      "absorbedIn": "fa0694b20f0ffb8c155a0ab9db8dff4e",
+      "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     }
   ]
 }
