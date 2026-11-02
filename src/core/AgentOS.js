@@ -32,7 +32,8 @@ class AgentOS extends EventEmitter {
         })
         : null
     );
-    this.runtime = config.runtime || getAgentRuntime({
+    this.runtime = getAgentRuntime({
+      ...(config.runtime ? { runtime: config.runtime } : {}),
       ...(runtimeToolRegistry ? { toolRegistry: runtimeToolRegistry } : {}),
       ...(config.model ? { model: config.model } : {}),
       ...(config.providerManager ? { providerManager: config.providerManager } : {}),
