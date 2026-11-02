@@ -6,6 +6,7 @@
  */
 export { PHASES, RISK_LEVELS, describeCapability, checkCapabilityBoundary, createExecutionIntent } from '../capability-boundary.js';
 export { TaskRegistry, TaskStatus, TaskPhase, TERMINAL_STATUSES, requiresApprovalByAction, getTaskRegistry } from '../taskRegistry.js';
-export { default as AgentOSOrchestrator } from '../orchestrator.js';
+export { AgentOSOrchestrator } from '../orchestration/orchestrator.js';
+export { default as SystemLifecycleCoordinator } from '../orchestrator.js';
 
 export const KERNEL_CONTRACT_VERSION = '1';
