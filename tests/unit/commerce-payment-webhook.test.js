@@ -68,4 +68,35 @@ describe('commerce payment webhook boundary', () => {
     ]));
     expect(res.status).toHaveBeenCalledWith(200);
   });
+  test('reconciles canonical PaymentPlatform payment.succeeded events', async () => {
+    const gateway = {
+      webhook: jest.fn().mockResolvedValue({
+        type: 'payment.succeeded',
+        status: 'succeeded',
+        transactionId: 'pi_123',
+        amount: 25,
+        currency: 'USD',
+        eventId: 'evt_canonical_1',
+      }),
+    };
+    const database = makeDb();
+    const handler = createCommerceWebhookHandler(gateway, { db: database });
+    const req = {
+      params: { provider: 'Stripe' },
+      body: { signed: 'payload' },
+      headers: { 'stripe-signature': 'signature' },
+    };
+    const res = makeResponse();
+
+    await handler(req, res);
+
+    expect(gateway.webhook).toHaveBeenCalledWith('stripe', req.body, req.headers);
+    expect(database.updates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'transactions/tx-doc', patch: expect.objectContaining({ status: 'paid', providerStatus: 'succeeded' }) }),
+      expect.objectContaining({ path: 'orders/order-1', patch: expect.objectContaining({ status: 'paid', paymentProvider: 'stripe' }) }),
+      expect.objectContaining({ path: 'invoices/invoice-1', patch: expect.objectContaining({ status: 'paid' }) }),
+    ]));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
 });
