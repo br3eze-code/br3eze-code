@@ -24,7 +24,8 @@ import winston from 'winston';
 import helmet from 'helmet';
 import cors from 'cors';
 import QRCode from 'qrcode';
-import otpRouter from './src/routes/otp.js';
+import otpRouter from './api/chat/otp/routes.js';
+import { registerOtpRoutes } from './api/chat/otp/register.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
@@ -1328,6 +1329,9 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
+// OTP endpoints are composed at the API boundary, independently of Wi-Fi routes.
+registerOtpRoutes({ app, emailRouter: otpRouter, authMiddleware });
+
 // Rate limiter middleware
 const rateLimitMiddleware = (req, res, next) => {
     const ip = req.ip;
@@ -1351,7 +1355,6 @@ const rateLimitMiddleware = (req, res, next) => {
 // Compose Wi-Fi routes as an optional product domain; shared HTTP setup stays generic.
 registerWifiRoutes({
     app,
-    otpRouter,
     database,
     CONFIG,
     BRAND,
