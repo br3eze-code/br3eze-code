@@ -27,8 +27,7 @@ describe('Wi-Fi route composition', () => {
       BRAND: { name: 'Test', version: '1' },
       authMiddleware: (_req, _res, next) => next(),
       rateLimitMiddleware: (_req, _res, next) => next(),
-      getCommandHandler: () => ({ execute: jest.fn(), getAvailableTools: jest.fn() }),
-      issueUserToken: jest.fn(() => 'scoped-test-token')
+      getCommandHandler: () => ({ execute: jest.fn(), getAvailableTools: jest.fn() })
     });
 
     expect(routes.some((route) => route.path === '/health')).toBe(true);
@@ -36,6 +35,7 @@ describe('Wi-Fi route composition', () => {
     expect(routes.some((route) => route.path === '/api/v1/vouchers')).toBe(true);
     expect(routes.some((route) => route.path === '/api/v1/vouchers/redeem')).toBe(true);
     expect(routes.some((route) => route.path === '/api/v1/tools')).toBe(true);
+    expect(routes.some((route) => route.path === '/api/auth/login')).toBe(false);
     expect(routes.some((route) => route.path === '/api/v1/capabilities')).toBe(true);
     expect(routes.some((route) => route.path === '/api/payment/methods')).toBe(true);
     expect(routes.some((route) => route.path === '/billing/methods')).toBe(true);
