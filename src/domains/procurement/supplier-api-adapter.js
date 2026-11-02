@@ -35,11 +35,17 @@ function supplierApiError(message, code = 'SUPPLIER_API_ERROR', status = 502) {
 
 export function createSupplierApiAdapter({ env = process.env, fetchImpl = globalThis.fetch, timeoutMs = 15000 } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required');
+  function assertReady() {
+    const base = configuredEndpoint(env);
+    const token = String(env.BR3EZE_SUPPLIER_API_TOKEN || '').trim();
+    if (!token) throw supplierApiError('Supplier API credentials are not configured', 'SUPPLIER_API_NOT_CONFIGURED', 503);
+    return { base, token };
+  }
+
   return {
+    assertReady,
     async createPurchaseOrder(order) {
-      const base = configuredEndpoint(env);
-      const token = String(env.BR3EZE_SUPPLIER_API_TOKEN || '').trim();
-      if (!token) throw supplierApiError('Supplier API credentials are not configured', 'SUPPLIER_API_NOT_CONFIGURED', 503);
+      const { base, token } = assertReady();
       const response = await fetchImpl(new URL('purchase-orders', base), {
         method: 'POST',
         headers: {
