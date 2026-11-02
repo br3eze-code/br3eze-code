@@ -28,9 +28,12 @@ test('IPC requires registered topics, bounds payloads and enforces optional publ
   policy.grant('app.a', ['ipc.publish.jobs.created']);
   const bus = new IpcBus({ topics: ['jobs.created'], maxPayloadBytes: 100 });
   let received;
+  let secondReceived;
   await bus.subscribe('jobs.created', (message) => { received = message; });
+  await bus.subscribe('jobs.created', (message) => { secondReceived = message; });
   await bus.publish('jobs.created', { id: 3 }, { principal: 'app.a', policy });
   assert.equal(received.payload.id, 3);
+  assert.equal(secondReceived.payload.id, 3);
   await assert.rejects(bus.publish('jobs.created', { id: 4 }, { principal: 'app.b', policy }), { code: 'PERMISSION_DENIED' });
   assert.throws(() => bus.publish('missing', {}), { code: 'IPC_TOPIC_NOT_REGISTERED' });
   await assert.rejects(bus.publish('jobs.created', { data: 'x'.repeat(200) }), /byte limit/);
