@@ -69,11 +69,14 @@ describe('IronWiFiAdapter', () => {
     const { adapter, fetchImpl } = makeAdapter();
     fetchImpl.mockResolvedValue(response(401, { detail: 'private account information' }));
 
-    await expect(adapter.listUsers()).rejects.toMatchObject({
-      code: 'IRONWIFI_HTTP_ERROR',
-      status: 401,
-    });
-    await expect(adapter.listUsers()).rejects.not.toThrow(/private account information/);
+    let caught;
+    try {
+      await adapter.listUsers();
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toMatchObject({ code: 'IRONWIFI_HTTP_ERROR', status: 401 });
+    expect(caught.message).not.toContain('private account information');
   });
 
   test('rejects unknown action names', async () => {
