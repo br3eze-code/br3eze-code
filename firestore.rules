@@ -3,8 +3,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions
+    // Firebase Auth is accepted only as a downstream data token minted
+    // after Supabase has authenticated the human user.
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null
+        && request.auth.token.auth_provider == 'supabase'
+        && request.auth.token.supabase_uid is string;
     }
 
     function isOwner(userId) {
