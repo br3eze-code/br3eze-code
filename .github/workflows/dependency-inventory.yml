@@ -1,6 +1,12 @@
 name: Full dependency inventory
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dependency-inventory.yml'
+      - 'scripts/audit-lockless-manifests.sh'
+      - 'scripts/summarize-multi-manifest-audit.mjs'
   schedule:
     - cron: '0 4 * * 1'
   workflow_dispatch:

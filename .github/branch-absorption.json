@@ -42,6 +42,18 @@
       "head": "5fbe0116e774bcf6f6e31e59a07609ccf6d6c073",
       "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
       "reason": "Main README contains the useful architecture context plus newer implementation and verification status."
+    },
+    {
+      "branch": "feat/autonomous-operator-foundation",
+      "head": "15399865f21e0aa19208c45c353b09a11f2c9937",
+      "absorbedIn": "796a0a71868f15449523944a7eb9b8dbac75ba5d",
+      "reason": "Main already has newer task, A2A, runtime and API implementations; dependency inventory workflow and test-only no-file-store behavior were ported."
+    },
+    {
+      "branch": "test/persistence-and-mikrotik-adapter-paths",
+      "head": "6256a676f2e4be52dd93dfa7a42951af62535875",
+      "absorbedIn": "796a0a71868f15449523944a7eb9b8dbac75ba5d",
+      "reason": "Both changed test files are byte-identical to main; no unique source or test content remains."
     }
   ]
 }

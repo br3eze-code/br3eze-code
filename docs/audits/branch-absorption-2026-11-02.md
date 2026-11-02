@@ -7,16 +7,16 @@ Snapshot: `main` at `4c6b7d97996034f21af5f9ce92a28d81c308f611`, before this audi
 - 60 branches returned by GitHub, including `main`.
 - 59 non-main branches.
 - 37 branches have zero commits ahead of main and are safe to prune when no unmerged work remains.
-- 22 branches initially had unique commit histories. Seven have now been reviewed and explicitly marked absorbed; 15 remain preserved for file-by-file review.
+- 22 branches initially had unique commit histories. Nine have now been reviewed and explicitly marked absorbed; 13 remain preserved for file-by-file review.
 - A file-by-file port does not make a branch's commits ancestors of main. The cleanup workflow therefore supports a reviewed manifest containing the exact branch head and the main commit where the work was absorbed.
 
-## Explicitly absorbed (7)
+## Explicitly absorbed (9)
 
 - `port/nodejs-autograd-current-main`: six commits ahead but no changed files.
 - `feat/supplier-provisioning-transaction-guards`: main already contains a newer supplier service and more complete tests.
 - `patch/security-hardening-2026-11`: main contains the equivalent Web MCP policy and stronger current security-check implementation.
 
-The four additional absorbed branches are `docs/current-main-verification-status`, `docs/readme-evidence-based-status`, `port/security-hygiene-current-main`, and `v0/br3eze-code-22012066`. Their current-main equivalents are newer or stronger. All seven exact branch heads are recorded in `.github/branch-absorption.json`; the cleanup workflow deletes them only after verifying the recorded main commit is still an ancestor.
+The additional absorbed branches are `docs/current-main-verification-status`, `docs/readme-evidence-based-status`, `port/security-hygiene-current-main`, `v0/br3eze-code-22012066`, `feat/autonomous-operator-foundation`, and `test/persistence-and-mikrotik-adapter-paths`. Main has newer or byte-identical equivalents; the unique dependency-inventory workflow and test-only storage isolation pattern were ported. All nine exact branch heads are recorded in `.github/branch-absorption.json`; the cleanup workflow deletes them only after verifying the recorded main commit is still an ancestor.
 
 ## Ahead branches retained for review
 
@@ -62,4 +62,4 @@ The workflow closes any matching obsolete open PR before deleting the branch. Ah
 
 ## Cleanup progress
 
-The first cleanup workflow run succeeded and deleted 40 branches (37 fully merged plus three explicitly absorbed). Four more branches have since been reviewed and added to the explicit absorption manifest. The next main push will trigger the workflow again; the expected remaining inventory is 15 ahead branches plus `main`.
+The first two cleanup workflow runs succeeded and deleted 44 branches (37 fully merged plus seven explicitly absorbed). Two more branches have since been reviewed and added to the explicit absorption manifest. The next main push will trigger the workflow again; the expected remaining inventory is 13 ahead branches plus `main`.
