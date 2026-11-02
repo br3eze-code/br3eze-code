@@ -4,15 +4,19 @@
    and pay-with-saved-card top-ups.
    ========================================================== */
 
-async function agentOSPaymentRequest(url, options) {
+async function agentOSPaymentRequest(url, options = {}) {
+    const session = window.SupabaseAuth?.getSession?.();
+    const headers = { ...(options.headers || {}) };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const authenticatedOptions = { ...options, headers };
     if (window.AgentOSOffline) {
-        const result = await window.AgentOSOffline.request(url, options);
+        const result = await window.AgentOSOffline.request(url, authenticatedOptions);
         if (result && result.queued) {
             return new Response(JSON.stringify({ offline: true, queued: true, paid: false, status: 'pending', idempotencyKey: result.idempotencyKey }), { status: 202, headers: { 'Content-Type': 'application/json', 'X-AgentOS-Offline': 'queued' } });
         }
         return result;
     }
-    return fetch(url, options);
+    return fetch(url, authenticatedOptions);
 }
 
 const Payments = {
@@ -102,9 +106,8 @@ const Payments = {
         };
     },
 
-    async _idToken() {
-        if (typeof auth === 'undefined' || !auth || !auth.currentUser) return null;
-        return auth.currentUser.getIdToken();
+    async _supabaseToken() {
+        return window.SupabaseAuth?.getSession?.()?.access_token || null;
     },
 
     _countryCode(name) {
@@ -124,15 +127,15 @@ const Payments = {
         const saveBtn = document.getElementById('paySaveBtn');
         saveBtn.classList.add('is-loading'); saveBtn.disabled = true;
         try {
-            const idToken = await this._idToken();
-            if (!idToken) throw new Error('Your session expired — please log in again.');
-            const siRes = await agentOSPaymentRequest('/api/setup-intent/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, idToken }) });
+            const accessToken = await this._supabaseToken();
+            if (!accessToken) throw new Error('Your Supabase session expired — please sign in again.');
+            const siRes = await agentOSPaymentRequest('/api/setup-intent/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id }) });
             const si = await siRes.json();
             if (!si.clientSecret) throw new Error(si.error || 'Could not start card setup.');
             const result = await stripe.confirmCardSetup(si.clientSecret, { payment_method: { card: this.els.number, billing_details: { name, address: { line1: address.line1, city: address.city, state: address.state, country: this._countryCode(address.country) } } } });
             if (result.error) throw new Error(result.error.message);
             const pmId = result.setupIntent.payment_method;
-            const saveRes = await agentOSPaymentRequest('/api/payment-method/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, idToken, paymentMethodId: pmId, billingAddress: address }) });
+            const saveRes = await agentOSPaymentRequest('/api/payment-method/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, paymentMethodId: pmId, billingAddress: address }) });
             const saved = await saveRes.json();
             if (!saveRes.ok) throw new Error(saved.error || 'Could not save card.');
             window.currentUser.billing = Object.assign({}, window.currentUser.billing, { card: saved.card, address: saved.address });
@@ -182,15 +185,15 @@ const Payments = {
         if (!card) { closeModal('topUpModal'); return window.topUpWithCard(amount); }
         const btn = document.getElementById('topUpConfirmBtn'); btn.classList.add('is-loading'); btn.disabled = true;
         try {
-            const idToken = await this._idToken();
-            if (!idToken) throw new Error('Your session expired — please log in again.');
-            const res = await agentOSPaymentRequest('/api/charge-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, idToken, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }) });
+            const accessToken = await this._supabaseToken();
+            if (!accessToken) throw new Error('Your Supabase session expired — please sign in again.');
+            const res = await agentOSPaymentRequest('/api/charge-card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }) });
             const data = await res.json();
             if (data.offline && data.queued) { showToast('Payment request queued. It will not be charged until the server confirms it.', 'warning'); return; }
             if (data.requiresAction) {
                 const stripe = await this.ensureStripe(); const result = await stripe.handleCardAction(data.clientSecret);
                 if (result.error) throw new Error(result.error.message);
-                const confirmRes = await agentOSPaymentRequest('/api/charge-card/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, idToken, paymentIntentId: data.paymentIntentId }) });
+                const confirmRes = await agentOSPaymentRequest('/api/charge-card/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: window.currentUser.id, paymentIntentId: data.paymentIntentId }) });
                 const confirmed = await confirmRes.json(); if (!confirmed.paid) throw new Error('Payment was not completed.'); await this._onTopUpSuccess(amount);
             } else if (data.paid) await this._onTopUpSuccess(amount); else throw new Error(data.error || 'Payment failed.');
         } catch (e) { showToast(e.message || 'Payment failed.', 'error'); }
