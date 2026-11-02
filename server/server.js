@@ -1284,11 +1284,10 @@ const app = configureHttpApplication({
 
 // Authentication delegates to the provider-neutral identity boundary.
 const authMiddleware = async (req, res, next) => {
-    const authorization = req.headers.authorization;
-    if (!authorization || !authorization.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Authorization required' });
-    }
-    const token = authorization.slice('Bearer '.length).trim();
+    const authorization = String(req.headers.authorization || '');
+    const bearer = authorization.match(/^Bearer\\s+(.+)$/i);
+    if (!bearer) return res.status(401).json({ error: 'Authorization required' });
+    const token = bearer[1].trim();
     if (!token) return res.status(401).json({ error: 'Invalid token' });
 
     try {
