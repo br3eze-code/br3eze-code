@@ -83,6 +83,10 @@ jobs:
           TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
           PORT: 3000
           GATEWAY_PORT: 19876
+      - name: Test infrastructure reconciliation safety
+        run: npm run test:infra
+      - name: Validate infrastructure desired-state manifest
+        run: npm run infra:plan -- --json
       - name: Test Node.js-native suites
         run: npm run test:node
       - name: Syntax check
