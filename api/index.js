@@ -10,6 +10,8 @@ import v2Router from '../src/api/routes/v2.js';
 import v3Router from '../src/api/routes/v3.js';
 import authHandoffRouter from '../src/api/routes/auth-handoff.js';
 import proactiveProposalRouter from '../src/api/routes/proactive-proposals.js';
+import { createFirebaseDataSessionRouter } from '../src/api/routes/firebase-data-session.js';
+import { getAuth as getFirebaseAuth } from '../src/adapters/firebase/admin.js';
 
 const app = express();
 
@@ -18,6 +20,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', p
 
 // Provider-neutral authentication handoff; legacy from/type aliases remain accepted by the route.
 app.use('/api/auth/handoff', authHandoffRouter);
+app.use('/api/auth/firebase-session', createFirebaseDataSessionRouter({ requireUser, getFirebaseAuth }));
 
 // Human/client API authentication is provider-neutral (Firebase or Supabase).
 // Machine-to-machine authentication remains a separate concern and must not use req.user.
