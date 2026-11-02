@@ -10,10 +10,13 @@ export function createWebhookHandler(paymentPlatform, onPaymentSuccess = async (
       if (typeof verifyWebhook !== 'function') throw new TypeError('Payment platform must implement webhook() or handleWebhook()');
       const result = await verifyWebhook.call(paymentPlatform, provider, req.body, req.headers);
       if (result === false || result?.valid === false) throw new Error('Invalid signature');
-      switch (result?.type) {
-        case 'payment_success': await onPaymentSuccess(result); break;
-        case 'payment_failed': await onPaymentFailed(result); break;
-        case 'refund': break;
+      switch (String(result?.type || '').toLowerCase()) {
+        case 'payment_success':
+        case 'payment.succeeded': await onPaymentSuccess(result); break;
+        case 'payment_failed':
+        case 'payment.failed': await onPaymentFailed(result); break;
+        case 'refund':
+        case 'payment.refunded': break;
         default: break;
       }
       return res.status(200).json({ received: true });
