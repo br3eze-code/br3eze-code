@@ -12,6 +12,7 @@ jest.unstable_mockModule('uuid', () => {
 
 const { AgentRuntime, RuntimeSession, TOOL_MANIFEST, getAgentRuntime } = await import('../../src/core/agentRuntime.js');
 const { PermissionMode } = await import('../../src/core/permissions.js');
+const { SessionEventStore, InMemorySessionEventStore } = await import('../../src/core/session/SessionEventStore.js');
 const { TaskStatus }     = await import('../../src/core/taskRegistry.js');
 
 // ── TOOL_MANIFEST ─────────────────────────────────────────────────────────────
@@ -279,5 +280,30 @@ describe('getAgentRuntime', () => {
 
     test('instance is an AgentRuntime', () => {
         expect(getAgentRuntime()).toBeInstanceOf(AgentRuntime);
+    });
+});
+
+describe('RuntimeSession canonical event persistence', () => {
+    test('persists and reloads runtime snapshots through SessionEventStore', async () => {
+        const sessionEventStore = new SessionEventStore({ store: new InMemorySessionEventStore() });
+        const session = RuntimeSession.create({
+            prompt: 'remember this turn',
+            matchedTools: [],
+            permissionDenials: [],
+            sessionEventStore,
+        });
+        await session.submitMessage('remember this turn', []);
+        await session.persistSession();
+
+        const restored = await RuntimeSession.fromSession(session.sessionId, {
+            prompt: 'continue',
+            matchedTools: [],
+            permissionDenials: [],
+            sessionEventStore,
+        });
+        expect(restored.sessionId).toBe(session.sessionId);
+        expect(restored.messages).toEqual(['remember this turn']);
+        expect(restored.totalUsage.total).toBe(session.totalUsage.total);
+        expect(await sessionEventStore.getLast(session.sessionId)).toMatchObject({ type: 'runtime/session.snapshot' });
     });
 });
