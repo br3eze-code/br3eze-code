@@ -45,7 +45,6 @@ jobs:
 
       - name: Security audit
         run: npm audit --audit-level=moderate
-        continue-on-error: true
 
       - name: Production regression tests
         run: npm run test:production
