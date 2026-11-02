@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "note": "Explicit, non-secret resource intent only. Missing project identifiers are intentionally not guessed.",
+  "note": "Explicit non-secret resource intent only. EKS Kubernetes version is a deployment input because supported versions vary by region and pinned module compatibility.",
   "resources": [
     {
       "provider": "aws",
@@ -8,7 +8,6 @@
       "id": "agentos-prod",
       "attributes": {
         "region": "us-east-1",
-        "kubernetesVersion": "1.37",
         "vpcCidr": "10.0.0.0/16",
         "privateSubnets": 3,
         "publicSubnets": 3

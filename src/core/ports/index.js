@@ -15,3 +15,4 @@ export * from './subagent-store.js';
 export * from './agent-lifecycle.js';
 export * from './report.js';
 export * from './system.js';
+export * from './hosting.js';

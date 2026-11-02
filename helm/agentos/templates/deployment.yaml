@@ -19,58 +19,50 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: {{ .Values.runtime.port }}
               protocol: TCP
           env:
+            - name: NODE_ENV
+              value: production
+            - name: HOST
+              value: "0.0.0.0"
+            - name: GATEWAY_HOST
+              value: "0.0.0.0"
             - name: PORT
-              value: "3000"
-            - name: GATEWAY_TOKEN
+              value: {{ .Values.runtime.port | quote }}
+            - name: GATEWAY_PORT
+              value: {{ .Values.runtime.port | quote }}
+            - name: AGENTOS_GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname" . }}
+                  name: {{ .Values.runtime.secretName | quote }}
                   key: gateway-token
+                  optional: true
             - name: AUDIT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname" . }}
+                  name: {{ .Values.runtime.secretName | quote }}
                   key: audit-secret
+                  optional: true
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname" . }}
+                  name: {{ .Values.runtime.secretName | quote }}
                   key: gemini-api-key
+                  optional: true
             - name: DRIVER_MIKROTIK_API_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname" . }}
+                  name: {{ .Values.runtime.secretName | quote }}
                   key: mikrotik-api-token
                   optional: true
-          volumeMounts:
-            - name: workspace
-              mountPath: /app/workspace.json
-              subPath: workspace.json
-            - name: gcp-sa-key
-              mountPath: /var/secrets/gcp
-              readOnly: true
           livenessProbe:
             httpGet:
-              path: /health
+              path: {{ .Values.runtime.healthPath }}
               port: http
           readinessProbe:
             httpGet:
-              path: /health
+              path: {{ .Values.runtime.healthPath }}
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-      volumes:
-        - name: workspace
-          configMap:
-            name: {{ include "agentos.fullname" . }}-workspace
-        - name: gcp-sa-key
-          secret:
-            secretName: {{ include "agentos.fullname" . }}
-            optional: true
-            items:
-              - key: gcp-sa-key
-                path: sa-key.json
-                mode: 0400

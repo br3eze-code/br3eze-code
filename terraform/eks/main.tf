@@ -19,6 +19,14 @@ provider "aws" {
 variable "region" { default = "us-east-1" }
 variable "cluster_name" { default = "agentos-prod" }
 variable "vpc_cidr" { default = "10.0.0.0/16" }
+variable "cluster_version" {
+  description = "Explicit EKS Kubernetes version supported by the selected AWS region and pinned EKS module."
+  type = string
+  validation {
+    condition = can(regex("^1\\.[0-9]+$", var.cluster_version))
+    error_message = "cluster_version must be a Kubernetes 1.x version."
+  }
+}
 
 # VPC
 module "vpc" {
@@ -50,7 +58,7 @@ module "eks" {
   version = "20.8.0"
 
   cluster_name = var.cluster_name
-  cluster_version = "1.37"
+  cluster_version = var.cluster_version
 
   vpc_id = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets

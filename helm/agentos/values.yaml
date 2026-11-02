@@ -13,7 +13,7 @@ serviceAccount:
 service:
   type: ClusterIP
   port: 80
-  targetPort: 3000
+  targetPort: 19876
 
 ingress:
   enabled: false
@@ -26,6 +26,11 @@ ingress:
           pathType: Prefix
   tls: []
 
+runtime:
+  port: 19876
+  healthPath: /health
+  secretName: agentos
+
 resources:
   limits:
     cpu: 500m
@@ -33,6 +38,3 @@ resources:
   requests:
     cpu: 100m
     memory: 256Mi
-
-workspace:
-  content: "{}"
