@@ -56,6 +56,7 @@ jobs:
         env:
           NODE_ENV: production
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
+          AGENTOS_API_URL: ${{ secrets.AGENTOS_API_URL }}
           VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
           VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
           VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
@@ -76,11 +77,20 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
+          AGENTOS_API_URL: ${{ secrets.AGENTOS_API_URL }}
         run: |
           set -euo pipefail
           test -n "$VERCEL_TOKEN"
           test -n "$VERCEL_ORG_ID"
           test -n "$VERCEL_PROJECT_ID"
+          test -n "$AGENTOS_API_URL"
+          case "$AGENTOS_API_URL" in
+            https://*) ;;
+            *) echo "AGENTOS_API_URL must be an absolute HTTPS backend URL" >&2; exit 1 ;;
+          esac
+          if [ "${AGENTOS_API_URL%/}" = "${VITE_API_URL%/}" ]; then
+            echo "AGENTOS_API_URL must point to the backend, not the Vercel frontend origin" >&2; exit 1
+          fi
           case "$VITE_API_URL" in
             https://*|http://*) ;;
             *) echo "VITE_API_URL must be an absolute HTTP(S) URL" >&2; exit 1 ;;
@@ -113,7 +123,7 @@ jobs:
             --build-env VITE_STORAGE_BUCKET="$VITE_STORAGE_BUCKET" \
             --build-env VITE_MESSAGING_SENDER_ID="$VITE_MESSAGING_SENDER_ID" \
             --build-env VITE_APP_ID="$VITE_APP_ID" \
-            --env AGENTOS_API_URL="$VITE_API_URL")"
+            --env AGENTOS_API_URL="$AGENTOS_API_URL")"
           test -n "$DEPLOYMENT_URL"
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "Vercel deployment: $DEPLOYMENT_URL"
