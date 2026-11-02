@@ -1,13 +1,13 @@
 /**
  * Server identity boundary.
  *
- * Interactive identities are issued by Supabase Auth. Google, GitHub,
- * Microsoft/Azure, Apple and other configured OAuth providers are federated
- * by Supabase; this server only verifies the resulting access token.
- * Firebase Admin remains available to legacy Firestore data adapters, not
- * as a competing user identity provider.
+ * Human identities are issued by Supabase Auth. Google, GitHub, Microsoft,
+ * Apple and Facebook are federated there. This module adds AgentOS permission
+ * mapping and service-to-service authentication; it does not verify tokens
+ * independently or own an OAuth flow.
  */
 import crypto from 'crypto';
+import { verifySupabaseAccessToken } from '../adapters/auth/supabase.js';
 
 const ROLE_PERMISSIONS = Object.freeze({
   ADMIN: ['*'],
@@ -26,80 +26,36 @@ function safeEqual(a, b) {
 
 function normalizeIdentity(decoded, provider = 'supabase') {
   const roles = Array.isArray(decoded.roles)
-    ? decoded.roles.map(String).map(role => role.toUpperCase())
+    ? decoded.roles.map(String).map((role) => role.toUpperCase())
     : [String(decoded.role || 'USER').toUpperCase()];
   const uniqueRoles = [...new Set(roles)];
-  const permissions = [...new Set(uniqueRoles.flatMap(role => ROLE_PERMISSIONS[role] || []))];
+  const permissions = [...new Set(uniqueRoles.flatMap((role) => ROLE_PERMISSIONS[role] || []))];
 
   return Object.freeze({
-    id: decoded.uid || decoded.sub || null,
+    id: decoded.uid || decoded.sub || decoded.id || null,
     provider,
     email: decoded.email || null,
     name: decoded.name || decoded.email || null,
+    role: uniqueRoles[0] || 'USER',
     roles: uniqueRoles,
     permissions,
+    tenantId: decoded.tenantId || null,
+    siteId: decoded.siteId || null,
+    domainId: decoded.domainId || null,
     authenticatedAt: new Date().toISOString(),
-    metadata: { emailVerified: Boolean(decoded.email_verified) }
+    metadata: { emailVerified: Boolean(decoded.emailVerified), authProvider: provider }
   });
 }
 
 async function authenticateSupabaseBearer(token) {
-  const baseUrl = String(process.env.SUPABASE_URL || '').replace(/\\/$/, '');
-  const apiKey = process.env.SUPABASE_PUBLISHABLE_KEY
-    || process.env.SUPABASE_ANON_KEY
-    || '';
-  if (!baseUrl || !apiKey || typeof fetch !== 'function') return null;
-
-  try {
-    const response = await fetch(`${baseUrl}/auth/v1/user`, {
-      headers: { apikey: apiKey, authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(8000)
-    });
-    if (!response.ok) return null;
-    const user = await response.json();
-    if (!user?.id) return null;
-
-    // Resolve profile authorization fields through the user's RLS-scoped session.
-    const profileResponse = await fetch(
-      `${baseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,tenant_id,site_id,domain`,
-      {
-        headers: {
-          apikey: apiKey,
-          authorization: `Bearer ${token}`,
-          accept: 'application/json'
-        },
-        signal: AbortSignal.timeout(8000)
-      }
-    );
-    const profiles = profileResponse.ok ? await profileResponse.json() : [];
-    const profile = Array.isArray(profiles) ? profiles[0] || {} : {};
-    // app_metadata is server-controlled; profiles are protected by RLS and
-    // role-column policies. Never trust user_metadata for authorization.
-    const metadata = user.app_metadata || {};
-    const identity = normalizeIdentity({
-      uid: user.id,
-      email: user.email,
-      role: metadata.role || profile.role || 'USER',
-      roles: Array.isArray(metadata.roles) ? metadata.roles : undefined,
-      email_verified: Boolean(user.email_confirmed_at),
-      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email
-    });
-    return Object.freeze({
-      ...identity,
-      tenantId: metadata.tenant_id || profile.tenant_id || null,
-      siteId: metadata.site_id || profile.site_id || null,
-      domainId: metadata.domain_id || metadata.domain || profile.domain || null,
-      metadata: { ...identity.metadata, authProvider: 'supabase' }
-    });
-  } catch {
-    return null;
-  }
+  const user = await verifySupabaseAccessToken(token);
+  return user ? normalizeIdentity(user, 'supabase') : null;
 }
 
 export async function authenticateBearer(token) {
   if (!token) return null;
 
-  // Service authentication is intentionally separate from human user identity.
+  // Machine authentication is distinct from every human identity provider.
   const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || '';
   if (serviceToken && safeEqual(token, serviceToken)) {
     return Object.freeze({
@@ -107,6 +63,7 @@ export async function authenticateBearer(token) {
       provider: 'service',
       email: null,
       name: 'AgentOS service',
+      role: 'SERVICE',
       roles: ['SERVICE'],
       permissions: ['*'],
       authenticatedAt: new Date().toISOString(),
@@ -130,7 +87,7 @@ export function ownsResource(identity, resourceUid) {
 export function requirePermission(permission) {
   return (req, res, next) => {
     if (!hasPermission(req.user, permission)) return res.status(403).json({ error: 'Forbidden' });
-    next();
+    return next();
   };
 }
 
@@ -139,7 +96,7 @@ export function requireOwner(paramName = 'uid') {
     if (!ownsResource(req.user, req.params[paramName] || req.body?.[paramName])) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    next();
+    return next();
   };
 }
 
