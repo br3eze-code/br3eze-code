@@ -157,8 +157,30 @@ async function loginWithProvider(provider) {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || 'Legacy data session could not be established.');
         const firebaseAuth = window.firebase.auth();
-        if (firebaseAuth.currentUser?.uid === body.uid) return firebaseAuth.currentUser;
-        return firebaseAuth.signInWithCustomToken(body.token);
+        const credential = firebaseAuth.currentUser?.uid === body.uid
+            ? { user: firebaseAuth.currentUser }
+            : await firebaseAuth.signInWithCustomToken(body.token);
+        if (typeof window.firebase.firestore === 'function') {
+            const firestore = window.firebase.firestore();
+            const userRef = firestore.collection('users').doc(body.uid);
+            const existing = await userRef.get();
+            if (!existing.exists) {
+                const supabaseUser = await this.getUser();
+                const profile = supabaseUser ? await this.getProfile(supabaseUser) : null;
+                await userRef.set({
+                    uid: body.uid,
+                    email: supabaseUser?.email || null,
+                    fullname: profile?.full_name || supabaseUser?.user_metadata?.full_name || supabaseUser?.email || '',
+                    username: profile?.username || '',
+                    phoneNumber: profile?.phone || '',
+                    role: body.role || 'user',
+                    credits: 0,
+                    subscriptions: [],
+                    createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+        return credential.user;
     },
     loginWithProvider,
     apiFetch: async function (url, options = {}) {
