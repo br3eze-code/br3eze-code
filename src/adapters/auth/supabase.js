@@ -71,17 +71,22 @@ async function verifySupabaseAccessToken(accessToken) {
     const profile = Array.isArray(profiles) ? profiles[0] || {} : {};
     const metadata = user.app_metadata || {};
 
+    const profileRole = profile.role ? String(profile.role).toLowerCase() : null;
+    const trustedRoles = profileRole
+      ? [profileRole]
+      : (Array.isArray(metadata.roles) ? metadata.roles.map((role) => String(role).toLowerCase()) : undefined);
+
     return Object.freeze({
       id: user.id,
       uid: user.id,
       sub: user.id,
       email: user.email || null,
       name: profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
-      role: String(metadata.role || profile.role || 'user').toLowerCase(),
-      roles: Array.isArray(metadata.roles) ? metadata.roles.map((role) => String(role).toLowerCase()) : undefined,
-      tenantId: metadata.tenant_id || profile.tenant_id || null,
-      siteId: metadata.site_id || profile.site_id || null,
-      domainId: metadata.domain_id || metadata.domain || profile.domain || null,
+      role: profileRole || String(metadata.role || 'user').toLowerCase(),
+      roles: trustedRoles,
+      tenantId: profile.tenant_id || metadata.tenant_id || null,
+      siteId: profile.site_id || metadata.site_id || null,
+      domainId: profile.domain || metadata.domain_id || metadata.domain || null,
       username: profile.username || null,
       authProvider: 'supabase',
       emailVerified: Boolean(user.email_confirmed_at),
