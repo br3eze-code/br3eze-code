@@ -36,40 +36,32 @@ export class ApplicationManager {
     if (this.apps.has(normalized.id)) throw new Error(`application already registered: ${normalized.id}`);
     if (!service || service.id !== normalized.entryService) throw new Error('application service must match manifest.entryService');
     this.supervisor.register(service);
-    this.apps.set(normalized.id, { manifest: normalized, state: 'installed', installedAt: new Date().toISOString() });
+    this.apps.set(normalized.id, { manifest: normalized, installedAt: new Date().toISOString() });
     return this.describe(normalized.id);
   }
 
   async start(appId, context = {}) {
     const app = this.#require(appId);
-    try {
-      const result = await this.supervisor.start(app.manifest.entryService, {
-        ...context,
-        application: { id: app.manifest.id, version: app.manifest.version, permissions: [...app.manifest.permissions] },
-      });
-      app.state = result.state === 'running' ? 'running' : result.state;
-      return this.describe(appId);
-    } catch (error) {
-      app.state = 'failed';
-      throw error;
-    }
+    await this.supervisor.start(app.manifest.entryService, {
+      ...context,
+      application: { id: app.manifest.id, version: app.manifest.version, permissions: [...app.manifest.permissions] },
+    });
+    return this.describe(appId);
   }
 
   async stop(appId, context = {}) {
     const app = this.#require(appId);
-    try {
-      const result = await this.supervisor.stop(app.manifest.entryService, context);
-      app.state = result.state === 'stopped' ? 'stopped' : result.state;
-      return this.describe(appId);
-    } catch (error) {
-      app.state = 'failed';
-      throw error;
-    }
+    await this.supervisor.stop(app.manifest.entryService, {
+      ...context,
+      application: { id: app.manifest.id, version: app.manifest.version },
+    });
+    return this.describe(appId);
   }
 
   describe(appId) {
     const app = this.#require(appId);
-    return { ...app.manifest, state: app.state, installedAt: app.installedAt };
+    const service = this.supervisor.describe(app.manifest.entryService);
+    return { ...app.manifest, state: service.state, installedAt: app.installedAt };
   }
 
   list() { return [...this.apps.keys()].map((id) => this.describe(id)); }
