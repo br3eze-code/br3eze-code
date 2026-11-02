@@ -114,12 +114,12 @@ jobs:
           secret_file="$(mktemp)"
           trap 'rm -f "$secret_file"' EXIT
           printf '%s\n' \
-            "GATEWAY_TOKEN=$GATEWAY_TOKEN" \
-            "AUDIT_SECRET=$AUDIT_SECRET" \
-            "GEMINI_API_KEY=$GEMINI_API_KEY" \
-            "MIKROTIK_API_TOKEN=$MIKROTIK_API_TOKEN" \
-            "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
-            "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" > "$secret_file"
+            "gateway-token=$GATEWAY_TOKEN" \
+            "audit-secret=$AUDIT_SECRET" \
+            "gemini-api-key=$GEMINI_API_KEY" \
+            "mikrotik-api-token=$MIKROTIK_API_TOKEN" \
+            "aws-access-key-id=$AWS_ACCESS_KEY_ID" \
+            "aws-secret-access-key=$AWS_SECRET_ACCESS_KEY" > "$secret_file"
           kubectl create secret generic agentos \
             --from-env-file="$secret_file" \
             --namespace "$namespace" \
