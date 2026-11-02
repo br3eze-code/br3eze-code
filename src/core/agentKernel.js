@@ -17,7 +17,7 @@ class AgentKernel extends EventEmitter {
     this.domains = new Map();
     this.agentRegistry = opts.agentRegistry || new AgentRegistry();
     this.sessionEventStore = opts.sessionEventStore || new SessionEventStore();
-    this.runtime = opts.runtime || getAgentRuntime();
+    this.runtime = getAgentRuntime(opts.runtime ? { runtime: opts.runtime } : {});
     this._ready = false;
   }
 
