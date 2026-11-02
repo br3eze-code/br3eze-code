@@ -28,7 +28,7 @@ import otpRouter from './api/chat/otp/routes.js';
 import { registerOtpRoutes } from './api/chat/otp/register.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
-import { authenticateBearer } from './src/auth/identity.js';
+import { authenticateBearer, extractBearerToken } from './src/auth/identity.js';
 import { createFirebaseDataSessionRouter, resolveFirebaseDataUser } from './src/api/routes/firebase-data-session.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
 import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
@@ -1285,9 +1285,8 @@ const app = configureHttpApplication({
 // Authentication delegates to the provider-neutral identity boundary.
 const authMiddleware = async (req, res, next) => {
     const authorization = String(req.headers.authorization || '');
-    const bearer = authorization.match(/^Bearer\s+(.+)$/i);
-    if (!bearer) return res.status(401).json({ error: 'Authorization required' });
-    const token = bearer[1].trim();
+    const token = extractBearerToken(authorization);
+    if (!token) return res.status(401).json({ error: 'Authorization required' });
     if (!token) return res.status(401).json({ error: 'Invalid token' });
 
     try {
