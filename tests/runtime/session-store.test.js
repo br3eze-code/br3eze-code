@@ -1,8 +1,14 @@
 import { InMemorySessionEventStore, SessionEventStore } from '../../src/core/session/SessionEventStore.js';
-import { clearSessionEventStore, registerSessionEventStore, requireSessionEventStore } from '../../src/core/ports/session-event-store.js';
+import { clearSessionEventStore, getOrCreateSessionEventStore, registerSessionEventStore, requireSessionEventStore } from '../../src/core/ports/session-event-store.js';
 
 describe('SessionEventStore', () => {
   afterEach(() => clearSessionEventStore());
+
+  test('shares one default store across runtime and memory composition roots', () => {
+    const first = getOrCreateSessionEventStore();
+    const second = getOrCreateSessionEventStore();
+    expect(second).toBe(first);
+  });
 
   test('registers providers through the core port', async () => {
     const provider = new SessionEventStore();
