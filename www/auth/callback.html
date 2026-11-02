@@ -12,6 +12,7 @@
     const KEY = 'agentos_supabase_session';
     const VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
     const STATE_KEY = 'agentos_oauth_state';
+    const RETURN_TO_KEY = 'agentos_oauth_return_to';
     const status = document.getElementById('status');
     const runtime = window.ENV || {};
     const supabaseUrl = String(runtime.SUPABASE_URL || '').replace(/\/$/, '');
@@ -47,7 +48,16 @@
         localStorage.setItem(KEY, JSON.stringify(session));
         localStorage.removeItem(VERIFIER_KEY);
         localStorage.removeItem(STATE_KEY);
-        window.location.replace('../');
+        const requestedReturn = localStorage.getItem(RETURN_TO_KEY);
+        localStorage.removeItem(RETURN_TO_KEY);
+        let destination = new URL('../', window.location.href);
+        if (requestedReturn) {
+          try {
+            const candidate = new URL(requestedReturn, window.location.origin);
+            if (candidate.origin === window.location.origin) destination = candidate;
+          } catch { /* stay on the same origin's app root */ }
+        }
+        window.location.replace(destination.href);
       } catch (e) {
         localStorage.removeItem(VERIFIER_KEY);
         localStorage.removeItem(STATE_KEY);
