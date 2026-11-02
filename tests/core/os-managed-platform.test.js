@@ -58,6 +58,19 @@ describe('Br3eze OS managed application platform', () => {
     expect(apps.describe('demo.app').state).toBe('stopped');
   });
 
+  test('application status reads the supervisor state instead of maintaining a second lifecycle state', async () => {
+    const supervisor = new ServiceSupervisor();
+    const apps = new ApplicationManager({ supervisor });
+    apps.register({ id: 'status.app', version: '1.0.0', entryService: 'status.service' }, {
+      id: 'status.service', start: async () => {}, stop: async () => {},
+    });
+    expect(apps.apps.get('status.app').state).toBeUndefined();
+    await supervisor.start('status.service');
+    expect(apps.describe('status.app').state).toBe('running');
+    await supervisor.stop('status.service');
+    expect(apps.describe('status.app').state).toBe('stopped');
+  });
+
   test('records failed application startup instead of leaving a stale installed state', async () => {
     const apps = new ApplicationManager({ supervisor: new ServiceSupervisor() });
     apps.register({ id: 'broken.app', version: '1.0.0', entryService: 'broken.service' }, {
