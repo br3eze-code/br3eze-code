@@ -13,6 +13,9 @@ on:
       - 'www/**'
       - 'server/**'
       - 'api/chat/otp/**'
+      - 'src/adapters/auth/supabase.js'
+      - 'src/api/routes/firebase-data-session.js'
+      - 'src/adapters/firebase/admin.js'
       - 'firebase.json'
       - 'firestore.rules'
       - 'firestore.indexes.json'
@@ -104,6 +107,18 @@ jobs:
             echo "SUPABASE_OAUTH_REDIRECT=${{ secrets.SUPABASE_OAUTH_REDIRECT }}"
           } > .env
 
+      - name: Write Functions runtime environment
+        # Firebase Functions reads .env from its configured source directory (server/).
+        # Only the public Supabase project URL/key are required to verify user tokens.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          {
+            echo "SUPABASE_URL=$SUPABASE_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY"
+          } > server/.env
+
       - name: Deploy
         run: |
           ONLY="${{ github.event.inputs.only }}"
@@ -118,4 +133,4 @@ jobs:
       - name: Clean up credentials
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP/firebase-key.json" .env
+          rm -f "$RUNNER_TEMP/firebase-key.json" .env server/.env
