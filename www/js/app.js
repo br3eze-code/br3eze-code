@@ -419,166 +419,79 @@ if (db) {
 }
 
 /*  =====  AUTH ACTIONS  =====  */
-const Auth = {
-    async login(loginIdentifier, password) {
-        if (!navigator.onLine) showToast('Offline mode: server actions will be queued until connectivity returns.', 'warning');
-        window.Loading.show('Logging in...');
-        try {
-            if (!navigator.onLine || !auth) {
-                const cached = JSON.parse(localStorage.getItem('mesh_profile') || 'null');
-                const identifier = String(loginIdentifier || '').toLowerCase();
-                if (!cached || ![cached.email, cached.username, cached.phoneNumber].filter(Boolean).map(String).map((value) => value.toLowerCase()).includes(identifier)) {
-                    throw new Error('This account is not available offline. Connect once to sign in and cache a local profile.');
-                }
-                const hash = await CryptoUtils.hash(password);
-                if (hash !== cached.passwordHash) throw new Error('Invalid offline credentials.');
-                window.currentUser = cached;
-                syncOfflineUserContext(cached);
-                window.Loading.hide();
-                showMainApp();
-                return;
-            }
-            let email = loginIdentifier.toLowerCase();
-            if (!loginIdentifier.includes('@')) {
-                try {
-                    const resolved = await DataStore.resolveLoginEmail(loginIdentifier);
-                    if (resolved && resolved.email) email = resolved.email;
-                    else throw new Error("User not found. Try logging in with your email.");
-                }
-                catch (e) {
-                    // If username lookup failed offline, we can't proceed
-                    if (!navigator.onLine) throw new Error("Offline: Please login with Email.");
-                    throw e;
-                }
-            }
-            await auth.signInWithEmailAndPassword(email, password);
-        } catch (e) {
-            window.Loading.hide();
-            showToast(e.message, 'error');
+// The shared Supabase Auth object owns all online login/provider flows.
+// Firebase Auth is only a server-minted session for legacy Firestore access.
+const Auth = window.Auth;
+if (!Auth) throw new Error('Supabase Auth bootstrap is required before app.js');
+
+const supabaseLogin = Auth.login.bind(Auth);
+const supabaseSignup = Auth.signup.bind(Auth);
+const supabaseLogout = Auth.logout.bind(Auth);
+
+Auth.login = async function (loginIdentifier, password) {
+    if (!navigator.onLine) {
+        const cached = JSON.parse(localStorage.getItem('mesh_profile') || 'null');
+        const identifier = String(loginIdentifier || '').trim().toLowerCase();
+        const allowed = [cached?.email, cached?.username, cached?.phoneNumber]
+            .filter(Boolean).map(value => String(value).toLowerCase());
+        if (!cached || !allowed.includes(identifier)) {
+            return showToast('This account is not available offline. Connect once to sign in and cache a local profile.', 'error');
         }
-    },
-    async signup(email, password, fullname, username, confirmPassword, phoneNumber) {
-        if (password !== confirmPassword) return showToast('Passwords do not match', 'error');
-        const normalizedPhone = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
-
-        // Capture device ID
-        let deviceId = 'Unknown';
-        if (typeof device !== 'undefined') deviceId = device.uuid;
-        else if (window.crypto && window.crypto.randomUUID) deviceId = 'WEB-' + crypto.randomUUID().substring(0, 8);
-
-        if (!navigator.onLine) {
-            // OFFLINE SIGNUP: Create Mesh Profile
-            window.Loading.show('Creating Mesh Profile...');
-            const meshUser = {
-                uid: 'MESH-' + (await CryptoUtils.hash(username + Date.now())).substring(0, 8),
-                email,
-                fullname,
-                username,
-                phoneNumber: normalizedPhone,
-                role: 'user',
-                credits: 0.00,
-                subscriptions: [],
-                deviceId: deviceId,
-                isMesh: true,
-                passwordHash: await CryptoUtils.hash(password), // Store hashed locally
-                createdAt: Date.now()
-            };
-            meshUser.id = meshUser.uid; // Ensure compatibility with id-based checks
-
-            localStorage.setItem('mesh_profile', JSON.stringify(meshUser));
-            if (typeof GossipService !== 'undefined') {
-                GossipService.queueMeshSignup(meshUser);
-            }
-
-            showToast('Mesh Profile created! Relaying to cloud...', 'success');
-            // Auto-login locally as mesh user
-            window.currentUser = meshUser;
-            syncOfflineUserContext(meshUser);
-            window.Loading.hide();
-            showMainApp();
-            return;
-        }
-
-        window.Loading.show('Creating account...');
-        try {
-            const normalizedUsername = username.toLowerCase();
-            const existingLookup = await db.collection('lookups').doc('username:' + normalizedUsername).get();
-            if (existingLookup.exists) return showToast('Username is already taken.', 'error');
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-            const user = userCredential.user;
-
-            const newUserProfile = {
-                uid: user.uid,
-                email: user.email,
-                fullname,
-                username: username.toLowerCase(),
-                phoneNumber: normalizedPhone,
-                hotspotPass: password, // Save for MikroTik captive portal sync
-                role: 'user',
-                credits: 0.00,
-                subscriptions: [],
-                deviceId: deviceId,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            await db.collection('users').doc(user.uid).set(newUserProfile);
-            await DataStore.writeLoginLookups(newUserProfile).catch(e => console.warn('Lookup write failed:', e));
-            window.Loading.hide();
-            showToast('Account created!', 'success');
-        } catch (e) {
-            window.Loading.hide();
-            showToast(e.message, 'error');
-        }
-    },
-    async logout() {
-        window.Loading.show('Signing out...');
-        if (window.GossipService) window.GossipService.stop();
-        if (window.NetworkTools) {
-            window.NetworkTools.stopConnectionMonitoring();
-            window.NetworkTools.stopTrafficAccounting();
-        }
-        if (auth) await auth.signOut().catch(() => {});
-        localStorage.removeItem('agentos_offline_context');
-        Subscriptions.unsubscribeAll();
-        // Reset AppData
-        AppData.plans = [];
-        AppData.transactions = [];
-        AppData.tickets = [];
-        AppData.users = [];
-
-        window.Loading.hide();
-        showToast('Logged out', 'info');
-        window.authCheckComplete = true;
-        if (window.NetworkTools && window.NetworkTools.cleanup) window.NetworkTools.cleanup();
-    },
-    async loginWithGoogle() {
-        window.Loading.show('Signing in with Google...');
-        try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            const { user } = await auth.signInWithPopup(provider);
-            const existing = await db.collection('users').doc(user.uid).get();
-            if (!existing.exists) {
-                const newProfile = {
-                    uid: user.uid,
-                    email: user.email,
-                    fullname: user.displayName || user.email,
-                    username: (user.email || user.uid).split('@')[0].toLowerCase(),
-                    photoURL: user.photoURL || '',
-                    role: 'user',
-                    credits: 10.00, // Welcome bonus
-                    subscriptions: [],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                await db.collection('users').doc(user.uid).set(newProfile);
-                await DataStore.writeLoginLookups(newProfile).catch(e => console.warn('Lookup write failed:', e));
-            } else if (user.photoURL && existing.data().photoURL !== user.photoURL) {
-                // Keep the profile photo in sync with the Google account.
-                await db.collection('users').doc(user.uid).update({ photoURL: user.photoURL });
-            }
-        } catch (e) {
-            window.Loading.hide();
-            if (e.code !== 'auth/popup-closed-by-user') showToast(e.message, 'error');
-        }
+        const hash = await CryptoUtils.hash(password);
+        if (hash !== cached.passwordHash) return showToast('Invalid offline credentials.', 'error');
+        window.currentUser = cached;
+        syncOfflineUserContext(cached);
+        showMainApp();
+        return cached;
     }
+    return supabaseLogin(loginIdentifier, password);
+};
+
+Auth.signup = async function (email, password, fullname, username, confirmPassword, phoneNumber = '') {
+    if (!navigator.onLine) {
+        if (password !== confirmPassword) return showToast('Passwords do not match.', 'error');
+        const deviceId = typeof device !== 'undefined' ? device.uuid : 'WEB-' + crypto.randomUUID().slice(0, 8);
+        const meshUser = {
+            uid: 'MESH-' + (await CryptoUtils.hash(username + Date.now())).slice(0, 8),
+            id: null,
+            email,
+            fullname,
+            username,
+            phoneNumber: String(phoneNumber || '').replace(/\\D/g, ''),
+            role: 'user',
+            credits: 0,
+            subscriptions: [],
+            deviceId,
+            isMesh: true,
+            passwordHash: await CryptoUtils.hash(password),
+            createdAt: Date.now()
+        };
+        meshUser.id = meshUser.uid;
+        localStorage.setItem('mesh_profile', JSON.stringify(meshUser));
+        window.GossipService?.queueMeshSignup?.(meshUser);
+        window.currentUser = meshUser;
+        syncOfflineUserContext(meshUser);
+        showToast('Offline profile created. It will sync when you reconnect.', 'success');
+        showMainApp();
+        return meshUser;
+    }
+    return supabaseSignup(email, password, fullname, username, confirmPassword, phoneNumber);
+};
+
+Auth.logout = async function () {
+    if (window.GossipService) window.GossipService.stop();
+    if (window.NetworkTools) {
+        window.NetworkTools.stopConnectionMonitoring();
+        window.NetworkTools.stopTrafficAccounting();
+        window.NetworkTools.cleanup?.();
+    }
+    localStorage.removeItem('agentos_offline_context');
+    Subscriptions.unsubscribeAll();
+    AppData.plans = [];
+    AppData.transactions = [];
+    AppData.tickets = [];
+    AppData.users = [];
+    return supabaseLogout();
 };
 
 /*  =====  DATA STORE  =====  */
