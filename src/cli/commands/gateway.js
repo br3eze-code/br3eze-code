@@ -9,6 +9,9 @@ import { getDatabase } from '../../core/database.js';
 import FinancialService from '../../core/financial.js';
 import UniversalBilling from '../../core/universal-billing.js';
 import MemoryManager from '../../core/memory/MemoryManager.js';
+import { SessionEventStore } from '../../core/session/SessionEventStore.js';
+import { getSessionEventStore, registerSessionEventStore } from '../../core/ports/session-event-store.js';
+import { FileSessionEventStore } from '../../adapters/persistence/file-session-event-store.js';
 import nodeRegistry from '../../core/node-registry.js';
 import { getAgentRuntime } from '../../core/agentRuntime.js';
 import toolRegistry from '../../core/ToolRegistry.js';
@@ -298,7 +301,11 @@ export default (program) => {
                 const database = await getDatabase();
                 const financial = new FinancialService({ database });
                 const billing = new UniversalBilling({ database });
-                const memoryManager = new MemoryManager(config.memory?.adapter || 'memory');
+                const sessionEventStore = getSessionEventStore() || new SessionEventStore({
+                    store: new FileSessionEventStore({ rootDir: path.join(STATE_PATH, 'sessions', 'events') }),
+                });
+                if (!getSessionEventStore()) registerSessionEventStore(sessionEventStore);
+                const memoryManager = new MemoryManager(config.memory?.adapter || 'memory', { sessionEventStore });
                 await memoryManager.initialize();
 
                 // Set Globals
@@ -330,6 +337,7 @@ export default (program) => {
                     permissionMode: 'PROMPT',
                     maxTurns: 8,
                     toolRegistry,
+                    sessionEventStore,
                     ...(modelPort ? { model: modelPort } : {}),
                 });
                 // Reuse the configured network manager; device I/O stays behind a read-only adapter.
