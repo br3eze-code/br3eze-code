@@ -2,6 +2,7 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { ServiceSupervisor } from '../../src/core/os/ServiceSupervisor.js';
 import { IPCMessageBus } from '../../src/core/os/IPCMessageBus.js';
 import { ApplicationManager } from '../../src/core/os/ApplicationManager.js';
+import { createManagedPlatform } from '../../src/core/os/index.js';
 
 describe('Br3eze OS managed application platform', () => {
   test('supervises service lifecycle and records failures', async () => {
@@ -70,5 +71,29 @@ describe('Br3eze OS managed application platform', () => {
     const apps = new ApplicationManager({ supervisor: new ServiceSupervisor() });
     expect(() => apps.register({ id: 'bad app', version: '1.0.0', entryService: 'svc' }, { id: 'svc', start() {}, stop() {} })).toThrow('manifest.id');
     expect(() => apps.register({ id: 'demo.app', version: '1.0.0', entryService: 'svc' }, { id: 'other', start() {}, stop() {} })).toThrow('must match');
+  });
+});
+
+describe('managed platform composition', () => {
+  test('composes lifecycle, application, IPC and persistence ports without creating a runtime', () => {
+    const stateStore = {
+      get: async () => undefined,
+      set: async () => ({}),
+      delete: async () => false,
+      list: async () => [],
+    };
+    const platform = createManagedPlatform({
+      stateStore,
+      authorizeIpc: () => true,
+    });
+    expect(platform.stateStore).toBe(stateStore);
+    expect(platform.supervisor).toBeTruthy();
+    expect(platform.applications).toBeInstanceOf(ApplicationManager);
+    expect(platform.ipc).toBeInstanceOf(IPCMessageBus);
+    expect(Object.keys(platform)).toEqual(['supervisor', 'applications', 'ipc', 'stateStore']);
+  });
+
+  test('rejects an incomplete persistence adapter at the composition boundary', () => {
+    expect(() => createManagedPlatform({ stateStore: { get: async () => null } })).toThrow('stateStore must implement set()');
   });
 });
