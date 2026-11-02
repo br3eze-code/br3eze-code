@@ -76,7 +76,7 @@
     {
       "branch": "snyk-fix-890df4e8aba327a7453085b9e48a48ee",
       "head": "ab020f3877b816883649974375ca9ecca6db5983",
-      "absorbedIn": "fa0694b20f0ffb8c155a0ab9db8dff4e",
+      "absorbedIn": "fa0694b20f0ffb8c155a96aae29ac9fa5e0a26a4",
       "reason": "Historical record retained. A future non-ancestor deletion also requires reviewedFiles covering every changed path."
     }
   ]
