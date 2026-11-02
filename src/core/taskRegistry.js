@@ -131,11 +131,17 @@ class TaskRegistry extends EventEmitter {
 }
 
 let _instance = null;
-function getTaskRegistry(options) {
+function getTaskRegistry(options = {}) {
+  if (options.reset) _instance = null;
   if (!_instance) {
-    const explicitStore = options && Object.prototype.hasOwnProperty.call(options, 'store');
-    const store = explicitStore ? options.store : new FileTaskStore({ directory: path.join(STATE_PATH, 'tasks') });
-    _instance = new TaskRegistry({ ...options, store });
+    const explicitStore = Object.prototype.hasOwnProperty.call(options, 'store');
+    const store = explicitStore
+      ? options.store
+      : process.env.NODE_ENV === 'test' && !process.env.AGENTOS_TASK_STORE_DIR
+        ? null
+        : new FileTaskStore({ directory: process.env.AGENTOS_TASK_STORE_DIR || path.join(STATE_PATH, 'tasks') });
+    const { reset: _reset, ...registryOptions } = options;
+    _instance = new TaskRegistry({ ...registryOptions, store });
     _instance.recoverInterrupted();
   }
   return _instance;

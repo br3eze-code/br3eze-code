@@ -30,6 +30,7 @@ function readAudit(file, surface) {
 }
 
 readAudit(path.join(base, 'raw', 'root', 'npm-audit.json'), 'root-lockfile');
+readAudit(path.join(base, 'raw', 'server', 'npm-audit.json'), 'server-lockfile');
 readAudit(path.join(base, 'raw', 'cordova-sqlite-storage', 'npm-audit.json'), 'cordova-sqlite-lockfile');
 const locklessDir = path.join(base, 'raw', 'lockless');
 if (fs.existsSync(locklessDir)) {

@@ -8,6 +8,10 @@ find "$out" -maxdepth 1 -type f \( -name "*.json" -o -name "*.err" -o -name "*.i
 : > "$out/status.tsv"
 find "$repo" -path '*/node_modules' -prune -o -path '*/.git' -prune -o -path '*/.security-review' -prune -o -type f -name package.json -print | sort | while IFS= read -r manifest; do
   dir="$(dirname "$manifest")"
+  # Lockfile-backed manifests are audited by their dedicated workflow steps.
+  if [ -f "$dir/package-lock.json" ] || [ -f "$dir/npm-shrinkwrap.json" ]; then
+    continue
+  fi
   rel="${dir#$repo/}"
   [ "$rel" = "$dir" ] && rel="root"
   safe="$(printf '%s' "$rel" | tr '/ ' '__' | tr -cd '[:alnum:]_.-')"
