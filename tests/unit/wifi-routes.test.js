@@ -22,7 +22,6 @@ describe('Wi-Fi route composition', () => {
 
     registerWifiRoutes({
       app,
-      otpRouter: {},
       database,
       CONFIG: config,
       BRAND: { name: 'Test', version: '1' },
@@ -43,8 +42,6 @@ describe('Wi-Fi route composition', () => {
     expect(routes.some((route) => route.path === '/api/channels')).toBe(true);
     expect(routes.some((route) => route.path === '/channels/capabilities')).toBe(true);
     expect(routes.some((route) => route.path === '/tool/execute')).toBe(true);
-    expect(routes.some((route) => route.path === '/api/chat/otp')).toBe(true);
-    expect(routes.some((route) => route.path === '/api/auth/otp')).toBe(true);
     expect(app.post).toHaveBeenCalled();
   });
 
