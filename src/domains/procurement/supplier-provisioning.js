@@ -207,6 +207,9 @@ export class SupplierProvisioningService {
         rejectedQuantity,
       };
     });
+    if (new Set(received.map((line) => line.productId)).size !== received.length) {
+      throw new TypeError('Duplicate productId receipt lines are not allowed');
+    }
     const result = await this.store.applyReceiptAtomically({
       order,
       tenantId: scope.tenantId,
