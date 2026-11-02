@@ -1,8 +1,9 @@
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const url = process.env.SUPABASE_URL || '';
+const url = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 let adminClient;
 
 function loadCreateClient() {
@@ -12,7 +13,7 @@ function loadCreateClient() {
     return sdk.createClient;
   } catch (cause) {
     const error = new Error(
-      'SUPABASE_ADAPTER_DEPENDENCY_MISSING: install @supabase/supabase-js to enable the Supabase auth adapter'
+      'SUPABASE_ADAPTER_DEPENDENCY_MISSING: install @supabase/supabase-js to enable Supabase persistence'
     );
     error.code = 'SUPABASE_ADAPTER_DEPENDENCY_MISSING';
     error.cause = cause;
@@ -20,10 +21,7 @@ function loadCreateClient() {
   }
 }
 
-/**
- * Optional Supabase adapter. Importing AgentOS does not require the Supabase
- * SDK; only a configured Supabase deployment loads that provider dependency.
- */
+/** Server-only Supabase service client for persistence adapters. */
 function getSupabaseAdmin() {
   if (!url || !serviceKey) return null;
   if (!adminClient) {
@@ -35,29 +33,57 @@ function getSupabaseAdmin() {
   return adminClient;
 }
 
+/**
+ * The one shared human-token verifier for API handlers and the Functions
+ * server. It validates the bearer token with Supabase Auth, then reads the
+ * caller's own RLS-protected profile. It never accepts Firebase/local JWTs.
+ */
 async function verifySupabaseAccessToken(accessToken) {
-  const client = getSupabaseAdmin();
-  if (!client || !accessToken) return null;
-  const { data, error } = await client.auth.getUser(accessToken);
-  if (error || !data?.user) return null;
-  const user = data.user;
-  const { data: profile } = await client
-    .from('profiles')
-    .select('id,email,full_name,username,phone,role,tenant_id,site_id,domain')
-    .eq('id', user.id)
-    .maybeSingle();
-  return {
-    uid: user.id,
-    email: user.email || profile?.email || null,
-    role: profile?.role || 'user',
-    tenantId: profile?.tenant_id || null,
-    siteId: profile?.site_id || null,
-    domain: profile?.domain || null,
-    fullName: profile?.full_name || null,
-    username: profile?.username || null,
-    authProvider: 'supabase',
-    customClaims: user.app_metadata || {},
-  };
+  if (!url || !publishableKey || typeof accessToken !== 'string' || !accessToken.trim()) return null;
+
+  try {
+    const response = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: publishableKey, authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return null;
+    const user = await response.json();
+    if (!user?.id) return null;
+
+    const profileResponse = await fetch(
+      `${url}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,tenant_id,site_id,domain,full_name,username`,
+      {
+        headers: {
+          apikey: publishableKey,
+          authorization: `Bearer ${accessToken}`,
+          accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    const profiles = profileResponse.ok ? await profileResponse.json() : [];
+    const profile = Array.isArray(profiles) ? profiles[0] || {} : {};
+    const metadata = user.app_metadata || {};
+
+    return Object.freeze({
+      id: user.id,
+      uid: user.id,
+      sub: user.id,
+      email: user.email || null,
+      name: profile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
+      role: String(metadata.role || profile.role || 'user').toLowerCase(),
+      roles: Array.isArray(metadata.roles) ? metadata.roles.map((role) => String(role).toLowerCase()) : undefined,
+      tenantId: metadata.tenant_id || profile.tenant_id || null,
+      siteId: metadata.site_id || profile.site_id || null,
+      domainId: metadata.domain_id || metadata.domain || profile.domain || null,
+      username: profile.username || null,
+      authProvider: 'supabase',
+      emailVerified: Boolean(user.email_confirmed_at),
+      appMetadata: metadata,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export { getSupabaseAdmin, verifySupabaseAccessToken };
