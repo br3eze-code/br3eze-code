@@ -18,6 +18,8 @@ export function createSpecialistContext(input = {}) {
     inventory: input.inventory || input.services?.inventory || input.providers?.inventory || null,
     catalog: input.catalog || input.services?.catalog || input.providers?.catalog || null,
     productQueryService: input.productQueryService || input.services?.productQueryService || input.providers?.productQueryService || null,
+    supplierCatalog: input.supplierCatalog || input.services?.supplierCatalog || input.providers?.supplierCatalog || null,
+    supplierProvisioning: input.supplierProvisioning || input.services?.supplierProvisioning || input.providers?.supplierProvisioning || null,
     metadata: Object.freeze({ ...(input.metadata || {}) }),
   });
 }
