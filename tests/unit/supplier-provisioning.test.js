@@ -106,6 +106,20 @@ describe('supplier provisioning transaction guards', () => {
     expect(h.orders.size).toBe(0);
   });
 
+
+  test('does not reserve an order when the supplier API is not configured', async () => {
+    const h = makeHarness();
+    h.service.supplierAdapter = {
+      assertReady() { throw Object.assign(new Error('Supplier API is not configured'), { code: 'SUPPLIER_API_NOT_CONFIGURED', status: 503 }); },
+      async createPurchaseOrder() { h.calls.supplier.push('should-not-run'); },
+    };
+    await expect(h.service.createPurchaseOrder({
+      request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'not-configured',
+    })).rejects.toMatchObject({ code: 'SUPPLIER_API_NOT_CONFIGURED', status: 503 });
+    expect(h.orders.size).toBe(0);
+    expect(h.calls.supplier).toHaveLength(0);
+  });
+
   test('does not create a second purchase order or call supplier on replay', async () => {
     const h = makeHarness();
     const first = await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
