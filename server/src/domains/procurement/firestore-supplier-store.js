@@ -54,6 +54,13 @@ export function createFirestoreSupplierStore(database) {
           if (existing.idempotencyKey !== record.idempotencyKey) {
             const error = new Error('Order ID already exists with a different idempotency key');
             error.code = 'SUPPLIER_ORDER_CONFLICT';
+            error.status = 409;
+            throw error;
+          }
+          if (existing.requestFingerprint && record.requestFingerprint && existing.requestFingerprint !== record.requestFingerprint) {
+            const error = new Error('Order ID was reused with different supplier order details');
+            error.code = 'SUPPLIER_IDEMPOTENCY_CONFLICT';
+            error.status = 409;
             throw error;
           }
           return { created: false, order: { orderId: existing.orderId, ...existing } };
