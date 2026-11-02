@@ -44,6 +44,14 @@ async function authenticatedScope(req, db) {
   return { tenantId: String(tenantId), projectId: String(projectId), userId: String(userId), profile };
 }
 
+function requireProcurementRead(req) {
+  const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+  const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
+  if (!roles.includes('ADMIN') && !permissions.includes('procurement:read') && !permissions.includes('procurement:write')) {
+    throw Object.assign(new Error('Procurement read permission is required'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
+  }
+}
+
 function requireProcurementWrite(req) {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
@@ -77,6 +85,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
   // never fetched as API endpoints, avoiding arbitrary-URL server-side calls.
   app.get('/api/v1/shop/products/:productId/supplier-reference', authMiddleware, async (req, res) => {
     try {
+      requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
       const snap = await db.collection('products').doc(String(req.params.productId)).get();
       if (!snap.exists || snap.data().tenantId !== scope.tenantId) return res.status(404).json({ error: 'Product not found in tenant scope' });
@@ -102,6 +111,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
   // accepted after server-side lookup and tenant/project/action validation.
   app.post('/api/v1/shop/supplier-orders', authMiddleware, async (req, res) => {
     try {
+      requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
       const { productId, quantity, approvalId } = req.body || {};
       const qty = Number(quantity);
