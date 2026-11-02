@@ -79,14 +79,6 @@ class DatabaseService {
 
             // Create tables
             this.db.exec(`
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    role TEXT DEFAULT 'USER',
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                );
-
                 CREATE TABLE IF NOT EXISTS vouchers (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     code TEXT UNIQUE NOT NULL,
@@ -114,32 +106,12 @@ class DatabaseService {
                 );
             `);
 
-            // Create default admin if not exists
-            const adminExists = this.db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-            if (!adminExists) {
-                const hash = crypto.createHash('sha256').update('admin123').digest('hex');
-                this.db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run('admin', hash, 'ADMIN');
-                logger.info('Default admin user created (username: admin, password: admin123)');
-            }
-
             this.ready = true;
             logger.info('Database initialized successfully');
         } catch (error) {
             logger.error('Database initialization failed:', error);
             throw error;
         }
-    }
-
-    // User methods
-    getUser(username) {
-        return this.db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-    }
-
-    validateUser(username, password) {
-        const user = this.getUser(username);
-        if (!user) return null;
-        const hash = crypto.createHash('sha256').update(password).digest('hex');
-        return user.password_hash === hash ? user : null;
     }
 
     // Voucher methods
