@@ -69,6 +69,28 @@ describe('next-action system', () => {
     expect(validateWebMcpRequest({ url: 'https://example.com/update', method: 'POST', allowedHosts: ['example.com'], approval: { approved: true } }).allowed).toBe(true);
   });
 
+  test('blocks non-public IPv4 and IPv6 literals in outbound web-MCP requests', () => {
+    for (const url of [
+      'https://10.0.0.1/admin',
+      'https://169.254.169.254/latest/meta-data/',
+      'https://[::1]/admin',
+      'https://[fd00::1]/admin',
+      'https://2130706433/admin',
+    ]) {
+      expect(validateWebMcpRequest({ url }).errors).toContain('private_network_blocked');
+    }
+  });
+
+  test('redacts credential values without leaving their original contents', () => {
+    const result = sanitizeWebMcpObservation({
+      nested: { authorization: 'Bearer super-secret-value', api_key: 'private-key-value' },
+      entries: [{ password: 'nested-password-value' }],
+    });
+    expect(result).not.toContain('super-secret-value');
+    expect(result).not.toContain('private-key-value');
+    expect(result).not.toContain('nested-password-value');
+  });
+
   test('refreshes proposals with trusted planning context when WBS advances', () => {
     const registry = new TaskRegistry();
     const created = registry.create('Inspect network status', { action: 'assist.next_action', context: { ...context, role: 'operator' } });
