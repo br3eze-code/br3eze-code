@@ -11,6 +11,12 @@ const copies = [
     directory: true,
   },
   {
+    source: resolve(here, '../../src/api/routes/firebase-data-session.js'),
+    target: resolve(here, '../src/api/routes/firebase-data-session.js'),
+    label: 'src/api/routes/firebase-data-session.js',
+    directory: false,
+  },
+  {
     source: resolve(here, '../../src/adapters/auth/supabase.js'),
     target: resolve(here, '../src/adapters/auth/supabase.js'),
     label: 'src/adapters/auth/supabase.js',
