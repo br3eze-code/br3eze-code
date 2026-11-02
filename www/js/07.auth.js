@@ -225,7 +225,9 @@ window.Auth = {
         if (password !== confirm) return showToast('Passwords do not match.', 'error');
         showAuthLoading('Creating account...');
         try {
-            const session = await supabaseRequest('/auth/v1/signup', {
+            const redirectTo = supabaseRuntime.SUPABASE_OAUTH_REDIRECT || (window.location.origin + '/auth/callback');
+            localStorage.setItem(OAUTH_RETURN_TO_KEY, window.location.pathname + window.location.search + window.location.hash);
+            const session = await supabaseRequest('/auth/v1/signup?redirect_to=' + encodeURIComponent(redirectTo), {
                 method: 'POST', body: JSON.stringify({ email: email.trim(), password, data: { full_name: fullname?.trim() || '', username: username?.trim() || '', phone: String(phone || '').trim() } })
             });
             if (session?.access_token) setSession(session);
