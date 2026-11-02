@@ -16,8 +16,16 @@ export function createCommerceWebhookHandler(gateway, { db = null, scope = {} } 
   return async (req, res) => {
     const provider = String(req.params.provider || '').trim().toLowerCase();
     const reconcile = async (result) => {
-      if (!result || !['payment_success', 'payment_failed'].includes(result.type)) return null;
-      return reconcileCommercePayment({ ...result, provider }, { db, scope });
+      if (!result) return null;
+      const type = String(result.type || '').toLowerCase();
+      const status = result.status || ({
+        payment_success: 'succeeded',
+        'payment.succeeded': 'succeeded',
+        payment_failed: 'failed',
+        'payment.failed': 'failed',
+      })[type];
+      if (!['succeeded', 'successful', 'completed', 'paid', 'failed', 'cancelled', 'canceled', 'expired'].includes(String(status || '').toLowerCase())) return null;
+      return reconcileCommercePayment({ ...result, provider, status }, { db, scope });
     };
 
     const handler = createWebhookHandler(gateway, reconcile, reconcile);
