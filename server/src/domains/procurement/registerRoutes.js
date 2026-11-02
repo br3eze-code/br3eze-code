@@ -85,20 +85,24 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
   // never fetched as API endpoints, avoiding arbitrary-URL server-side calls.
   app.get('/api/v1/shop/products/:productId/supplier-reference', authMiddleware, async (req, res) => {
     try {
-      requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
       const snap = await db.collection('products').doc(String(req.params.productId)).get();
       if (!snap.exists || snap.data().tenantId !== scope.tenantId) return res.status(404).json({ error: 'Product not found in tenant scope' });
       const product = snap.data();
       const referenceUrl = safeReferenceUrl(product.supplierReferenceUrl || product.supplierUrl);
       if (!product.supplierId || !referenceUrl) return res.status(404).json({ error: 'Product has no valid supplier reference configured' });
+      const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+      const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
+      const canReadCost = roles.includes('ADMIN') || permissions.includes('procurement:read') || permissions.includes('procurement:write');
       return res.json({
         productId: snap.id,
         supplierId: product.supplierId,
         supplierSku: product.supplierSku || null,
         supplierReferenceUrl: referenceUrl,
-        supplierUnitCost: Number.isFinite(Number(product.supplierUnitCost ?? product.supplierCost)) ? Number(product.supplierUnitCost ?? product.supplierCost) : null,
-        supplierCurrency: String(product.supplierCurrency || product.currency || 'USD').toUpperCase(),
+        ...(canReadCost ? {
+          supplierUnitCost: Number.isFinite(Number(product.supplierUnitCost ?? product.supplierCost)) ? Number(product.supplierUnitCost ?? product.supplierCost) : null,
+          supplierCurrency: String(product.supplierCurrency || product.currency || 'USD').toUpperCase(),
+        } : {}),
         salePrice: Number.isFinite(Number(product.price)) ? Number(product.price) : null,
         stock: Number(product.stock || 0),
         fulfillmentMode: product.supplierFulfillmentMode || 'restock',
