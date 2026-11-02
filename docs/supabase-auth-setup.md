@@ -1,45 +1,55 @@
-# Supabase Auth wiring
+# Supabase Auth boundary
 
-Supabase Auth is now the canonical browser/mobile authentication path while Firebase remains available to legacy data modules during migration.
+Supabase Auth is the single human identity authority for browser, Cordova, native, and API clients. Google is the primary OAuth provider. Other supported OAuth providers are federated by Supabase and produce the same Supabase user/session contract.
 
-## Environment
+## Ownership
 
-Server:
+- `www/`: starts Supabase Auth flows, stores/refreshes the Supabase session, and sends its access token to APIs.
+- `api/` and `src/api/`: API-level authentication adapters verify Supabase access tokens and resolve trusted profile/role data.
+- `server/`: verifies Supabase access tokens and enforces domain permissions. It does not implement OAuth callbacks, provider accounts, passwords, or a second human login database.
+- Firebase Admin/Firestore: legacy application data only. Firebase ID tokens are not accepted as human API credentials.
+- AgentOS service-to-service calls: use the separate `AGENTOS_SERVICE_TOKEN`; never treat a user signing key as a service credential.
 
-```text
-SUPABASE_URL=https://wgybhjqaulxqdfxpouwf.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=<server-only secret>
-```
+## Browser/mobile configuration
 
-Cordova/browser build (safe to expose):
-
-```text
-SUPABASE_URL=https://wgybhjqaulxqdfxpouwf.supabase.co
-SUPABASE_PUBLISHABLE_KEY=<sb_publishable_... key>
-```
-
-Never put `SUPABASE_SERVICE_ROLE_KEY` in `www/`, a mobile app, or any client bundle.
-
-Run the existing environment generator after setting `.env` so `www/js/env.js` receives only browser-safe keys.
-
-## Protected API
-
-The Node/Vercel API accepts:
+Safe client configuration:
 
 ```text
-Authorization: Bearer <Supabase access token>
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<sb_publishable_...>
+SUPABASE_OAUTH_REDIRECT=https://<your-domain>/auth/callback
 ```
 
-Protected areas include `/api/tasks`, `/api/a2a`, and `/api/v1/shop`. The API first verifies the token with Supabase Auth, resolves the server-side `profiles` record, and exposes the trusted identity as `req.user` / `req.supabaseUser`. Firebase Bearer tokens remain accepted as a migration fallback.
+Never expose `SUPABASE_SERVICE_ROLE_KEY`, Google client secrets, or any OAuth provider secret in `www/`, Cordova, or a mobile binary.
 
-## Profiles and authorization
+The current web callback is `/auth/callback`. Configure this exact URL in Supabase Auth URL Configuration and add the app's production/development origins to the redirect allowlist. Native builds require a registered deep-link redirect before enabling OAuth there.
 
-`public.profiles` is keyed by `auth.users.id`. A trigger creates a profile after signup. Users can read/update only their own profile through RLS. Roles are constrained to `user`, `admin`, `partner`, and `cashier`; clients cannot promote themselves because role changes are not permitted by the self-update policy.
+## Configure Google as primary OAuth
 
-## Auth redirects
+1. Create a Google OAuth client in Google Cloud Console.
+2. Set its authorized redirect URI to the Supabase project's Google callback URL shown in Supabase Dashboard → Authentication → Providers → Google.
+3. Enable Google in Supabase Dashboard → Authentication → Providers and enter the Google client ID and client secret there.
+4. Configure the Supabase site URL and allowed redirect URLs to include the Br3eze web callback.
+5. Test a fresh Google sign-in, refresh, logout, and a protected API request.
 
-For Google OAuth, configure the production and development callback URLs in Supabase Auth URL Configuration. The Cordova flow currently targets `/auth/callback`; native deep-link handling should be added before shipping OAuth on iOS/Android.
+The Google client secret belongs only in Supabase provider configuration. The app redirects to Supabase Auth; it must not exchange Google authorization codes or tokens itself.
 
-## Current migration boundary
+## Other OAuth providers
 
-The Cordova authentication surface has moved to Supabase, but legacy Firebase Firestore remains the data source for existing application modules. This is intentional: authentication and authorization are being separated from the legacy domain data migration instead of coupling Supabase into AgentOS core.
+The client exposes the same Supabase Auth flow for `github`, `azure` (Microsoft), `apple`, and `facebook`. Each provider must first be enabled and configured in Supabase Dashboard → Authentication → Providers, including its provider-specific callback URI and secrets. Unsupported/unconfigured providers fail closed.
+
+Email/password and email OTP also use Supabase Auth. WhatsApp phone OTP is a phone-ownership verification feature for an existing Supabase session; it is not a separate login authority.
+
+## Server environment
+
+```text
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<sb_publishable_...>
+AGENTOS_SERVICE_TOKEN=<separate-long-random-service-token>
+```
+
+The server verifies user tokens with Supabase Auth's `/auth/v1/user` endpoint. Authorization roles and tenant scope are read only from server-controlled `app_metadata` / protected profile records; client-editable `user_metadata` must never grant roles.
+
+## Migration note
+
+The old server-side Passport/Google + Firebase user-creation route and local SQLite username/password login are retired. Existing Firebase data remains intact, but old Firebase ID tokens and local server JWTs are no longer accepted as human API credentials. Migrate existing users through Supabase Auth account linking/invitation before removing any legacy data.
