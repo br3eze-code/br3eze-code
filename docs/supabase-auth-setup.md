@@ -5,9 +5,9 @@ Supabase Auth is the single human identity authority for browser, Cordova, nativ
 ## Ownership
 
 - `www/`: starts Supabase Auth flows, stores/refreshes the Supabase session, and sends its access token to APIs.
-- `api/` and `src/api/`: API-level authentication adapters verify Supabase access tokens and resolve trusted profile/role data.
-- `server/`: verifies Supabase access tokens and enforces domain permissions. It does not implement OAuth callbacks, provider accounts, passwords, or a second human login database.
-- Firebase Admin/Firestore: legacy application data only. Firebase ID tokens are not accepted as human API credentials.
+- `src/adapters/auth/supabase.js`: the single server-side verifier for Supabase access tokens and the caller's RLS-protected profile.
+- `src/api/` and `server/`: share that verifier. `server/scripts/sync-api.mjs` copies the canonical adapter and shared bridge route into the Firebase Functions package before lint/deploy.
+- Firebase Auth: downstream data-session compatibility only. After a verified Supabase sign-in, one server route mints a Firebase custom token so existing Firestore rules/data continue to work. Firebase does not authenticate users or protect AgentOS HTTP APIs.
 - AgentOS service-to-service calls: use the separate `AGENTOS_SERVICE_TOKEN`; never treat a user signing key as a service credential.
 
 ## Browser/mobile configuration
@@ -20,7 +20,7 @@ SUPABASE_PUBLISHABLE_KEY=<sb_publishable_...>
 SUPABASE_OAUTH_REDIRECT=https://<your-domain>/auth/callback
 ```
 
-Never expose `SUPABASE_SERVICE_ROLE_KEY`, Google client secrets, or any OAuth provider secret in `www/`, Cordova, or a mobile binary.
+Never expose `SUPABASE_SERVICE_ROLE_KEY`, Firebase service-account credentials, Google client secrets, or any OAuth provider secret in `www/`, Cordova, or a mobile binary. Firebase Admin may use Google Application Default Credentials in Cloud Functions instead of explicit service-account environment variables.
 
 The current web callback is `/auth/callback`. Configure this exact URL in Supabase Auth URL Configuration and add the app's production/development origins to the redirect allowlist. Native builds require a registered deep-link redirect before enabling OAuth there.
 
@@ -46,10 +46,22 @@ Email/password and email OTP also use Supabase Auth. WhatsApp phone OTP is a pho
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_PUBLISHABLE_KEY=<sb_publishable_...>
 AGENTOS_SERVICE_TOKEN=<separate-long-random-service-token>
+FIREBASE_PROJECT_ID=<firebase-project-id>
+FIREBASE_PRIVATE_KEY=<server-only-service-account-private-key>
+FIREBASE_CLIENT_EMAIL=<server-only-service-account-email>
 ```
 
-The server verifies user tokens with Supabase Auth's `/auth/v1/user` endpoint. Authorization roles and tenant scope are read only from server-controlled `app_metadata` / protected profile records; client-editable `user_metadata` must never grant roles.
+The shared verifier validates access tokens with Supabase Auth's `/auth/v1/user` endpoint, then reads the caller's own profile through RLS. Profile write grants now prevent authenticated users from inserting or changing `role`, `tenant_id`, `site_id`, `domain`, `credits`, and `phone_verified_at`. Only trusted server/service-role workflows can manage those fields. Client-editable `user_metadata` never grants authorization.
 
 ## Migration note
 
 The old server-side Passport/Google + Firebase user-creation route and local SQLite username/password login are retired. Existing Firebase data remains intact, but old Firebase ID tokens and local server JWTs are no longer accepted as human API credentials. Migrate existing users through Supabase Auth account linking/invitation before removing any legacy data.
+
+
+## Firebase legacy data bridge
+
+The Firebase Auth SDK remains loaded only in the main application so it can exchange the server-minted custom token for a Firestore data session. The client never signs in with Firebase Google, email/password, or phone providers. The bridge route `POST /api/auth/firebase-session` requires a valid Supabase access token and a verified Supabase email; it reuses an existing Firebase user with the same verified email or creates a new Firebase data principal. Firebase tokens must not be sent to AgentOS API endpoints.
+
+## Current deployment boundary
+
+The repository changes do not set Google OAuth secrets in the Supabase project. Configure the Google provider in Supabase Dashboard → Authentication → Providers. Configure the Supabase site URL and allow `https://<your-domain>/auth/callback` (the hosting rewrite maps it to `/auth/callback.html`). The Google Cloud OAuth redirect URI must be the callback URL displayed by the Supabase Google provider settings, not the Br3eze callback.
