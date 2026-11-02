@@ -72,6 +72,12 @@
       "head": "e1c1f10fd7c4e8de9cc7e77863a863b8b778a8f7",
       "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
       "reason": "Ported local application state through the persistence adapter and canonical AgentRuntime; adapted read-only host diagnostics to the existing HardwareCapabilityRegistry. Existing main ServiceSupervisor, ApplicationManager, IPCMessageBus and HardwareCapabilityRegistry are the owners; the branch's second PlatformAdapterRegistry was rejected as duplicate. Local env, signing keystore and raw scan logs were excluded."
+    },
+    {
+      "branch": "snyk-fix-890df4e8aba327a7453085b9e48a48ee",
+      "head": "ab020f3877b816883649974375ca9ecca6db5983",
+      "absorbedIn": "fa0694b20f0ffb8c155a96aae29ac9fa5e0a26a4",
+      "reason": "Redundant Snyk Joi manifest-only update: its package-lock still resolves Joi 18.2.9, so it provides no reproducible dependency upgrade. Keep the full Dependabot Joi package+lockfile candidate for review instead."
     }
   ]
 }
