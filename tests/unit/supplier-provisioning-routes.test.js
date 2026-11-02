@@ -73,6 +73,21 @@ describe('supplier provisioning HTTP boundary', () => {
     expect(res.body).not.toHaveProperty('authorization');
   });
 
+
+  test('allows a scoped shopper to read the supplier link but never the supplier cost', async () => {
+    const app = makeApp();
+    registerSupplierProvisioningRoutes({ app, authMiddleware: (_req, _res, next) => next(), db: makeDb(records), env: { NODE_ENV: 'test' } });
+    const res = makeResponse();
+    await app.routes.get.get('/api/v1/shop/products/:productId/supplier-reference')({
+      user: { id: 'user-a', roles: ['USER'], permissions: ['profile.read'] },
+      params: { productId: 'product-a' },
+    }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.supplierReferenceUrl).toBe('https://supplier.example/catalog/SKU-A');
+    expect(res.body).not.toHaveProperty('supplierUnitCost');
+    expect(res.body).not.toHaveProperty('supplierCurrency');
+  });
+
   test('does not return unsafe supplier links', async () => {
     const app = makeApp();
     registerSupplierProvisioningRoutes({ app, authMiddleware: (_req, _res, next) => next(), db: makeDb(records), env: { NODE_ENV: 'test' } });
