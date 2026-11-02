@@ -10,7 +10,7 @@ describe('Wi-Fi route composition', () => {
       use: jest.fn((...args) => routes.push({ method: 'USE', path: args[0] }))
     };
     const database = {
-      validateUser: jest.fn(), listVouchers: jest.fn(), createVoucher: jest.fn(),
+      listVouchers: jest.fn(), createVoucher: jest.fn(),
       redeemVoucher: jest.fn(), getVoucherStats: jest.fn(), getAuditLog: jest.fn()
     };
     const config = {
