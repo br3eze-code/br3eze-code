@@ -10,6 +10,7 @@ env:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build:
@@ -66,6 +67,10 @@ jobs:
       AUDIT_SECRET: ${{ secrets.AUDIT_SECRET }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       MIKROTIK_API_TOKEN: ${{ secrets.MIKROTIK_API_TOKEN }}
+      AWS_DEPLOY_ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
+      AGENTOS_WORKLOAD_ROLE_ARN: ${{ secrets.AGENTOS_WORKLOAD_ROLE_ARN }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
@@ -76,12 +81,16 @@ jobs:
         id: validate
         shell: bash
         run: |
-          if [ -z "$KUBECONFIG_SECRET" ]; then
-            echo "KUBECONFIG not configured; Kubernetes deployment is skipped."
+          if [ -n "$AWS_DEPLOY_ROLE_ARN" ] && [ -n "$AWS_REGION" ] && [ -n "$EKS_CLUSTER_NAME" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "auth_mode=oidc" >> "$GITHUB_OUTPUT"
+          elif [ -n "$KUBECONFIG_SECRET" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "auth_mode=kubeconfig" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::AWS_DEPLOY_ROLE_ARN, AWS_REGION and EKS_CLUSTER_NAME are required for OIDC; alternatively configure KUBECONFIG."
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            exit 0
           fi
-          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Install Helm
         if: steps.validate.outputs.configured == 'true'
@@ -89,8 +98,21 @@ jobs:
         with:
           version: v3.14.0
 
-      - name: Setup Kubernetes context
-        if: steps.validate.outputs.configured == 'true'
+      - name: Configure AWS credentials through GitHub OIDC
+        if: steps.validate.outputs.auth_mode == 'oidc'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: agentos-github-deploy
+
+      - name: Configure EKS context
+        if: steps.validate.outputs.auth_mode == 'oidc'
+        shell: bash
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Configure fallback Kubernetes context
+        if: steps.validate.outputs.auth_mode == 'kubeconfig'
         uses: azure/k8s-set-context@v5
         with:
           method: kubeconfig
@@ -117,26 +139,11 @@ jobs:
             "gateway-token=$GATEWAY_TOKEN" \
             "audit-secret=$AUDIT_SECRET" \
             "gemini-api-key=$GEMINI_API_KEY" \
-            "mikrotik-api-token=$MIKROTIK_API_TOKEN" \
-            "aws-access-key-id=$AWS_ACCESS_KEY_ID" \
-            "aws-secret-access-key=$AWS_SECRET_ACCESS_KEY" > "$secret_file"
+            "mikrotik-api-token=$MIKROTIK_API_TOKEN" > "$secret_file"
           kubectl create secret generic agentos \
             --from-env-file="$secret_file" \
             --namespace "$namespace" \
             --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create ConfigMap
-        if: steps.validate.outputs.configured == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          namespace="${KUBE_NAMESPACE:-agentos}"
-          if [ -f workspace.json ]; then
-            kubectl create configmap agentos-workspace \
-              --from-file=workspace.json=./workspace.json \
-              --namespace "$namespace" \
-              --dry-run=client -o yaml | kubectl apply -f -
-          fi
 
       - name: Helm upgrade
         if: steps.validate.outputs.configured == 'true'
@@ -147,13 +154,19 @@ jobs:
           set -euo pipefail
           namespace="${KUBE_NAMESPACE:-agentos}"
           ingress_host="${KUBE_INGRESS_HOST:-br3eze.africa}"
-          helm upgrade --install agentos ./helm/agentos \
-            --namespace "$namespace" \
-            --create-namespace \
-            --set "image.repository=$REGISTRY/$IMAGE_NAME" \
-            --set "image.tag=$IMAGE_TAG" \
-            --set "ingress.hosts[0].host=$ingress_host" \
-            --wait --timeout 5m
+          helm lint ./helm/agentos
+          helm_args=(
+            upgrade --install agentos ./helm/agentos
+            --namespace "$namespace"
+            --create-namespace
+            --set-string "image.repository=$REGISTRY/$IMAGE_NAME"
+            --set-string "image.tag=$IMAGE_TAG"
+            --set-string "ingress.hosts[0].host=$ingress_host"
+          )
+          if [ -n "$AGENTOS_WORKLOAD_ROLE_ARN" ]; then
+            helm_args+=(--set-string "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=$AGENTOS_WORKLOAD_ROLE_ARN")
+          fi
+          helm "${helm_args[@]}" --wait --timeout 5m
 
       - name: Verify deployment
         if: steps.validate.outputs.configured == 'true'
