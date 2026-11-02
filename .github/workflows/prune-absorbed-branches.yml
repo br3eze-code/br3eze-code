@@ -139,8 +139,8 @@ jobs:
           {
             echo "## Branch cleanup"
             echo "Deleted ${#deleted[@]} branch(es)."
-            for branch in "${deleted[@]}"; do printf -- "- %s\\n" "$branch"; done
+            for branch in "${deleted[@]}"; do printf -- "- %s\n" "$branch"; done
             echo
             echo "Skipped ${#skipped[@]} branch(es)."
-            for branch in "${skipped[@]}"; do printf -- "- %s\\n" "$branch"; done
+            for branch in "${skipped[@]}"; do printf -- "- %s\n" "$branch"; done
           } >> "$GITHUB_STEP_SUMMARY"
