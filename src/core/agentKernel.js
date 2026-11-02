@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { logger } from './logger.js';
 import { assertTenantScope } from './saas-boundary.js';
 import { AgentRegistry } from './agent-registry.js';
-import { SessionEventStore } from './session/SessionEventStore.js';
+import { getOrCreateSessionEventStore } from './ports/session-event-store.js';
 import { getAgentRuntime } from './agentRuntime.js';
 
 /**
@@ -16,7 +16,7 @@ class AgentKernel extends EventEmitter {
     super();
     this.domains = new Map();
     this.agentRegistry = opts.agentRegistry || new AgentRegistry();
-    this.sessionEventStore = opts.sessionEventStore || new SessionEventStore();
+    this.sessionEventStore = opts.sessionEventStore || getOrCreateSessionEventStore();
     this.runtime = getAgentRuntime(opts.runtime ? { runtime: opts.runtime } : {});
     this._ready = false;
   }
