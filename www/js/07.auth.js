@@ -157,9 +157,15 @@ async function loginWithProvider(provider) {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || 'Legacy data session could not be established.');
         const firebaseAuth = window.firebase.auth();
-        const credential = firebaseAuth.currentUser?.uid === body.uid
-            ? { user: firebaseAuth.currentUser }
-            : await firebaseAuth.signInWithCustomToken(body.token);
+        let credential;
+        if (firebaseAuth.currentUser?.uid === body.uid) {
+            // The server refreshes the Firebase custom claims from the trusted
+            // Supabase profile on every session establishment.
+            await firebaseAuth.currentUser.getIdToken(true);
+            credential = { user: firebaseAuth.currentUser };
+        } else {
+            credential = await firebaseAuth.signInWithCustomToken(body.token);
+        }
         if (typeof window.firebase.firestore === 'function') {
             const firestore = window.firebase.firestore();
             const userRef = firestore.collection('users').doc(body.uid);
