@@ -2,6 +2,12 @@ import nodemailer from 'nodemailer';
 
 let transporter = null;
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>\"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
 function required(name) {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required email configuration: ${name}`);
@@ -24,6 +30,7 @@ function getTransporter() {
 export async function sendOtpEmail({ to, code, expiresMinutes = 10 }) {
   const from = required('EMAIL_FROM');
   const appName = process.env.EMAIL_APP_NAME || 'Power Connect';
+  const safeAppName = escapeHtml(appName);
   return getTransporter().sendMail({
     from, to, subject: `${appName} verification code`,
     text: `Your ${appName} verification code is ${code}. It expires in ${expiresMinutes} minutes. If you did not request this code, you can ignore this email.`,
