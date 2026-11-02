@@ -15,6 +15,8 @@ export function createManagedPlatform({
   maxServices,
   maxSubscribers,
   maxPayloadBytes,
+  supervisor: suppliedSupervisor = null,
+  ipc: suppliedIpc = null,
 } = {}) {
   if (stateStore !== null) {
     for (const method of ['get', 'set', 'delete', 'list']) {
@@ -24,17 +26,23 @@ export function createManagedPlatform({
     }
   }
 
-  const supervisor = new ServiceSupervisor({
+  const supervisor = suppliedSupervisor?.core || suppliedSupervisor || new ServiceSupervisor({
     ...(maxServices === undefined ? {} : { maxServices }),
     ...(onServiceEvent === undefined ? {} : { onEvent: onServiceEvent }),
   });
+  for (const method of ['register', 'start', 'stop', 'stopAll', 'describe', 'list']) {
+    if (typeof supervisor[method] !== 'function') throw new TypeError(`supervisor must implement ${method}()`);
+  }
   const applications = new ApplicationManager({ supervisor });
-  const ipc = new IPCMessageBus({
+  const ipc = suppliedIpc?.core || suppliedIpc || new IPCMessageBus({
     ...(maxSubscribers === undefined ? {} : { maxSubscribers }),
     ...(maxPayloadBytes === undefined ? {} : { maxPayloadBytes }),
     ...(authorizeIpc === undefined ? {} : { authorize: authorizeIpc }),
     ...(onIpcAudit === undefined ? {} : { onAudit: onIpcAudit }),
   });
+  for (const method of ['subscribe', 'publish']) {
+    if (typeof ipc[method] !== 'function') throw new TypeError(`ipc must implement ${method}()`);
+  }
 
   return Object.freeze({ supervisor, applications, ipc, stateStore });
 }
