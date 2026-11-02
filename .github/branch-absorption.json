@@ -18,6 +18,30 @@
       "head": "d2bd8a0adcc67735cf87245ef8695e1c82245ae7",
       "absorbedIn": "4c6b7d97996034f21af5f9ce92a28d81c308f611",
       "reason": "Main security policy is identical and main security checks include stronger dependency denylist and pinned CI lint target."
+    },
+    {
+      "branch": "docs/current-main-verification-status",
+      "head": "2aa79bfe30b99c28e7f487c520694634059328df",
+      "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
+      "reason": "Main README contains a newer, more complete verification and operator status."
+    },
+    {
+      "branch": "docs/readme-evidence-based-status",
+      "head": "e1bc60be275ba001a2d6518935b0cf64bf752271",
+      "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
+      "reason": "Main README supersedes the older evidence-status table with newer implementation and CI facts."
+    },
+    {
+      "branch": "port/security-hygiene-current-main",
+      "head": "d8acac3e953fa069496447f5cbe2bf77f754573b",
+      "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
+      "reason": "Repository hygiene gate/tests are identical to main; main has stronger CI, gitignore and audit-report handling. Remaining extras are stale raw reports/migrations."
+    },
+    {
+      "branch": "v0/br3eze-code-22012066",
+      "head": "5fbe0116e774bcf6f6e31e59a07609ccf6d6c073",
+      "absorbedIn": "fc8fde328520f041b7aa4c449fad9e28754df524",
+      "reason": "Main README contains the useful architecture context plus newer implementation and verification status."
     }
   ]
 }
