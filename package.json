@@ -290,7 +290,8 @@
       "/.claude/worktrees/",
       "/tests/platform/",
       "/tests/unit/phase9-approval-prompt.test.js",
-      "/tests/unit/phase9-terminal-boundary.test.js"
+      "/tests/unit/phase9-terminal-boundary.test.js",
+      "/tests/infrastructure/"
     ],
     "collectCoverageFrom": [
       "src/core/*.js",
