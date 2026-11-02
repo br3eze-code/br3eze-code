@@ -31,10 +31,10 @@ This document records the canonical owner for each cross-cutting concern. Compat
 1. Do not add another agent loop, task registry, service supervisor, IPC delivery engine, or filesystem state store.
 2. Core orchestration receives model, tools, storage, hardware, and transport through ports/adapters; no provider SDK or host filesystem access belongs in the runtime.
 3. SessionEventStore owns event semantics; runtime snapshots are appended to that stream. The file adapter is host persistence, not a second session manager.
-3. A compatibility facade may translate signatures only. It must delegate behavior to its canonical owner and have contract tests.
-4. A service supervisor manages trusted in-process services. It is not a process sandbox, container runtime, or security boundary.
-5. A workload runner is an adapter for a workload execution strategy. It must not create a second agent execution loop; untrusted workloads require real OS/container isolation.
-6. Keep Firebase Functions backend routes and the Vercel proxy distinct: the proxy forwards requests and must never contain a second copy of business logic.
+4. A compatibility facade may translate signatures only. It must delegate behavior to its canonical owner and have contract tests.
+5. A service supervisor manages trusted in-process services. It is not a process sandbox, container runtime, or security boundary.
+6. A workload runner is an adapter for a workload execution strategy. It must not create a second agent execution loop; untrusted workloads require real OS/container isolation.
+7. Keep Firebase Functions backend routes and the Vercel proxy distinct: the proxy forwards requests and must never contain a second copy of business logic.
 
 ## Verification
 
