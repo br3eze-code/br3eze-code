@@ -214,6 +214,8 @@ describe('supplier provisioning transaction guards', () => {
     const h = makeHarness();
     await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
     await h.service.receivePartial({ orderId: 'po-1', scope: h.scope, receiptId: 'receipt-6', lines: [{ productId: 'ap-1', acceptedQuantity: 10, rejectedQuantity: 0 }], evidence: ['receipt_inspection'] });
+    const fabricated = await h.service.closeOrder({ orderId: 'po-1', scope: h.scope, acceptanceEvidence: ['receipt_inspection', 'customer_acceptance'] });
+    expect(fabricated).toMatchObject({ closed: false, reason: 'acceptance_evidence_unverified', unverified: ['customer_acceptance'] });
     const blocked = await h.service.closeOrder({ orderId: 'po-1', scope: h.scope, acceptanceEvidence: ['receipt_inspection'] });
     expect(blocked).toMatchObject({ closed: false, reason: 'acceptance_evidence_missing', missing: ['customer_acceptance'] });
     const order = await h.store.getOrder('po-1', 'tenant-a');
