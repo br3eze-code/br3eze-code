@@ -46,7 +46,7 @@ export class ServiceSupervisor {
     record.state = 'starting'; record.lastError = null; this.#emit(record, 'starting');
     record.transition = (async () => {
       try {
-        await record.service.start(context);
+        await record.service.start(Object.freeze({ ...context, serviceId: id }));
         record.state = 'running'; record.startedAt = new Date().toISOString();
         this.#emit(record, 'running');
         return this.describe(id);
@@ -75,7 +75,7 @@ export class ServiceSupervisor {
     record.state = 'stopping'; this.#emit(record, 'stopping');
     record.transition = (async () => {
       try {
-        await record.service.stop(context);
+        await record.service.stop(Object.freeze({ ...context, serviceId: id }));
         record.state = 'stopped'; record.startedAt = null; record.lastError = null;
         this.#emit(record, 'stopped');
         return this.describe(id);
