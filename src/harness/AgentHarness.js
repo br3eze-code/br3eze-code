@@ -134,7 +134,8 @@ class AgentHarness extends EventEmitter {
 
     // Reuse the canonical runtime unless the host explicitly injects one.
     // A harness is an adapter/composition surface, not a runtime owner.
-    this._runtime = this._runtime || getAgentRuntime({
+    this._runtime = getAgentRuntime({
+      ...(this._runtime ? { runtime: this._runtime } : {}),
       ...(this._opts.runtimeConfig || {}),
       ...(this._registry ? { toolRegistry: this._registry } : {}),
     });
