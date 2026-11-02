@@ -34,6 +34,6 @@ export async function sendOtpEmail({ to, code, expiresMinutes = 10 }) {
   return getTransporter().sendMail({
     from, to, subject: `${appName} verification code`,
     text: `Your ${appName} verification code is ${code}. It expires in ${expiresMinutes} minutes. If you did not request this code, you can ignore this email.`,
-    html: `<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>${appName}</h2><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${code}</p><p>This code expires in ${expiresMinutes} minutes.</p><p>If you did not request this code, you can ignore this email.</p></body></html>`
+    html: `<!doctype html><html><body style="font-family:Arial,sans-serif"><h2>${safeAppName}</h2><p>Your verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${code}</p><p>This code expires in ${expiresMinutes} minutes.</p><p>If you did not request this code, you can ignore this email.</p></body></html>`
   });
 }
