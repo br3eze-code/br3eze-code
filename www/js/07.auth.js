@@ -309,7 +309,9 @@ window.Auth = {
         if (!email) return showToast('Enter your email first.', 'error');
         showAuthLoading('Sending reset link...');
         try {
-            await supabaseRequest('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
+            const redirectTo = supabaseRuntime.SUPABASE_OAUTH_REDIRECT || (window.location.origin + '/auth/callback');
+            localStorage.setItem(OAUTH_RETURN_TO_KEY, window.location.pathname + window.location.search + '#changePassword');
+            await supabaseRequest('/auth/v1/recover?redirect_to=' + encodeURIComponent(redirectTo), { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
             showToast('If that email has an account, a reset link is on its way.', 'success'); toggleForgotPassword();
         } catch (e) { showToast(e.message, 'error'); }
         finally { hideAuthLoading(); }
