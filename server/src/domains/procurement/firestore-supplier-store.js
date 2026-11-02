@@ -134,8 +134,9 @@ export function createFirestoreSupplierStore(database) {
     },
 
     async listOpenOrders({ supplierId, tenantId }) {
-      const snap = await db.collection('supplierPurchaseOrders').where('tenantId', '==', tenantId).where('supplierId', '==', supplierId).get();
-      return snap.docs.map((doc) => doc.data()).filter((item) => !['closed', 'cancelled'].includes(item.status));
+      const snap = await db.collection('supplierPurchaseOrders').where('tenantId', '==', tenantId).get();
+      return snap.docs.map((doc) => doc.data())
+        .filter((item) => item.supplierId === supplierId && !['closed', 'cancelled'].includes(item.status));
     },
 
     async freezeSupplier(supplierId, tenantId, patch) {
