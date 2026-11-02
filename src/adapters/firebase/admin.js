@@ -31,6 +31,19 @@ export function initializeFirebase() {
       if (pk.startsWith('"') && pk.endsWith('"')) pk = pk.slice(1, -1);
       firebaseApp = admin.initializeApp({ credential: admin.credential.cert({ projectId: process.env.FIREBASE_PROJECT_ID, privateKey: pk, clientEmail: process.env.FIREBASE_CLIENT_EMAIL }), databaseURL: process.env.FIREBASE_DATABASE_URL });
     }
+    const useApplicationDefault = Boolean(
+      process.env.GCLOUD_PROJECT ||
+      process.env.GCP_PROJECT ||
+      process.env.FIREBASE_CONFIG ||
+      process.env.K_SERVICE ||
+      process.env.FUNCTIONS_EMULATOR
+    );
+    if (!firebaseApp && useApplicationDefault) {
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        databaseURL: process.env.FIREBASE_DATABASE_URL
+      });
+    }
     if (!firebaseApp) return { app: null, db: null };
     db = admin.firestore(); db.settings({ ignoreUndefinedProperties: true });
     return { app: firebaseApp, db };
