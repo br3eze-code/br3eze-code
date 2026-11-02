@@ -37,7 +37,6 @@ function createFirebaseDataSessionRouter({ requireUser, getFirebaseAuth } = {}) 
       if (firebaseUser.disabled) return res.status(403).json({ error: 'Account is disabled' });
 
       const claims = {
-        ...(firebaseUser.customClaims || {}),
         supabase_uid: String(user.id || user.uid),
         auth_provider: 'supabase',
         role: String(user.role || 'user').toLowerCase(),
