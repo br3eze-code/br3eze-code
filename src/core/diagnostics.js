@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { getTaskRegistry, TaskStatus } from './taskRegistry.js';
 import { getAgentRuntime } from './agentRuntime.js';
-import { listSessions } from './sessionStore.js';
+import { getOrCreateSessionEventStore } from './ports/session-event-store.js';
 import { logger } from './logger.js';
 
 export const DiagnosticHealth = Object.freeze({ HEALTHY: 'healthy', DEGRADED: 'degraded', OFFLINE: 'offline' });
@@ -30,4 +30,4 @@ export async function buildMissionControlSnapshot(options = {}) {
 
 export async function handleHealthFull(req, res) { try { const diag = await buildGatewayDiagnostics(); const health = diag.issues.length ? DiagnosticHealth.DEGRADED : DiagnosticHealth.HEALTHY; res.status(200).json({ health, ok: true, ...diag }); } catch (error) { logger.error(`Health check failed: ${error.message}`); res.status(500).json({ health: DiagnosticHealth.OFFLINE, ok: false, error: error.message }); } }
 export async function handleSnapshot(req, res) { try { res.json(await buildMissionControlSnapshot()); } catch (error) { logger.error(`Snapshot failed: ${error.message}`); res.status(500).json({ error: error.message, mode: 'fallback' }); } }
-export { listSessions };
+export const listSessions = () => getOrCreateSessionEventStore().list?.() || [];
