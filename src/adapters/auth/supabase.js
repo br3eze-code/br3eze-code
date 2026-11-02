@@ -4,7 +4,7 @@ const require = createRequire(import.meta.url);
 function getConfig() {
   return {
     url: String(process.env.SUPABASE_URL || '').replace(/\/$/, ''),
-    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    serviceKey: process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '',
   };
 }
