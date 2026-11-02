@@ -1,45 +1,36 @@
 /* ==========================================================
-   16.api.client.js — canonical authenticated gateway client
-   Supabase is the primary PWA identity; Firebase token remains
-   compatibility fallback during migration.
+   16.api.client.js — canonical authenticated API client
+   Human API requests carry Supabase access tokens only.
+   Firebase custom tokens are confined to the Firestore data SDK.
    ========================================================== */
 
 window.ApiClient = {
     async _authHeaders(extra = {}) {
         const headers = { 'X-AgentOS-Client': 'pwa', ...extra };
-        if (window.SupabaseAuth?.getSession) {
-            const session = window.SupabaseAuth.getSession();
-            if (session?.access_token) {
-                headers.Authorization = `Bearer ${session.access_token}`;
-                return headers;
-            }
-        }
-        if (typeof auth !== 'undefined' && auth.currentUser) {
-            const idToken = await auth.currentUser.getIdToken();
-            headers.Authorization = `Bearer ${idToken}`;
-        } else if (window.ENV?.GATEWAY_TOKEN) {
-            headers.Authorization = `Bearer ${window.ENV.GATEWAY_TOKEN}`;
+        const session = window.SupabaseAuth?.getSession?.();
+        if (session?.access_token) {
+            headers.Authorization = `Bearer ${session.access_token}`;
         }
         return headers;
     },
 
     async fetch(path, opts = {}) {
         const headers = await this._authHeaders({ 'Content-Type': 'application/json', ...(opts.headers || {}) });
-        const base = window.ENV?.GATEWAY_URL || '';
-        const res = await fetch(`${base}${path}`, { ...opts, headers });
-        const body = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(body?.error || `Request failed (${res.status})`);
+        const base = window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '';
+        const response = await fetch(`${base}${path}`, { ...opts, headers });
+        const body = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(body?.error || `Request failed (${response.status})`);
         return body;
     },
 
     async fetchBlob(path, opts = {}) {
         const headers = await this._authHeaders(opts.headers || {});
-        const base = window.ENV?.GATEWAY_URL || '';
-        const res = await fetch(`${base}${path}`, { ...opts, headers });
-        if (!res.ok) {
-            const body = await res.json().catch(() => null);
-            throw new Error(body?.error || `Request failed (${res.status})`);
+        const base = window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '';
+        const response = await fetch(`${base}${path}`, { ...opts, headers });
+        if (!response.ok) {
+            const body = await response.json().catch(() => null);
+            throw new Error(body?.error || `Request failed (${response.status})`);
         }
-        return res.blob();
+        return response.blob();
     }
 };
