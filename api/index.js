@@ -22,8 +22,8 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', p
 app.use('/api/auth/handoff', authHandoffRouter);
 app.use('/api/auth/firebase-session', createFirebaseDataSessionRouter({ requireUser, getFirebaseAuth }));
 
-// Human/client API authentication is provider-neutral (Firebase or Supabase).
-// Machine-to-machine authentication remains a separate concern and must not use req.user.
+// Human/client API authentication accepts Supabase access tokens only.
+// Firebase tokens are confined to the Firestore data SDK; machine auth is separate.
 app.use('/api/tasks', requireUser);
 app.post('/api/tasks', handleSubmitMission);
 app.get('/api/tasks/:taskId', (req, res) => {
