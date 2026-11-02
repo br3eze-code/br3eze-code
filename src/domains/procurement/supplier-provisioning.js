@@ -41,6 +41,17 @@ function assertApproval(approval, { tenantId, projectId, action }) {
   }
 }
 
+function requiredSupplierReferenceUrl(value) {
+  let url;
+  try { url = new URL(requiredString(value, 'supplierReferenceUrl')); } catch {
+    throw new TypeError('supplierReferenceUrl must be a valid HTTPS URL');
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) {
+    throw new TypeError('supplierReferenceUrl must be an HTTPS URL without embedded credentials');
+  }
+  return url.toString();
+}
+
 function normalizeLines(lines = []) {
   if (!Array.isArray(lines) || lines.length === 0) throw new TypeError('At least one order line is required');
   return lines.map((line, index) => ({
@@ -48,9 +59,14 @@ function normalizeLines(lines = []) {
     quantity: positiveQuantity(line?.quantity, `lines[${index}].quantity`),
     unitPrice: Number(line?.unitPrice),
     currency: requiredString(line?.currency, `lines[${index}].currency`).toUpperCase(),
+    supplierSku: typeof line?.supplierSku === 'string' ? line.supplierSku.trim() : null,
+    supplierReferenceUrl: line?.supplierReferenceUrl == null ? null : requiredSupplierReferenceUrl(line.supplierReferenceUrl),
   })).map((line) => {
     if (!Number.isFinite(line.unitPrice) || line.unitPrice < 0) throw new TypeError('unitPrice must be a non-negative finite number');
     return { ...line, receivedQuantity: 0, rejectedQuantity: 0 };
+  }).map((line, index, all) => {
+    if (all.findIndex((item) => item.productId === line.productId) !== index) throw new TypeError('Duplicate productId lines are not allowed in one purchase order');
+    return line;
   });
 }
 
@@ -107,6 +123,7 @@ export class SupplierProvisioningService {
       currency: lines[0].currency,
       lines,
       evidence: [],
+      approvalId: approval.approvalId,
       requiredAcceptanceEvidence: Array.isArray(request.requiredAcceptanceEvidence) ? [...request.requiredAcceptanceEvidence] : ['receipt_inspection'],
       createdAt: this.clock(),
       updatedAt: this.clock(),
@@ -128,7 +145,7 @@ export class SupplierProvisioningService {
         supplierId,
         orderId: record.orderId,
         idempotencyKey: key,
-        lines: lines.map(({ productId, quantity, unitPrice, currency }) => ({ productId, quantity, unitPrice, currency })),
+        lines: lines.map(({ productId, quantity, unitPrice, currency, supplierSku, supplierReferenceUrl }) => ({ productId, quantity, unitPrice, currency, supplierSku, supplierReferenceUrl })),
         tenantId: scope.tenantId,
       });
       const next = {
