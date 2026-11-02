@@ -100,6 +100,14 @@ describe('canonical identity authorization', () => {
     expect(hasPermission(identity, 'system.reboot')).toBe(false);
   });
 
+
+  test('procurement role receives only explicit supplier and catalog permissions', () => {
+    const identity = normalizeIdentity({ uid: 'procurement-1', role: 'PROCUREMENT' });
+    expect(identity.permissions).toEqual(expect.arrayContaining(['catalog:read', 'procurement:read', 'procurement:write', 'inventory.read']));
+    expect(hasPermission(identity, 'system.reboot')).toBe(false);
+    expect(hasPermission(identity, 'payments.create')).toBe(false);
+  });
+
   test('admin has wildcard permissions and ownership', () => {
     const identity = normalizeIdentity({ uid: 'a1', role: 'ADMIN' });
     expect(hasPermission(identity, 'anything')).toBe(true);
