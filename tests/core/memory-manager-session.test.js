@@ -1,7 +1,14 @@
 import MemoryManager from '../../src/core/memory/MemoryManager.js';
+import { AgentRuntime } from '../../src/core/agentRuntime.js';
 import { SessionEventStore } from '../../src/core/session/SessionEventStore.js';
 
 describe('MemoryManager session integration', () => {
+  test('runtime and memory share one default session event store', () => {
+    const runtime = new AgentRuntime();
+    const memory = new MemoryManager('memory');
+    expect(memory.sessionEventStore).toBe(runtime.sessionEventStore);
+  });
+
   test('creates sessions in the canonical event store', async () => {
     const sessionEventStore = new SessionEventStore();
     const memory = new MemoryManager('memory', { sessionEventStore });
