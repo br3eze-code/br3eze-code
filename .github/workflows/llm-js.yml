@@ -41,6 +41,10 @@ jobs:
         run: python -m unittest experiments/llm-js/networking/ml/test_prepare_dataset.py
       - name: Check RouterOS training script syntax
         run: python -m py_compile experiments/llm-js/networking/ml/prepare_dataset.py experiments/llm-js/networking/ml/train_sft.py
+      - name: Check remaining Python training entrypoint syntax
+        run: python -m py_compile experiments/llm-js/finetune_peft.py
+      - name: Check simulated RouterOS lab syntax
+        run: node --check experiments/llm-js/networking/routeros-lab.js
       - name: Verify measurable Transformer training, held-out evaluation, and checkpoint round trip
         run: node experiments/llm-js/verify-training.js /tmp/verified-transformer-checkpoint.json
       - name: Upload verified training report and checkpoint
