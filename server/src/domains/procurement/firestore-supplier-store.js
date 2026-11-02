@@ -37,6 +37,13 @@ export function createFirestoreSupplierStore(database) {
       return db.runTransaction(async (tx) => {
         const [keySnap, orderSnap] = await Promise.all([tx.get(idempotency), tx.get(order)]);
         if (keySnap.exists) {
+          const existingFingerprint = keySnap.data().requestFingerprint;
+          if (existingFingerprint && record.requestFingerprint && existingFingerprint !== record.requestFingerprint) {
+            const error = new Error('Idempotency key was reused with different supplier order details');
+            error.code = 'SUPPLIER_IDEMPOTENCY_CONFLICT';
+            error.status = 409;
+            throw error;
+          }
           const linkedOrderId = keySnap.data().orderId;
           const linked = linkedOrderId === record.orderId ? orderSnap : await tx.get(orderRef(record.tenantId, linkedOrderId));
           if (!linked.exists) throw new Error('Idempotency claim points to a missing supplier order');
@@ -52,7 +59,7 @@ export function createFirestoreSupplierStore(database) {
           return { created: false, order: { orderId: existing.orderId, ...existing } };
         }
         tx.create(order, record);
-        tx.create(idempotency, { tenantId: record.tenantId, orderId: record.orderId, idempotencyKey: record.idempotencyKey, createdAt: record.createdAt });
+        tx.create(idempotency, { tenantId: record.tenantId, orderId: record.orderId, idempotencyKey: record.idempotencyKey, requestFingerprint: record.requestFingerprint, createdAt: record.createdAt });
         return { created: true, order: { ...record } };
       });
     },
@@ -92,6 +99,13 @@ export function createFirestoreSupplierStore(database) {
         const currentSnap = await tx.get(orderDoc);
         if (receiptSnap.exists) {
           if (!currentSnap.exists) throw new Error('Receipt replay references a missing purchase order');
+          const priorReceipt = receiptSnap.data();
+          if (priorReceipt.orderId !== order.orderId || priorReceipt.projectId !== projectId) {
+            const error = new Error('Receipt ID was reused for a different purchase order or project');
+            error.code = 'SUPPLIER_RECEIPT_CONFLICT';
+            error.status = 409;
+            throw error;
+          }
           return { replay: true, order: { ...currentSnap.data() } };
         }
         if (!currentSnap.exists) throw new Error('Purchase order not found in tenant scope');
