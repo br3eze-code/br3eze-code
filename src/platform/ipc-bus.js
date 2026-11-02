@@ -6,15 +6,18 @@ import { IPCMessageBus } from '../core/os/IPCMessageBus.js';
  * implemented once by the canonical core OS IPC bus.
  */
 export class IpcBus {
-  constructor({ topics = [], maxPayloadBytes = 64 * 1024 } = {}) {
+  constructor({ topics = [], maxPayloadBytes = 64 * 1024, maxSubscribers = 1024, authorize, onAudit } = {}) {
     if (!Array.isArray(topics) || topics.some((topic) => typeof topic !== 'string' || !topic.trim())) {
       throw new TypeError('topics must be non-empty strings');
     }
     this.topics = new Set(topics);
     this.nextSubscriberId = 0;
+    if (authorize !== undefined && typeof authorize !== 'function') throw new TypeError('authorize must be a function');
     this.core = new IPCMessageBus({
       maxPayloadBytes,
-      authorize: ({ topic }) => this.topics.has(topic),
+      maxSubscribers,
+      onAudit,
+      authorize: async (context) => this.topics.has(context.topic) && (authorize ? await authorize(context) : true),
     });
   }
 
