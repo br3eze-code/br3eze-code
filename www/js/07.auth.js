@@ -46,6 +46,7 @@ function setSession(session) {
     if (session?.access_token && window.SupabaseAuth?.establishFirebaseSession) {
         window.SupabaseAuth.establishFirebaseSession(session).catch(error => {
             console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error');
+            if (typeof window.showToast === 'function') window.showToast('Your account is signed in, but the legacy data session is unavailable. Please retry shortly.', 'error');
         });
     }
 }
@@ -340,6 +341,7 @@ window.Auth = {
     if (user && session) {
         await window.SupabaseAuth.establishFirebaseSession(session).catch(error => {
             console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error');
+            if (typeof window.showToast === 'function') window.showToast('Your account is signed in, but the legacy data session is unavailable. Please retry shortly.', 'error');
         });
     }
     window.authCheckComplete = true;
