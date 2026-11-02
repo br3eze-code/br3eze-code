@@ -4446,8 +4446,8 @@ const PermissionCenter = {
         };
         const notif = ('Notification' in window) ? Notification.permission : 'unsupported';
         const geo = navigator.permissions ? (await q('geolocation')) : ('geolocation' in navigator ? 'prompt' : 'unsupported');
-        const cam = navigator.permissions ? (await q('camera')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
-        const mic = navigator.permissions ? (await q('microphone')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
+        const cam = navigator.permissions ? ((await q('camera')) || (navigator.mediaDevices ? 'prompt' : 'unsupported')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
+        const mic = navigator.permissions ? ((await q('microphone')) || (navigator.mediaDevices ? 'prompt' : 'unsupported')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
         let persisted = 'unsupported';
         if (navigator.storage?.persisted) persisted = (await navigator.storage.persisted()) ? 'granted' : 'prompt';
         return [
