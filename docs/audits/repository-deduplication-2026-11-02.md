@@ -3,7 +3,8 @@
 ## Verified baseline and result
 
 - Baseline tracked files: 2,428.
-- Current tracked files: 2,379.
+- Tracked files at the cleanup commit snapshot: 2,379.
+- Latest inspected tree: 2,386 tracked files after seven subsequent automated platform-port commits added the audit report, four OS platform modules, and two tests.
 - Files removed: 49.
   - 5 redundant workflow definitions.
   - 44 zero-byte generated security-audit `.err` files.
@@ -29,7 +30,7 @@ Updated:
 
 ## Remaining exact-content duplicates
 
-The Git tree content-hash audit still finds 26 duplicate-content groups containing 75 extra identical copies. These are not all safe deletions:
+The Git tree content-hash audit initially found 26 duplicate-content groups containing 75 extra identical copies after removing the empty logs. After seven subsequent commits, the latest tree has 27 groups containing 76 extra identical copies. These are not all safe deletions:
 - Generated security-review JSON snapshots: retain provenance until the audit output format is consolidated.
 - PHP domain/skill fallback entrypoints: identical generic response handlers, but URLs may be externally consumed.
 - Duplicate browser JS assets: verify HTML/Cordova references before removing aliases.
@@ -48,4 +49,4 @@ There are 60 branches. 37 point to the same old commit `9c51352ab00c8916f90a91bd
 
 ## Validation status
 
-GitHub Actions were queued/pending on the latest cleanup commit at the time of this audit. This report does not claim green CI. The next gate is completion of canonical CI, quality, security, Docker and Vercel checks.
+GitHub Actions were queued/pending on the latest inspected main commit at the time of this audit. This report does not claim green CI. The next gate is completion of canonical CI, quality, security, Docker and Vercel checks.
