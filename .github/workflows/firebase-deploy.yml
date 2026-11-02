@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'www/**'
+      - 'scripts/generate-env-www.js'
       - 'server/**'
       - 'api/chat/otp/**'
       - 'src/adapters/auth/supabase.js'
@@ -70,8 +71,8 @@ jobs:
         id: validate
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "::error::FIREBASE_SERVICE_ACCOUNT secret is missing; Firebase deploy cannot authenticate."
@@ -113,8 +114,8 @@ jobs:
             echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
             echo "FIREBASE_MEASUREMENT_ID=${{ secrets.FIREBASE_MEASUREMENT_ID }}"
             echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
-            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}"
-            echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}"
+            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}"
+            echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}"
             echo "SUPABASE_OAUTH_REDIRECT=${{ secrets.SUPABASE_OAUTH_REDIRECT }}"
           } > .env
 
