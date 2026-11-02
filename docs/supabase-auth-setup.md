@@ -65,3 +65,6 @@ The Firebase Auth SDK remains loaded only in the main application so it can exch
 ## Current deployment boundary
 
 The repository changes do not set Google OAuth secrets in the Supabase project. Configure the Google provider in Supabase Dashboard → Authentication → Providers. Configure the Supabase site URL and allow `https://<your-domain>/auth/callback` (the hosting rewrite maps it to `/auth/callback.html`). The Google Cloud OAuth redirect URI must be the callback URL displayed by the Supabase Google provider settings, not the Br3eze callback.
+
+
+Firestore authorization also reads the server-minted Firebase custom claim `role` that mirrors the protected Supabase profile. Missing claims fail closed to ordinary-user permissions. Firestore user documents are data only and cannot grant admin/partner authority; clients cannot create a user document with a role different from the trusted token claim.
