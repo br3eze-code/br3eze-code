@@ -8,8 +8,13 @@ function money(n) { return `$${Number(n || 0).toFixed(2)}`; }
 
 function buildMessage(order) {
   const lines = (order.items || []).map((i) => `${i.qty} × ${i.name}${i.size ? ` (${i.size})` : ''}`);
-  const settled = order.status === 'paid';
-  return [`🛍️ *New Order* — ${order.invoiceNumber}`, `📦 via ${order.channel || order.platform}`, `💳 ${(order.payMethod || 'cod').toUpperCase()} — ${settled ? 'PAID' : 'DUE ON DELIVERY'}`, '', ...lines, '', `Total: ${money(order.total)}`].join('\n');
+  const method = String(order.payMethod || 'cod').toLowerCase();
+  const paymentLabel = order.status === 'paid'
+    ? 'PAID'
+    : ['cod', 'cash'].includes(method)
+      ? 'DUE ON DELIVERY'
+      : 'PAYMENT PENDING';
+  return [`🛍️ *New Order* — ${order.invoiceNumber}`, `📦 via ${order.channel || order.platform}`, `💳 ${method.toUpperCase()} — ${paymentLabel}`, '', ...lines, '', `Total: ${money(order.total)}`].join('\n');
 }
 
 async function notifyNewOrder(order) {
