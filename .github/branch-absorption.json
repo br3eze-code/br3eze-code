@@ -54,6 +54,24 @@
       "head": "6256a676f2e4be52dd93dfa7a42951af62535875",
       "absorbedIn": "796a0a71868f15449523944a7eb9b8dbac75ba5d",
       "reason": "Both changed test files are byte-identical to main; no unique source or test content remains."
+    },
+    {
+      "branch": "refactor/general-purpose-single-runtime",
+      "head": "37b633f441a263450f122bc39dbe625fb62d9a2a",
+      "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
+      "reason": "Reviewed the 53-commit delta and unique tree paths. LLM/knowledge/training and hardware/runtime patterns are already represented on main; legacy coordinator, policy and session implementations duplicate canonical runtime/ToolRegistry/SessionEventStore ownership; auth and payment migrations are superseded by current main implementations. Raw scan outputs and local secrets were deliberately excluded."
+    },
+    {
+      "branch": "port/missing-branch-patterns",
+      "head": "c072940ab2e90ca6681b3a4307ad7d1b9923f839",
+      "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
+      "reason": "Reviewed the 132-commit delta and unique paths. LLM/training patterns are already on main; product query adapter is superseded by the persistence-port-first product query bridge; legacy auth/session/policy/coordinator code duplicates current owners; payment and auth migrations are superseded by newer main migrations. Raw audit outputs were excluded."
+    },
+    {
+      "branch": "refactor/linux-single-runtime-boundaries",
+      "head": "e1c1f10fd7c4e8de9cc7e77863a863b8b778a8f7",
+      "absorbedIn": "5e24ee07dde2a34ff653418a79677e8a05e9d4fe",
+      "reason": "Ported local application state through the persistence adapter and canonical AgentRuntime; adapted read-only host diagnostics to the existing HardwareCapabilityRegistry. Existing main ServiceSupervisor, ApplicationManager, IPCMessageBus and HardwareCapabilityRegistry are the owners; the branch's second PlatformAdapterRegistry was rejected as duplicate. Local env, signing keystore and raw scan logs were excluded."
     }
   ]
 }
