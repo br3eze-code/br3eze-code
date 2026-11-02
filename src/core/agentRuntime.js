@@ -147,7 +147,8 @@ class AgentRuntime extends EventEmitter {
     this.providerManager = config.providerManager || null;
     this.safetyEnvelope = config.safetyEnvelope || null;
     this.approvalGate = config.approvalGate || new ApprovalWorkflow(config.approvalOptions || {});
-    this.sessionManager = config.sessionManager || null;
+    // Legacy sessionManager is retained only as a session-ID resolver. All history is owned by SessionEventStore.
+    this.sessionIdResolver = config.sessionIdResolver || config.sessionManager || null;
     this.sessionEventStore = config.sessionEventStore || getOrCreateSessionEventStore();
     this.memoryStore = config.memoryStore || null;
     this.injectedToolExecutor = typeof config.toolExecutor === 'function';
@@ -394,7 +395,7 @@ class AgentRuntime extends EventEmitter {
   }
 
   async _executeModelTurn(frame) {
-    const sessionId = frame.sessionId || this.sessionManager?.getSessionId?.(frame) || null;
+    const sessionId = frame.sessionId || this.sessionIdResolver?.getSessionId?.(frame) || null;
     const loaded = !Array.isArray(frame.messages) && sessionId
       ? [...(await this.sessionEventStore.read(sessionId))]
         .reverse()
