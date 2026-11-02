@@ -392,6 +392,12 @@ if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.leng
 const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
 const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
 const storage = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.storage() : null;
+
+function appApiUrl(path) {
+    if (/^https?:\\/\\//i.test(path)) return path;
+    const base = String(window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '').replace(/\\/$/, '');
+    return base + path;
+}
 window.currentUser = null;
 
 function syncOfflineUserContext(user) {
@@ -2193,7 +2199,7 @@ window.topUpWithCard = async function (preset) {
     window.Loading.show('Starting secure checkout…');
     try {
         const accessToken = window.SupabaseAuth.getSession().access_token;
-        const res = await fetch('/api/checkout/create', {
+        const res = await fetch(appApiUrl('/api/checkout/create'), {
             method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
             body: JSON.stringify({ uid: currentUser.id, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }),
         });
@@ -2213,7 +2219,7 @@ async function handleStripeReturn() {
         try {
             const accessToken = window.SupabaseAuth?.getSession?.()?.access_token;
             if (!accessToken) throw new Error('Your Supabase session expired. Sign in again to verify this payment.');
-            const res = await fetch('/api/checkout/verify', {
+            const res = await fetch(appApiUrl('/api/checkout/verify'), {
                 method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
                 body: JSON.stringify({ session_id: params.get('session_id') }),
             });
