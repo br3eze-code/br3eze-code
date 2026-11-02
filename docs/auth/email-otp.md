@@ -2,7 +2,7 @@
 
 The canonical browser passwordless login uses Supabase Auth email OTP. Supabase issues the authenticated session after the user verifies the code; the browser never receives a server secret.
 
-The AgentOS Node backend also exposes a provider-neutral transactional OTP service at:
+The canonical provider-neutral transactional OTP implementation lives in `api/chat/otp/`. The existing Node route remains a compatibility mount at:
 
 - POST /api/auth/otp/request
 - POST /api/auth/otp/verify
@@ -22,7 +22,7 @@ Nodemailer uses a pooled SMTP transporter. Required server environment:
 - SUPABASE_URL
 - SUPABASE_SECRET_KEY (preferred) or legacy SUPABASE_SERVICE_ROLE_KEY
 
-The PHP fallback does not implement a second OTP store. www/api.php proxies OTP requests to the canonical Node endpoint using AGENTOS_API_BASE_URL.
+The `server/src/routes/otp.js` and `server/src/services/otpService.js` files are compatibility re-exports only; they do not own OTP logic. The PHP fallback does not implement a second OTP store. www/api.php proxies OTP requests to the canonical Node endpoint using AGENTOS_API_BASE_URL.
 
 Security requirements:
 
