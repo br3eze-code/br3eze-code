@@ -11,6 +11,7 @@ export class IpcBus {
       throw new TypeError('topics must be non-empty strings');
     }
     this.topics = new Set(topics);
+    this.nextSubscriberId = 0;
     this.core = new IPCMessageBus({
       maxPayloadBytes,
       authorize: ({ topic }) => this.topics.has(topic),
@@ -21,7 +22,7 @@ export class IpcBus {
     this.#assertTopic(topic);
     return this.core.subscribe({
       topic,
-      subscriberId: 'platform-subscriber',
+      subscriberId: `platform-subscriber-${++this.nextSubscriberId}`,
       tenantId: 'platform-local',
       userId: 'platform-system',
     }, handler);
