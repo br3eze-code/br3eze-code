@@ -131,6 +131,10 @@ export class SupplierProvisioningService {
     };
     if (lines.some((line) => line.currency !== record.currency)) throw new Error('Mixed currencies are not allowed in one purchase order');
 
+    // Fail before reserving a local order if required API configuration is
+    // absent. Network failures after submission begins remain uncertain.
+    if (typeof this.supplierAdapter.assertReady === 'function') this.supplierAdapter.assertReady();
+
     // This method must use a unique constraint / transaction on (tenantId, idempotencyKey).
     const claim = await this.store.createOrderIfAbsent(record);
     if (!claim?.order) throw new Error('Store did not return the claimed purchase order');
