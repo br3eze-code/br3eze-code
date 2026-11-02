@@ -29,6 +29,7 @@ import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
+import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
 
 // ============================================================
 // §1 CONFIGURATION & CONSTANTS
@@ -1358,6 +1359,14 @@ registerWifiRoutes({
     getCommandHandler: () => global.commandHandler,
     issueUserToken
 });
+
+// Supplier provisioning is an optional commerce capability. The route module
+// fails closed if Firebase is unavailable; do not break unrelated Wi-Fi APIs.
+if (db) {
+    registerSupplierProvisioningRoutes({ app, authMiddleware, db });
+} else {
+    logger.warn('Supplier provisioning routes disabled: Firebase database is not configured');
+}
 
 // ── Stripe card top-up ──────────────────────────────────────────────────────
 // Card payments are server-side (the secret key never touches the browser).
