@@ -4,19 +4,26 @@
    and pay-with-saved-card top-ups.
    ========================================================== */
 
+function paymentApiUrl(path) {
+    if (/^https?:\/\//i.test(path)) return path;
+    const base = String(window.ENV?.AGENTOS_API_BASE_URL || window.ENV?.API_BASE_URL || '').replace(/\/$/, '');
+    return base + path;
+}
+
 async function agentOSPaymentRequest(url, options = {}) {
+    const target = paymentApiUrl(url);
     const session = window.SupabaseAuth?.getSession?.();
     const headers = { ...(options.headers || {}) };
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     const authenticatedOptions = { ...options, headers };
     if (window.AgentOSOffline) {
-        const result = await window.AgentOSOffline.request(url, authenticatedOptions);
+        const result = await window.AgentOSOffline.request(target, authenticatedOptions);
         if (result && result.queued) {
             return new Response(JSON.stringify({ offline: true, queued: true, paid: false, status: 'pending', idempotencyKey: result.idempotencyKey }), { status: 202, headers: { 'Content-Type': 'application/json', 'X-AgentOS-Offline': 'queued' } });
         }
         return result;
     }
-    return fetch(url, authenticatedOptions);
+    return fetch(target, authenticatedOptions);
 }
 
 const Payments = {
