@@ -23,17 +23,17 @@ test('permission policy defaults to deny and supports grant/revoke', () => {
   assert.equal(policy.check('app.a', 'storage.read').allowed, false);
 });
 
-test('IPC requires registered topics, bounds payloads and enforces optional publish permission', () => {
+test('IPC requires registered topics, bounds payloads and enforces optional publish permission', async () => {
   const policy = new PermissionPolicy();
   policy.grant('app.a', ['ipc.publish.jobs.created']);
   const bus = new IpcBus({ topics: ['jobs.created'], maxPayloadBytes: 100 });
   let received;
-  bus.subscribe('jobs.created', (message) => { received = message; });
-  bus.publish('jobs.created', { id: 3 }, { principal: 'app.a', policy });
+  await bus.subscribe('jobs.created', (message) => { received = message; });
+  await bus.publish('jobs.created', { id: 3 }, { principal: 'app.a', policy });
   assert.equal(received.payload.id, 3);
-  assert.throws(() => bus.publish('jobs.created', { id: 4 }, { principal: 'app.b', policy }), { code: 'PERMISSION_DENIED' });
+  await assert.rejects(bus.publish('jobs.created', { id: 4 }, { principal: 'app.b', policy }), { code: 'PERMISSION_DENIED' });
   assert.throws(() => bus.publish('missing', {}), { code: 'IPC_TOPIC_NOT_REGISTERED' });
-  assert.throws(() => bus.publish('jobs.created', { data: 'x'.repeat(200) }), { code: 'IPC_PAYLOAD_TOO_LARGE' });
+  await assert.rejects(bus.publish('jobs.created', { data: 'x'.repeat(200) }), /byte limit/);
 });
 
 test('supervisor enforces dependencies and records lifecycle failure', async () => {
