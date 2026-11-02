@@ -59,21 +59,36 @@ async function authenticateSupabaseBearer(token) {
     const user = await response.json();
     if (!user?.id) return null;
 
-    // Only server-controlled app_metadata can grant roles or tenant scope.
+    // Resolve profile authorization fields through the user's RLS-scoped session.
+    const profileResponse = await fetch(
+      `${baseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role,tenant_id,site_id,domain`,
+      {
+        headers: {
+          apikey: apiKey,
+          authorization: `Bearer ${token}`,
+          accept: 'application/json'
+        },
+        signal: AbortSignal.timeout(8000)
+      }
+    );
+    const profiles = profileResponse.ok ? await profileResponse.json() : [];
+    const profile = Array.isArray(profiles) ? profiles[0] || {} : {};
+    // app_metadata is server-controlled; profiles are protected by RLS and
+    // role-column policies. Never trust user_metadata for authorization.
     const metadata = user.app_metadata || {};
     const identity = normalizeIdentity({
       uid: user.id,
       email: user.email,
-      role: metadata.role || 'USER',
+      role: metadata.role || profile.role || 'USER',
       roles: Array.isArray(metadata.roles) ? metadata.roles : undefined,
       email_verified: Boolean(user.email_confirmed_at),
       name: user.user_metadata?.full_name || user.user_metadata?.name || user.email
     });
     return Object.freeze({
       ...identity,
-      tenantId: metadata.tenant_id || null,
-      siteId: metadata.site_id || null,
-      domainId: metadata.domain_id || metadata.domain || null,
+      tenantId: metadata.tenant_id || profile.tenant_id || null,
+      siteId: metadata.site_id || profile.site_id || null,
+      domainId: metadata.domain_id || metadata.domain || profile.domain || null,
       metadata: { ...identity.metadata, authProvider: 'supabase' }
     });
   } catch {
