@@ -76,7 +76,7 @@ jobs:
 
             branch_prs="$(jq -r --arg branch "$branch" --arg repo "$GITHUB_REPOSITORY" '[.[] | select(.head.ref == $branch and .head.repo.full_name == $repo) | .number] | .[]' "$prs_file")"
             for pr in $branch_prs; do
-              gh pr close "$pr" --comment "This branch is fully absorbed into `main` ($reason). Closing the obsolete pull request."
+              gh pr close "$pr" --comment "This branch is fully absorbed into main ($reason). Closing the obsolete pull request."
             done
 
             if gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${branch}" >/dev/null; then
@@ -91,8 +91,8 @@ jobs:
           {
             echo "## Branch cleanup"
             echo "Deleted ${#deleted[@]} branch(es)."
-            for branch in "${deleted[@]}"; do echo "- `$branch`"; done
+            for branch in "${deleted[@]}"; do printf -- "- %s\\n" "$branch"; done
             echo
             echo "Skipped ${#skipped[@]} branch(es)."
-            for branch in "${skipped[@]}"; do echo "- $branch"; done
+            for branch in "${skipped[@]}"; do printf -- "- %s\\n" "$branch"; done
           } >> "$GITHUB_STEP_SUMMARY"
