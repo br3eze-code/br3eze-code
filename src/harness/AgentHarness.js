@@ -1,7 +1,6 @@
 import path from 'path';
 import { EventEmitter } from 'node:events';
 import { getAgentRuntime } from '../core/agentRuntime.js';
-import { ToolRegistry } from '../core/ToolRegistry.js';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
