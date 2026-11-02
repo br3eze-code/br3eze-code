@@ -229,7 +229,7 @@ window.Auth = {
             showToast(session?.access_token ? 'Account created!' : 'Account created. Check your email to confirm.', 'success');
             return session;
         } catch (e) { showToast(e.message, 'error'); }
-        finally { Loading.hide(); }
+        finally { hideAuthLoading(); }
     },
     async requestEmailOtp(email) {
         email = String(email || '').trim().toLowerCase();
@@ -243,7 +243,7 @@ window.Auth = {
             showToast('Verification code sent. Check your email.', 'success');
             return { email };
         } finally {
-            Loading.hide();
+            hideAuthLoading();
         }
     },
     async verifyEmailOtp(email, token) {
@@ -264,7 +264,7 @@ window.Auth = {
             showToast(e.message, 'error');
             throw e;
         } finally {
-            Loading.hide();
+            hideAuthLoading();
         }
     },
     async loginWithOtp(email) {
@@ -301,7 +301,7 @@ window.Auth = {
             await supabaseRequest('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
             showToast('If that email has an account, a reset link is on its way.', 'success'); toggleForgotPassword();
         } catch (e) { showToast(e.message, 'error'); }
-        finally { Loading.hide(); }
+        finally { hideAuthLoading(); }
     },
     async loginWithGoogle() {
         try { await loginWithProvider('google'); } catch (e) { showToast(e.message, 'error'); }
