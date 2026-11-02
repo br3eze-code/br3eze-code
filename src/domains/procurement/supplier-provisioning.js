@@ -6,7 +6,7 @@
  * External supplier calls are made only after approval and an idempotent local
  * order claim. The supplier adapter should also honor the same idempotency key.
  */
-const TERMINAL_PAYMENT_STATES = new Set(['settled', 'refunded']);
+const TERMINAL_PAYMENT_STATES = new Set(['paid', 'settled', 'refunded', 'failed']);
 const TERMINAL_ORDER_STATES = new Set(['closed', 'cancelled']);
 
 function requiredString(value, name) {
@@ -291,6 +291,9 @@ export class SupplierProvisioningService {
     const order = await this.store.getOrder(requiredString(orderId, 'orderId'), scope.tenantId);
     if (!order || order.tenantId !== scope.tenantId || order.projectId !== scope.projectId) throw new Error('Purchase order not found in tenant/project scope');
     const supplied = new Set(acceptanceEvidence.filter((item) => typeof item === 'string' && item.trim()));
+    const persistedEvidence = new Set(order.evidence || []);
+    const unverified = [...supplied].filter((item) => !persistedEvidence.has(item));
+    if (unverified.length) return { closed: false, reason: 'acceptance_evidence_unverified', unverified };
     const missing = (order.requiredAcceptanceEvidence || ['receipt_inspection']).filter((item) => !supplied.has(item));
     if (missing.length) return { closed: false, reason: 'acceptance_evidence_missing', missing };
     if (!['received', 'invoice_matched', 'settled'].includes(order.status) && order.status !== 'ordered') {
