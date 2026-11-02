@@ -719,8 +719,12 @@ class AgentRuntime extends EventEmitter {
 let _runtime = null;
 function getAgentRuntime(config = {}) {
   if (!_runtime) {
-    _runtime = new AgentRuntime(config);
-  } else {
+    _runtime = config.runtime || new AgentRuntime(config);
+  } else if (config.runtime && config.runtime !== _runtime) {
+    throw new Error('AgentRuntime is already composed; inject the canonical runtime instead of creating a second owner.');
+  }
+
+  if (_runtime) {
     // Composition roots may be loaded after the singleton was first requested.
     // Configure the existing owner rather than constructing a competing runtime.
     if (config.toolRegistry) _runtime.setToolRegistry(config.toolRegistry);
