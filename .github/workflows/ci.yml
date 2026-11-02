@@ -35,6 +35,174 @@ jobs:
           fi
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
+      - name: Install Helm for deployment chart validation
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+      - name: Lint and render the AWS/EKS deployment chart
+        run: |
+          set -euo pipefail
+          helm lint ./helm/agentos
+          helm template agentos ./helm/agentos > "$RUNNER_TEMP/agentos-rendered.yaml"
+          grep -q '^kind: Deployment      - name: Validate repository hygiene
+        run: npm run check:repository-hygiene
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Run architecture gate
+        run: npm run check:architecture
+      - name: Run CI quality gate
+        env:
+          CI_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: npm run check:ci-quality
+      - name: Build required native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
+      - name: Validate agent identity authorization boundary
+        run: npm test -- --runTestsByPath tests/unit/agent-authorization.test.js --coverage=false
+      - name: Lint maintained pipeline and plugin code
+        run: npx eslint src/core/WorkflowEngine.js src/plugins/custom/*.js src/plugins/*.js scripts/check-syntax.mjs --quiet
+      - name: Test
+        run: npm test -- --ci --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          ROS_HOST: 127.0.0.1
+          ROS_PORT: 8728
+          ROS_USER: admin
+          ROS_PASS: test
+          MIKROTIK_HOST: 127.0.0.1
+          MIKROTIK_USER: admin
+          MIKROTIK_PASS: test
+          DATA_BACKEND: local
+          FIREBASE_PROJECT_ID: test-project
+          LLM_PROVIDER: gemini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
+          PORT: 3000
+          GATEWAY_PORT: 19876
+      - name: Test Node.js-native suites
+        run: npm run test:node
+      - name: Syntax check
+        run: npm run build:check
+      - name: Type check (jsconfig + tsconfig)
+        run: npm run build:types
+      - name: Security check script
+        run: npm run security:audit
+        env:
+          NODE_ENV: test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+ "$RUNNER_TEMP/agentos-rendered.yaml"
+          grep -q '^kind: ServiceAccount      - name: Validate repository hygiene
+        run: npm run check:repository-hygiene
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Run architecture gate
+        run: npm run check:architecture
+      - name: Run CI quality gate
+        env:
+          CI_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: npm run check:ci-quality
+      - name: Build required native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
+      - name: Validate agent identity authorization boundary
+        run: npm test -- --runTestsByPath tests/unit/agent-authorization.test.js --coverage=false
+      - name: Lint maintained pipeline and plugin code
+        run: npx eslint src/core/WorkflowEngine.js src/plugins/custom/*.js src/plugins/*.js scripts/check-syntax.mjs --quiet
+      - name: Test
+        run: npm test -- --ci --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          ROS_HOST: 127.0.0.1
+          ROS_PORT: 8728
+          ROS_USER: admin
+          ROS_PASS: test
+          MIKROTIK_HOST: 127.0.0.1
+          MIKROTIK_USER: admin
+          MIKROTIK_PASS: test
+          DATA_BACKEND: local
+          FIREBASE_PROJECT_ID: test-project
+          LLM_PROVIDER: gemini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
+          PORT: 3000
+          GATEWAY_PORT: 19876
+      - name: Test Node.js-native suites
+        run: npm run test:node
+      - name: Syntax check
+        run: npm run build:check
+      - name: Type check (jsconfig + tsconfig)
+        run: npm run build:types
+      - name: Security check script
+        run: npm run security:audit
+        env:
+          NODE_ENV: test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+ "$RUNNER_TEMP/agentos-rendered.yaml"
+          grep -q '^kind: Service      - name: Validate repository hygiene
+        run: npm run check:repository-hygiene
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Run architecture gate
+        run: npm run check:architecture
+      - name: Run CI quality gate
+        env:
+          CI_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: npm run check:ci-quality
+      - name: Build required native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
+      - name: Validate agent identity authorization boundary
+        run: npm test -- --runTestsByPath tests/unit/agent-authorization.test.js --coverage=false
+      - name: Lint maintained pipeline and plugin code
+        run: npx eslint src/core/WorkflowEngine.js src/plugins/custom/*.js src/plugins/*.js scripts/check-syntax.mjs --quiet
+      - name: Test
+        run: npm test -- --ci --forceExit --passWithNoTests
+        env:
+          NODE_ENV: test
+          ROS_HOST: 127.0.0.1
+          ROS_PORT: 8728
+          ROS_USER: admin
+          ROS_PASS: test
+          MIKROTIK_HOST: 127.0.0.1
+          MIKROTIK_USER: admin
+          MIKROTIK_PASS: test
+          DATA_BACKEND: local
+          FIREBASE_PROJECT_ID: test-project
+          LLM_PROVIDER: gemini
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
+          PORT: 3000
+          GATEWAY_PORT: 19876
+      - name: Test Node.js-native suites
+        run: npm run test:node
+      - name: Syntax check
+        run: npm run build:check
+      - name: Type check (jsconfig + tsconfig)
+        run: npm run build:types
+      - name: Security check script
+        run: npm run security:audit
+        env:
+          NODE_ENV: test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14
+ "$RUNNER_TEMP/agentos-rendered.yaml"
       - name: Validate repository hygiene
         run: npm run check:repository-hygiene
       - name: Install dependencies
