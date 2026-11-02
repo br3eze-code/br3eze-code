@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { sendOtpEmail } from './providers/email.js';
+import { normalizeEmail, isValidEmail, isValidOtpCode } from './validation.js';
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -10,10 +11,6 @@ const MAX_DAILY_PER_EMAIL = Math.max(3, Math.min(30, Number(process.env.OTP_DAIL
 function assertConfig() {
   if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Supabase server credentials are not configured.');
   if (!process.env.OTP_PEPPER) throw new Error('OTP_PEPPER is not configured.');
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
 }
 
 function digest(value) {
@@ -126,7 +123,7 @@ export async function requestOtp({ email, purpose = 'login', ip = '', userAgent 
 
 export async function verifyOtp({ challengeId, code }) {
   assertConfig();
-  if (!/^[0-9]{6}$/.test(String(code || ''))) {
+  if (!isValidOtpCode(code)) {
     throw Object.assign(new Error('Enter the 6-digit verification code.'), { status: 400, code: 'INVALID_CODE' });
   }
   if (!/^[0-9a-f-]{36}$/i.test(String(challengeId || ''))) {
