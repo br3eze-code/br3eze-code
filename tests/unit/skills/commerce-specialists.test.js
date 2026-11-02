@@ -87,6 +87,25 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
 
+
+  test('catalog removes unsafe supplier URLs before returning product results', async () => {
+    const registry = new ToolRegistry();
+    registry.registerSkill(catalogSkill);
+    const result = await registry.execute('catalog.search', { name: 'Unsafe item' }, {
+      agentRole: 'catalog', permissions: ['catalog:read'], tenantId: 'tenant-a', userId: 'user-1',
+      catalog: {
+        async search({ scope }) {
+          return { tenantId: scope.tenantId, items: [
+            { tenantId: scope.tenantId, id: 'p-safe', supplierReferenceUrl: 'https://supplier.example/p-safe' },
+            { tenantId: scope.tenantId, id: 'p-unsafe', supplierReferenceUrl: 'javascript:alert(1)' },
+          ] };
+        },
+      },
+    });
+    expect(result.items[0].supplierReferenceUrl).toBe('https://supplier.example/p-safe');
+    expect(result.items[1].supplierReferenceUrl).toBeNull();
+  });
+
   test('procurement exposes supplier references and approval-gates API provisioning', async () => {
     const registry = new ToolRegistry();
     registry.registerSkill(procurementSkill);
