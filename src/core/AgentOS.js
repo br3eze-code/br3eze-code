@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import EventEmitter from 'node:events';
-import { AgentRuntime } from './agentRuntime.js';
+import { getAgentRuntime } from './agentRuntime.js';
 import { ToolRegistry } from './ToolRegistry.js';
 import ChannelManager from './channels/ChannelManager.js';
 import MemoryManager from './memory/MemoryManager.js';
@@ -21,14 +21,20 @@ class AgentOS extends EventEmitter {
     super();
     this.id = config.id || crypto.randomUUID();
     this.config = { ...config };
-    this.runtime = config.runtime || new AgentRuntime({
-      toolRegistry: config.toolRegistry || new ToolRegistry({
-        skillsPath: config.skillsPath || './skills',
-        permissionPolicy: config.permissionPolicy,
-      }),
-      providerManager: config.providerManager || null,
-      model: config.model || null,
-      permissionMode: config.permissionMode,
+    // All composition roots share the canonical runtime. Only explicit
+    // infrastructure overrides are applied; default construction must not
+    // silently create a second execution owner.
+    const runtimeToolRegistry = config.toolRegistry || (
+      config.skillsPath || config.permissionPolicy
+        ? new ToolRegistry({
+          skillsPath: config.skillsPath || './skills',
+          permissionPolicy: config.permissionPolicy,
+        })
+        : null
+    );
+    this.runtime = config.runtime || getAgentRuntime({
+      ...(runtimeToolRegistry ? { toolRegistry: runtimeToolRegistry } : {}),
+      ...(config.model ? { model: config.model } : {}),
     });
     // Compatibility aliases are stores, not execution owners.
     this.skills = this.runtime.toolRegistry;
