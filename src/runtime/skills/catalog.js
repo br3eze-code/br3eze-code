@@ -13,6 +13,21 @@ function providerFrom(context = {}) {
   return provider;
 }
 
+function safeSupplierReference(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null;
+  } catch { return null; }
+}
+
+function sanitizeProductSupplierReference(item) {
+  if (!item || typeof item !== 'object') return item;
+  const raw = item.supplierReferenceUrl || item.supplierUrl;
+  if (raw == null) return item;
+  return { ...item, supplierReferenceUrl: safeSupplierReference(raw) };
+}
+
 function assertTenant(result, tenantId) {
   if (result && result.tenantId && result.tenantId !== tenantId) {
     throw new Error('Catalog result is outside the authorized tenant scope');
@@ -47,7 +62,7 @@ const catalogSkill = defineSkill({
         const supplierReferenceFields = ['supplierReferenceUrl', 'supplierId', 'supplierSku', 'supplierFulfillmentMode'];
         const include = [...new Set([...(Array.isArray(filters.include) ? filters.include : []), ...supplierReferenceFields])];
         const result = await providerFrom(context).search({ scope, filters, include, viewerRole: context.role || context.agentRole, viewerTier: context.viewerTier, purpose: 'product_inquiry' });
-        if (Array.isArray(result?.items)) result.items = result.items.map((item) => assertTenant(item, scope.tenantId));
+        if (Array.isArray(result?.items)) result.items = result.items.map((item) => sanitizeProductSupplierReference(assertTenant(item, scope.tenantId)));
         return assertTenant(result, scope.tenantId);
       },
     }),
@@ -65,7 +80,7 @@ const catalogSkill = defineSkill({
         const result = typeof provider.get === 'function'
           ? await provider.get({ productId, version, scope })
           : await provider.search({ scope, filters: { sku: productId, limit: 1 }, purpose: 'product_inquiry' });
-        return assertTenant(result, scope.tenantId);
+        return assertTenant(sanitizeProductSupplierReference(result), scope.tenantId);
       },
     }),
     defineTool({
