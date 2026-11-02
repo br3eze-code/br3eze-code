@@ -34,7 +34,6 @@ function getPaymentMethods() {
 
 export function registerWifiRoutes({
     app,
-    otpRouter,
     database,
     CONFIG,
     BRAND,
@@ -72,10 +71,6 @@ export function registerWifiRoutes({
         });
     });
     
-    // Canonical email OTP authentication routes
-app.use('/api/chat/otp', otpRouter); // canonical API boundary
-    app.use('/api/auth/otp', otpRouter); // compatibility for existing www PHP proxy
-
 // API routes
     app.post('/api/auth/login', (req, res) => {
         const { username, password } = req.body;
