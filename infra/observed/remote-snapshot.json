@@ -1,5 +1,5 @@
 {
-  "observedAt": "2026-11-02T08:09:00.880Z",
+  "observedAt": "2026-11-02T08:11:37.084Z",
   "source": "connected Supabase project and Vercel project/deployment APIs",
   "supabase": {
     "project": {
@@ -114,12 +114,12 @@
       ]
     },
     "latestProductionDeployment": {
-      "id": "dpl_62gLJB81ScdR8CeJHtNeEemLnVpJ",
-      "url": "br3eze-code-n95zu0i3o-br3eze.vercel.app",
-      "state": "READY",
-      "commit": "0c39fdbf68b8aaad77c358be0f0abee5d367d13a"
+      "id": "dpl_91Cmo3D13Fp3Y19Asw46yPXB4rP1",
+      "url": "br3eze-code-4dm7vhwzw-br3eze.vercel.app",
+      "state": "BUILDING",
+      "commit": "97742315e928d8a89c53f5ec15868380f51bc68a"
     },
-    "repositoryHead": "9441cf213f6838b75ce605ad926738781b29b070",
-    "commitsAheadOfDeployment": 48
+    "repositoryHead": "b3958e320fcbc10e08011641414a7441d0d4dae4",
+    "commitsAheadOfDeployment": 11
   }
 }
