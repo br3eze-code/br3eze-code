@@ -18,6 +18,9 @@ if (!fs.existsSync(path.join(source, 'home.html'))) {
 if (!fs.existsSync(path.join(root, 'api', 'index.js'))) {
   throw new Error('Missing api/index.js; cannot build API deployment.');
 }
+if (!fs.existsSync(path.join(root, 'api', '[...path].js'))) {
+  throw new Error('Missing api/[...path].js; cannot build the backend proxy.');
+}
 
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
