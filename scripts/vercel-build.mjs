@@ -54,12 +54,13 @@ fs.copyFileSync(path.join(source, 'home.html'), path.join(output, 'index.html'))
 // Server secrets (service-role/secret keys, JWT secrets, database credentials,
 // model keys) are intentionally never read or emitted by this build.
 const publicEnv = {
-  SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+  SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co',
   SUPABASE_PUBLISHABLE_KEY:
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY || '',
+    process.env.SUPABASE_ANON_KEY ||
+    'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE',
   SUPABASE_OAUTH_REDIRECT: process.env.SUPABASE_OAUTH_REDIRECT || '',
   API_BASE_URL: process.env.AGENTOS_API_BASE_URL || process.env.VITE_API_URL || '',
   AGENTOS_API_BASE_URL: process.env.AGENTOS_API_BASE_URL || process.env.VITE_API_URL || '',
