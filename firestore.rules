@@ -11,14 +11,17 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // The app stores role on the user's own Firestore doc (users/{uid}.role),
-    // NOT as a Firebase Auth custom claim -- nothing in this codebase ever
-    // calls admin.auth().setCustomUserClaims(), so a claims-based isAdmin()
-    // check would always evaluate false. Read the actual field instead.
+    // Supabase is the human identity authority. The server copies the
+    // protected Supabase profile role into Firebase custom claims only to
+    // authorize legacy Firestore data access. Old sessions without claims
+    // fall back to their existing profile document during migration.
     function myRole() {
-      return isAuthenticated()
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+      return !isAuthenticated() ? null :
+        (request.auth.token.keys().hasAny(['role'])
+          ? request.auth.token.role
+          : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+              ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+              : null));
     }
 
     function isAdmin() {
@@ -133,7 +136,14 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow create: if isAuthenticated() && isOwner(userId);
+      // A user may create only the role carried by their server-minted
+      // Supabase bridge token. Non-admin users cannot grant themselves credits.
+      allow create: if isAuthenticated() && isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == myRole()
+        && (myRole() == 'admin'
+          || !request.resource.data.keys().hasAny(['credits'])
+          || request.resource.data.credits == 0);
       // Users may update their own profile, but not their own role/credits
       // (those are admin-controlled or moved via transactions/functions).
       allow update: if isAuthenticated() && (
