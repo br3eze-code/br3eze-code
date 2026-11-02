@@ -23,9 +23,15 @@ function safeSupplierReference(value) {
 
 function sanitizeProductSupplierReference(item) {
   if (!item || typeof item !== 'object') return item;
+  const {
+    supplierCost, supplierUnitCost, supplierApiToken, supplierApiKey,
+    supplierCredentials, ...publicItem
+  } = item;
   const raw = item.supplierReferenceUrl || item.supplierUrl;
-  if (raw == null) return item;
-  return { ...item, supplierReferenceUrl: safeSupplierReference(raw) };
+  const normalized = { ...publicItem };
+  delete normalized.supplierUrl;
+  if (raw != null) normalized.supplierReferenceUrl = safeSupplierReference(raw);
+  return normalized;
 }
 
 function assertTenant(result, tenantId) {
