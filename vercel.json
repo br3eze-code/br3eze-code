@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "name": "br3eze-agentos",
+  "name": "br3eze-code",
   "buildCommand": "npm run vercel:build",
   "outputDirectory": "dist-web",
   "installCommand": "npm cache clean --force && npm install --legacy-peer-deps --prefer-online --no-audit --no-fund",

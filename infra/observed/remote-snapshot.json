@@ -1,0 +1,125 @@
+{
+  "observedAt": "2026-11-02T08:09:00.880Z",
+  "source": "connected Supabase project and Vercel project/deployment APIs",
+  "supabase": {
+    "project": {
+      "id": "wgybhjqaulxqdfxpouwf",
+      "name": "br3eze-code",
+      "region": "eu-west-1",
+      "status": "ACTIVE_HEALTHY",
+      "databaseVersion": "17.6.1.147"
+    },
+    "publicSchema": {
+      "tableCount": 31,
+      "rlsDisabledTables": []
+    },
+    "migrations": [
+      {
+        "version": "20260721130605",
+        "name": "create_products_table"
+      },
+      {
+        "version": "20260916172701",
+        "name": "harden_profiles_and_products_rls"
+      },
+      {
+        "version": "20260916172708",
+        "name": "tighten_profile_signup_trigger"
+      },
+      {
+        "version": "20260916172835",
+        "name": "lock_profile_privileges"
+      },
+      {
+        "version": "20260916172845",
+        "name": "lock_profile_privileges"
+      },
+      {
+        "version": "20260916172907",
+        "name": "revoke_trigger_execute"
+      },
+      {
+        "version": "20260916172933",
+        "name": "revoke_trigger_execute"
+      },
+      {
+        "version": "20260917101241",
+        "name": "payment_canonical_persistence"
+      },
+      {
+        "version": "20260918133507",
+        "name": "harden_payment_rls_and_indexes"
+      },
+      {
+        "version": "20260918135859",
+        "name": "canonical_supabase_datastore"
+      },
+      {
+        "version": "20260918135909",
+        "name": "fix_supabase_datastore_credit_flow"
+      },
+      {
+        "version": "20260918140149",
+        "name": "tighten_datastore_policies_and_fk_indexes"
+      },
+      {
+        "version": "20260918140205",
+        "name": "split_datastore_rls_actions"
+      },
+      {
+        "version": "20260918140933",
+        "name": "canonical_commerce_persistence"
+      },
+      {
+        "version": "20260918141034",
+        "name": "harden_commerce_order_rpc"
+      },
+      {
+        "version": "20260918141201",
+        "name": "harden_commerce_inventory_rls"
+      },
+      {
+        "version": "20260918142355",
+        "name": "email_otp_auth"
+      },
+      {
+        "version": "20261102060956",
+        "name": "harden_profile_authority_and_auth_lookup_rls"
+      },
+      {
+        "version": "20261102061647",
+        "name": "create_tenant_and_agent_identity_model"
+      },
+      {
+        "version": "20261102061742",
+        "name": "harden_agent_identity_function_and_session_scope"
+      },
+      {
+        "version": "20261102075922",
+        "name": "whatsapp_phone_otp"
+      }
+    ]
+  },
+  "vercel": {
+    "project": {
+      "id": "prj_5cMeVZK3zsRrW84fvFSuz5auSFuL",
+      "name": "br3eze-code",
+      "nodeVersion": "24.x",
+      "domains": [
+        "www.br3eze.africa",
+        "br3eze-code.vercel.app",
+        "br3eze.africa",
+        "br3eze-code-br3eze.vercel.app",
+        "br3eze-code-git-main-br3eze.vercel.app"
+      ]
+    },
+    "latestProductionDeployment": {
+      "id": "dpl_62gLJB81ScdR8CeJHtNeEemLnVpJ",
+      "url": "br3eze-code-n95zu0i3o-br3eze.vercel.app",
+      "state": "READY",
+      "commit": "0c39fdbf68b8aaad77c358be0f0abee5d367d13a"
+    },
+    "repositoryHead": "9441cf213f6838b75ce605ad926738781b29b070",
+    "commitsAheadOfDeployment": 48
+  }
+}

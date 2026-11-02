@@ -39,15 +39,6 @@
       }
     },
     {
-      "provider": "vercel",
-      "kind": "project-config",
-      "id": "br3eze-agentos",
-      "attributes": {
-        "configFile": "vercel.json",
-        "productionBranch": "main"
-      }
-    },
-    {
       "provider": "openai",
       "kind": "model-provider",
       "id": "openai",
@@ -69,6 +60,31 @@
       "id": "google",
       "attributes": {
         "adapter": "src/skills/gcp/index.js"
+      }
+    },
+    {
+      "provider": "supabase",
+      "kind": "project",
+      "id": "wgybhjqaulxqdfxpouwf",
+      "attributes": {
+        "name": "br3eze-code",
+        "region": "eu-west-1"
+      }
+    },
+    {
+      "provider": "vercel",
+      "kind": "project",
+      "id": "prj_5cMeVZK3zsRrW84fvFSuz5auSFuL",
+      "attributes": {
+        "name": "br3eze-code",
+        "productionBranch": "main",
+        "domains": [
+          "www.br3eze.africa",
+          "br3eze-code.vercel.app",
+          "br3eze.africa",
+          "br3eze-code-br3eze.vercel.app",
+          "br3eze-code-git-main-br3eze.vercel.app"
+        ]
       }
     }
   ]
