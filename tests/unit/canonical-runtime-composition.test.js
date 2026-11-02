@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { getAgentRuntime } from '../../src/core/agentRuntime.js';
+import { AgentRuntime, getAgentRuntime } from '../../src/core/agentRuntime.js';
 import AgentOS from '../../src/core/AgentOS.js';
 import { AgentHarness } from '../../src/harness/AgentHarness.js';
 import { AgentKernel } from '../../src/core/agentKernel.js';
@@ -13,6 +13,7 @@ describe('canonical runtime composition', () => {
 
     expect(os.runtime).toBe(runtime);
     expect(kernel.runtime).toBe(runtime);
+    expect(() => getAgentRuntime({ runtime: new AgentRuntime() })).toThrow(/already composed/);
 
     await harness.start();
     expect(harness._runtime).toBe(runtime);
