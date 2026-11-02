@@ -28,7 +28,9 @@ const BROWSER_KEYS = [
     'GEMINI_API_KEY',
     'SUPABASE_URL',
     'SUPABASE_PUBLISHABLE_KEY',
-    'SUPABASE_OAUTH_REDIRECT'
+    'SUPABASE_OAUTH_REDIRECT',
+    'API_BASE_URL',
+    'AGENTOS_API_BASE_URL'
 ];
 
 if (!fs.existsSync(ENV_PATH)) {
@@ -51,6 +53,8 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
 // These are Supabase publishable settings (safe for browser bundles), not secrets.
 env.SUPABASE_URL ||= 'https://wgybhjqaulxqdfxpouwf.supabase.co';
 env.SUPABASE_PUBLISHABLE_KEY ||= 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE';
+env.API_BASE_URL ||= 'https://br3eze.africa';
+env.AGENTOS_API_BASE_URL ||= env.API_BASE_URL;
 
 const firebaseApiKey = env.FIREBASE_API_KEY || env.FIREBASE_WEB_API_KEY;
 if (!firebaseApiKey) {
