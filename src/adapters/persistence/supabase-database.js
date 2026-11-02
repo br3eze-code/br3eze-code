@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 const url = process.env.SUPABASE_URL || '';
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const serviceKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 let client;
 function getClient() {
-  if (!url || !serviceKey) throw new Error('Supabase database provider requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !serviceKey) throw new Error('Supabase database provider requires SUPABASE_URL and SUPABASE_SECRET_KEY (or legacy SUPABASE_SERVICE_ROLE_KEY)');
   if (!client) client = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   return client;
 }
