@@ -9,6 +9,20 @@ Baseline: `main` at `2e69f25e1be2f4cb2beeb51820ac4e608153de20`
 
 Apply Linux-style subsystem ownership and patch discipline to AgentOS without importing Linux implementation code. This pass audits the live gateway composition path and adds a regression contract before any runtime implementation is removed.
 
+## Current-main follow-up (2026-11-02)
+
+Since the historical baseline, the following source-level consolidations have been committed to `main`:
+
+- `src/core/ask-engine.js` is now a compatibility facade over AgentRuntime; its independent tiered ReAct loop and provider-specific declarations were removed.
+- The unreferenced `src/ai/coordinator.js` and `src/ai/universal-coordinator.js` implementations were removed after repository reference searches found no code callers.
+- `AgentOS.llm` is now a compatibility facade over `AgentRuntime.generateText()`; AgentOS no longer constructs a second `LLMCoordinator`.
+- AgentRuntime, AgentKernel, and MemoryManager now use a shared SessionEventStore by default. Runtime snapshots are appended to the event stream.
+- The Node gateway registers a durable JSONL session-event adapter before composing MemoryManager and AgentRuntime.
+- Legacy platform service-supervisor, IPC, and local-state paths now delegate to canonical core/adapters instead of duplicating their state or filesystem implementation.
+- The old standalone in-memory and JSON-file session stores, plus three unreferenced session implementations, were removed after import/caller searches.
+
+**Not yet proven:** no full CI run, production deployment, Cordova build, or Expo native build has completed for the final consolidated SHA. The legacy root `agentos.js` and Cordova plugin-specific orchestration are not yet migrated; they require separate caller and compatibility review.
+
 ## Confirmed facts
 
 - `package.json` points the package entry at `src/core/agentRuntime.js`.
