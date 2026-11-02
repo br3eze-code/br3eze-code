@@ -21,12 +21,15 @@ export class ServiceSupervisor {
     this.services = new Map();
   }
 
-  register(service) {
+  register(service, { dependencies = [] } = {}) {
     assertService(service);
+    if (!Array.isArray(dependencies) || dependencies.some((id) => typeof id !== 'string' || !SERVICE_ID.test(id))) throw new TypeError('service dependencies must be valid service identifiers');
+    if (dependencies.includes(service.id)) throw new TypeError('a service cannot depend on itself');
     if (this.services.has(service.id)) throw new Error(`service already registered: ${service.id}`);
     if (this.services.size >= this.maxServices) throw new Error('service limit reached');
-    const record = { service, state: 'stopped', startedAt: null, lastError: null, transition: null };
+    const record = { service, dependencies: [...new Set(dependencies)], state: 'stopped', startedAt: null, lastError: null, transition: null };
     this.services.set(service.id, record);
+    try { this.#assertAcyclic(); } catch (error) { this.services.delete(service.id); throw error; }
     this.#emit(record, 'registered');
     return this.describe(service.id);
   }
@@ -34,6 +37,10 @@ export class ServiceSupervisor {
   async start(id, context = {}) {
     const record = this.#require(id);
     if (record.state === 'running') return this.describe(id);
+    for (const dependency of record.dependencies) {
+      const required = this.#require(dependency);
+      if (required.state !== 'running') throw new Error(`Dependency not running: ${dependency}`);
+    }
     if (record.state === 'starting') return record.transition;
     if (record.state === 'stopping') throw new Error(`service is stopping: ${id}`);
     record.state = 'starting'; record.lastError = null; this.#emit(record, 'starting');
@@ -59,6 +66,8 @@ export class ServiceSupervisor {
     if (record.state === 'starting' && record.transition) {
       try { await record.transition; } catch { return this.describe(id); }
     }
+    const activeDependents = [...this.services.entries()].filter(([, candidate]) => candidate.dependencies.includes(id) && ['starting', 'running', 'stopping'].includes(candidate.state)).map(([dependentId]) => dependentId);
+    if (activeDependents.length) throw new Error(`Cannot stop ${id}; active dependents: ${activeDependents.join(', ')}`);
     if (record.state !== 'running' && record.state !== 'failed') {
       record.state = 'stopped';
       return this.describe(id);
@@ -81,7 +90,7 @@ export class ServiceSupervisor {
 
   async stopAll(context = {}) {
     const results = [];
-    for (const id of [...this.services.keys()].reverse()) {
+    for (const id of this.#shutdownOrder()) {
       try { results.push(await this.stop(id, context)); }
       catch (error) { results.push({ id, state: 'failed', error: error.message }); }
     }
@@ -90,10 +99,48 @@ export class ServiceSupervisor {
 
   describe(id) {
     const { service, ...record } = this.#require(id);
-    return { id, state: record.state, startedAt: record.startedAt, lastError: record.lastError, metadata: service.metadata || {} };
+    return { id, state: record.state, dependencies: [...record.dependencies], startedAt: record.startedAt, lastError: record.lastError, metadata: service.metadata || {} };
   }
 
   list() { return [...this.services.keys()].map((id) => this.describe(id)); }
+
+  #shutdownOrder() {
+    const visited = new Set();
+    const order = [];
+    const visit = (id) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      const record = this.services.get(id);
+      if (!record) return;
+      for (const [dependentId, dependent] of this.services) {
+        if (dependent.dependencies.includes(id)) visit(dependentId);
+      }
+      order.push(id);
+    };
+    for (const id of this.services.keys()) visit(id);
+    return order;
+  }
+
+  #assertAcyclic() {
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = (id, trail = []) => {
+      if (visiting.has(id)) throw new Error(`Service dependency cycle: ${[...trail, id].join(' -> ')}`);
+      if (visited.has(id)) return;
+      visiting.add(id);
+      const record = this.services.get(id);
+      for (const dependency of record?.dependencies || []) if (this.services.has(dependency)) visit(dependency, [...trail, id]);
+      visiting.delete(id);
+      visited.add(id);
+    };
+    for (const id of this.services.keys()) visit(id);
+  }
+
+  status(id) {
+    const item = this.services.get(id);
+    if (!item) return null;
+    return this.describe(id);
+  }
 
   #require(id) {
     const record = this.services.get(id);
