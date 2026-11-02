@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-\${{ github.workflow }}-\${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   # Cancel superseded PR checks, but never cancel main-branch validation.
-  cancel-in-progress: \${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint-test:
@@ -28,10 +28,10 @@ jobs:
         id: base
         shell: bash
         run: |
-          if [[ "\${{ github.event_name }}" == "pull_request" ]]; then
-            echo "sha=\${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
           else
-            echo "sha=\${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Validate CI/CD synchronization contract
         run: node scripts/ci/validate-cicd.mjs
@@ -55,7 +55,7 @@ jobs:
         run: npm run check:architecture
       - name: Run CI quality gate
         env:
-          CI_BASE_SHA: \${{ steps.base.outputs.sha }}
+          CI_BASE_SHA: ${{ steps.base.outputs.sha }}
         run: npm run check:ci-quality
       - name: Build required native SQLite binding
         run: npm rebuild better-sqlite3 --no-audit --no-fund
@@ -77,10 +77,10 @@ jobs:
           DATA_BACKEND: local
           FIREBASE_PROJECT_ID: test-project
           LLM_PROVIDER: gemini
-          GEMINI_API_KEY: \${{ secrets.GEMINI_API_KEY }}
-          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_ALLOWED_CHAT_ID: \${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_CHAT_ID: ${{ secrets.TELEGRAM_ALLOWED_CHAT_ID }}
           PORT: 3000
           GATEWAY_PORT: 19876
       - name: Test Node.js-native suites
