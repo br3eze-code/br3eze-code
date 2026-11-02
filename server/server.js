@@ -1406,18 +1406,20 @@ async function _creditOnce(db, admin, reference, uid, credits) {
     });
 }
 
-app.post('/api/checkout/create', async (req, res) => {
+app.post('/api/checkout/create', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
-    const { uid, amount, label } = req.body || {};
+    const { uid: requestedUid, amount, label } = req.body || {};
     const dollars = Number(amount);
-    if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
+    if (!requestedUid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
     // Stripe's USD minimum is $0.50; the cap keeps a typo from becoming a $10k charge.
     if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
     const configuredOrigin = process.env.AGENTOS_DASHBOARD_URL || process.env.AGENTOS_API_BASE_URL || process.env.AGENTOS_GATEWAY_URL || '';
     const origin = req.headers.origin || configuredOrigin;
     if (!origin) return res.status(500).json({ error: 'Dashboard origin is not configured' });
     try {
+        const uid = await _resolveCallerFirebaseUid(req.user);
+        if (!uid || uid !== String(requestedUid)) return res.status(403).json({ error: 'Authenticated account does not own this billing profile' });
         const r = await _stripeAxios.post('https://api.stripe.com/v1/checkout/sessions', _stripeForm({
             mode: 'payment',
             success_url: `${origin}/?topup=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -1434,7 +1436,7 @@ app.post('/api/checkout/create', async (req, res) => {
         res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
     }
 });
-app.post('/api/checkout/verify', async (req, res) => {
+app.post('/api/checkout/verify', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
     const sessionId = (req.body && req.body.session_id) || req.query.session_id;
@@ -1447,7 +1449,13 @@ app.post('/api/checkout/verify', async (req, res) => {
         if (s.payment_status !== 'paid') return res.json({ paid: false, status: s.payment_status });
         const uid = s.metadata && s.metadata.uid;
         const credits = Number(s.metadata && s.metadata.credits);
-        if (!uid || !(credits > 0)) return res.json({ paid: true, credited: false, reason: 'no metadata' });
+        const callerUid = await _resolveCallerFirebaseUid(req.user);
+        if (!callerUid || !uid || uid !== callerUid) {
+            return res.status(403).json({ error: 'Authenticated account does not own this checkout session' });
+        }
+        if (!(credits > 0) || s.mode !== 'payment' || Number(s.amount_total) !== Math.round(credits * 100)) {
+            return res.status(400).json({ error: 'Checkout session metadata or amount is invalid' });
+        }
         const credited = await _creditOnce(db, admin, sessionId, uid, credits);
         res.json({ paid: true, credited, amount: credits });
     } catch (e) {
