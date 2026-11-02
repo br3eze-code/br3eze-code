@@ -168,6 +168,15 @@ class AgentRuntime extends EventEmitter {
     return this;
   }
 
+  /** Bind the canonical session event store at the host composition boundary. */
+  setSessionEventStore(sessionEventStore) {
+    if (!sessionEventStore || ['append', 'read', 'getLast'].some((method) => typeof sessionEventStore[method] !== 'function')) {
+      throw new TypeError('sessionEventStore must implement append(), read(), and getLast()');
+    }
+    this.sessionEventStore = sessionEventStore;
+    return this;
+  }
+
   /** Replace infrastructure at the composition boundary while preserving runtime identity. */
   setToolRegistry(toolRegistry) {
     if (!toolRegistry || typeof toolRegistry !== 'object') {
