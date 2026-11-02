@@ -83,12 +83,12 @@ describe('next-action system', () => {
 
   test('redacts credential values without leaving their original contents', () => {
     const result = sanitizeWebMcpObservation({
-      nested: { authorization: 'Bearer super-secret-value', api_key: 'private-key-value' },
-      entries: [{ password: 'nested-password-value' }],
+      nested: { authorization: 'Bearer super-secret-value', api_key: 'EXAMPLE_API_KEY_VALUE' },
+      entries: [{ password: 'EXAMPLE_PASSWORD_VALUE' }],
     });
     expect(result).not.toContain('super-secret-value');
-    expect(result).not.toContain('private-key-value');
-    expect(result).not.toContain('nested-password-value');
+    expect(result).not.toContain('EXAMPLE_API_KEY_VALUE');
+    expect(result).not.toContain('EXAMPLE_PASSWORD_VALUE');
   });
 
   test('refreshes proposals with trusted planning context when WBS advances', () => {
