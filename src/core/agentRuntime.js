@@ -757,6 +757,7 @@ function getAgentRuntime(config = {}) {
     // Composition roots may be loaded after the singleton was first requested.
     // Configure the existing owner rather than constructing a competing runtime.
     if (config.toolRegistry) _runtime.setToolRegistry(config.toolRegistry);
+    if (config.sessionEventStore) _runtime.setSessionEventStore(config.sessionEventStore);
     if (config.model) {
       _runtime.setModel(config.model);
     } else if (config.providerManager) {
