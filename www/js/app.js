@@ -2341,13 +2341,9 @@ async function handleChangePassword(e) {
     const confirmNewPassword = document.getElementById('confirmNewPassword').value;
 
     if (newPassword !== confirmNewPassword) return showToast('New passwords do not match.', 'error');
-    if (!auth.currentUser) return showToast('Not signed in.', 'error');
-
     window.Loading.show('Updating password...');
     try {
-        const credential = firebase.auth.EmailAuthProvider.credential(auth.currentUser.email, currentPassword);
-        await auth.currentUser.reauthenticateWithCredential(credential);
-        await auth.currentUser.updatePassword(newPassword);
+        await Auth.updatePassword(currentPassword, newPassword);
         document.getElementById('changePasswordForm').reset();
         window.Loading.hide();
         showToast('Password updated.', 'success');
