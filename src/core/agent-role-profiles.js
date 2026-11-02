@@ -79,6 +79,70 @@ const PROFILE_DEFINITIONS = Object.freeze({
     defaultNextAction: 'Confirm acceptance criteria, required evidence, test method, and unresolved defects.',
     domains: ['*']
   },
+  catalog: {
+    label: 'Catalog Specialist',
+    description: 'Owns catalog structure, SKU metadata, offer eligibility, and publication readiness.',
+    capabilities: ['catalog.read', 'catalog.search', 'catalog.get', 'product.read'],
+    approvalRequired: ['catalog.publish', 'product.create', 'product.update'],
+    defaultNextAction: 'Verify product identity, eligibility, source evidence, and publication requirements.',
+    domains: ['*']
+  },
+  pricingpromotions: {
+    label: 'Pricing and Promotions Specialist',
+    description: 'Evaluates prices, discounts, taxes, credits, and promotion proposals.',
+    capabilities: ['pricing.read', 'pricing.compare', 'promotion.propose'],
+    approvalRequired: ['pricing.publish', 'promotion.publish', 'discount.commit'],
+    defaultNextAction: 'Verify currency, price basis, eligibility, and effective dates before proposing a change.',
+    domains: ['*']
+  },
+  inventory: {
+    label: 'Inventory Specialist',
+    description: 'Controls stock, reservations, capacity, availability, and reconciliation evidence.',
+    capabilities: ['inventory.read', 'inventory.search', 'inventory.get', 'inventory.reserve'],
+    approvalRequired: ['inventory.adjust', 'inventory.reconcile', 'stock.commit'],
+    defaultNextAction: 'Check tenant/site scope, available quantity, reservations, and source freshness.',
+    domains: ['*']
+  },
+  orderscheckout: {
+    label: 'Orders and Checkout Specialist',
+    description: 'Manages cart preparation, order proposals, checkout state, amendments, and cancellations.',
+    capabilities: ['orders.read', 'orders.search', 'checkout.prepare', 'orders.propose'],
+    approvalRequired: ['orders.commit', 'orders.cancel', 'orders.refund'],
+    defaultNextAction: 'Verify customer, cart, price, inventory reservation, and payment state before commitment.',
+    domains: ['*']
+  },
+  voucheraccess: {
+    label: 'Voucher and Access Specialist',
+    description: 'Manages voucher validation, access plans, redemption eligibility, and entitlements.',
+    capabilities: ['vouchers.read', 'vouchers.validate', 'access.plan.read'],
+    approvalRequired: ['vouchers.issue', 'vouchers.redeem', 'entitlement.revoke'],
+    defaultNextAction: 'Verify voucher status, plan eligibility, device limits, and redemption scope.',
+    domains: ['network', 'commerce', '*']
+  },
+  billingpayments: {
+    label: 'Billing and Payments Specialist',
+    description: 'Reconciles invoices and payment state while preparing approval-gated financial actions.',
+    capabilities: ['payments.read', 'invoice.read', 'payment.reconcile', 'refund.propose'],
+    approvalRequired: ['payment.create', 'refund', 'settlement.release', 'ledger.write'],
+    defaultNextAction: 'Verify provider evidence, amount, currency, tenant, and idempotency before proposing settlement.',
+    domains: ['*']
+  },
+  product: {
+    label: 'Product Specialist',
+    description: 'Routes cross-domain product work to accountable catalog, pricing, inventory, order, and payment specialists.',
+    capabilities: ['catalog.read', 'pricing.read', 'inventory.read', 'orders.read', 'vouchers.read', 'payments.read', 'product.route'],
+    approvalRequired: ['product.publish', 'catalog.publish'],
+    defaultNextAction: 'Identify the product lifecycle stage and hand off to its single accountable domain owner.',
+    domains: ['*']
+  },
+  projectmanager: {
+    label: 'Project Manager',
+    description: 'Controls scope, milestones, work packages, dependencies, risks, approvals, and project closure.',
+    capabilities: ['plan.read', 'plan.create', 'plan.update', 'task.read', 'task.create', 'task.assign', 'risk.read', 'report.create'],
+    approvalRequired: ['task.execute', 'scope.change', 'baseline.change', 'project.close'],
+    defaultNextAction: 'Confirm scope, owner, dependency, milestone, acceptance evidence, and next action.',
+    domains: ['*']
+  },
   br3ezeserviceagent: {
     label: 'Br3eze Service Agent',
     description: 'Represents Br3eze Africa as the governed contact specialist for tenant onboarding and Power Connect handoff.',
@@ -96,11 +160,20 @@ function normalizeAgentRole(value) {
     procurementagent: 'procurement',
     purchasing: 'procurement',
     expediting: 'expeditor',
+    fulfillmentexpeditor: 'expeditor',
     drafter: 'draftsman',
     secretaryagent: 'secretary',
     accounting: 'accountant',
     qualityassurance: 'qa',
-    quality: 'qa'
+    quality: 'qa',
+    catalogspecialist: 'catalog',
+    pricingpromotionsspecialist: 'pricingpromotions',
+    inventoryspecialist: 'inventory',
+    orderscheckoutspecialist: 'orderscheckout',
+    voucheraccessspecialist: 'voucheraccess',
+    billingpaymentsspecialist: 'billingpayments',
+    productspecialist: 'product',
+    br3ezecode: 'br3ezeserviceagent'
   };
   const normalized = aliases[role] || role;
   return Object.hasOwn(PROFILE_DEFINITIONS, normalized) ? normalized : null;
