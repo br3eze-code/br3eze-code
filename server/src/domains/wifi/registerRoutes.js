@@ -70,8 +70,8 @@ export function registerWifiRoutes({
         });
     });
     
-// Authentication is owned by Supabase Auth; Wi-Fi routes consume verified identity only.
-        const executeTool = async (req, res) => {
+    // Authentication is owned by Supabase Auth; Wi-Fi routes consume verified identity only.
+    const executeTool = async (req, res) => {
         const { tool, params = [] } = req.body;
         try {
             const result = await getCommandHandler().execute(tool, params, req.body._actor || 'api');
