@@ -35,7 +35,7 @@ test('IPC requires registered topics, bounds payloads and enforces optional publ
   assert.equal(received.payload.id, 3);
   assert.equal(secondReceived.payload.id, 3);
   await assert.rejects(bus.publish('jobs.created', { id: 4 }, { principal: 'app.b', policy }), { code: 'PERMISSION_DENIED' });
-  assert.throws(() => bus.publish('missing', {}), { code: 'IPC_TOPIC_NOT_REGISTERED' });
+  await assert.rejects(bus.publish('missing', {}), { code: 'IPC_TOPIC_NOT_REGISTERED' });
   await assert.rejects(bus.publish('jobs.created', { data: 'x'.repeat(200) }), /byte limit/);
 });
 
