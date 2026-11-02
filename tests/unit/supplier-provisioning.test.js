@@ -13,10 +13,16 @@ function makeHarness(seed = {}) {
     async getSupplier(id, tenantId) { return suppliers.get(`${tenantId}:${id}`) || null; },
     async createOrderIfAbsent(record) {
       const key = `${record.tenantId}:${record.idempotencyKey}`;
-      if (events.has(`idempotency:${key}`)) return { created: false, order: orders.get(events.get(`idempotency:${key}`)) };
+      if (events.has(`idempotency:${key}`)) {
+        const previous = events.get(`idempotency:${key}`);
+        if (previous.requestFingerprint && record.requestFingerprint && previous.requestFingerprint !== record.requestFingerprint) {
+          throw Object.assign(new Error('Idempotency key was reused with different supplier order details'), { code: 'SUPPLIER_IDEMPOTENCY_CONFLICT', status: 409 });
+        }
+        return { created: false, order: orders.get(previous.orderId || previous) };
+      }
       if (orders.has(record.orderId)) return { created: false, order: orders.get(record.orderId) };
       orders.set(record.orderId, structuredClone(record));
-      events.set(`idempotency:${key}`, record.orderId);
+      events.set(`idempotency:${key}`, { orderId: record.orderId, requestFingerprint: record.requestFingerprint });
       return { created: true, order: structuredClone(record) };
     },
     async getOrder(id, tenantId) {
@@ -112,6 +118,18 @@ describe('supplier provisioning transaction guards', () => {
       supplierSku: 'SKU-AP1',
       supplierReferenceUrl: 'https://supplier.example/products/SKU-AP1',
     });
+  });
+
+
+  test('rejects reusing an idempotency key for different product quantities', async () => {
+    const h = makeHarness();
+    await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'same-key' });
+    await expect(h.service.createPurchaseOrder({
+      request: { ...h.request, orderId: 'po-2', lines: [{ ...h.request.lines[0], quantity: 9 }] },
+      scope: h.scope, approval: h.approval, idempotencyKey: 'same-key',
+    })).rejects.toMatchObject({ code: 'SUPPLIER_IDEMPOTENCY_CONFLICT', status: 409 });
+    expect(h.calls.supplier).toHaveLength(1);
+    expect(h.orders.size).toBe(1);
   });
 
   test('rejects unsafe supplier reference URLs and duplicate product lines', async () => {
