@@ -36,16 +36,25 @@ function createFirebaseDataSessionRouter({ requireUser, getFirebaseAuth } = {}) 
 
       if (firebaseUser.disabled) return res.status(403).json({ error: 'Account is disabled' });
 
-      const customToken = await auth.createCustomToken(firebaseUser.uid, {
+      const claims = {
+        ...(firebaseUser.customClaims || {}),
         supabase_uid: String(user.id || user.uid),
         auth_provider: 'supabase',
         role: String(user.role || 'user').toLowerCase(),
         tenant_id: user.tenantId || null,
         site_id: user.siteId || null,
         domain_id: user.domainId || user.domain || null,
-      });
+      };
+      await auth.setCustomUserClaims(firebaseUser.uid, claims);
+      const customToken = await auth.createCustomToken(firebaseUser.uid, claims);
 
-      return res.json({ token: customToken, uid: firebaseUser.uid, provider: 'supabase', role: String(user.role || 'user').toLowerCase() });
+      return res.json({
+        token: customToken,
+        uid: firebaseUser.uid,
+        provider: 'supabase',
+        role: claims.role,
+        supabaseUid: claims.supabase_uid
+      });
     } catch (error) {
       console.error('[auth] Firebase data-session bridge failed:', error?.code || 'unknown');
       return res.status(503).json({ error: 'Could not establish the legacy data session' });
