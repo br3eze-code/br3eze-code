@@ -136,6 +136,34 @@ describe('supplier provisioning transaction guards', () => {
     expect(result.order.lines[0].quantity - result.order.lines[0].receivedQuantity - result.order.lines[0].rejectedQuantity).toBe(2);
   });
 
+
+  test('reject-only receipt is recorded without adding inventory', async () => {
+    const h = makeHarness();
+    await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
+    const result = await h.service.receivePartial({
+      orderId: 'po-1', scope: h.scope, receiptId: 'receipt-reject-only',
+      lines: [{ productId: 'ap-1', acceptedQuantity: 0, rejectedQuantity: 2 }],
+      evidence: ['rejection-report'],
+    });
+    expect(result.inventory['tenant-a:ap-1'] || 0).toBe(0);
+    expect(result.order.lines[0]).toMatchObject({ receivedQuantity: 0, rejectedQuantity: 2 });
+  });
+
+  test('replaying a receipt id does not double-credit stock', async () => {
+    const h = makeHarness();
+    await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
+    const receipt = {
+      orderId: 'po-1', scope: h.scope, receiptId: 'receipt-replay',
+      lines: [{ productId: 'ap-1', acceptedQuantity: 3, rejectedQuantity: 0 }],
+      evidence: ['inspection-replay'],
+    };
+    await h.service.receivePartial(receipt);
+    const replay = await h.service.receivePartial(receipt);
+    expect(replay.replay).toBe(true);
+    expect(h.inventory.get('tenant-a:ap-1')).toBe(3);
+    expect((await h.store.getOrder('po-1', 'tenant-a')).lines[0].receivedQuantity).toBe(3);
+  });
+
   test('blocks invoice settlement when quantity or price differs', async () => {
     const h = makeHarness();
     await h.service.createPurchaseOrder({ request: h.request, scope: h.scope, approval: h.approval, idempotencyKey: 'request-1' });
