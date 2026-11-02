@@ -13,15 +13,12 @@ const require = createRequire(import.meta.url);
  * AgentOS port of PicoClaw's task-scheduler.ts (MIT, © 2026 BreakCafe,
  * https://github.com/breakcafe/picoclaw). The cron/interval/once
  * next-run math is a direct translation; the execution path was
- * rewritten to dispatch through AgentKernel.dispatch() or, since
- * AgentKernel isn't wired into the live gateway yet, AskEngine.run()
- * (the path src/cli/commands/gateway.js actually exercises via
- * global.askEngine) — instead of PicoClaw's Claude-only agent engine,
- * so it works across AgentOS's multi-LLM (Gemini/Anthropic/OpenAI)
- * domains. See /THIRD_PARTY_LICENSES.md for the original license text.
+ * rewritten to dispatch through the canonical AgentRuntime.run() contract
+ * supplied at the host boundary. The legacy option name `engine` is retained
+ * for callers, but it must reference the same runtime owner used by the gateway.
+ * See /THIRD_PARTY_LICENSES.md for the original license text.
  *
- * Falls back to in-memory storage when SQLite is unavailable (CI/test),
- * matching src/core/sessionManager.js's pattern.
+ * Falls back to in-memory storage when SQLite is unavailable (CI/test).
  * ─────────────────────────────────────────────────────────────────
  */
 
