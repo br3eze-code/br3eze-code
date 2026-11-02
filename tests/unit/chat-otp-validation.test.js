@@ -6,6 +6,7 @@ import {
   isValidOtpCode,
   isValidGraphApiVersion
 } from '../../api/chat/otp/validation.js';
+import { registerPhoneVerificationRoutes } from '../../api/chat/otp/phone/routes.js';
 
 describe('OTP input validation', () => {
   test('normalizes email and rejects whitespace and malformed addresses', () => {
@@ -34,5 +35,23 @@ describe('OTP input validation', () => {
     expect(isValidGraphApiVersion('v25.0')).toBe(true);
     expect(isValidGraphApiVersion('26.0')).toBe(false);
     expect(isValidGraphApiVersion('v26')).toBe(false);
+  });
+});
+
+
+describe('WhatsApp phone OTP route registration', () => {
+  test('registers canonical routes and preserves the legacy aliases', () => {
+    const paths = [];
+    const app = { post: (path) => paths.push(path) };
+    const authMiddleware = (_req, _res, next) => next();
+
+    registerPhoneVerificationRoutes({ app, authMiddleware });
+
+    expect(paths).toEqual([
+      '/api/chat/otp/whatsapp/request',
+      '/api/chat/otp/whatsapp/verify',
+      '/api/auth/otp/whatsapp/request',
+      '/api/auth/otp/whatsapp/verify'
+    ]);
   });
 });
