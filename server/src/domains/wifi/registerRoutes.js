@@ -73,7 +73,8 @@ export function registerWifiRoutes({
     });
     
     // Canonical email OTP authentication routes
-app.use('/api/auth/otp', otpRouter);
+app.use('/api/chat/otp', otpRouter); // canonical API boundary
+    app.use('/api/auth/otp', otpRouter); // compatibility for existing www PHP proxy
 
 // API routes
     app.post('/api/auth/login', (req, res) => {
