@@ -9,6 +9,14 @@ name: Firebase Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'www/**'
+      - 'server/**'
+      - 'firebase.json'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - 'apphosting.yaml'
+      - '.github/workflows/firebase-deploy.yml'
   workflow_dispatch:
     inputs:
       only:
