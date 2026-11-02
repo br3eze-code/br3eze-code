@@ -32,7 +32,7 @@ describe('shared Supabase API auth boundary', () => {
           id: 'supabase-user-1',
           email: 'user@example.com',
           email_confirmed_at: '2026-01-01T00:00:00.000Z',
-          app_metadata: {},
+          app_metadata: { role: 'admin', roles: ['admin'], tenant_id: 'stale-tenant' },
           user_metadata: { role: 'admin', full_name: 'Example User' }
         })
       })
@@ -52,6 +52,7 @@ describe('shared Supabase API auth boundary', () => {
       emailVerified: true
     });
     expect(user.role).not.toBe('admin');
+    expect(user.tenantId).not.toBe('stale-tenant');
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
