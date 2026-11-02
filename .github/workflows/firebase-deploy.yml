@@ -84,7 +84,7 @@ jobs:
           fi
           echo "✓ Firebase service-account JSON is structurally valid"
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "::error::SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY secrets are required for the single human-auth boundary."
+            echo "::error::Supabase project URL and publishable key could not be resolved for the human-auth boundary."
             exit 1
           fi
           case "$SUPABASE_URL" in https://*.supabase.co) ;; *)
@@ -123,8 +123,8 @@ jobs:
         # Firebase Functions reads .env from its configured source directory (server/).
         # Only the public Supabase project URL/key are required to verify user tokens.
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}
         run: |
           {
             echo "SUPABASE_URL=$SUPABASE_URL"
