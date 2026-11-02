@@ -8,7 +8,7 @@ import { buildExecutionContext } from '../../src/core/execution-context.js';
 import { instantiateWorkPackages, getWorkPackageRoles, validateWorkPackage } from '../../src/core/wbs-work-packages.js';
 
 describe('professional agent role profiles', () => {
-  const roles = ['planner', 'engineer', 'accountant', 'secretary', 'procurement', 'expeditor', 'designer', 'draftsman'];
+  const roles = ['planner', 'engineer', 'accountant', 'secretary', 'procurement', 'expeditor', 'designer', 'draftsman', 'catalog', 'pricing-promotions', 'inventory', 'orders-checkout', 'voucher-access', 'billing-payments', 'product', 'project-manager', 'br3eze-code'];
 
   test.each(roles)('%s has a domain-neutral profile and safe defaults', (role) => {
     const profile = getAgentRoleProfile(role);
@@ -21,6 +21,9 @@ describe('professional agent role profiles', () => {
   test('normalizes professional aliases without changing canonical roles', () => {
     expect(normalizeAgentRole('purchasing')).toBe('procurement');
     expect(normalizeAgentRole('drafter')).toBe('draftsman');
+    expect(normalizeAgentRole('catalog-specialist')).toBe('catalog');
+    expect(normalizeAgentRole('billing-payments-specialist')).toBe('billingpayments');
+    expect(normalizeAgentRole('br3eze-code')).toBe('br3ezeserviceagent');
     expect(normalizeAgentRole('unknown-role')).toBeNull();
   });
 
@@ -29,6 +32,10 @@ describe('professional agent role profiles', () => {
     expect(isApprovalRequired('engineer', 'config.write')).toBe(true);
     expect(isApprovalRequired('secretary', 'message.send')).toBe(true);
     expect(isApprovalRequired('planner', 'context.read')).toBe(false);
+    expect(isApprovalRequired('catalog', 'catalog.publish')).toBe(true);
+    expect(isApprovalRequired('inventory', 'inventory.adjust')).toBe(true);
+    expect(isApprovalRequired('orders-checkout', 'orders.commit')).toBe(true);
+    expect(isApprovalRequired('voucher-access', 'vouchers.issue')).toBe(true);
   });
 
   test('propagates the role profile through canonical execution context', () => {
