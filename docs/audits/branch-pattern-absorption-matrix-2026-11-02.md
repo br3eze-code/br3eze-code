@@ -138,6 +138,31 @@ These are local settings, environment material, signing material, logs, or gener
 - The platform registry expects trusted authorization context. Do not treat metadata grants passed by an untrusted caller as proof.
 - The service supervisor and application manager are in-process lifecycle managers, not OS process isolation, a package sandbox, or a security kernel.
 
+
+## Focused tree trace: port/missing-branch-patterns
+
+Compared the full branch tree at `c072940ab2e90ca6681b3a4307ad7d1b9923f839` against current main:
+- Branch tree: 2,317 files; main tree: 2,390 files at comparison time.
+- 48 branch-only paths; 43 are generated `.security-review/**` raw audit artifacts.
+- 4 meaningful branch-only paths:
+  - `.github/workflows/cicd-contract.yml`
+  - `.github/workflows/node.js.yml`
+  - `docs/audits/branch-pattern-port-ledger.md`
+  - `src/adapters/persistence/product-query-service.js`
+- 92 shared paths have different blobs. Largest concentrations: `src/core` (21), `tests/unit` (20), workflows (13), `src/domains` (4), server code (3), payments (3).
+
+Disposition: **PARTIAL / NOT ABSORBED**. Main already contains many files from this branch's feature families, but 92 modified shared paths need semantic comparison. The persistence adapter is a distinct pattern and remains unabsorbed. It dynamically loads the compiled product-query service, then wires SQLite and an optional document-store provider; it must be checked against the current product-query bridge, provider SDK, build output path, and fallback semantics before being promoted. Do not copy the generated raw security scan errors.
+
+## Pattern families that must be traced separately
+
+- **Autonomous operator (39 commits):** A2A task protocol, agent teams, mission dispatch, file task store, task registry, user task service, orchestration, workflow CI, lockless-manifest audit. Compare against current WBS/Runtime/SessionEventStore and ensure durable state + approval boundaries are not duplicated.
+- **Supplier provisioning (7 commits):** transaction/idempotency guards and supplier provisioning domain. Verify tenant scope, atomicity, retry semantics, rollback, and tests.
+- **Security hardening (8 commits):** security policy, outbound web MCP policy, security check script, CI security workflow. Preserve stricter fail-closed behaviour; never overwrite main's newer security logic by copying an older file.
+- **General-purpose runtime (53 commits):** single runtime ownership, Kernel/Runtime boundaries, provider ports, lifecycle, approval/delegation, hardware capabilities, Node transformer and tests. The branch is a mixed portfolio; every path requires a semantic diff.
+- **Linux Level 2 (63 commits):** service lifecycle, application manifest, IPC, local state, host adapters, platform adapter registry, hardware adapter, runtime composition, platform tests. Exact shared files are listed above; missing paths and changed blobs remain outstanding.
+- **Node.js autograd (6 commits):** compare returned no changed-file list despite ahead commits. This is not sufficient evidence of full absorption; inspect its full tree and commit ancestry before closing.
+- **Persistence/MikroTik tests (3 commits):** test changes only; run tests against current adapters and port any missing assertions without copying stale expectations.
+
 ## Absorption rule for all branches
 
 For every unique path or logic pattern:
