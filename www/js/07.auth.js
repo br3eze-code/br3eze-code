@@ -9,6 +9,7 @@ const SUPABASE_KEY = supabaseRuntime.SUPABASE_PUBLISHABLE_KEY || supabaseRuntime
 const SUPABASE_OAUTH_REDIRECT = String(supabaseRuntime.SUPABASE_OAUTH_REDIRECT || '').trim();
 const SUPABASE_SESSION_KEY = 'agentos_supabase_session';
 const SUPABASE_PROFILE_KEY = 'agentos_supabase_profile';
+let firebaseBridgePromise = null;
 const PKCE_VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
 const OAUTH_RETURN_TO_KEY = 'agentos_oauth_return_to';
 const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'github', 'azure', 'apple', 'facebook']);
@@ -142,48 +143,53 @@ async function loginWithProvider(provider) {
         }
     },
     getProfile,
-    establishFirebaseSession: async function (session = getSession()) {
-        if (!session?.access_token || typeof window.firebase?.auth !== 'function') return null;
-        const apiBase = String(supabaseRuntime.AGENTOS_API_BASE_URL || supabaseRuntime.API_BASE_URL || supabaseRuntime.GATEWAY_URL || '').replace(/\/$/, '');
-        const response = await fetch(`${apiBase}/api/auth/firebase-session`, {
-            method: 'POST',
-            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-            body: '{}',
-            cache: 'no-store'
-        });
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.error || 'Legacy data session could not be established.');
-        const firebaseAuth = window.firebase.auth();
-        let credential;
-        if (firebaseAuth.currentUser?.uid === body.uid) {
-            // The server refreshes the Firebase custom claims from the trusted
-            // Supabase profile on every session establishment.
-            await firebaseAuth.currentUser.getIdToken(true);
-            credential = { user: firebaseAuth.currentUser };
-        } else {
-            credential = await firebaseAuth.signInWithCustomToken(body.token);
-        }
-        if (typeof window.firebase.firestore === 'function') {
-            const firestore = window.firebase.firestore();
-            const userRef = firestore.collection('users').doc(body.uid);
-            const existing = await userRef.get();
-            if (!existing.exists) {
-                const supabaseUser = await this.getUser();
-                const profile = supabaseUser ? await this.getProfile(supabaseUser) : null;
-                await userRef.set({
-                    uid: body.uid,
-                    email: supabaseUser?.email || null,
-                    fullname: profile?.full_name || supabaseUser?.user_metadata?.full_name || supabaseUser?.email || '',
-                    username: profile?.username || '',
-                    phoneNumber: profile?.phone || '',
-                    role: body.role || 'user',
-                    credits: 0,
-                    subscriptions: [],
-                    createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-                });
+    establishFirebaseSession: function (session = getSession()) {
+        if (firebaseBridgePromise) return firebaseBridgePromise;
+        if (!session?.access_token || typeof window.firebase?.auth !== 'function') return Promise.resolve(null);
+        const requestedAccessToken = session.access_token;
+        firebaseBridgePromise = (async () => {
+            const apiBase = String(supabaseRuntime.AGENTOS_API_BASE_URL || supabaseRuntime.API_BASE_URL || supabaseRuntime.GATEWAY_URL || '').replace(/\/$/, '');
+            const response = await fetch(`${apiBase}/api/auth/firebase-session`, {
+                method: 'POST',
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${requestedAccessToken}`, 'Content-Type': 'application/json' },
+                body: '{}',
+                cache: 'no-store'
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.error || 'Legacy data session could not be established.');
+            if (getSession()?.access_token !== requestedAccessToken) throw new Error('Supabase session changed before the data session was established.');
+
+            const firebaseAuth = window.firebase.auth();
+            let credential;
+            if (firebaseAuth.currentUser?.uid === body.uid) {
+                await firebaseAuth.currentUser.getIdToken(true);
+                credential = { user: firebaseAuth.currentUser };
+            } else {
+                credential = await firebaseAuth.signInWithCustomToken(body.token);
             }
-        }
-        return credential.user;
+            if (typeof window.firebase.firestore === 'function') {
+                const firestore = window.firebase.firestore();
+                const userRef = firestore.collection('users').doc(body.uid);
+                const existing = await userRef.get();
+                if (!existing.exists) {
+                    const supabaseUser = await this.getUser();
+                    const profile = supabaseUser ? await this.getProfile(supabaseUser) : null;
+                    await userRef.set({
+                        uid: body.uid,
+                        email: supabaseUser?.email || null,
+                        fullname: profile?.full_name || supabaseUser?.user_metadata?.full_name || supabaseUser?.email || '',
+                        username: profile?.username || '',
+                        phoneNumber: profile?.phone || '',
+                        role: body.role || 'user',
+                        credits: 0,
+                        subscriptions: [],
+                        createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
+            return credential.user;
+        })();
+        return firebaseBridgePromise.finally(() => { firebaseBridgePromise = null; });
     },
     loginWithProvider,
     apiFetch: async function (url, options = {}) {
