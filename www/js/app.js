@@ -2156,15 +2156,16 @@ window.showSuccessCelebration = function ({ title = 'Success!', amount = null, s
    redirects to Stripe Checkout and verifies on return.
    =================================================================== */
 window.topUpWithCard = async function (preset) {
-    if (!currentUser || !auth?.currentUser) return showToast('Please log in first.', 'error');
+    if (!currentUser || !auth?.currentUser || !window.SupabaseAuth?.getSession?.()?.access_token) return showToast('Please sign in first.', 'error');
     const input = preset != null ? String(preset) : prompt('Top up amount (USD):', '10');
     if (input === null) return;
     const amount = parseFloat(input);
     if (!(amount > 0)) return showToast('Enter a valid amount.', 'warning');
     window.Loading.show('Starting secure checkout…');
     try {
+        const accessToken = window.SupabaseAuth.getSession().access_token;
         const res = await fetch('/api/checkout/create', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
             body: JSON.stringify({ uid: currentUser.id, amount, label: `Power Connect top-up ($${amount.toFixed(2)})` }),
         });
         const data = await res.json();
@@ -2181,8 +2182,10 @@ async function handleStripeReturn() {
     if (topup === 'cancel') { showToast('Top-up canceled.', 'info'); return; }
     if (topup === 'success' && params.get('session_id')) {
         try {
+            const accessToken = window.SupabaseAuth?.getSession?.()?.access_token;
+            if (!accessToken) throw new Error('Your Supabase session expired. Sign in again to verify this payment.');
             const res = await fetch('/api/checkout/verify', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
                 body: JSON.stringify({ session_id: params.get('session_id') }),
             });
             const data = await res.json();
