@@ -1,29 +1,20 @@
 /**
- * Canonical, domain-neutral authentication and authorization boundary.
+ * Server identity boundary.
  *
- * User authentication: Firebase ID tokens.
- * Service authentication: AGENTOS_SERVICE_TOKEN.
- * Provider-specific identity remains behind this adapter boundary.
+ * Interactive identities are issued by Supabase Auth. Google, GitHub,
+ * Microsoft/Azure, Apple and other configured OAuth providers are federated
+ * by Supabase; this server only verifies the resulting access token.
+ * Firebase Admin remains available to legacy Firestore data adapters, not
+ * as a competing user identity provider.
  */
 import crypto from 'crypto';
-import { admin } from '../config/firebase.js';
 
 const ROLE_PERMISSIONS = Object.freeze({
   ADMIN: ['*'],
-  PARTNER: [
-    'inventory.read', 'orders.read', 'orders.create',
-    'payments.read', 'vouchers.read'
-  ],
-  CASHIER: [
-    'orders.read', 'orders.create', 'payments.create',
-    'vouchers.read', 'vouchers.create'
-  ],
-  PROCUREMENT: [
-    'catalog:read', 'procurement:read', 'procurement:write', 'inventory.read'
-  ],
-  USER: [
-    'profile.read', 'profile.update', 'orders.create', 'payments.create'
-  ]
+  PARTNER: ['inventory.read', 'orders.read', 'orders.create', 'payments.read', 'vouchers.read'],
+  CASHIER: ['orders.read', 'orders.create', 'payments.create', 'vouchers.read', 'vouchers.create'],
+  PROCUREMENT: ['catalog:read', 'procurement:read', 'procurement:write', 'inventory.read'],
+  USER: ['profile.read', 'profile.update', 'orders.create', 'payments.create']
 });
 
 function safeEqual(a, b) {
@@ -33,57 +24,9 @@ function safeEqual(a, b) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
-function encodeBase64Url(value) {
-  return Buffer.from(value).toString('base64url');
-}
-
-function signUserToken(payload, secret) {
-  const header = encodeBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const body = encodeBase64Url(JSON.stringify(payload));
-  const unsigned = `${header}.${body}`;
-  const signature = crypto.createHmac('sha256', secret).update(unsigned).digest('base64url');
-  return `${unsigned}.${signature}`;
-}
-
-function verifyUserToken(token, secret) {
-  if (typeof token !== 'string' || typeof secret !== 'string' || secret.length < 16) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const [headerPart, payloadPart, signature] = parts;
-  const expected = crypto.createHmac('sha256', secret).update(`${headerPart}.${payloadPart}`).digest('base64url');
-  if (!safeEqual(signature, expected)) return null;
-  try {
-    const header = JSON.parse(Buffer.from(headerPart, 'base64url').toString('utf8'));
-    const payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
-    const now = Math.floor(Date.now() / 1000);
-    if (header.alg !== 'HS256' || payload.iss !== 'agentos' || payload.aud !== 'agentos-api' ||
-        !Number.isFinite(payload.exp) || payload.exp <= now || !payload.sub) return null;
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-export function issueUserToken({ uid, username, role }, secret) {
-  if (typeof secret !== 'string' || secret.length < 16) {
-    throw new TypeError('A signing secret of at least 16 characters is required');
-  }
-  const subject = uid || username;
-  if (!subject) throw new TypeError('A user identifier is required');
-  const now = Math.floor(Date.now() / 1000);
-  return signUserToken({
-    sub: String(subject),
-    role: String(role || 'USER').toUpperCase(),
-    iss: 'agentos',
-    aud: 'agentos-api',
-    iat: now,
-    exp: now + 3600
-  }, secret);
-}
-
-function normalizeIdentity(decoded, provider = 'firebase') {
+function normalizeIdentity(decoded, provider = 'supabase') {
   const roles = Array.isArray(decoded.roles)
-    ? decoded.roles.map(String).map(r => r.toUpperCase())
+    ? decoded.roles.map(String).map(role => role.toUpperCase())
     : [String(decoded.role || 'USER').toUpperCase()];
   const uniqueRoles = [...new Set(roles)];
   const permissions = [...new Set(uniqueRoles.flatMap(role => ROLE_PERMISSIONS[role] || []))];
@@ -101,48 +44,47 @@ function normalizeIdentity(decoded, provider = 'firebase') {
 }
 
 async function authenticateSupabaseBearer(token) {
-  const baseUrl = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
-  const apiKey = process.env.SUPABASE_ANON_KEY
-    || process.env.SUPABASE_PUBLISHABLE_KEY
-    || process.env.SUPABASE_SERVICE_ROLE_KEY
+  const baseUrl = String(process.env.SUPABASE_URL || '').replace(/\\/$/, '');
+  const apiKey = process.env.SUPABASE_PUBLISHABLE_KEY
+    || process.env.SUPABASE_ANON_KEY
     || '';
   if (!baseUrl || !apiKey || typeof fetch !== 'function') return null;
 
   try {
     const response = await fetch(`${baseUrl}/auth/v1/user`, {
       headers: { apikey: apiKey, authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(8000)
     });
     if (!response.ok) return null;
     const user = await response.json();
     if (!user?.id) return null;
 
-    // Authorization roles must come from server-controlled app_metadata, not
-    // user-editable user_metadata.
-    const appMetadata = user.app_metadata || {};
+    // Only server-controlled app_metadata can grant roles or tenant scope.
+    const metadata = user.app_metadata || {};
     const identity = normalizeIdentity({
       uid: user.id,
       email: user.email,
-      role: appMetadata.role || 'USER',
-      roles: Array.isArray(appMetadata.roles) ? appMetadata.roles : undefined,
+      role: metadata.role || 'USER',
+      roles: Array.isArray(metadata.roles) ? metadata.roles : undefined,
       email_verified: Boolean(user.email_confirmed_at),
-      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email,
-    }, 'supabase');
+      name: user.user_metadata?.full_name || user.user_metadata?.name || user.email
+    });
     return Object.freeze({
       ...identity,
-      tenantId: appMetadata.tenant_id || null,
-      siteId: appMetadata.site_id || null,
-      domainId: appMetadata.domain_id || appMetadata.domain || null,
-      metadata: { ...identity.metadata, authProvider: 'supabase' },
+      tenantId: metadata.tenant_id || null,
+      siteId: metadata.site_id || null,
+      domainId: metadata.domain_id || metadata.domain || null,
+      metadata: { ...identity.metadata, authProvider: 'supabase' }
     });
   } catch {
     return null;
   }
 }
 
-export async function authenticateBearer(token, { userTokenSecret } = {}) {
+export async function authenticateBearer(token) {
   if (!token) return null;
 
-  // A signing secret is not a service credential; only an explicitly configured token grants service authority.
+  // Service authentication is intentionally separate from human user identity.
   const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || '';
   if (serviceToken && safeEqual(token, serviceToken)) {
     return Object.freeze({
@@ -155,20 +97,6 @@ export async function authenticateBearer(token, { userTokenSecret } = {}) {
       authenticatedAt: new Date().toISOString(),
       metadata: { service: true }
     });
-  }
-
-  if (userTokenSecret) {
-    const decoded = verifyUserToken(token, userTokenSecret);
-    if (decoded) return normalizeIdentity(decoded, 'local');
-  }
-
-  if (admin) {
-    try {
-      const decoded = await admin.auth().verifyIdToken(token, true);
-      return normalizeIdentity(decoded, 'firebase');
-    } catch {
-      // The token may belong to another configured identity provider.
-    }
   }
 
   return authenticateSupabaseBearer(token);
@@ -186,9 +114,7 @@ export function ownsResource(identity, resourceUid) {
 
 export function requirePermission(permission) {
   return (req, res, next) => {
-    if (!hasPermission(req.user, permission)) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+    if (!hasPermission(req.user, permission)) return res.status(403).json({ error: 'Forbidden' });
     next();
   };
 }
