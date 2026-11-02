@@ -11,7 +11,11 @@ const SUPABASE_SESSION_KEY = 'agentos_supabase_session';
 const SUPABASE_PROFILE_KEY = 'agentos_supabase_profile';
 const PKCE_VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
 const OAUTH_STATE_KEY = 'agentos_oauth_state';
+const OAUTH_RETURN_TO_KEY = 'agentos_oauth_return_to';
 const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'github', 'azure', 'apple', 'facebook']);
+
+function showAuthLoading(message) { window.Loading?.show?.(message); }
+function hideAuthLoading() { window.Loading?.hide?.(); }
 
 function supabaseHeaders(accessToken = '') {
     const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
@@ -39,6 +43,11 @@ function setSession(session) {
     if (session) localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session));
     else localStorage.removeItem(SUPABASE_SESSION_KEY);
     window.Auth?._emit(session);
+    if (session?.access_token && window.SupabaseAuth?.establishFirebaseSession) {
+        window.SupabaseAuth.establishFirebaseSession(session).catch(error => {
+            console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error');
+        });
+    }
 }
 
 let refreshPromise = null;
@@ -104,6 +113,7 @@ async function loginWithProvider(provider) {
 
     const state = base64Url(randomBytes(24));
     const challenge = await createPkce();
+    localStorage.setItem(OAUTH_RETURN_TO_KEY, window.location.pathname + window.location.search + window.location.hash);
     localStorage.setItem(OAUTH_STATE_KEY, state);
     const params = new URLSearchParams({
         provider,
@@ -135,6 +145,21 @@ async function loginWithProvider(provider) {
         }
     },
     getProfile,
+    establishFirebaseSession: async function (session = getSession()) {
+        if (!session?.access_token || typeof window.firebase?.auth !== 'function') return null;
+        const apiBase = String(supabaseRuntime.AGENTOS_API_BASE_URL || supabaseRuntime.API_BASE_URL || supabaseRuntime.GATEWAY_URL || '').replace(/\/$/, '');
+        const response = await fetch(`${apiBase}/api/auth/firebase-session`, {
+            method: 'POST',
+            headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+            body: '{}',
+            cache: 'no-store'
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || 'Legacy data session could not be established.');
+        const firebaseAuth = window.firebase.auth();
+        if (firebaseAuth.currentUser?.uid === body.uid) return firebaseAuth.currentUser;
+        return firebaseAuth.signInWithCustomToken(body.token);
+    },
     loginWithProvider,
     apiFetch: async function (url, options = {}) {
         let session = getSession();
@@ -161,7 +186,7 @@ window.Auth = {
         return () => { this._listeners = this._listeners.filter(x => x !== fn); };
     },
     async login(identifier, password) {
-        Loading.show('Logging in...');
+        showAuthLoading('Logging in...');
         try {
             if (!String(identifier).includes('@')) throw new Error('Use the email address for this account.');
             const session = await supabaseRequest('/auth/v1/token?grant_type=password', {
@@ -169,24 +194,25 @@ window.Auth = {
             });
             setSession(session); showToast('Logged in!', 'success');
         } catch (e) { showToast(e.message, 'error'); }
-        finally { Loading.hide(); }
+        finally { hideAuthLoading(); }
     },
-    async signup(email, password, fullname, username, confirm) {
+    async signup(email, password, fullname, username, confirm, phone = '') {
         if (password !== confirm) return showToast('Passwords do not match.', 'error');
-        Loading.show('Creating account...');
+        showAuthLoading('Creating account...');
         try {
             const session = await supabaseRequest('/auth/v1/signup', {
-                method: 'POST', body: JSON.stringify({ email: email.trim(), password, data: { full_name: fullname?.trim() || '', username: username?.trim() || '' } })
+                method: 'POST', body: JSON.stringify({ email: email.trim(), password, data: { full_name: fullname?.trim() || '', username: username?.trim() || '', phone: String(phone || '').trim() } })
             });
             if (session?.access_token) setSession(session);
             showToast(session?.access_token ? 'Account created!' : 'Account created. Check your email to confirm.', 'success');
+            return session;
         } catch (e) { showToast(e.message, 'error'); }
         finally { Loading.hide(); }
     },
     async requestEmailOtp(email) {
         email = String(email || '').trim().toLowerCase();
         if (!email) throw new Error('Enter your email address.');
-        Loading.show('Sending verification code...');
+        showAuthLoading('Sending verification code...');
         try {
             await supabaseRequest('/auth/v1/otp', {
                 method: 'POST',
@@ -202,7 +228,7 @@ window.Auth = {
         email = String(email || '').trim().toLowerCase();
         token = String(token || '').trim();
         if (!email || !/^[0-9]{6}$/.test(token)) throw new Error('Enter the 6-digit verification code.');
-        Loading.show('Verifying code...');
+        showAuthLoading('Verifying code...');
         try {
             const session = await supabaseRequest('/auth/v1/verify', {
                 method: 'POST',
@@ -225,11 +251,12 @@ window.Auth = {
     async logout() {
         const session = getSession();
         try { if (session?.access_token) await supabaseRequest('/auth/v1/logout', { method: 'POST', accessToken: session.access_token }); } catch {}
+        try { if (typeof window.firebase?.auth === 'function') await window.firebase.auth().signOut(); } catch {}
         setSession(null); localStorage.removeItem(SUPABASE_PROFILE_KEY); window.location.reload();
     },
     async requestPasswordReset(email) {
         if (!email) return showToast('Enter your email first.', 'error');
-        Loading.show('Sending reset link...');
+        showAuthLoading('Sending reset link...');
         try {
             await supabaseRequest('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email: email.trim() }) });
             showToast('If that email has an account, a reset link is on its way.', 'success'); toggleForgotPassword();
@@ -260,6 +287,7 @@ window.Auth = {
         const user = await window.SupabaseAuth.getUser();
         if (!user) setSession(null);
     }
+    if (user) await window.SupabaseAuth.establishFirebaseSession(session).catch(error => console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error'));
     window.authCheckComplete = true;
     window.Auth._emit(getSession());
 })();
