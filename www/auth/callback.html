@@ -11,7 +11,6 @@
   <script>
     const KEY = 'agentos_supabase_session';
     const VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
-    const STATE_KEY = 'agentos_oauth_state';
     const RETURN_TO_KEY = 'agentos_oauth_return_to';
     const status = document.getElementById('status');
     const runtime = window.ENV || {};
@@ -35,10 +34,6 @@
         const error = query.get('error_description') || query.get('error') || hash.get('error_description') || hash.get('error');
         if (error) throw new Error(error);
 
-        const returnedState = query.get('state') || hash.get('state');
-        const expectedState = localStorage.getItem(STATE_KEY);
-        if (!returnedState || !expectedState || returnedState !== expectedState) throw new Error('OAuth state validation failed.');
-
         const code = query.get('code');
         const verifier = localStorage.getItem(VERIFIER_KEY);
         if (!code || !verifier) throw new Error('OAuth authorization code or PKCE verifier is missing.');
@@ -47,7 +42,6 @@
         const session = await exchangeCode(code, verifier);
         localStorage.setItem(KEY, JSON.stringify(session));
         localStorage.removeItem(VERIFIER_KEY);
-        localStorage.removeItem(STATE_KEY);
         const requestedReturn = localStorage.getItem(RETURN_TO_KEY);
         localStorage.removeItem(RETURN_TO_KEY);
         let destination = new URL('../', window.location.href);
@@ -60,7 +54,6 @@
         window.location.replace(destination.href);
       } catch (e) {
         localStorage.removeItem(VERIFIER_KEY);
-        localStorage.removeItem(STATE_KEY);
         status.textContent = 'Sign-in failed: ' + (e.message || 'Unknown authentication error.');
       }
     })();
