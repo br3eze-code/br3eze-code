@@ -2,7 +2,7 @@ import EventEmitter from 'node:events';
 import { authorizeAgentTool } from './agent-authorization.js';
 import crypto from 'node:crypto';
 import { TranscriptStore } from './transcript.js';
-import { saveSession, loadSession } from './sessionStore.js';
+import { getOrCreateSessionEventStore } from './ports/session-event-store.js';
 import { PermissionMode, PermissionDenial, PermissionEnforcer } from './permissions.js';
 import { getTaskRegistry, TaskStatus, TaskPhase } from './taskRegistry.js';
 import { logger } from './logger.js';
@@ -84,14 +84,20 @@ class TurnResult {
 }
 
 class RuntimeSession {
-  constructor({ prompt, matchedTools, permissionDenials, taskId = null, loop = null, config = {}, sessionId = null, stored = null }) {
-    this.prompt = prompt; this.sessionId = sessionId || crypto.randomUUID().replace(/-/g, ''); this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = new Date().toISOString();
+  constructor({ prompt, matchedTools, permissionDenials, taskId = null, loop = null, config = {}, sessionId = null, stored = null, sessionEventStore = getOrCreateSessionEventStore() }) {
+    this.prompt = prompt; this.sessionId = sessionId || crypto.randomUUID().replace(/-/g, ''); this.matchedTools = matchedTools; this.permissionDenials = permissionDenials; this.taskId = taskId; this.loop = loop; this.createdAt = stored?.createdAt || new Date().toISOString();
+    this.sessionEventStore = sessionEventStore;
     this.config = Object.freeze({ permissionMode: PermissionMode.PROMPT, maxTurns: 8, maxBudgetTokens: 4000, compactAfterTurns: 12, ...config });
     this.messages = [...(stored?.messages || [])]; this.totalUsage = new UsageSummary(stored?.inputTokens || 0, stored?.outputTokens || 0);
     this.transcriptStore = new TranscriptStore({ entries: [...this.messages] }); this.enforcer = new PermissionEnforcer(this.config.permissionMode);
   }
   static create(options) { return new RuntimeSession(options); }
-  static fromSession(sessionId, options = {}) { return new RuntimeSession({ ...options, sessionId, stored: loadSession(sessionId) }); }
+  static async fromSession(sessionId, options = {}) {
+    const sessionEventStore = options.sessionEventStore || getOrCreateSessionEventStore();
+    const events = await sessionEventStore.read(sessionId);
+    const snapshot = [...events].reverse().find((event) => event.type === 'runtime/session.snapshot')?.data || null;
+    return new RuntimeSession({ ...options, sessionId, stored: snapshot, sessionEventStore });
+  }
   async submitMessage(prompt, toolNames = [], deniedTools = []) {
     if (this.messages.length >= this.config.maxTurns) return new TurnResult({ prompt, output: `Max turns (${this.config.maxTurns}) reached before processing prompt.`, matchedTools: toolNames, permissionDenials: deniedTools, usage: this.totalUsage, stopReason: 'max_turns_reached' });
     const finalDenials = [...deniedTools], allowedTools = [];
@@ -106,7 +112,16 @@ class RuntimeSession {
     this.messages.push(prompt); this.transcriptStore.append(prompt); this.permissionDenials.push(...finalDenials); this.totalUsage = projectedUsage; this._compactIfNeeded();
     return new TurnResult({ prompt, output, matchedTools: allowedTools, permissionDenials: finalDenials, usage: this.totalUsage, stopReason });
   }
-  persistSession() { this.transcriptStore.flush(); return saveSession({ sessionId: this.sessionId, messages: [...this.messages], inputTokens: this.totalUsage.inputTokens, outputTokens: this.totalUsage.outputTokens, createdAt: this.createdAt, updatedAt: new Date().toISOString() }); }
+  async persistSession() {
+    this.transcriptStore.flush();
+    return this.sessionEventStore.append(this.sessionId, 'runtime/session.snapshot', {
+      messages: [...this.messages],
+      inputTokens: this.totalUsage.inputTokens,
+      outputTokens: this.totalUsage.outputTokens,
+      createdAt: this.createdAt,
+      updatedAt: new Date().toISOString(),
+    }, { source: 'agent-runtime' });
+  }
   _compactIfNeeded() { if (this.messages.length > this.config.compactAfterTurns) { this.messages = this.messages.slice(-this.config.compactAfterTurns); this.transcriptStore.compact(this.config.compactAfterTurns); } }
   renderSummary() { return [`Session: ${this.sessionId}`, `Turns: ${this.messages.length} / ${this.config.maxTurns}`, `Usage: in=${this.totalUsage.inputTokens} out=${this.totalUsage.outputTokens}`, `Denials: ${this.permissionDenials.length}`, `Mode: ${this.config.permissionMode}`, `Transcript flushed: ${this.transcriptStore.flushed}`].join('\n'); }
   asMarkdown() { return ['# Runtime Session','',`Prompt: ${this.prompt}`,`Session ID: ${this.sessionId}`,'','## Matched Tools',...(this.matchedTools.length ? this.matchedTools.map(t => `- ${t}`) : ['- none']),'','## Permission Denials',...(this.permissionDenials.length ? this.permissionDenials.map(d => `- ${d.toolName}: ${d.reason}`) : ['- none']),'','## Agent State',this.renderSummary(),...(this.taskId ? [`Task ID: ${this.taskId}`] : [])].join('\n'); }
@@ -133,6 +148,7 @@ class AgentRuntime extends EventEmitter {
     this.safetyEnvelope = config.safetyEnvelope || null;
     this.approvalGate = config.approvalGate || new ApprovalWorkflow(config.approvalOptions || {});
     this.sessionManager = config.sessionManager || null;
+    this.sessionEventStore = config.sessionEventStore || getOrCreateSessionEventStore();
     this.memoryStore = config.memoryStore || null;
     this.injectedToolExecutor = typeof config.toolExecutor === 'function';
     this.toolExecutor = this.injectedToolExecutor
@@ -250,7 +266,9 @@ class AgentRuntime extends EventEmitter {
     };
     const wbsText = wbs?.length ? `\n\n## Work Breakdown State\n${formatWbsForPrompt(wbs)}` : '';
     const promptWithWbs = `${prompt}${wbsText}`, matchedTools = this.routePrompt(promptWithWbs);
-    const session = sessionId ? RuntimeSession.fromSession(sessionId, { prompt: promptWithWbs, matchedTools, permissionDenials: [], config }) : RuntimeSession.create({ prompt: promptWithWbs, matchedTools, permissionDenials: [], config });
+    const session = sessionId
+      ? await RuntimeSession.fromSession(sessionId, { prompt: promptWithWbs, matchedTools, permissionDenials: [], config, sessionEventStore: this.sessionEventStore })
+      : RuntimeSession.create({ prompt: promptWithWbs, matchedTools, permissionDenials: [], config, sessionEventStore: this.sessionEventStore });
     session.permissionDenials = this._inferDenials(matchedTools, session);
     session.loop = new AgentLoop({ maxRetries: Math.max(0, Math.min(2, (config.maxTurns || 8) - 1)) });
     logger.info(`AgentRuntime bootstrap — capabilities: [${matchedTools.join(', ')}] denials: ${session.permissionDenials.length}`);
@@ -347,8 +365,10 @@ class AgentRuntime extends EventEmitter {
 
   async _executeModelTurn(frame) {
     const sessionId = frame.sessionId || this.sessionManager?.getSessionId?.(frame) || null;
-    const loaded = !Array.isArray(frame.messages) && sessionId && this.sessionManager?.load
-      ? await this.sessionManager.load(sessionId)
+    const loaded = !Array.isArray(frame.messages) && sessionId
+      ? (this.sessionManager?.load
+        ? await this.sessionManager.load(sessionId)
+        : [...(await this.sessionEventStore.read(sessionId))].reverse().find((event) => event.type === 'runtime/session.snapshot')?.data?.messages || [])
       : [];
     const messages = Array.isArray(frame.messages)
       ? [...frame.messages]
@@ -462,7 +482,7 @@ class AgentRuntime extends EventEmitter {
       session.loop.transition(TURN_STATES.COMPLETED, { turn: i + 1 });
       break;
     }
-    const sessionPath = session.persistSession();
+    const sessionPath = await session.persistSession();
     return { results, session, sessionPath };
   }
 
@@ -523,6 +543,7 @@ class AgentRuntime extends EventEmitter {
   async _persistTurn(sessionId, messages, frame, output, toolsUsed) {
     if (!sessionId) return;
     if (this.sessionManager?.save) await this.sessionManager.save(sessionId, messages.slice(-20));
+    else await this.sessionEventStore.append(sessionId, 'runtime/session.snapshot', { messages: messages.slice(-20), updatedAt: new Date().toISOString() }, { source: 'agent-runtime' });
     if (this.memoryStore?.append) {
       await this.memoryStore.append(sessionId, {
         timestamp: Date.now(),
