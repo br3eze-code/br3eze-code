@@ -10,7 +10,6 @@ const SUPABASE_OAUTH_REDIRECT = String(supabaseRuntime.SUPABASE_OAUTH_REDIRECT |
 const SUPABASE_SESSION_KEY = 'agentos_supabase_session';
 const SUPABASE_PROFILE_KEY = 'agentos_supabase_profile';
 const PKCE_VERIFIER_KEY = 'agentos_oauth_pkce_verifier';
-const OAUTH_STATE_KEY = 'agentos_oauth_state';
 const OAUTH_RETURN_TO_KEY = 'agentos_oauth_return_to';
 const SUPPORTED_OAUTH_PROVIDERS = new Set(['google', 'github', 'azure', 'apple', 'facebook']);
 
@@ -112,16 +111,13 @@ async function loginWithProvider(provider) {
             ? `${window.location.origin}/auth/callback` : '');
     if (!redirect) throw new Error('OAuth login needs SUPABASE_OAUTH_REDIRECT for this native build.');
 
-    const state = base64Url(randomBytes(24));
     const challenge = await createPkce();
     localStorage.setItem(OAUTH_RETURN_TO_KEY, window.location.pathname + window.location.search + window.location.hash);
-    localStorage.setItem(OAUTH_STATE_KEY, state);
     const params = new URLSearchParams({
         provider,
         redirect_to: redirect,
         code_challenge: challenge,
-        code_challenge_method: 's256',
-        state
+        code_challenge_method: 's256'
     });
     window.location.assign(`${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`);
 }
