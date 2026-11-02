@@ -200,7 +200,7 @@ window.Auth = {
     async verifyEmailOtp(email, token) {
         email = String(email || '').trim().toLowerCase();
         token = String(token || '').trim();
-        if (!email || !/^\\d{6}$/.test(token)) throw new Error('Enter the 6-digit verification code.');
+        if (!email || !/^[0-9]{6}$/.test(token)) throw new Error('Enter the 6-digit verification code.');
         Loading.show('Verifying code...');
         try {
             const session = await supabaseRequest('/auth/v1/verify', {
