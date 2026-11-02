@@ -724,7 +724,21 @@ function getAgentRuntime(config = {}) {
     // Composition roots may be loaded after the singleton was first requested.
     // Configure the existing owner rather than constructing a competing runtime.
     if (config.toolRegistry) _runtime.setToolRegistry(config.toolRegistry);
-    if (config.model) _runtime.setModel(config.model);
+    if (config.model) {
+      _runtime.setModel(config.model);
+    } else if (config.providerManager) {
+      _runtime.providerManager = config.providerManager;
+      _runtime.setModel({
+        execute: (request) => config.providerManager.execute(
+          request.messages,
+          request.tools,
+          request.context,
+        ),
+      });
+    }
+    if (config.permissionMode) {
+      _runtime.defaultConfig.permissionMode = config.permissionMode;
+    }
   }
   return _runtime;
 }
