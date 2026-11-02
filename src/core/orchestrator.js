@@ -7,7 +7,7 @@ import { logger } from './logger.js';
  * it does not plan or execute agent tasks. AgentRuntime remains the canonical
  * execution owner.
  */
-class AgentOSOrchestrator {
+class SystemLifecycleCoordinator {
   constructor(capabilities = {}, db = null, gateway = null, notifier = null) {
     this.capabilities = capabilities || {};
     this.db = db;
@@ -115,5 +115,5 @@ class AgentOSOrchestrator {
   }
 }
 
-export default AgentOSOrchestrator;
-export { AgentOSOrchestrator };
+export default SystemLifecycleCoordinator;
+export { SystemLifecycleCoordinator };
