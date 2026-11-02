@@ -2,11 +2,6 @@ name: Br3eze repository data training
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "experiments/llm-js/**"
-      - ".github/workflows/repo-data-training.yml"
 
 permissions:
   contents: read
