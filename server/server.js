@@ -1291,7 +1291,7 @@ const authMiddleware = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Invalid token' });
 
     try {
-        const identity = await authenticateBearer(token, { userTokenSecret: CONFIG.GATEWAY_TOKEN });
+        const identity = await authenticateBearer(token);
         if (!identity) return res.status(401).json({ error: 'Invalid token' });
         req.user = identity;
         return next();
