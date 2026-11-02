@@ -145,25 +145,25 @@ export const RESTOCK_GATES = Object.freeze({
   technical_review: { role: 'engineer', evidence: ['compatibilityEvidence'] },
   cost_review: { role: 'cfo', evidence: ['currency', 'unitCost', 'totalCost', 'budgetRef'] },
   qa_review: { role: 'qa', evidence: ['acceptanceCriteria', 'evidenceRefs'] },
-  budget_approved: { role: 'budget_owner', evidence: ['approvalId'] },
-  purchase_approved: { role: 'authorized_approver', evidence: ['approvalId'] },
+  budget_approved: { role: 'budgetowner', evidence: ['approvalId'] },
+  purchase_approved: { role: 'authorizedapprover', evidence: ['approvalId'] },
   committed: { role: 'procurement', evidence: ['purchaseOrderId'] },
 });
 
 export function validateRestockTransition({ proposal, nextState, actor, evidence = {} }) {
   const current = proposal?.state || 'proposed';
   if (!RESTOCK_STATES.includes(nextState)) return { valid: false, code: 'RESTOCK_STATE_INVALID' };
+  if (nextState === 'budget_approved' && proposal?.state !== 'qa_review') {
+    return { valid: false, code: 'QA_REVIEW_REQUIRED' };
+  }
+  if (nextState === 'purchase_approved' && proposal?.state !== 'budget_approved') {
+    return { valid: false, code: 'BUDGET_APPROVAL_REQUIRED' };
+  }
   if (nextState === 'committed' && proposal?.state !== 'purchase_approved') {
     return { valid: false, code: 'PURCHASE_APPROVAL_REQUIRED' };
   }
   const gate = RESTOCK_GATES[nextState];
-  if (
-    gate &&
-    normalizeAgentCell(actor?.role) !== gate.role &&
-    gate.role !== 'qa' &&
-    gate.role !== 'budget_owner' &&
-    gate.role !== 'authorized_approver'
-  ) {
+  if (gate && normalizeAgentCell(actor?.role) !== gate.role) {
     return { valid: false, code: 'RESTOCK_GATE_ROLE_REQUIRED', requiredRole: gate.role };
   }
   const missing = gate
