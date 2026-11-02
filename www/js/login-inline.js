@@ -1,31 +1,10 @@
 /**
- * login.html — page-specific glue.
- *
- * Wires the visible username/voucher form to MikroTik's hidden RouterOS
- * login form (the actual hotspot authentication), adds QR-code scanning
- * for voucher codes, and lets a Br3eze Africa account holder sign in/up
- * or continue with Google before their identifier is used to complete
- * the hotspot login.
+ * Captive-portal UI glue.
+ * RouterOS hotspot credentials are network admission, not Br3eze account auth.
+ * Br3eze account identity and OAuth are owned by Supabase Auth.
  */
 'use strict';
 
-const runtime = window.ENV || {};
-const firebaseConfig = {
-    apiKey: runtime.FIREBASE_WEB_API_KEY || runtime.FIREBASE_API_KEY || '',
-    authDomain: runtime.FIREBASE_AUTH_DOMAIN || '',
-    projectId: runtime.FIREBASE_PROJECT_ID || '',
-    storageBucket: runtime.FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: runtime.FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: runtime.FIREBASE_APP_ID || ''
-};
-const firebaseConfigured = Object.values(firebaseConfig).filter(Boolean).length >= 3;
-if (typeof firebase !== 'undefined' && firebaseConfigured && !firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const auth = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.auth() : null;
-const db = firebaseConfigured && typeof firebase !== 'undefined' ? firebase.firestore() : null;
-
-// Provider-neutral auth handoff. Legacy from/type aliases remain accepted for compatibility.
 const AUTH_HANDOFF_API = String(window.ENV?.AUTH_HANDOFF_API || '/api/auth/handoff').replace(/\/$/, '');
 const authHandoffContext = (() => {
     const params = new URLSearchParams(window.location.search);
@@ -37,13 +16,14 @@ const authHandoffContext = (() => {
     return Object.freeze({ client, action, nonce });
 })();
 
-async function completeAuthHandoff(user) {
-    if (!authHandoffContext || !user) return null;
+async function completeAuthHandoff() {
+    if (!authHandoffContext) return null;
+    const session = window.SupabaseAuth?.getSession?.();
+    if (!session?.access_token) return null;
     try {
-        const token = await user.getIdToken();
         const response = await fetch(AUTH_HANDOFF_API + '/' + encodeURIComponent(authHandoffContext.nonce) + '/complete', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token },
             credentials: 'same-origin',
             cache: 'no-store'
         });
@@ -57,13 +37,10 @@ async function completeAuthHandoff(user) {
 }
 
 function toggleAuthForm() {
-    document.getElementById('loginForm').classList.toggle('hidden');
-    document.getElementById('signupForm').classList.toggle('hidden');
+    document.getElementById('loginForm')?.classList.toggle('hidden');
+    document.getElementById('signupForm')?.classList.toggle('hidden');
 }
 
-// Matches the #toast/#toastIcon/#toastMessage markup this page actually has
-// (ui.js's UI.toast() targets a different #toast-root structure this page
-// doesn't include, so it can't be reused here).
 let toastTimeout;
 function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');
@@ -73,7 +50,7 @@ function showToast(message, type = 'info') {
         console.log(`[${type}] ${message}`);
         return;
     }
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+    const icons = { success: '✓', error: '×', info: 'i' };
     const colors = { success: 'var(--color-success)', error: 'var(--color-danger)', info: 'var(--color-info)' };
     toast.style.backgroundColor = colors[type] || colors.info;
     toast.style.color = 'var(--color-text-light)';
@@ -83,206 +60,110 @@ function showToast(message, type = 'info') {
     clearTimeout(toastTimeout);
     toastTimeout = setTimeout(() => toast.classList.add('hidden'), 4000);
 }
+window.showToast = window.showToast || showToast;
 
-// ── Hotspot login: submit the visible identifier/password into RouterOS's
-//    hidden login form ──────────────────────────────────────────────────
 function submitHotspotLogin(identifier, password) {
     document.getElementById('mk-username').value = identifier;
     document.getElementById('mk-password').value = password || '';
     document.getElementById('mikrotik-form').submit();
 }
 
-document.getElementById('loginFormElement').addEventListener('submit', (e) => {
-    e.preventDefault();
+document.getElementById('loginFormElement')?.addEventListener('submit', (event) => {
+    event.preventDefault();
     const identifier = document.getElementById('loginIdentifier').value.trim();
     const password = document.getElementById('loginPassword').value;
-    if (!identifier) {
-        showToast('Enter your username or voucher code.', 'error');
-        return;
-    }
-    const btn = document.getElementById('login-submit-btn');
-    btn.classList.add('is-loading');
-    btn.textContent = 'Connecting…';
+    if (!identifier) return showToast('Enter your username or voucher code.', 'error');
+    const button = document.getElementById('login-submit-btn');
+    button?.classList.add('is-loading');
+    if (button) button.textContent = 'Connecting…';
     submitHotspotLogin(identifier, password);
 });
 
-// ── Password visibility toggle ────────────────────────────────────────────
 function togglePasswordVisibility() {
     const input = document.getElementById('loginPassword');
-    const btn = document.getElementById('togglePasswordBtn');
+    const button = document.getElementById('togglePasswordBtn');
+    if (!input || !button) return;
     const show = input.type === 'password';
     input.type = show ? 'text' : 'password';
-    btn.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
-    btn.title = show ? 'Hide password' : 'Show password';
-    btn.setAttribute('aria-label', btn.title);
+    button.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+    button.title = show ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-label', button.title);
 }
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.toggleAuthForm = toggleAuthForm;
 
-// ── One-tap links: prefill credentials passed in the URL, e.g.
-//    /login?username=admin&password=admin123 (MikroTik-style handoff or a
-//    shared sign-in link), then scrub them from the address bar so they
-//    don't linger in browser history. Login is NOT auto-submitted — the
-//    user confirms with the (highlighted) connect button.
 (function prefillFromQuery() {
     const params = new URLSearchParams(location.search);
     const username = params.get('username') || params.get('user');
     const password = params.get('password') || params.get('pass');
     if (!username && !password) return;
-
     if (username) document.getElementById('loginIdentifier').value = username;
     if (password) document.getElementById('loginPassword').value = password;
     if (username) {
         document.getElementById('login-submit-btn').textContent = `Connect as ${username}`;
         document.getElementById('loginForm').classList.add('is-prefilled');
     }
-
-    ['username', 'user', 'password', 'pass'].forEach((k) => params.delete(k));
-    const qs = params.toString();
-    history.replaceState(null, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+    ['username', 'user', 'password', 'pass'].forEach(key => params.delete(key));
+    const query = params.toString();
+    history.replaceState(null, '', location.pathname + (query ? `?${query}` : '') + location.hash);
 })();
 
-// ── Optional Br3eze Africa account (email/password + Google) ────────────
-document.getElementById('signupFormElement').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('signupEmail').value;
+document.getElementById('signupFormElement')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
     const confirmPassword = document.getElementById('signupConfirmPassword').value;
-    const fullname = document.getElementById('signupFullname').value;
-
-    if (password !== confirmPassword) {
-        showToast('Passwords do not match.', 'error');
-        return;
-    }
+    const fullname = document.getElementById('signupFullname').value.trim();
+    const username = document.getElementById('signupUsername').value.trim();
     try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection('users').doc(userCredential.user.uid).set({
-            uid: userCredential.user.uid,
-            email,
-            fullname,
-            role: 'user',
-            credits: 10.00, // Welcome bonus
-            subscriptions: [],
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        showToast('Account created! Please sign in.', 'success');
-        toggleAuthForm();
+        await window.Auth.signup(email, password, fullname, username, confirmPassword);
         document.getElementById('loginIdentifier').value = email;
-    } catch (err) {
-        showToast(err.message, 'error');
+        if (window.Auth.getSession?.()?.access_token) toggleAuthForm();
+    } catch (error) {
+        showToast(error.message || 'Account creation failed.', 'error');
     }
 });
 
-window.Auth = {
-    async loginWithGoogle() {
-        try {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            const { user } = await auth.signInWithPopup(provider);
-            const existing = await db.collection('users').doc(user.uid).get();
-            if (!existing.exists) {
-                await db.collection('users').doc(user.uid).set({
-                    uid: user.uid,
-                    email: user.email,
-                    fullname: user.displayName || user.email,
-                    role: 'user',
-                    credits: 10.00,
-                    subscriptions: [],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-            await completeAuthHandoff(user);
-            // Use the account email as the hotspot identifier so the operator
-            // can reconcile Firebase-authenticated users with the voucher DB.
-            submitHotspotLogin(user.email, '');
-        } catch (e) {
-            if (e.code !== 'auth/popup-closed-by-user') showToast(e.message, 'error');
+(async () => {
+    try {
+        const user = await window.SupabaseAuth?.getUser?.();
+        if (user) {
+            const handoff = await completeAuthHandoff();
+            document.getElementById('loginIdentifier').value = user.email || '';
+            if (!handoff) showToast('Br3eze account signed in. Enter your Wi-Fi voucher or hotspot credentials to connect.', 'success');
         }
-    },
-
-    // ── Phone sign-in (fallback path — email/Google remain primary) ───────
-    _confirmationResult: null,
-
-    togglePhoneLogin() {
-        document.getElementById('phoneLoginPanel').classList.toggle('hidden');
-    },
-
-    async sendPhoneCode() {
-        const phone = document.getElementById('phoneNumberInput').value.trim();
-        if (!phone.startsWith('+')) {
-            return showToast('Include the country code, e.g. +27821234567', 'error');
-        }
-        try {
-            if (!window._recaptchaVerifier) {
-                window._recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
-            }
-            Auth._confirmationResult = await auth.signInWithPhoneNumber(phone, window._recaptchaVerifier);
-            document.getElementById('phoneCodePanel').classList.remove('hidden');
-            showToast('Code sent via SMS.', 'success');
-        } catch (e) {
-            showToast(e.message, 'error');
-        }
-    },
-
-    async confirmPhoneCode() {
-        const code = document.getElementById('phoneCodeInput').value.trim();
-        if (!Auth._confirmationResult) {
-            return showToast('Request a code first.', 'error');
-        }
-        try {
-            const { user } = await Auth._confirmationResult.confirm(code);
-            const existing = await db.collection('users').doc(user.uid).get();
-            if (!existing.exists) {
-                await db.collection('users').doc(user.uid).set({
-                    uid: user.uid,
-                    phoneNumber: user.phoneNumber,
-                    fullname: user.phoneNumber,
-                    role: 'user',
-                    credits: 10.00,
-                    subscriptions: [],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            }
-            await completeAuthHandoff(user);
-            // No email identifier available on a phone-only account — the
-            // hotspot login form falls back to the phone number itself.
-            submitHotspotLogin(user.phoneNumber, '');
-        } catch (e) {
-            showToast(e.message, 'error');
-        }
+    } catch (error) {
+        console.warn('[login] Supabase session check failed:', error?.message || 'unknown error');
     }
-};
+})();
 
-// ── QR code voucher scan ──────────────────────────────────────────────────
 let qrScanner = null;
-
 function stopQRScan() {
     const reader = document.getElementById('qr-reader');
     if (qrScanner) {
         qrScanner.stop().catch(() => {}).finally(() => { qrScanner.clear(); qrScanner = null; });
     }
-    reader.style.display = 'none';
+    if (reader) reader.style.display = 'none';
 }
-
 function scanQRCode() {
     const reader = document.getElementById('qr-reader');
-
-    if (typeof Html5Qrcode === 'undefined') {
-        showToast('QR scanner unavailable.', 'error');
-        return;
-    }
-
+    if (typeof Html5Qrcode === 'undefined' || !reader) return showToast('QR scanner unavailable.', 'error');
     reader.style.display = 'block';
     qrScanner = new Html5Qrcode('qr-reader');
     qrScanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: 220 },
-        (decodedText) => {
+        decodedText => {
             document.getElementById('loginIdentifier').value = decodedText.trim();
             stopQRScan();
             showToast('Voucher code scanned.', 'success');
         },
-        () => {} // ignore per-frame scan misses
-    ).catch((err) => {
+        () => {}
+    ).catch(error => {
         showToast('Camera access denied or unavailable.', 'error');
         reader.style.display = 'none';
-        console.error('[QR] start failed:', err);
+        console.error('[QR] start failed:', error);
     });
 }
+window.scanQRCode = scanQRCode;
+window.stopQRScan = stopQRScan;
