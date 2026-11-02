@@ -2,10 +2,12 @@
 
 The canonical browser passwordless login uses Supabase Auth email OTP. Supabase issues the authenticated session after the user verifies the code; the browser never receives a server secret.
 
-The canonical provider-neutral transactional OTP implementation lives in `api/chat/otp/`. The existing Node route remains a compatibility mount at:
+The canonical transactional email OTP implementation lives in `api/chat/otp/`.
 
-- POST /api/auth/otp/request
-- POST /api/auth/otp/verify
+- POST /api/chat/otp/request
+- POST /api/chat/otp/verify
+
+The previous `/api/auth/otp/*` path remains mounted as a compatibility alias for `www/api.php`.
 
 The backend service is intended for email verification and other server-controlled verification workflows. OTP records are stored in public.auth_otp_challenges as a peppered HMAC digest, with a 10-minute default TTL, five attempts, resend cooldown, and daily per-email limits. OTP values are never logged or persisted.
 
