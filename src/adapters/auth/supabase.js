@@ -1,9 +1,13 @@
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const url = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+function getConfig() {
+  return {
+    url: String(process.env.SUPABASE_URL || '').replace(/\/$/, ''),
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    publishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '',
+  };
+}
 let adminClient;
 
 function loadCreateClient() {
@@ -23,6 +27,7 @@ function loadCreateClient() {
 
 /** Server-only Supabase service client for persistence adapters. */
 function getSupabaseAdmin() {
+  const { url, serviceKey } = getConfig();
   if (!url || !serviceKey) return null;
   if (!adminClient) {
     const createClient = loadCreateClient();
@@ -39,6 +44,7 @@ function getSupabaseAdmin() {
  * caller's own RLS-protected profile. It never accepts Firebase/local JWTs.
  */
 async function verifySupabaseAccessToken(accessToken) {
+  const { url, publishableKey } = getConfig();
   if (!url || !publishableKey || typeof accessToken !== 'string' || !accessToken.trim()) return null;
 
   try {
