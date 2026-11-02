@@ -36,6 +36,8 @@ export class InMemorySessionEventStore {
     return clone(events.at(-1) || null);
   }
 
+  list() { return [...this.sessions.keys()]; }
+
   async close() {}
 }
 
@@ -71,6 +73,8 @@ export class SessionEventStore {
   getLast(sessionId) {
     return this.store.getLast(sessionId);
   }
+
+  list() { return this.store.list?.() || []; }
 
   close() {
     return this.store.close?.();
