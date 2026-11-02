@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "sourceOfTruth": "br3eze-code/main",
+  "policy": {
+    "defaultMode": "read-only",
+    "allowRemoteDeletes": false,
+    "allowProductionWrites": false,
+    "requireApprovalForUpdates": true
+  },
+  "providers": [
+    {
+      "id": "aws",
+      "name": "Amazon Web Services",
+      "env": [
+        "AWS_PROFILE",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_WEB_IDENTITY_TOKEN_FILE"
+      ],
+      "identity": "aws sts get-caller-identity",
+      "local": [
+        "terraform/eks/main.tf",
+        "helm/agentos"
+      ]
+    },
+    {
+      "id": "firebase",
+      "name": "Firebase",
+      "env": [
+        "FIREBASE_SERVICE_ACCOUNT",
+        "GOOGLE_APPLICATION_CREDENTIALS"
+      ],
+      "identity": "firebase projects:list --json",
+      "local": [
+        "firebase.json",
+        "firestore.rules",
+        "firestore.indexes.json"
+      ]
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase",
+      "env": [
+        "SUPABASE_ACCESS_TOKEN",
+        "SUPABASE_PROJECT_REF"
+      ],
+      "identity": "supabase projects list --output json",
+      "local": [
+        "supabase/migrations"
+      ]
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel",
+      "env": [
+        "VERCEL_TOKEN",
+        "VERCEL_ORG_ID",
+        "VERCEL_PROJECT_ID"
+      ],
+      "identity": "vercel whoami",
+      "local": [
+        "vercel.json",
+        ".github/workflows/vercel-deploy.yml"
+      ]
+    },
+    {
+      "id": "cloudflare",
+      "name": "Cloudflare",
+      "env": [
+        "CLOUDFLARE_API_TOKEN"
+      ],
+      "identity": "wrangler whoami",
+      "local": [
+        "cloudflare/"
+      ]
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "env": [
+        "OPENAI_API_KEY"
+      ],
+      "identity": "GET https://api.openai.com/v1/models",
+      "local": [
+        "src/core/llm/providers/OpenAIProvider.js"
+      ]
+    },
+    {
+      "id": "anthropic",
+      "name": "Anthropic",
+      "env": [
+        "ANTHROPIC_API_KEY"
+      ],
+      "identity": "GET https://api.anthropic.com/v1/models",
+      "local": [
+        "src/core/llm/providers/AnthropicProvider.js"
+      ]
+    },
+    {
+      "id": "google",
+      "name": "Google Cloud & Workspace",
+      "env": [
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "GOOGLE_CLOUD_PROJECT",
+        "CLOUDSDK_AUTH_ACCESS_TOKEN"
+      ],
+      "identity": "gcloud projects list --format=json",
+      "local": [
+        "src/skills/gcp",
+        "src/domains/google-workspace"
+      ]
+    }
+  ]
+}

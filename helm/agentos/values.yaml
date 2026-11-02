@@ -16,7 +16,7 @@ service:
   targetPort: 3000
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: {}
   hosts:

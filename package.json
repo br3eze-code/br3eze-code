@@ -8,6 +8,9 @@
     "agentos-esm": "./agentos.mjs"
   },
   "scripts": {
+    "infra:plan": "node scripts/infra/reconcile.mjs",
+    "infra:probe": "node scripts/infra/reconcile.mjs --probe",
+    "test:infra": "node --test tests/infrastructure/*.test.js",
     "start": "node bin/agentos.js gateway",
     "prestart": "npm run build:product-query",
     "start:modern": "node agentos.mjs",

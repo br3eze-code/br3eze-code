@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "note": "Explicit, non-secret resource intent only. Missing project identifiers are intentionally not guessed.",
+  "resources": [
+    {
+      "provider": "aws",
+      "kind": "eks-cluster",
+      "id": "agentos-prod",
+      "attributes": {
+        "region": "us-east-1",
+        "kubernetesVersion": "1.37",
+        "vpcCidr": "10.0.0.0/16",
+        "privateSubnets": 3,
+        "publicSubnets": 3
+      }
+    },
+    {
+      "provider": "aws",
+      "kind": "eks-managed-node-group",
+      "id": "agentos-prod/default",
+      "attributes": {
+        "instanceTypes": [
+          "t3.medium"
+        ],
+        "capacityType": "ON_DEMAND",
+        "minSize": 1,
+        "desiredSize": 2,
+        "maxSize": 3
+      }
+    },
+    {
+      "provider": "firebase",
+      "kind": "project",
+      "id": "br3eze-africa-312df",
+      "attributes": {
+        "hosting": true,
+        "functions": true,
+        "firestore": true
+      }
+    },
+    {
+      "provider": "vercel",
+      "kind": "project-config",
+      "id": "br3eze-agentos",
+      "attributes": {
+        "configFile": "vercel.json",
+        "productionBranch": "main"
+      }
+    },
+    {
+      "provider": "openai",
+      "kind": "model-provider",
+      "id": "openai",
+      "attributes": {
+        "adapter": "src/core/llm/providers/OpenAIProvider.js"
+      }
+    },
+    {
+      "provider": "anthropic",
+      "kind": "model-provider",
+      "id": "anthropic",
+      "attributes": {
+        "adapter": "src/core/llm/providers/AnthropicProvider.js"
+      }
+    },
+    {
+      "provider": "google",
+      "kind": "cloud-provider",
+      "id": "google",
+      "attributes": {
+        "adapter": "src/skills/gcp/index.js"
+      }
+    }
+  ]
+}
