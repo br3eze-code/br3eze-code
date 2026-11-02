@@ -93,11 +93,13 @@ jobs:
           esac
           echo "✓ Supabase Auth runtime configuration is present"
 
-      - name: Configure Firebase credentials
-        run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > "$RUNNER_TEMP/firebase-key.json"
-          chmod 600 "$RUNNER_TEMP/firebase-key.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-key.json" >> "$GITHUB_ENV"
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          project_id: br3eze-africa-312df
+          create_credentials_file: true
+          export_environment_variables: true
 
       - name: Write CI .env for the hosting predeploy step
         # firebase.json's hosting.predeploy generates www/js/env.js from a root .env.
@@ -147,4 +149,4 @@ jobs:
       - name: Clean up credentials
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP/firebase-key.json" .env server/.env
+          rm -f "$RUNNER_TEMP/firebase-key.json" "$GOOGLE_APPLICATION_CREDENTIALS" .env server/.env
