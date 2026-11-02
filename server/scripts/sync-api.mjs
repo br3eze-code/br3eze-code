@@ -3,14 +3,28 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = resolve(here, '../../api/chat/otp');
-const target = resolve(here, '../api/chat/otp');
+const copies = [
+  {
+    source: resolve(here, '../../api/chat/otp'),
+    target: resolve(here, '../api/chat/otp'),
+    label: 'api/chat/otp',
+    directory: true,
+  },
+  {
+    source: resolve(here, '../../src/adapters/auth/supabase.js'),
+    target: resolve(here, '../src/adapters/auth/supabase.js'),
+    label: 'src/adapters/auth/supabase.js',
+    directory: false,
+  },
+];
 
-if (!existsSync(source)) {
-  throw new Error('Canonical API OTP source is missing: ' + source);
+for (const item of copies) {
+  if (!existsSync(item.source)) {
+    throw new Error('Canonical source is missing: ' + item.source);
+  }
+  mkdirSync(dirname(item.target), { recursive: true });
+  if (item.directory) rmSync(item.target, { recursive: true, force: true });
+  cpSync(item.source, item.target, { recursive: item.directory, force: true });
 }
 
-mkdirSync(dirname(target), { recursive: true });
-rmSync(target, { recursive: true, force: true });
-cpSync(source, target, { recursive: true, force: true });
-process.stdout.write('Synced canonical api/chat/otp into the Firebase Functions package.\n');
+process.stdout.write('Synced canonical OTP and Supabase auth adapters into the Firebase Functions package.\n');
