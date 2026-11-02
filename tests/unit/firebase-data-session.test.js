@@ -7,7 +7,8 @@ describe('Supabase to Firebase data-session bridge', () => {
   test('requires verified Supabase identity and issues a downstream data token', async () => {
     const auth = {
       getUserByEmail: jest.fn().mockRejectedValue({ code: 'auth/user-not-found' }),
-      createUser: jest.fn().mockResolvedValue({ uid: 'firebase-user-1', disabled: false }),
+      createUser: jest.fn().mockResolvedValue({ uid: 'firebase-user-1', disabled: false, customClaims: {} }),
+      setCustomUserClaims: jest.fn().mockResolvedValue(undefined),
       createCustomToken: jest.fn().mockResolvedValue('firebase-custom-token')
     };
     const requireUser = (req, _res, next) => {
@@ -25,6 +26,12 @@ describe('Supabase to Firebase data-session bridge', () => {
       uid: 'supabase-user-1',
       email: 'user@example.com',
       emailVerified: true
+    }));
+    expect(auth.setCustomUserClaims).toHaveBeenCalledWith('firebase-user-1', expect.objectContaining({
+      supabase_uid: 'supabase-user-1',
+      auth_provider: 'supabase',
+      role: 'user',
+      tenant_id: 'tenant-1'
     }));
     expect(auth.createCustomToken).toHaveBeenCalledWith('firebase-user-1', expect.objectContaining({
       supabase_uid: 'supabase-user-1',
