@@ -51,7 +51,7 @@ export function normalizeAgentDefinition(definition = {}, context = {}) {
   }
   for (const field of ['id', 'agentId', 'agentKey', 'capabilities', 'permissions', 'tools', 'resourceScopes', 'parentAgentId']) {
     if (Object.hasOwn(definition, field)) {
-      const error = new Error(`AGENT_${field.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase()}_SERVER_MANAGED`);
+      const error = new Error('AGENT_AUTHORITY_SERVER_MANAGED');
       error.code = 'AGENT_AUTHORITY_SERVER_MANAGED';
       throw error;
     }
