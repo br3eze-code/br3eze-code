@@ -36,6 +36,7 @@ class AgentOS extends EventEmitter {
       ...(config.runtime ? { runtime: config.runtime } : {}),
       ...(runtimeToolRegistry ? { toolRegistry: runtimeToolRegistry } : {}),
       ...(config.model ? { model: config.model } : {}),
+      ...(config.sessionEventStore ? { sessionEventStore: config.sessionEventStore } : {}),
       ...(config.providerManager ? { providerManager: config.providerManager } : {}),
       ...(config.permissionMode ? { permissionMode: config.permissionMode } : {}),
     });
