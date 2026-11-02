@@ -25,10 +25,17 @@ export class FileSessionEventStore {
     const previous = this.queues.get(sessionId) || Promise.resolve();
     const current = previous.catch(() => {}).then(async () => {
       await fs.mkdir(this.rootDir, { recursive: true, mode: 0o700 });
-      const line = JSON.stringify(event);
+      let lastSequence = 0;
+      try {
+        const existing = await fs.readFile(file, 'utf8');
+        const lines = existing.split('\n').filter(Boolean);
+        if (lines.length) lastSequence = Number(JSON.parse(lines.at(-1)).seq) || 0;
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      const record = { ...event, seq: lastSequence + 1 };
+      const line = JSON.stringify(record);
       if (line === undefined) throw new TypeError('session event must be JSON-serializable');
       await fs.appendFile(file, `${line}\n`, { encoding: 'utf8', mode: 0o600 });
-      return { ...event };
+      return record;
     });
     this.queues.set(sessionId, current);
     try { return await current; }
