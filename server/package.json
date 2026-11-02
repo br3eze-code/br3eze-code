@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "lint": "node scripts/sync-api.mjs && node --check server.js && node --check api/chat/otp/validation.js && node --check api/chat/otp/register.js && node --check api/chat/otp/routes.js && node --check api/chat/otp/service.js && node --check api/chat/otp/phone/routes.js && node --check api/chat/otp/phone/service.js && node --check api/chat/otp/providers/email.js && node --check api/chat/otp/providers/whatsapp.js && node --check src/api/routes/firebase-data-session.js && node --check src/adapters/auth/supabase.js && node --check src/auth/identity.js && node --check src/domains/wifi/registerRoutes.js",
+    "lint": "node scripts/sync-api.mjs && node --check server.js && node --check api/chat/otp/validation.js && node --check api/chat/otp/register.js && node --check api/chat/otp/routes.js && node --check api/chat/otp/service.js && node --check api/chat/otp/phone/routes.js && node --check api/chat/otp/phone/service.js && node --check api/chat/otp/providers/email.js && node --check api/chat/otp/providers/whatsapp.js && node --check src/api/routes/firebase-data-session.js && node --check src/adapters/auth/supabase.js && node --check src/auth/identity.js && node --check src/domains/wifi/registerRoutes.js && node --check src/config/firebase.js",
     "prestart": "node scripts/sync-api.mjs"
   },
   "dependencies": {
