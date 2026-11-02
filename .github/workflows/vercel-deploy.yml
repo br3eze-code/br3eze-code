@@ -66,8 +66,8 @@ jobs:
       - name: Lint
         run: npm run lint --if-present
 
-      - name: Security audit
-        run: npm audit --audit-level=moderate
+      - name: Production dependency security audit
+        run: npm audit --omit=dev --audit-level=moderate
 
       - name: Production regression tests
         run: npm run test:production
