@@ -8,9 +8,10 @@ import { buildExecutionContext } from '../../src/core/execution-context.js';
 import { instantiateWorkPackages, getWorkPackageRoles, validateWorkPackage } from '../../src/core/wbs-work-packages.js';
 
 describe('professional agent role profiles', () => {
-  const roles = ['planner', 'engineer', 'accountant', 'secretary', 'procurement', 'expeditor', 'designer', 'draftsman', 'catalog', 'pricing-promotions', 'inventory', 'orders-checkout', 'voucher-access', 'billing-payments', 'product', 'project-manager', 'br3eze-code'];
+  const roles = ['planner', 'engineer', 'accountant', 'secretary', 'procurement', 'expeditor', 'designer', 'draftsman'];
+  const specialistRoles = ['catalog', 'pricing-promotions', 'inventory', 'orders-checkout', 'voucher-access', 'billing-payments', 'product', 'project-manager', 'br3eze-code'];
 
-  test.each(roles)('%s has a domain-neutral profile and safe defaults', (role) => {
+  test.each([...roles, ...specialistRoles])('%s has a domain-neutral profile and safe defaults', (role) => {
     const profile = getAgentRoleProfile(role);
     expect(profile).toBeTruthy();
     expect(profile.domains).toContain('*');
