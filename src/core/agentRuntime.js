@@ -366,9 +366,9 @@ class AgentRuntime extends EventEmitter {
   async _executeModelTurn(frame) {
     const sessionId = frame.sessionId || this.sessionManager?.getSessionId?.(frame) || null;
     const loaded = !Array.isArray(frame.messages) && sessionId
-      ? (this.sessionManager?.load
-        ? await this.sessionManager.load(sessionId)
-        : [...(await this.sessionEventStore.read(sessionId))].reverse().find((event) => event.type === 'runtime/session.snapshot')?.data?.messages || [])
+      ? [...(await this.sessionEventStore.read(sessionId))]
+        .reverse()
+        .find((event) => event.type === 'runtime/session.snapshot')?.data?.messages || []
       : [];
     const messages = Array.isArray(frame.messages)
       ? [...frame.messages]
@@ -542,8 +542,7 @@ class AgentRuntime extends EventEmitter {
   _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }
   async _persistTurn(sessionId, messages, frame, output, toolsUsed) {
     if (!sessionId) return;
-    if (this.sessionManager?.save) await this.sessionManager.save(sessionId, messages.slice(-20));
-    else await this.sessionEventStore.append(sessionId, 'runtime/session.snapshot', { messages: messages.slice(-20), updatedAt: new Date().toISOString() }, { source: 'agent-runtime' });
+    await this.sessionEventStore.append(sessionId, 'runtime/session.snapshot', { messages: messages.slice(-20), updatedAt: new Date().toISOString() }, { source: 'agent-runtime' });
     if (this.memoryStore?.append) {
       await this.memoryStore.append(sessionId, {
         timestamp: Date.now(),
