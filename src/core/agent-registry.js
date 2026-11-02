@@ -1,10 +1,9 @@
 /**
- * Canonical domain-neutral agent registry.
+ * Canonical in-memory registry for role and specialist definitions.
  *
- * This is the single identity/capability boundary for AgentOS agents.
- * It accepts both professional role profiles and executable specialist
- * definitions so legacy registries can become compatibility views instead
- * of competing sources of truth.
+ * This registry is not the persistent identity store for agent instances.
+ * Persistent, tenant-owned identities live behind the tenant-scoped identity
+ * adapter; effective permissions come from persisted agent policy.
  */
 export class AgentRegistry {
   constructor({ definitions = [] } = {}) {

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "absorbed": [
+    {
+      "branch": "port/nodejs-autograd-current-main",
+      "head": "3372cb21e9b6a94939617fb0fa33f2e4a0066f59",
+      "absorbedIn": "4c6b7d97996034f21af5f9ce92a28d81c308f611",
+      "reason": "GitHub compare against main reports six ahead commits but no changed files."
+    }
+  ]
+}
