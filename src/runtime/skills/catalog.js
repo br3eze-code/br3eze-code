@@ -44,7 +44,9 @@ const catalogSkill = defineSkill({
       outputSchema: { type: 'object' },
       handler: async (filters = {}, context = {}) => {
         const scope = scopeFrom(context);
-        const result = await providerFrom(context).search({ scope, filters, include: filters.include, viewerRole: context.role || context.agentRole, viewerTier: context.viewerTier, purpose: 'product_inquiry' });
+        const supplierReferenceFields = ['supplierReferenceUrl', 'supplierId', 'supplierSku', 'supplierFulfillmentMode'];
+        const include = [...new Set([...(Array.isArray(filters.include) ? filters.include : []), ...supplierReferenceFields])];
+        const result = await providerFrom(context).search({ scope, filters, include, viewerRole: context.role || context.agentRole, viewerTier: context.viewerTier, purpose: 'product_inquiry' });
         if (Array.isArray(result?.items)) result.items = result.items.map((item) => assertTenant(item, scope.tenantId));
         return assertTenant(result, scope.tenantId);
       },
