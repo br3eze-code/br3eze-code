@@ -29,6 +29,7 @@ import { registerOtpRoutes } from './api/chat/otp/register.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { authenticateBearer } from './src/auth/identity.js';
+import { createFirebaseDataSessionRouter } from './src/api/routes/firebase-data-session.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
 import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
 import { registerOrderTrackingRoutes } from './src/domains/commerce/order-tracking.js';
@@ -1301,48 +1302,11 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Firebase Auth is a downstream Firestore compatibility bridge only.
-// Supabase remains the sole human identity issuer and must authenticate this request.
-app.post('/api/auth/firebase-session', authMiddleware, async (req, res) => {
-    res.set('Cache-Control', 'no-store');
-    if (!admin) return res.status(503).json({ error: 'Legacy Firebase data bridge is not configured' });
-    const email = String(req.user.email || '').trim().toLowerCase();
-    if (!email || req.user.metadata?.emailVerified !== true) {
-        return res.status(403).json({ error: 'A verified Supabase email is required' });
-    }
-
-    try {
-        const firebaseAuth = admin.auth();
-        let firebaseUser;
-        try {
-            firebaseUser = await firebaseAuth.getUserByEmail(email);
-        } catch (error) {
-            if (error?.code !== 'auth/user-not-found') throw error;
-            firebaseUser = await firebaseAuth.createUser({
-                uid: req.user.id,
-                email,
-                displayName: req.user.name || email,
-                emailVerified: true,
-                disabled: false
-            });
-        }
-        if (firebaseUser.disabled) return res.status(403).json({ error: 'Account is disabled' });
-
-        const role = String(req.user.role || 'USER').toUpperCase();
-        const customToken = await firebaseAuth.createCustomToken(firebaseUser.uid, {
-            supabase_uid: req.user.id,
-            auth_provider: 'supabase',
-            role: role.toLowerCase(),
-            tenant_id: req.user.tenantId || null,
-            site_id: req.user.siteId || null,
-            domain_id: req.user.domainId || null
-        });
-        return res.json({ token: customToken, uid: firebaseUser.uid, provider: 'supabase' });
-    } catch (error) {
-        logger.error('Firebase data-session bridge failed', { code: error?.code || 'unknown' });
-        return res.status(503).json({ error: 'Could not establish the legacy data session' });
-    }
-});
+// Firebase Auth is a downstream Firestore data-session bridge, never a human login provider.
+app.use('/api/auth/firebase-session', createFirebaseDataSessionRouter({
+    requireUser: authMiddleware,
+    getFirebaseAuth: () => admin?.auth?.() || null
+}));
 
 // OTP endpoints are composed at the API boundary, independently of Wi-Fi routes.
 registerOtpRoutes({ app, emailRouter: otpRouter, authMiddleware });
