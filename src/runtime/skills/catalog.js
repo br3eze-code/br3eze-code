@@ -80,6 +80,7 @@ const catalogSkill = defineSkill({
         const result = typeof provider.get === 'function'
           ? await provider.get({ productId, version, scope })
           : await provider.search({ scope, filters: { sku: productId, limit: 1 }, purpose: 'product_inquiry' });
+        if (Array.isArray(result?.items)) result.items = result.items.map((item) => sanitizeProductSupplierReference(assertTenant(item, scope.tenantId)));
         return assertTenant(sanitizeProductSupplierReference(result), scope.tenantId);
       },
     }),
