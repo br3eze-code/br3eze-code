@@ -9,6 +9,7 @@ describe('AgentKernel ownership boundary', () => {
     const store = new SessionEventStore();
     const runtime = new AgentRuntime({ toolRegistry: new ToolRegistry({ logger: { info() {}, warn() {}, error() {} } }) });
     const kernel = new AgentKernel({ sessionEventStore: store, runtime });
+    expect(runtime.sessionEventStore).toBe(store);
     const runtimeExecute = jest.spyOn(runtime, 'execute');
     const adapter = {
       name: 'test-domain',
