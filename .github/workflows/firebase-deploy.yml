@@ -70,6 +70,8 @@ jobs:
         id: validate
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
             echo "::error::FIREBASE_SERVICE_ACCOUNT secret is missing; Firebase deploy cannot authenticate."
@@ -80,6 +82,15 @@ jobs:
             exit 1
           fi
           echo "✓ Firebase service-account JSON is structurally valid"
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY secrets are required for the single human-auth boundary."
+            exit 1
+          fi
+          case "$SUPABASE_URL" in https://*.supabase.co) ;; *)
+            echo "::error::SUPABASE_URL must be the HTTPS Supabase project URL."
+            exit 1
+          esac
+          echo "✓ Supabase Auth runtime configuration is present"
 
       - name: Configure Firebase credentials
         run: |
