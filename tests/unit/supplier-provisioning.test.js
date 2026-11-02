@@ -84,7 +84,7 @@ function makeHarness(seed = {}) {
   const approval = { status: 'APPROVED', approvalId: 'approval-1', action: 'purchase.order', tenantId: 'tenant-a', projectId: 'project-a' };
   const request = {
     orderId: 'po-1', supplierId: 'supplier-a',
-    lines: [{ productId: 'ap-1', quantity: 10, unitPrice: 12, currency: 'USD' }],
+    lines: [{ productId: 'ap-1', quantity: 10, unitPrice: 12, currency: 'USD', supplierSku: 'SKU-AP1', supplierReferenceUrl: 'https://supplier.example/products/SKU-AP1' }],
     requiredAcceptanceEvidence: ['receipt_inspection', 'customer_acceptance'],
   };
   return { service, store, supplierAdapter, scope, approval, request, orders, suppliers, events, inventory, calls };
@@ -108,6 +108,23 @@ describe('supplier provisioning transaction guards', () => {
     expect(replay).toMatchObject({ orderId: 'po-1', replay: true });
     expect(h.orders.size).toBe(1);
     expect(h.calls.supplier).toHaveLength(1);
+    expect(h.calls.supplier[0].lines[0]).toMatchObject({
+      supplierSku: 'SKU-AP1',
+      supplierReferenceUrl: 'https://supplier.example/products/SKU-AP1',
+    });
+  });
+
+  test('rejects unsafe supplier reference URLs and duplicate product lines', async () => {
+    const h = makeHarness();
+    await expect(h.service.createPurchaseOrder({
+      request: { ...h.request, lines: [{ ...h.request.lines[0], supplierReferenceUrl: 'http://supplier.example/item' }] },
+      scope: h.scope, approval: h.approval, idempotencyKey: 'unsafe-url',
+    })).rejects.toThrow(/HTTPS/);
+    await expect(h.service.createPurchaseOrder({
+      request: { ...h.request, lines: [h.request.lines[0], h.request.lines[0]] },
+      scope: h.scope, approval: h.approval, idempotencyKey: 'duplicate-product',
+    })).rejects.toThrow(/Duplicate productId/);
+    expect(h.calls.supplier).toHaveLength(0);
   });
 
   test('records partial receipt so six of ten leaves four outstanding', async () => {
