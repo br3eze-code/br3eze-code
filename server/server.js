@@ -28,7 +28,7 @@ import otpRouter from './api/chat/otp/routes.js';
 import { registerOtpRoutes } from './api/chat/otp/register.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
-import { authenticateBearer, issueUserToken } from './src/auth/identity.js';
+import { authenticateBearer } from './src/auth/identity.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
 import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
 import { registerOrderTrackingRoutes } from './src/domains/commerce/order-tracking.js';
@@ -1361,7 +1361,7 @@ registerWifiRoutes({
     authMiddleware,
     rateLimitMiddleware,
     getCommandHandler: () => global.commandHandler,
-    issueUserToken
+
 });
 
 // Supplier provisioning is an optional commerce capability. The route module
