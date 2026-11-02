@@ -48,6 +48,10 @@ for (const line of fs.readFileSync(ENV_PATH, 'utf8').split(/\r?\n/)) {
 
 // Firebase Hosting must not fail because an unrelated optional provider is disabled.
 // Firebase web config commonly names the same public key either API_KEY or WEB_API_KEY.
+// These are Supabase publishable settings (safe for browser bundles), not secrets.
+env.SUPABASE_URL ||= 'https://wgybhjqaulxqdfxpouwf.supabase.co';
+env.SUPABASE_PUBLISHABLE_KEY ||= 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE';
+
 const firebaseApiKey = env.FIREBASE_API_KEY || env.FIREBASE_WEB_API_KEY;
 if (!firebaseApiKey) {
     console.error('[env:www] Missing in .env: FIREBASE_API_KEY or FIREBASE_WEB_API_KEY');
