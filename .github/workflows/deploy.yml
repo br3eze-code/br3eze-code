@@ -1,14 +1,6 @@
 name: Deploy AgentOS
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'server/**'
-      - 'helm/**'
-      - 'Dockerfile'
-      - 'package.json'
   workflow_dispatch:
 
 env:
@@ -65,7 +57,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
-    if: github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
