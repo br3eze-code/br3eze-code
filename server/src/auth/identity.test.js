@@ -19,21 +19,25 @@ describe('Supabase identity boundary', () => {
     process.env.SUPABASE_URL = 'https://example.supabase.co';
     process.env.SUPABASE_PUBLISHABLE_KEY = 'test-publishable-key';
     delete process.env.SUPABASE_ANON_KEY;
-    global.fetch = jest.fn(async () => ({
+    global.fetch = jest.fn(async (url) => url.endsWith('/auth/v1/user') ? ({
       ok: true,
       json: async () => ({
         id: 'supabase-user-1',
         email: 'user@example.com',
         email_confirmed_at: '2026-01-01T00:00:00.000Z',
-        app_metadata: { role: 'PARTNER', tenant_id: 'tenant-1' },
+        app_metadata: { role: 'ADMIN', roles: ['ADMIN'], tenant_id: 'stale-tenant' },
         user_metadata: { role: 'ADMIN' }
       })
+    }) : ({
+      ok: true,
+      json: async () => [{ role: 'PARTNER', tenant_id: 'tenant-1', site_id: 'site-1', domain: 'wifi' }]
     }));
     try {
       const identity = await authenticateBearer('valid-supabase-token');
       expect(identity).toMatchObject({ provider: 'supabase', id: 'supabase-user-1', tenantId: 'tenant-1' });
       expect(identity.roles).toEqual(['PARTNER']);
       expect(identity.roles).not.toContain('ADMIN');
+      expect(identity.siteId).toBe('site-1');
       expect(global.fetch).toHaveBeenCalledWith(
         'https://example.supabase.co/auth/v1/user',
         expect.objectContaining({ headers: expect.objectContaining({ apikey: 'test-publishable-key', authorization: 'Bearer valid-supabase-token' }) })
