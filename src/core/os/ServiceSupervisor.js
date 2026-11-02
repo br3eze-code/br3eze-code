@@ -1,5 +1,4 @@
 const SERVICE_ID = /^[a-z][a-z0-9._-]{0,95}$/i;
-const TERMINAL = new Set(['stopped', 'failed']);
 
 function assertService(service) {
   if (!service || typeof service !== 'object' || typeof service.id !== 'string' || !SERVICE_ID.test(service.id)) {
