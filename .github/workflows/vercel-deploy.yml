@@ -3,8 +3,30 @@ name: Vercel Deployment
 on:
   push:
     branches: [main]
+    paths:
+      - 'www/**'
+      - 'api/**'
+      - 'server/**'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vercel.json'
+      - 'scripts/vercel-build.mjs'
+      - '.github/workflows/vercel-deploy.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'www/**'
+      - 'api/**'
+      - 'server/**'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+      - 'vercel.json'
+      - 'scripts/vercel-build.mjs'
+      - '.github/workflows/vercel-deploy.yml'
   workflow_dispatch:
 
 env:
