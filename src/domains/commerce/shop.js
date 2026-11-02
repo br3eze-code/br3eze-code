@@ -15,11 +15,31 @@ async function _fs() {
   return { db, fs: db.db };
 }
 function normalizeScope(scope = {}) { return { tenantId: scope.tenantId || null, domain: scope.domain || null, siteId: scope.siteId || null }; }
+function normalizePublicProduct(id, data = {}) {
+  const product = { ...data, id };
+  const rawReference = product.supplierReferenceUrl || product.supplierUrl;
+  delete product.supplierUrl;
+  delete product.supplierUnitCost;
+  delete product.supplierCost;
+  delete product.supplierApiToken;
+  delete product.supplierApiKey;
+  delete product.supplierCredentials;
+  if (typeof rawReference === 'string') {
+    try {
+      const url = new URL(rawReference);
+      if (url.protocol === 'https:' && !url.username && !url.password) product.supplierReferenceUrl = url.toString();
+      else delete product.supplierReferenceUrl;
+    } catch { delete product.supplierReferenceUrl; }
+  } else {
+    delete product.supplierReferenceUrl;
+  }
+  return product;
+}
 function scopeMatches(record, scope = {}) { const requested = normalizeScope(scope); return ['tenantId', 'domain', 'siteId'].every((key) => !requested[key] || !record[key] || record[key] === requested[key]); }
 function cartKey(platform, channelId, scope = {}) { const { tenantId, domain, siteId } = normalizeScope(scope); const suffix = [tenantId, domain, siteId].filter(Boolean).join(':'); return `${platform}:${channelId}${suffix ? `:${suffix}` : ''}`; }
-async function listProducts({ category, search, scope = {} } = {}) { const { fs } = await _fs(); const snap = await fs.collection('products').where('active', '==', true).get(); let items = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => scopeMatches(p, scope)); if (category && category !== 'all') items = items.filter((p) => p.category === category); if (search) { const s = String(search).toLowerCase(); items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category} ${p.brand || ''}`.toLowerCase().includes(s)); } return items; }
+async function listProducts({ category, search, scope = {} } = {}) { const { fs } = await _fs(); const snap = await fs.collection('products').where('active', '==', true).get(); let items = snap.docs.map((d) => normalizePublicProduct(d.id, d.data())).filter((p) => scopeMatches(p, scope)); if (category && category !== 'all') items = items.filter((p) => p.category === category); if (search) { const s = String(search).toLowerCase(); items = items.filter((p) => `${p.name} ${p.description || ''} ${p.category} ${p.brand || ''}`.toLowerCase().includes(s)); } return items; }
 async function relatedProducts(product, limit = 3, scope = {}) { const items = await listProducts({ category: product.category, scope }); return items.filter((p) => p.id !== product.id).slice(0, limit); }
-async function getProduct(idOrName, scope = {}) { const { fs } = await _fs(); const byId = await fs.collection('products').doc(String(idOrName)).get(); if (byId.exists) { const product = { id: byId.id, ...byId.data() }; return scopeMatches(product, scope) ? product : null; } const all = await listProducts({ scope }); const s = String(idOrName).toLowerCase(); return all.find((p) => p.id.toLowerCase() === s || p.name.toLowerCase() === s || p.name.toLowerCase().includes(s)) || null; }
+async function getProduct(idOrName, scope = {}) { const { fs } = await _fs(); const byId = await fs.collection('products').doc(String(idOrName)).get(); if (byId.exists) { const product = normalizePublicProduct(byId.id, byId.data()); return scopeMatches(product, scope) ? product : null; } const all = await listProducts({ scope }); const s = String(idOrName).toLowerCase(); return all.find((p) => p.id.toLowerCase() === s || p.name.toLowerCase() === s || p.name.toLowerCase().includes(s)) || null; }
 async function getCart(platform, channelId, scope = {}) { const { fs } = await _fs(); const doc = await fs.collection('carts').doc(cartKey(platform, channelId, scope)).get(); return doc.exists ? (doc.data().items || []) : []; }
 async function _saveCart(platform, channelId, items, scope = {}) { const { fs } = await _fs(); await fs.collection('carts').doc(cartKey(platform, channelId, scope)).set({ ...normalizeScope(scope), items, updatedAt: new Date().toISOString() }); }
 function subtotal(items) { return items.reduce((s, i) => s + i.price * i.qty, 0); }
@@ -74,4 +94,4 @@ async function checkout(platform, channelId, { uid = null, address = {}, payMeth
   return order;
 }
 
-export { SHIPPING_FLAT, cartKey, normalizeScope, scopeMatches, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, getPaymentMethods, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews, assertCheckoutPaymentMethod, isExternalPaymentMethod };
+export { SHIPPING_FLAT, cartKey, normalizeScope, normalizePublicProduct, scopeMatches, listProducts, getProduct, getCart, addToCart, removeFromCart, clearCart, checkout, subtotal, getOrder, getOrdersByUser, getPaymentMethods, productUrl, orderUrl, createShipment, trackShipment, relatedProducts, submitReview, getReviews, assertCheckoutPaymentMethod, isExternalPaymentMethod };
