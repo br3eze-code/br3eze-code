@@ -172,14 +172,24 @@ export class SupplierProvisioningService {
     if (TERMINAL_ORDER_STATES.has(order.status)) throw new Error('Cannot receive against a terminal purchase order');
     if (!Array.isArray(lines) || !lines.length) throw new TypeError('Receipt lines are required');
 
-    const received = lines.map((line) => ({
-      productId: requiredString(line?.productId, 'receipt productId'),
-      acceptedQuantity: positiveQuantity(line?.acceptedQuantity ?? 0, 'acceptedQuantity'),
-      rejectedQuantity: Number(line?.rejectedQuantity ?? 0),
-    }));
-    if (received.some((line) => !Number.isSafeInteger(line.rejectedQuantity) || line.rejectedQuantity < 0)) {
-      throw new TypeError('rejectedQuantity must be a non-negative integer');
-    }
+    const received = lines.map((line) => {
+      const acceptedQuantity = Number(line?.acceptedQuantity ?? 0);
+      const rejectedQuantity = Number(line?.rejectedQuantity ?? 0);
+      if (!Number.isSafeInteger(acceptedQuantity) || acceptedQuantity < 0) {
+        throw new TypeError('acceptedQuantity must be a non-negative integer');
+      }
+      if (!Number.isSafeInteger(rejectedQuantity) || rejectedQuantity < 0) {
+        throw new TypeError('rejectedQuantity must be a non-negative integer');
+      }
+      if (acceptedQuantity + rejectedQuantity <= 0) {
+        throw new TypeError('A receipt line must accept or reject at least one unit');
+      }
+      return {
+        productId: requiredString(line?.productId, 'receipt productId'),
+        acceptedQuantity,
+        rejectedQuantity,
+      };
+    });
     const result = await this.store.applyReceiptAtomically({
       order,
       tenantId: scope.tenantId,
@@ -235,7 +245,7 @@ export class SupplierProvisioningService {
         status: order.status,
         outstandingQuantities: order.lines.map((line) => ({
           productId: line.productId,
-          quantity: Math.max(0, line.quantity - Number(line.receivedQuantity || 0)),
+          quantity: Math.max(0, line.quantity - Number(line.receivedQuantity || 0) - Number(line.rejectedQuantity || 0)),
         })).filter((line) => line.quantity > 0),
         nextAction: 'Reconcile deposits, shipment state, and customer commitments; obtain separate approval before supplier substitution.',
       })),
