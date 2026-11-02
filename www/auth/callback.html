@@ -27,6 +27,17 @@
       return body;
     }
 
+    async function verifyEmailLink(tokenHash, type) {
+      const response = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+        method: 'POST',
+        headers: { apikey: runtime.SUPABASE_PUBLISHABLE_KEY || runtime.SUPABASE_ANON_KEY || '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token_hash: tokenHash, type: type || 'signup' })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.msg || body.error_description || body.error || 'Email verification failed.');
+      return body;
+    }
+
     (async function () {
       try {
         const query = new URLSearchParams(window.location.search);
@@ -35,11 +46,28 @@
         if (error) throw new Error(error);
 
         const code = query.get('code');
+        const tokenHash = query.get('token_hash');
         const verifier = localStorage.getItem(VERIFIER_KEY);
-        if (!code || !verifier) throw new Error('OAuth authorization code or PKCE verifier is missing.');
         if (!supabaseUrl) throw new Error('Supabase Auth is not configured.');
 
-        const session = await exchangeCode(code, verifier);
+        let session;
+        if (code && verifier) {
+          session = await exchangeCode(code, verifier);
+        } else if (tokenHash) {
+          session = await verifyEmailLink(tokenHash, query.get('type'));
+        } else {
+          const accessToken = hash.get('access_token');
+          const refreshToken = hash.get('refresh_token');
+          if (!accessToken) throw new Error('OAuth code, email verification token, or access token is missing.');
+          session = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            token_type: hash.get('token_type') || 'bearer',
+            expires_in: Number(hash.get('expires_in') || 3600),
+            user: null
+          };
+        }
+        if (!session?.access_token) throw new Error('Supabase did not return an authenticated session.');
         localStorage.setItem(KEY, JSON.stringify(session));
         localStorage.removeItem(VERIFIER_KEY);
         const requestedReturn = localStorage.getItem(RETURN_TO_KEY);
