@@ -13,6 +13,7 @@ on:
       - 'tsconfig.json'
       - 'vercel.json'
       - 'scripts/vercel-build.mjs'
+      - 'scripts/generate-env-www.js'
       - '.github/workflows/vercel-deploy.yml'
   pull_request:
     branches: [main]
