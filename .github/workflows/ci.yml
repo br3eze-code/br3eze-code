@@ -25,6 +25,8 @@ jobs:
         run: node scripts/ci/validate-cicd.mjs
       - name: Validate Core boundary
         run: node scripts/core-boundary-gate.mjs
+      - name: Validate agent identity authorization boundary
+        run: npm test -- --runTestsByPath tests/unit/agent-authorization.test.js --coverage=false
       - name: Validate repository hygiene
         run: npm run check:repository-hygiene
       - name: Install dependencies
