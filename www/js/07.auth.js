@@ -248,6 +248,9 @@ window.Auth = {
     async loginWithApple() {
         try { await loginWithProvider('apple'); } catch (e) { showToast(e.message, 'error'); }
     },
+    async loginWithFacebook() {
+        try { await loginWithProvider('facebook'); } catch (e) { showToast(e.message, 'error'); }
+    },
     loginWithProvider
 };
 
