@@ -4487,19 +4487,21 @@ window.PermissionCenter = PermissionCenter;
 async function requestCordovaMediaPermissions(names) {
     if (typeof cordova === 'undefined' || cordova.platformId !== 'android') return true;
     const permissions = window.cordova?.plugins?.permissions;
-    if (!permissions?.requestPermissions) return true; // getUserMedia still performs the platform prompt
-    const constants = permissions;
-    const requested = names.map(name => name === 'audio' ? constants.RECORD_AUDIO : constants.CAMERA).filter(Boolean);
-    if (!requested.length) return true;
-    return new Promise((resolve, reject) => {
-        permissions.requestPermissions(requested, status => {
-            const granted = requested.every(permission => permissions.hasPermission
-                ? false : true);
-            // Some plugin versions expose hasPermission asynchronously; the request callback
-            // reports success only when all requested permissions were granted.
-            resolve(Boolean(status?.hasPermission) || status?.hasPermission === undefined);
-        }, reject);
-    });
+    if (!permissions?.requestPermission || !permissions?.checkPermission) return true;
+    const requested = names
+        .map(name => name === 'audio' ? permissions.RECORD_AUDIO : permissions.CAMERA)
+        .filter(Boolean);
+    for (const permission of requested) {
+        const granted = await new Promise((resolve, reject) => {
+            permissions.checkPermission(permission, status => resolve(Boolean(status?.hasPermission)), reject);
+        });
+        if (granted) continue;
+        const approved = await new Promise((resolve, reject) => {
+            permissions.requestPermission(permission, status => resolve(Boolean(status?.hasPermission)), reject);
+        });
+        if (!approved) throw new Error('Permission was not granted by the device.');
+    }
+    return true;
 }
 
 window.requestWebCamera = async function () {
