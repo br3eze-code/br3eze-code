@@ -1,17 +1,16 @@
-name: CI Quality Gate
+name: CI Quality Gate (manual diagnostic)
 
+# The canonical CI workflow now runs these same checks on every main push and PR.
+# Keep this workflow available for explicit diagnostics without duplicating CI runs.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   quality-gate:
-    name: Duplicate exports, architecture and new lint blockers
+    name: Manual architecture and quality diagnostics
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -31,16 +30,11 @@ jobs:
         id: base
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
-          fi
-
+          echo "sha=${{ github.event.repository.default_branch }}" >> "$GITHUB_OUTPUT"
       - name: Run architecture gate
         run: npm run check:architecture
 
       - name: Run CI quality gate
         env:
-          CI_BASE_SHA: ${{ steps.base.outputs.sha }}
+          CI_BASE_SHA: ${{ github.sha }}
         run: npm run check:ci-quality
