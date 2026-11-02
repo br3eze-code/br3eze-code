@@ -16,6 +16,10 @@ import toolRegistry from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
+import { ServiceSupervisor } from './os/ServiceSupervisor.js';
+import { IPCMessageBus } from './os/IPCMessageBus.js';
+import { ApplicationManager } from './os/ApplicationManager.js';
+import { LocalStateStore } from '../adapters/persistence/local-state-store.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
@@ -135,6 +139,15 @@ class AgentRuntime extends EventEmitter {
     this.toolRegistry = config.toolRegistry || toolRegistry;
     this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
     this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
+    // AgentRuntime is the sole lifecycle owner; managers below are stores/adapters.
+    this.serviceSupervisor = config.serviceSupervisor || config.applications?.supervisor
+      || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
+    this.applications = config.applications || new ApplicationManager({ supervisor: this.serviceSupervisor });
+    this.ipc = config.ipc || new IPCMessageBus({
+      authorize: config.ipcAuthorize || (() => false),
+      onAudit: (event) => this.emit('os.ipc.audit', event),
+    });
+    this.localState = config.localState || new LocalStateStore(config.localStateOptions || {});
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
       registry: this.pluginRegistry,
@@ -161,6 +174,41 @@ class AgentRuntime extends EventEmitter {
     } : null);
     if (this.model) validateModelPort(this.model);
     for (const adapter of (config.hardwareAdapters || [])) this.registerHardwareAdapter(adapter);
+  }
+
+  /** Register trusted services under the runtime-owned lifecycle supervisor. */
+  registerService(service, options = {}) { this.serviceSupervisor.register(service, options); return this; }
+  startService(serviceId, context = {}) { return this.serviceSupervisor.start(serviceId, context); }
+  stopService(serviceId, context = {}) { return this.serviceSupervisor.stop(serviceId, context); }
+  listServices() { return this.serviceSupervisor.list(); }
+
+  /** Application manifests share the same supervisor; they do not create another runtime. */
+  registerApplication(manifest, service) { this.applications.register(manifest, service); return this; }
+  startApplication(appId, context = {}) { return this.applications.start(appId, context); }
+  stopApplication(appId, context = {}) { return this.applications.stop(appId, context); }
+  listApplications() { return this.applications.list(); }
+
+  /** Local state is an injected persistence adapter; runtime policy remains authoritative. */
+  getAppState(identity) { return this.localState.get(identity); }
+  setAppState(identity) { return this.localState.set(identity); }
+  deleteAppState(identity) { return this.localState.delete(identity); }
+  listAppState(identity) { return this.localState.list(identity); }
+
+  /** IPC authorization is host-owned and fail-closed by default. */
+  publishIPC(envelope, payload) { return this.ipc.publish(envelope, payload); }
+  subscribeIPC(envelope, handler) { return this.ipc.subscribe(envelope, handler); }
+
+  /** Graceful shutdown of managed apps and services through their single owner. */
+  async shutdownOS(context = {}) {
+    const applications = [];
+    for (const app of [...this.applications.list()].reverse()) {
+      if (app.state === 'running') {
+        try { applications.push(await this.applications.stop(app.id, context)); }
+        catch (error) { applications.push({ id: app.id, state: 'failed', error: error.message }); }
+      }
+    }
+    const services = await this.serviceSupervisor.stopAll(context);
+    return { applications, services };
   }
 
   /** Inject the host-composed model port without creating a second runtime. */
