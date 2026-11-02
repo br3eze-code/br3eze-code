@@ -75,6 +75,35 @@ describe('AgentOS A2A CPO/CFO policy', () => {
     expect(result.code).toBe('PURCHASE_APPROVAL_REQUIRED');
   });
 
+
+  test('requires the designated authorized approver for purchase approval', () => {
+    const input = {
+      proposal: { state: 'budget_approved' },
+      nextState: 'purchase_approved',
+      actor: { role: 'procurement' },
+      evidence: { approvalId: 'approval-1' },
+    };
+    expect(validateRestockTransition(input)).toMatchObject({
+      valid: false,
+      code: 'RESTOCK_GATE_ROLE_REQUIRED',
+      requiredRole: 'authorizedapprover',
+    });
+    expect(validateRestockTransition({
+      ...input,
+      actor: { role: 'authorized_approver' },
+    })).toMatchObject({ valid: true, from: 'budget_approved', to: 'purchase_approved' });
+  });
+
+  test('does not skip budget approval before purchase approval', () => {
+    const result = validateRestockTransition({
+      proposal: { state: 'qa_review' },
+      nextState: 'purchase_approved',
+      actor: { role: 'authorized_approver' },
+      evidence: { approvalId: 'approval-1' },
+    });
+    expect(result).toMatchObject({ valid: false, code: 'BUDGET_APPROVAL_REQUIRED' });
+  });
+
   test('publishes a scoped restock transition event', () => {
     const event = publishRestockTransition({
       tenantId: 'tenant-a',
