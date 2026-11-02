@@ -98,22 +98,18 @@ try {
   process.exitCode = 1;
 }
 
-log('\n🔍 Running ESLint (failure is blocking)...');
-const eslintBin = path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint');
-if (!fs.existsSync(eslintBin)) {
-  console.error('❌ Local ESLint binary is missing; install locked dependencies before running security checks.');
+log('\n🔍 Running the repository CI lint target (failure is blocking)...');
+// Reuse the curated CI lint target. It invokes the pinned ESLint major via npx,
+// so npm ci --ignore-scripts does not need an undeclared local eslint binary.
+const lint = spawnSync('npm', ['run', 'lint:ci'], { stdio: 'inherit', shell: false });
+if (lint.error) {
+  console.error(`❌ ESLint could not run: ${lint.error.message}`);
+  process.exitCode = 1;
+} else if (lint.status !== 0) {
+  console.error(`❌ ESLint failed with exit code ${lint.status ?? 'unknown'}`);
   process.exitCode = 1;
 } else {
-  const lint = spawnSync(eslintBin, ['.', '--max-warnings', '0'], { stdio: 'inherit', shell: false });
-  if (lint.error) {
-    console.error(`❌ ESLint could not run: ${lint.error.message}`);
-    process.exitCode = 1;
-  } else if (lint.status !== 0) {
-    console.error(`❌ ESLint failed with exit code ${lint.status ?? 'unknown'}`);
-    process.exitCode = 1;
-  } else {
-    log('✓ ESLint passed');
-  }
+  log('✓ CI ESLint target passed');
 }
 
 log('\n' + '─'.repeat(50));
