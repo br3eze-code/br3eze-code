@@ -322,12 +322,20 @@ window.Auth = {
 };
 
 (async () => {
-    const session = getSession();
+    let session = getSession();
+    let user = null;
     if (session?.access_token) {
-        const user = await window.SupabaseAuth.getUser();
-        if (!user) setSession(null);
+        user = await window.SupabaseAuth.getUser();
+        if (!user) {
+            setSession(null);
+            session = null;
+        }
     }
-    if (user) await window.SupabaseAuth.establishFirebaseSession(session).catch(error => console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error'));
+    if (user && session) {
+        await window.SupabaseAuth.establishFirebaseSession(session).catch(error => {
+            console.warn('[Auth] Legacy data session unavailable:', error?.message || 'unknown error');
+        });
+    }
     window.authCheckComplete = true;
     window.Auth._emit(getSession());
 })();
