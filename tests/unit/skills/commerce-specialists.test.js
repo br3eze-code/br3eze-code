@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { ToolRegistry } from '../../../src/core/ToolRegistry.js';
 import { registerCommerceSpecialists } from '../../../src/runtime/commerce-specialists.js';
-import { inventorySkill, catalogSkill } from '../../../src/runtime/commerce-specialists.js';
+import { inventorySkill, catalogSkill, procurementSkill } from '../../../src/runtime/commerce-specialists.js';
 
 describe('Inventory and Catalog specialist runtime contracts', () => {
   test('registers both specialists with role-bound ticket capabilities', () => {
@@ -84,6 +84,41 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     expect(calls[0].filters).toEqual({ name: 'Camera', include: ['description', 'availability'] });
     expect(calls[0].include).toEqual(expect.arrayContaining(['supplierReferenceUrl', 'supplierId', 'supplierSku', 'supplierFulfillmentMode']));
     expect(result.items[0]).toMatchObject({ supplierId: 'supplier-a', supplierReferenceUrl: 'https://supplier.example/camera' });
+  });
+
+
+  test('procurement exposes supplier references and approval-gates API provisioning', async () => {
+    const registry = new ToolRegistry();
+    registry.registerSkill(procurementSkill);
+    const provisioningCalls = [];
+    const supplierCatalog = {
+      async getSupplierReference({ productId, scope }) {
+        return { tenantId: scope.tenantId, productId, supplierReferenceUrl: 'https://supplier.example/catalog/p-1' };
+      },
+    };
+    const supplierProvisioning = {
+      async provisionProduct(input) {
+        provisioningCalls.push(input);
+        return { tenantId: input.scope.tenantId, orderId: 'po-1', status: 'ordered' };
+      },
+    };
+    const context = {
+      agentRole: 'procurement', permissions: ['procurement:read', 'procurement:write'],
+      tenantId: 'tenant-a', userId: 'user-1', projectId: 'project-a',
+      supplierCatalog, supplierProvisioning,
+    };
+    const reference = await registry.execute('procurement.product-reference', { productId: 'p-1' }, context);
+    expect(reference).toMatchObject({ supplierReferenceUrl: 'https://supplier.example/catalog/p-1' });
+    const proposal = await registry.execute('procurement.provision-product', {
+      productId: 'p-1', quantity: 3, idempotencyKey: 'po-request-1',
+    }, context);
+    expect(proposal).toMatchObject({ status: 'approval_required', externalSupplierCalled: false });
+    expect(provisioningCalls).toHaveLength(0);
+    const result = await registry.execute('procurement.provision-product', {
+      productId: 'p-1', quantity: 3, idempotencyKey: 'po-request-1',
+    }, { ...context, approval: { status: 'APPROVED', approvalId: 'appr-1', action: 'purchase.order', tenantId: 'tenant-a', projectId: 'project-a' } });
+    expect(result).toMatchObject({ tenantId: 'tenant-a', orderId: 'po-1', status: 'ordered' });
+    expect(provisioningCalls).toHaveLength(1);
   });
 
   test('catalog publication is approval-gated and does not mutate pricing or inventory', async () => {
