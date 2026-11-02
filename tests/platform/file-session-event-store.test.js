@@ -36,5 +36,7 @@ test('supports bounded reads and rejects unsafe session identifiers', async () =
   await store.append('session-1', 'b');
   await store.append('session-1', 'c');
   assert.equal((await store.read('session-1', { after: 1, limit: 1 }))[0].type, 'b');
-  await assert.rejects(store.append('../escape', 'unsafe'), /safe string/);
+  await assert.rejects(store.append('', 'unsafe'), /sessionId/);
+  await store.append('../safe-encoded-id', 'encoded');
+  assert.ok((await store.list()).includes('../safe-encoded-id'));
 });
