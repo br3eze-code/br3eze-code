@@ -1,4 +1,4 @@
-import { describe, expect, test, jest } from '@jest/globals';
+import { afterEach, describe, expect, test, jest } from '@jest/globals';
 import { extractBearer, resolveUser, requireUser } from '../../src/api/middleware/auth-provider.js';
 
 describe('shared Supabase API auth boundary', () => {
