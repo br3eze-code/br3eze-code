@@ -45,7 +45,7 @@ function createFirebaseDataSessionRouter({ requireUser, getFirebaseAuth } = {}) 
         domain_id: user.domainId || user.domain || null,
       });
 
-      return res.json({ token: customToken, uid: firebaseUser.uid, provider: 'supabase' });
+      return res.json({ token: customToken, uid: firebaseUser.uid, provider: 'supabase', role: String(user.role || 'user').toLowerCase() });
     } catch (error) {
       console.error('[auth] Firebase data-session bridge failed:', error?.code || 'unknown');
       return res.status(503).json({ error: 'Could not establish the legacy data session' });
