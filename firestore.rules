@@ -13,15 +13,12 @@ service cloud.firestore {
 
     // Supabase is the human identity authority. The server copies the
     // protected Supabase profile role into Firebase custom claims only to
-    // authorize legacy Firestore data access. Old sessions without claims
-    // fall back to their existing profile document during migration.
+    // authorize legacy Firestore data access. Missing claims fail closed to
+    // ordinary user privileges; Firestore profile fields never grant roles.
     function myRole() {
-      return !isAuthenticated() ? null :
-        (request.auth.token.keys().hasAny(['role'])
-          ? request.auth.token.role
-          : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
-              ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-              : null));
+      return isAuthenticated() && request.auth.token.keys().hasAny(['role'])
+        ? request.auth.token.role
+        : 'user';
     }
 
     function isAdmin() {
