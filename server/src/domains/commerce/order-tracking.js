@@ -5,7 +5,7 @@ const PRIVILEGED_ROLES = new Set(['admin', 'owner', 'merchant', 'logistics', 'fu
 function principal(req) {
   const user = req.user || {};
   return {
-    uid: String(user.uid || user.userId || user.sub || ''),
+    uid: String(user.uid || user.userId || user.id || user.sub || ''),
     tenantId: user.tenantId || user.tenant_id || null,
     role: String(user.role || (Array.isArray(user.roles) ? user.roles[0] : '') || '').toLowerCase()
   };
@@ -119,7 +119,13 @@ export function registerOrderTrackingRoutes({ app, db, authMiddleware, logger = 
       const updated = { ...order, courier: { ...order.courier, status: nextStatus, updatedAt, ...(Array.isArray(result?.events) ? { events: result.events.slice(-100) } : {}) }, fulfillmentStatus: nextStatus, updatedAt };
       let notification = { sent: false, reason: 'status_unchanged' };
       if (nextStatus !== previousStatus) {
-        try { notification = await sendTrackingEmail({ order: updated, tracking: safeTracking(updated), logger }); }
+        try {
+          if (!updated.email && updated.userId) {
+            const userSnap = await db.collection('users').doc(String(updated.userId)).get();
+            if (userSnap.exists) updated.email = userSnap.data()?.email || null;
+          }
+          notification = await sendTrackingEmail({ order: updated, tracking: safeTracking(updated), logger });
+        }
         catch (error) { notification = { sent: false, reason: 'delivery_failed' }; }
       }
       return res.json({ success: true, tracking: safeTracking(updated), notification });
