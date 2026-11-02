@@ -32,3 +32,25 @@ Security requirements:
 - Never put OTPs in logs, localStorage, source control, or API responses.
 - Resend creates a new OTP rather than reusing an old one.
 - Verification is single-use and locked transactionally in PostgreSQL.
+
+
+## WhatsApp phone verification
+
+WhatsApp phone verification is part of the same API boundary and requires an existing Supabase bearer session. It verifies ownership of a phone number on an already authenticated account; it does not create or replace a Supabase login session.
+
+- POST `/api/chat/otp/whatsapp/request` with `{ "phone": "+263771234567" }`
+- POST `/api/chat/otp/whatsapp/verify` with `{ "challengeId": "...", "code": "123456" }`
+
+The previous `/api/auth/otp/whatsapp/*` paths remain compatibility aliases.
+
+The delivery provider uses Meta WhatsApp Cloud API and an approved WhatsApp **AUTHENTICATION** template with an OTP copy-code button. Configure these server-only variables:
+
+- `WHATSAPP_GRAPH_API_VERSION` (for example, `v26.0`)
+- `WHATSAPP_PHONE_NUMBER_ID`
+- `WHATSAPP_ACCESS_TOKEN`
+- `WHATSAPP_OTP_TEMPLATE_NAME`
+- `WHATSAPP_OTP_TEMPLATE_LANGUAGE` (optional; defaults to `en`)
+
+Phone challenges are stored as peppered HMAC digests in `public.auth_phone_otp_challenges`; the consume RPC enforces expiry, attempt limits and single use, and marks `profiles.phone_verified_at` only after successful verification. The additive migration is `20261102075922_whatsapp_phone_otp.sql`.
+
+Firebase Functions packages the canonical root `api/chat/otp/` source into its deploy directory through `server/scripts/sync-api.mjs`. The same sync runs before standalone server startup and during the Firebase predeploy lint step, so the deployed function does not depend on files outside its package.
