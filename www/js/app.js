@@ -4447,12 +4447,14 @@ const PermissionCenter = {
         const notif = ('Notification' in window) ? Notification.permission : 'unsupported';
         const geo = navigator.permissions ? (await q('geolocation')) : ('geolocation' in navigator ? 'prompt' : 'unsupported');
         const cam = navigator.permissions ? (await q('camera')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
+        const mic = navigator.permissions ? (await q('microphone')) : (navigator.mediaDevices ? 'prompt' : 'unsupported');
         let persisted = 'unsupported';
         if (navigator.storage?.persisted) persisted = (await navigator.storage.persisted()) ? 'granted' : 'prompt';
         return [
             { id: 'notifications', icon: '🔔', label: 'Notifications', desc: 'Plan expiry & credit alerts', state: notif === 'default' ? 'prompt' : notif, action: 'requestWebNotifications' },
             { id: 'location', icon: '📍', label: 'Location', desc: 'Find nearby hotspots', state: geo, action: 'requestWebLocation' },
-            { id: 'camera', icon: '📷', label: 'Camera', desc: 'Scan voucher / Wi-Fi QR codes', state: cam, action: 'requestWebCamera' },
+            { id: 'camera', icon: '📷', label: 'Camera', desc: 'Scan QR codes and capture diagnostic video when requested', state: cam, action: 'requestWebCamera' },
+            { id: 'microphone', icon: '🎙️', label: 'Microphone', desc: 'Voice input and audio diagnostics when requested', state: mic, action: 'requestWebMicrophone' },
             { id: 'storage', icon: '💾', label: 'Offline Storage', desc: 'Keep you logged in & working offline', state: persisted, action: 'requestPersistentStorage' }
         ];
     },
@@ -4482,15 +4484,51 @@ const PermissionCenter = {
 };
 window.PermissionCenter = PermissionCenter;
 
+async function requestCordovaMediaPermissions(names) {
+    if (typeof cordova === 'undefined' || cordova.platformId !== 'android') return true;
+    const permissions = window.cordova?.plugins?.permissions;
+    if (!permissions?.requestPermissions) return true; // getUserMedia still performs the platform prompt
+    const constants = permissions;
+    const requested = names.map(name => name === 'audio' ? constants.RECORD_AUDIO : constants.CAMERA).filter(Boolean);
+    if (!requested.length) return true;
+    return new Promise((resolve, reject) => {
+        permissions.requestPermissions(requested, status => {
+            const granted = requested.every(permission => permissions.hasPermission
+                ? false : true);
+            // Some plugin versions expose hasPermission asynchronously; the request callback
+            // reports success only when all requested permissions were granted.
+            resolve(Boolean(status?.hasPermission) || status?.hasPermission === undefined);
+        }, reject);
+    });
+}
+
 window.requestWebCamera = async function () {
+    let stream;
     try {
-        if (!navigator.mediaDevices?.getUserMedia) return showToast('Camera not supported in this browser.', 'warning');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(t => t.stop()); // we only wanted the grant
-        showToast('Camera enabled. 📷', 'success');
+        if (!navigator.mediaDevices?.getUserMedia) return showToast('Camera capture requires a secure context and a supported device.', 'warning');
+        await requestCordovaMediaPermissions(['video']);
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        showToast('Camera permission granted. Camera is ready when you start a capture.', 'success');
     } catch (e) {
-        if (e.name === 'NotAllowedError') showToast('Camera blocked — enable it for this site in browser settings.', 'warning');
-        else showToast('Could not access the camera.', 'error');
+        if (e.name === 'NotAllowedError' || e.name === 'SecurityError') showToast('Camera permission was denied. Enable it in device settings.', 'warning');
+        else showToast('Could not access the camera: ' + (e.message || 'unsupported device'), 'error');
+    } finally {
+        stream?.getTracks().forEach(track => track.stop());
+    }
+};
+
+window.requestWebMicrophone = async function () {
+    let stream;
+    try {
+        if (!navigator.mediaDevices?.getUserMedia) return showToast('Microphone capture requires a secure context and a supported device.', 'warning');
+        await requestCordovaMediaPermissions(['audio']);
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        showToast('Microphone permission granted. Voice input is ready when requested.', 'success');
+    } catch (e) {
+        if (e.name === 'NotAllowedError' || e.name === 'SecurityError') showToast('Microphone permission was denied. Enable it in device settings.', 'warning');
+        else showToast('Could not access the microphone: ' + (e.message || 'unsupported device'), 'error');
+    } finally {
+        stream?.getTracks().forEach(track => track.stop());
     }
 };
 
