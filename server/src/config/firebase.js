@@ -23,6 +23,7 @@ const explicitCredential = (
 const useApplicationDefault = Boolean(
     process.env.GCLOUD_PROJECT ||
     process.env.GCP_PROJECT ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
     process.env.FIREBASE_CONFIG ||
     process.env.K_SERVICE ||
     process.env.FUNCTIONS_EMULATOR
