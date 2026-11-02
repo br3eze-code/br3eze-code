@@ -67,6 +67,22 @@ describe('Br3eze OS managed application platform', () => {
     expect(apps.describe('broken.app').state).toBe('failed');
   });
 
+  test('enforces dependency order and rejects cycles through the canonical supervisor', async () => {
+    const supervisor = new ServiceSupervisor();
+    const events = [];
+    const service = (id) => ({ id, start: async () => events.push(`start:${id}`), stop: async () => events.push(`stop:${id}`) });
+    supervisor.register(service('storage'));
+    supervisor.register(service('worker'), { dependencies: ['storage'] });
+    await expect(supervisor.start('worker')).rejects.toThrow('Dependency not running: storage');
+    await supervisor.start('storage');
+    await supervisor.start('worker');
+    await expect(supervisor.stop('storage')).rejects.toThrow('active dependents: worker');
+    await supervisor.stopAll();
+    expect(events).toEqual(['start:storage', 'start:worker', 'stop:worker', 'stop:storage']);
+    supervisor.register(service('alpha'), { dependencies: ['beta'] });
+    expect(() => supervisor.register(service('beta'), { dependencies: ['alpha'] })).toThrow('Service dependency cycle');
+  });
+
   test('rejects invalid manifests and mismatched services', () => {
     const apps = new ApplicationManager({ supervisor: new ServiceSupervisor() });
     expect(() => apps.register({ id: 'bad app', version: '1.0.0', entryService: 'svc' }, { id: 'svc', start() {}, stop() {} })).toThrow('manifest.id');
