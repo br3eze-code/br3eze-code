@@ -1,12 +1,6 @@
 name: NPM Canary
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - '.github/dependabot.yml'
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
