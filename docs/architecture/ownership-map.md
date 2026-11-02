@@ -13,6 +13,8 @@ This document records the canonical owner for each cross-cutting concern. Compat
 | Tenant-scoped in-process IPC | `src/core/os/IPCMessageBus.js` | Owns authorization, payload validation, tenant isolation, subscriptions, and audit callbacks. |
 | Application-to-service registration | `src/core/os/ApplicationManager.js` | Declarative application metadata and delegation to the service supervisor; it does not run code or provide a sandbox. |
 | Host-local durable key/value state | `src/adapters/persistence/local-state-store.js` | Owns Node filesystem access and tenant/application storage paths. |
+| Session event semantics | `src/core/session/SessionEventStore.js` | One shared event stream owner for AgentRuntime, AgentKernel, and MemoryManager. |
+| Local durable session events | `src/adapters/persistence/file-session-event-store.js` | JSONL append-only adapter; composed by the Node gateway and registered through the session-event-store port. |
 | Platform provider SPI | `src/platform/provider-registry.js` and `provider-contracts.js` | Explicit provider registration and capability resolution; no implicit provider authority. |
 | HTTP API backend | `server/` (Firebase Functions/standalone Express composition) | Owns backend domain routes and persistence integration. |
 | Vercel HTTP API forwarding | `api/[...path].js` | Proxy only; it must use a separately configured HTTPS `AGENTOS_API_URL`, never the frontend origin. |
@@ -28,6 +30,7 @@ This document records the canonical owner for each cross-cutting concern. Compat
 
 1. Do not add another agent loop, task registry, service supervisor, IPC delivery engine, or filesystem state store.
 2. Core orchestration receives model, tools, storage, hardware, and transport through ports/adapters; no provider SDK or host filesystem access belongs in the runtime.
+3. SessionEventStore owns event semantics; runtime snapshots are appended to that stream. The file adapter is host persistence, not a second session manager.
 3. A compatibility facade may translate signatures only. It must delegate behavior to its canonical owner and have contract tests.
 4. A service supervisor manages trusted in-process services. It is not a process sandbox, container runtime, or security boundary.
 5. A workload runner is an adapter for a workload execution strategy. It must not create a second agent execution loop; untrusted workloads require real OS/container isolation.
