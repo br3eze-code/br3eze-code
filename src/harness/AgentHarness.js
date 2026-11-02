@@ -1,6 +1,6 @@
 import path from 'path';
 import { EventEmitter } from 'node:events';
-import { AgentRuntime } from '../core/agentRuntime.js';
+import { getAgentRuntime } from '../core/agentRuntime.js';
 import { ToolRegistry } from '../core/ToolRegistry.js';
 
 import { createRequire } from 'module';
@@ -133,11 +133,16 @@ class AgentHarness extends EventEmitter {
   async start() {
     if (this._started) return this;
 
-    this._registry = this._registry || new ToolRegistry();
-    this._runtime = this._runtime || new AgentRuntime({
-      toolRegistry: this._registry,
+    // Reuse the canonical runtime unless the host explicitly injects one.
+    // A harness is an adapter/composition surface, not a runtime owner.
+    this._runtime = this._runtime || getAgentRuntime({
       ...(this._opts.runtimeConfig || {}),
+      ...(this._registry ? { toolRegistry: this._registry } : {}),
     });
+    this._registry = this._runtime.toolRegistry;
+    if (!this._registry) {
+      throw new Error('AgentRuntime must expose its canonical toolRegistry');
+    }
 
     for (const [id, adapter] of this._domains) {
       const tools = typeof adapter.getTools === 'function' ? adapter.getTools() : {};
