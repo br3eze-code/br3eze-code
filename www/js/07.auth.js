@@ -120,6 +120,7 @@ async function loginWithProvider(provider) {
         code_challenge: challenge,
         code_challenge_method: 's256'
     });
+    if (provider === 'google') params.set('prompt', 'select_account');
     window.location.assign(`${SUPABASE_URL}/auth/v1/authorize?${params.toString()}`);
 }
 
