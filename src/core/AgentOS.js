@@ -35,6 +35,8 @@ class AgentOS extends EventEmitter {
     this.runtime = config.runtime || getAgentRuntime({
       ...(runtimeToolRegistry ? { toolRegistry: runtimeToolRegistry } : {}),
       ...(config.model ? { model: config.model } : {}),
+      ...(config.providerManager ? { providerManager: config.providerManager } : {}),
+      ...(config.permissionMode ? { permissionMode: config.permissionMode } : {}),
     });
     // Compatibility aliases are stores, not execution owners.
     this.skills = this.runtime.toolRegistry;
