@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 /**
  * Provider-neutral supplier provisioning lifecycle.
  *
@@ -118,6 +120,13 @@ export class SupplierProvisioningService {
       requestedBy: scope.userId,
       supplierId,
       idempotencyKey: key,
+      requestFingerprint: crypto.createHash('sha256').update(JSON.stringify({
+        supplierId,
+        projectId: scope.projectId,
+        lines: lines.map(({ productId, quantity, unitPrice, currency, supplierSku, supplierReferenceUrl }) => ({
+          productId, quantity, unitPrice, currency, supplierSku, supplierReferenceUrl,
+        })),
+      })).digest('hex'),
       status: 'submitting',
       paymentStatus: 'unpaid',
       currency: lines[0].currency,
