@@ -18,6 +18,9 @@ const ROLE_PERMISSIONS = Object.freeze({
     'orders.read', 'orders.create', 'payments.create',
     'vouchers.read', 'vouchers.create'
   ],
+  PROCUREMENT: [
+    'catalog:read', 'procurement:read', 'procurement:write', 'inventory.read'
+  ],
   USER: [
     'profile.read', 'profile.update', 'orders.create', 'payments.create'
   ]
