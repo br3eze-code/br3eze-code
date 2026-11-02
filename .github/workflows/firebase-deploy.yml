@@ -102,26 +102,46 @@ jobs:
           export_environment_variables: true
 
       - name: Write CI .env for the hosting predeploy step
-        # firebase.json's hosting.predeploy generates www/js/env.js from a root .env.
-        # Only browser-safe runtime values are written; optional Supabase/AI values do not block Hosting.
+        # Firebase's checked-in Android client config contains the public project
+        # settings required by the web SDK. Keep secrets out of the browser bundle.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}
+          SUPABASE_OAUTH_REDIRECT: ${{ secrets.SUPABASE_OAUTH_REDIRECT }}
+          AGENTOS_API_BASE_URL: ${{ secrets.AGENTOS_API_BASE_URL || 'https://br3eze.africa' }}
         run: |
-          {
-            echo "FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY || secrets.FIREBASE_WEB_API_KEY }}"
-            echo "FIREBASE_WEB_API_KEY=${{ secrets.FIREBASE_WEB_API_KEY || secrets.FIREBASE_API_KEY }}"
-            echo "FIREBASE_AUTH_DOMAIN=${{ secrets.FIREBASE_AUTH_DOMAIN }}"
-            echo "FIREBASE_DATABASE_URL=${{ secrets.FIREBASE_DATABASE_URL }}"
-            echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID || 'br3eze-africa-312df' }}"
-            echo "FIREBASE_STORAGE_BUCKET=${{ secrets.FIREBASE_STORAGE_BUCKET }}"
-            echo "FIREBASE_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}"
-            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}"
-            echo "FIREBASE_MEASUREMENT_ID=${{ secrets.FIREBASE_MEASUREMENT_ID }}"
-            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
-            echo "SUPABASE_URL=${{ secrets.SUPABASE_URL || 'https://wgybhjqaulxqdfxpouwf.supabase.co' }}"
-            echo "SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_limu7EaVkGn4V9t6TmrztQ_MGiY4UJE' }}"
-            echo "SUPABASE_OAUTH_REDIRECT=${{ secrets.SUPABASE_OAUTH_REDIRECT }}"
-            echo "API_BASE_URL=${{ secrets.AGENTOS_API_BASE_URL || 'https://br3eze.africa' }}"
-            echo "AGENTOS_API_BASE_URL=${{ secrets.AGENTOS_API_BASE_URL || 'https://br3eze.africa' }}"
-          } > .env
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('google-services.json', 'utf8'));
+          const client = config.client?.find((item) => item.client_info?.android_client_info?.package_name === 'africa.br3eze') || config.client?.[0];
+          const project = config.project_info || {};
+          const apiKey = client?.api_key?.find((item) => item.current_key)?.current_key;
+          const appId = client?.client_info?.mobilesdk_app_id;
+          const values = {
+            FIREBASE_API_KEY: apiKey,
+            FIREBASE_WEB_API_KEY: apiKey,
+            FIREBASE_AUTH_DOMAIN: project.project_id ? project.project_id + '.firebaseapp.com' : '',
+            FIREBASE_DATABASE_URL: project.firebase_url || '',
+            FIREBASE_PROJECT_ID: project.project_id || '',
+            FIREBASE_STORAGE_BUCKET: project.storage_bucket || '',
+            FIREBASE_MESSAGING_SENDER_ID: project.project_number || '',
+            FIREBASE_APP_ID: appId || '',
+            SUPABASE_URL: process.env.SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY,
+            SUPABASE_OAUTH_REDIRECT: process.env.SUPABASE_OAUTH_REDIRECT,
+            API_BASE_URL: process.env.AGENTOS_API_BASE_URL,
+            AGENTOS_API_BASE_URL: process.env.AGENTOS_API_BASE_URL
+          };
+          if (!values.FIREBASE_API_KEY || !values.FIREBASE_PROJECT_ID || !values.FIREBASE_APP_ID) {
+            throw new Error('google-services.json is missing required Firebase client configuration.');
+          }
+          const body = Object.entries(values)
+            .filter(([, value]) => typeof value === 'string' && value.length > 0)
+            .map(([key, value]) => key + '=' + value.replace(/[\\r\\n]/g, ''))
+            .join('\\n') + '\\n';
+          fs.writeFileSync('.env', body, { mode: 0o600 });
+          console.log('✓ Generated browser-safe Firebase and Supabase runtime configuration.');
+          NODE
 
       - name: Write Functions runtime environment
         # Firebase Functions reads .env from its configured source directory (server/).
