@@ -15,7 +15,7 @@ const HOP_BY_HOP = new Set([
 ]);
 
 function getBackendUrl(req) {
-  const configured = process.env.AGENTOS_API_URL || process.env.VITE_API_URL;
+  const configured = process.env.AGENTOS_API_URL;
   if (!configured) {
     throw new Error('AGENTOS_API_URL is not configured');
   }
