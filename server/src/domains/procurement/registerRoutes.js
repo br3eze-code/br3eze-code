@@ -163,6 +163,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
 
   app.get('/api/v1/shop/supplier-orders/:orderId', authMiddleware, async (req, res) => {
     try {
+      requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
       const result = await makeService().recover({ orderId: String(req.params.orderId), scope });
       return res.json(result);
