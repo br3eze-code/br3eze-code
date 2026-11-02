@@ -284,6 +284,27 @@ class AgentRuntime extends EventEmitter {
     this.emit('session:created', session); return session;
   }
 
+  /** Generate text through the canonical model port without exposing tool execution. */
+  async generateText(prompt, { maxTokens = 1024, context = {}, signal = null, systemPrompt } = {}) {
+    if (!this.model) throw new Error('No model port is configured on AgentRuntime');
+    const modelContext = {
+      ...context,
+      outputTokenBudget: maxTokens,
+      ...(systemPrompt ? { systemPrompt } : {}),
+    };
+    const response = await this.model.execute(createModelRequest({
+      messages: [{ role: 'user', content: String(prompt ?? '') }],
+      tools: [],
+      context: modelContext,
+      signal,
+    }));
+    return {
+      text: String(response?.content ?? response?.text ?? ''),
+      provider: response?.provider || null,
+      usage: response?.usage || null,
+    };
+  }
+
   /**
    * Canonical convenience entry point. All public run-style callers converge here.
    */
