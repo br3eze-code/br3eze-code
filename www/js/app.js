@@ -495,6 +495,23 @@ Auth.logout = async function () {
 };
 
 /*  =====  DATA STORE  =====  */
+async function applyTrustedIdentityClaims(profile) {
+    if (!profile) return null;
+    try {
+        const tokenResult = await auth?.currentUser?.getIdTokenResult();
+        const claims = tokenResult?.claims || {};
+        return {
+            ...profile,
+            role: String(claims.role || 'user').toLowerCase(),
+            tenantId: claims.tenant_id || null,
+            siteId: claims.site_id || null,
+            domainId: claims.domain_id || null
+        };
+    } catch {
+        return { ...profile, role: 'user', tenantId: null, siteId: null, domainId: null };
+    }
+}
+
 const DataStore = {
     getCurrentUserId() {
         return (typeof currentUser !== 'undefined' && currentUser) ? currentUser.id : null;
@@ -516,12 +533,13 @@ const DataStore = {
     },
     async getUser(uid) {
         const doc = await db.collection('users').doc(uid).get();
-        return doc.exists ? { id: doc.id, ...doc.data() } : null;
+        const profile = doc.exists ? { id: doc.id, ...doc.data() } : null;
+        return applyTrustedIdentityClaims(profile);
     },
     subscribeToUser(uid, callback) {
-        return db.collection('users').doc(uid).onSnapshot(doc => {
-            const data = doc.exists ? { id: doc.id, ...doc.data() } : null;
-            callback(data);
+        return db.collection('users').doc(uid).onSnapshot(async doc => {
+            const profile = doc.exists ? { id: doc.id, ...doc.data() } : null;
+            callback(await applyTrustedIdentityClaims(profile));
         }, error => console.error("User Sub Error:", error));
     },
     async findUser(identifier) {
