@@ -33,4 +33,4 @@ for (const item of copies) {
   cpSync(item.source, item.target, { recursive: item.directory, force: true });
 }
 
-process.stdout.write('Synced canonical OTP and Supabase auth adapters into the Firebase Functions package.\n');
+process.stdout.write('Synced canonical OTP, Supabase auth, and Firebase data-session adapters into the Firebase Functions package.\n');
