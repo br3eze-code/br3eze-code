@@ -67,3 +67,7 @@ $$;
 
 revoke all on function public.complete_auth_handoff(text, jsonb) from public, anon, authenticated;
 revoke all on function public.exchange_auth_handoff(text, text) from public, anon, authenticated;
+
+-- The functions are server-only; grant the trusted backend role explicitly.
+grant execute on function public.complete_auth_handoff(text, jsonb) to service_role;
+grant execute on function public.exchange_auth_handoff(text, text) to service_role;
