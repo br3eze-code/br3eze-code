@@ -29,7 +29,7 @@ import { registerOtpRoutes } from './api/chat/otp/register.js';
 import { BRAND, CONFIG } from './src/domains/wifi/config.js';
 import { configureHttpApplication } from './src/core/configureHttpApplication.js';
 import { authenticateBearer } from './src/auth/identity.js';
-import { createFirebaseDataSessionRouter } from './src/api/routes/firebase-data-session.js';
+import { createFirebaseDataSessionRouter, resolveFirebaseDataUser } from './src/api/routes/firebase-data-session.js';
 import { registerWifiRoutes } from './src/domains/wifi/registerRoutes.js';
 import { registerSupplierProvisioningRoutes } from './src/domains/procurement/registerRoutes.js';
 import { registerOrderTrackingRoutes } from './src/domains/commerce/order-tracking.js';
@@ -1369,19 +1369,15 @@ function _stripeForm(flat) {
     for (const k in flat) p.append(k, flat[k]);
     return p.toString();
 }
-// Verifies the caller actually IS the uid they claim to be, via a Firebase
-// ID token (the client gets one from `auth.currentUser.getIdToken()`).
-// Required before touching saved-card/billing endpoints — those act on a
-// uid from the request body alone, and unlike the Checkout-redirect flow
-// (where the attacker would still have to pay with their own card) a bare
-// uid is enough to charge a stranger's card-on-file if this isn't checked.
-async function _verifyCallerUid(admin, idToken, claimedUid) {
-    if (!idToken || !claimedUid) return false;
+// Resolve the legacy Firestore UID from the already-verified Supabase
+// identity. Never accept a Firebase ID token or trust a request-body UID alone.
+async function _resolveCallerFirebaseUid(identity) {
+    if (!admin || !identity?.email || identity.metadata?.emailVerified !== true) return null;
     try {
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        return decoded.uid === claimedUid;
-    } catch (e) {
-        return false;
+        const firebaseUser = await resolveFirebaseDataUser(admin.auth(), identity, { createIfMissing: false });
+        return firebaseUser?.uid || null;
+    } catch {
+        return null;
     }
 }
 
@@ -1465,14 +1461,15 @@ app.post('/api/checkout/verify', async (req, res) => {
 // id. Mirrors the customer/billing shape universal-billing.js's bot-side
 // Stripe path expects (billing.stripeCustomerId), so a future pass can point
 // both surfaces at the same customer record instead of two disconnected ones.
-app.post('/api/setup-intent/create', async (req, res) => {
+app.post('/api/setup-intent/create', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
-    const { uid, idToken } = req.body || {};
-    if (!uid) return res.status(400).json({ error: 'uid required' });
+    const { uid: requestedUid } = req.body || {};
+    if (!requestedUid) return res.status(400).json({ error: 'uid required' });
     try {
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
-        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const uid = await _resolveCallerFirebaseUid(req.user);
+        if (!uid || uid !== String(requestedUid)) return res.status(403).json({ error: 'Authenticated account does not own this billing profile' });
         const userRef = db.collection('users').doc(uid);
         const userSnap = await userRef.get();
         const user = userSnap.exists ? userSnap.data() : {};
@@ -1502,15 +1499,16 @@ app.post('/api/setup-intent/create', async (req, res) => {
     }
 });
 
-app.post('/api/payment-method/save', async (req, res) => {
+app.post('/api/payment-method/save', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
-    const { uid, idToken, paymentMethodId, billingAddress } = req.body || {};
-    if (!uid || !paymentMethodId) return res.status(400).json({ error: 'uid and paymentMethodId required' });
+    const { uid: requestedUid, paymentMethodId, billingAddress } = req.body || {};
+    if (!requestedUid || !paymentMethodId) return res.status(400).json({ error: 'uid and paymentMethodId required' });
     if (!_isStripeId(paymentMethodId, 'pm')) return res.status(400).json({ error: 'Malformed paymentMethodId' });
     try {
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
-        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const uid = await _resolveCallerFirebaseUid(req.user);
+        if (!uid || uid !== String(requestedUid)) return res.status(403).json({ error: 'Authenticated account does not own this billing profile' });
         const userRef = db.collection('users').doc(uid);
         const userSnap = await userRef.get();
         const existing = (userSnap.exists && userSnap.data().billing) || {};
@@ -1543,16 +1541,17 @@ app.post('/api/payment-method/save', async (req, res) => {
 });
 
 // ── Charge the saved card in-app (no redirect to hosted Checkout) ──────────
-app.post('/api/charge-card', async (req, res) => {
+app.post('/api/charge-card', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
-    const { uid, idToken, amount, label } = req.body || {};
+    const { uid: requestedUid, amount, label } = req.body || {};
     const dollars = Number(amount);
-    if (!uid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
+    if (!requestedUid || !(dollars > 0)) return res.status(400).json({ error: 'uid and positive amount required' });
     if (dollars < 0.5 || dollars > 1000) return res.status(400).json({ error: 'amount must be between $0.50 and $1000' });
     try {
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
-        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const uid = await _resolveCallerFirebaseUid(req.user);
+        if (!uid || uid !== String(requestedUid)) return res.status(403).json({ error: 'Authenticated account does not own this billing profile' });
         const userSnap = await db.collection('users').doc(uid).get();
         const billing = (userSnap.exists && userSnap.data().billing) || {};
         if (!billing.stripeCustomerId || !billing.defaultPaymentMethodId) {
@@ -1589,15 +1588,16 @@ app.post('/api/charge-card', async (req, res) => {
 
 // After the client resolves 3-D Secure via stripe.handleCardAction(), re-check
 // the PaymentIntent status and credit the balance (idempotent, safe to retry).
-app.post('/api/charge-card/confirm', async (req, res) => {
+app.post('/api/charge-card/confirm', authMiddleware, async (req, res) => {
     const SK = process.env.STRIPE_SECRET_KEY;
     if (!SK) return res.status(503).json({ error: 'Stripe not configured' });
-    const { uid, idToken, paymentIntentId } = req.body || {};
-    if (!uid || !paymentIntentId) return res.status(400).json({ error: 'uid and paymentIntentId required' });
+    const { uid: requestedUid, paymentIntentId } = req.body || {};
+    if (!requestedUid || !paymentIntentId) return res.status(400).json({ error: 'uid and paymentIntentId required' });
     if (!_isStripeId(paymentIntentId, 'pi')) return res.status(400).json({ error: 'Malformed paymentIntentId' });
     try {
         if (!db) return res.status(503).json({ error: 'Payments backend not configured (Firebase credentials missing)' });
-        if (!(await _verifyCallerUid(admin, idToken, uid))) return res.status(401).json({ error: 'Invalid or missing session token' });
+        const uid = await _resolveCallerFirebaseUid(req.user);
+        if (!uid || uid !== String(requestedUid)) return res.status(403).json({ error: 'Authenticated account does not own this billing profile' });
         const auth = { username: SK, password: '' };
         const pi = await _stripeAxios.get(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, { auth });
         if (pi.data.status !== 'succeeded') return res.json({ paid: false, status: pi.data.status });
