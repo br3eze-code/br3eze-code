@@ -1117,7 +1117,6 @@ function toggleAuthForm() {
     document.getElementById('signupForm').classList.toggle('hidden');
 }
 
-window.Auth = Auth;
 
 /*  =====  APP INIT  =====  */
 document.addEventListener('DOMContentLoaded', () => {
