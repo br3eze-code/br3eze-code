@@ -1,47 +1,33 @@
-import { verifyFirebaseIdToken } from '../../core/firebase-auth.js';
 import { verifySupabaseAccessToken } from '../../adapters/auth/supabase.js';
 
-const AUTH_PROVIDER = String(process.env.AUTH_PROVIDER || 'auto').trim().toLowerCase();
-const VALID_PROVIDERS = new Set(['auto', 'firebase', 'supabase']);
-if (!VALID_PROVIDERS.has(AUTH_PROVIDER)) {
-  throw new Error(`Invalid AUTH_PROVIDER '${AUTH_PROVIDER}'. Expected auto, firebase, or supabase.`);
-}
+// All interactive identity providers (Google, GitHub, Azure/Microsoft, Apple,
+// Facebook, etc.) terminate at Supabase Auth. The API accepts only the resulting
+// Supabase access token; Firebase remains a data adapter, not an identity issuer.
+const AUTH_PROVIDER = 'supabase';
+const VALID_PROVIDERS = new Set(['supabase']);
 
 function extractBearer(req) {
   const header = String(req.get('authorization') || '');
-  const match = header.match(/^Bearer\s+(.+)$/i);
+  const match = header.match(/^Bearer\\s+(.+)$/i);
   return match?.[1] || null;
-}
-
-async function verifyWithProvider(provider, token) {
-  try {
-    if (provider === 'supabase') return await verifySupabaseAccessToken(token);
-    if (provider === 'firebase') return await verifyFirebaseIdToken(token);
-  } catch {
-    // Authentication failures are deliberately normalized to null.
-  }
-  return null;
 }
 
 async function resolveUser(req) {
   const token = extractBearer(req);
   if (!token) return null;
-  if (AUTH_PROVIDER === 'supabase' || AUTH_PROVIDER === 'firebase') {
-    const user = await verifyWithProvider(AUTH_PROVIDER, token);
-    return user ? { ...user, authProvider: AUTH_PROVIDER } : null;
+  try {
+    const user = await verifySupabaseAccessToken(token);
+    return user ? { ...user, authProvider: 'supabase' } : null;
+  } catch {
+    return null;
   }
-  const supabaseUser = await verifyWithProvider('supabase', token);
-  if (supabaseUser) return supabaseUser;
-  const firebaseUser = await verifyWithProvider('firebase', token);
-  return firebaseUser ? { ...firebaseUser, authProvider: 'firebase' } : null;
 }
 
 async function requireUser(req, res, next) {
   const user = await resolveUser(req);
-  if (!user) return res.status(401).json({ error: 'Valid Bearer token required' });
+  if (!user) return res.status(401).json({ error: 'Valid Supabase Bearer token required' });
   req.user = user;
-  if (user.authProvider === 'supabase') req.supabaseUser = user;
-  if (user.authProvider === 'firebase') req.firebaseUser = user;
+  req.supabaseUser = user;
   return next();
 }
 
