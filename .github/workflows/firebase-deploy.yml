@@ -12,6 +12,7 @@ on:
     paths:
       - 'www/**'
       - 'server/**'
+      - 'api/chat/otp/**'
       - 'firebase.json'
       - 'firestore.rules'
       - 'firestore.indexes.json'
