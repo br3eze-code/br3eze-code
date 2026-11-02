@@ -107,6 +107,12 @@
     </platform>
 
     <platform name="ios">
+        <edit-config target="NSCameraUsageDescription" file="*-Info.plist" mode="merge">
+            <string>AgentOS uses the camera only when you choose to scan a code or capture diagnostic media.</string>
+        </edit-config>
+        <edit-config target="NSMicrophoneUsageDescription" file="*-Info.plist" mode="merge">
+            <string>AgentOS uses the microphone only when you choose voice input or audio diagnostics.</string>
+        </edit-config>
         <allow-intent href="itms:*" />
         <allow-intent href="itms-apps:*" />
     </platform>
