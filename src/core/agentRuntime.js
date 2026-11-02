@@ -1,4 +1,5 @@
 import EventEmitter from 'node:events';
+import { authorizeAgentTool } from './agent-authorization.js';
 import crypto from 'node:crypto';
 import { TranscriptStore } from './transcript.js';
 import { saveSession, loadSession } from './sessionStore.js';
@@ -117,6 +118,7 @@ class AgentRuntime extends EventEmitter {
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || toolRegistry;
+    this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
     this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
     this.pluginRegistry = config.pluginRegistry || new PluginRegistry();
     this.pluginLoader = config.pluginLoader || new PluginLoader({
@@ -537,6 +539,11 @@ class AgentRuntime extends EventEmitter {
     const userId = context.userId || context.user_id || context.uid;
     if (!tenantId || !userId) {
       throw new Error('authenticated tenant context required for tool execution');
+    }
+
+    // Agent principals require independent, persistent identity authorization.
+    if (context.principalType === 'agent' || context.agentId) {
+      await authorizeAgentTool({ authorizer: this.agentIdentityAuthorizer, agentId: context.agentId, tenantId, userId, toolName, params, context });
     }
 
     if (Array.isArray(context.allowedToolNames) && !context.allowedToolNames.includes(toolName)) {
