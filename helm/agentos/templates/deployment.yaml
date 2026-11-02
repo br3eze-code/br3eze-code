@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "agentos.fullname". }}
+  name: {{ include "agentos.fullname" . }}
 spec:
-  replicas: {{.Values.replicaCount }}
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "agentos.selectorLabels". | nindent 6 }}
@@ -12,10 +12,11 @@ spec:
       labels:
         {{- include "agentos.selectorLabels". | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "agentos.serviceAccountName" . }}
       containers:
         - name: agentos
-          image: "{{.Values.image.repository }}:{{.Values.image.tag }}"
-          imagePullPolicy: {{.Values.image.pullPolicy }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 3000
@@ -26,35 +27,23 @@ spec:
             - name: GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
+                  name: {{ include "agentos.fullname" . }}
                   key: gateway-token
             - name: AUDIT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
+                  name: {{ include "agentos.fullname" . }}
                   key: audit-secret
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
+                  name: {{ include "agentos.fullname" . }}
                   key: gemini-api-key
             - name: DRIVER_MIKROTIK_API_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
+                  name: {{ include "agentos.fullname" . }}
                   key: mikrotik-api-token
-                  optional: true
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
-                  key: aws-access-key-id
-                  optional: true
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "agentos.fullname". }}
-                  key: aws-secret-access-key
                   optional: true
           volumeMounts:
             - name: workspace
@@ -72,14 +61,15 @@ spec:
               path: /health
               port: http
           resources:
-            {{- toYaml.Values.resources | nindent 12 }}
+            {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: workspace
           configMap:
-            name: {{ include "agentos.fullname". }}-workspace
+            name: {{ include "agentos.fullname" . }}-workspace
         - name: gcp-sa-key
           secret:
-            secretName: {{ include "agentos.fullname". }}
+            secretName: {{ include "agentos.fullname" . }}
+            optional: true
             items:
               - key: gcp-sa-key
                 path: sa-key.json
