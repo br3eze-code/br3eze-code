@@ -40,12 +40,11 @@ export function registerWifiRoutes({
     authMiddleware,
     rateLimitMiddleware,
     getCommandHandler,
-    issueUserToken
 }) {
     if (!app || typeof app.get !== 'function' || typeof app.post !== 'function') {
         throw new TypeError('app must provide get() and post() route registration');
     }
-    if (!database || !CONFIG || !BRAND || typeof getCommandHandler !== 'function' || typeof issueUserToken !== 'function') {
+    if (!database || !CONFIG || !BRAND || typeof getCommandHandler !== 'function') {
         throw new TypeError('Wi-Fi route dependencies are required');
     }
 
@@ -71,31 +70,8 @@ export function registerWifiRoutes({
         });
     });
     
-// API routes
-    app.post('/api/auth/login', (req, res) => {
-        const { username, password } = req.body;
-        const user = database.validateUser(username, password);
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        try {
-            const token = issueUserToken({
-                uid: user.uid || user.id || user.username,
-                username: user.username,
-                role: user.role
-            }, CONFIG.GATEWAY_TOKEN);
-            res.json({
-                success: true,
-                token,
-                expiresIn: 3600,
-                user: { username: user.username, role: user.role }
-            });
-        } catch (error) {
-            res.status(500).json({ success: false, error: 'Unable to establish a secure session' });
-        }
-    });
-    
-    const executeTool = async (req, res) => {
+// Authentication is owned by Supabase Auth; Wi-Fi routes consume verified identity only.
+        const executeTool = async (req, res) => {
         const { tool, params = [] } = req.body;
         try {
             const result = await getCommandHandler().execute(tool, params, req.body._actor || 'api');
