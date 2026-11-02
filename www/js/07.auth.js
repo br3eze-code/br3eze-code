@@ -276,6 +276,24 @@ window.Auth = {
         try { if (typeof window.firebase?.auth === 'function') await window.firebase.auth().signOut(); } catch {}
         setSession(null); localStorage.removeItem(SUPABASE_PROFILE_KEY); window.location.reload();
     },
+    async updatePassword(currentPassword, newPassword) {
+        const user = await window.SupabaseAuth.getUser();
+        if (!user?.email) throw new Error('Sign in before changing your password.');
+        let session = getSession();
+        if (currentPassword) {
+            session = await supabaseRequest('/auth/v1/token?grant_type=password', {
+                method: 'POST',
+                body: JSON.stringify({ email: user.email, password: currentPassword })
+            });
+            setSession(session);
+        }
+        if (!session?.access_token) throw new Error('Your session has expired. Sign in again.');
+        return supabaseRequest('/auth/v1/user', {
+            method: 'PUT',
+            accessToken: session.access_token,
+            body: JSON.stringify({ password: newPassword })
+        });
+    },
     async requestPasswordReset(email) {
         if (!email) return showToast('Enter your email first.', 'error');
         showAuthLoading('Sending reset link...');
