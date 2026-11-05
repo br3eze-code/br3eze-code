@@ -80,21 +80,29 @@
             </receiver>
         </config-file>
 
-        <source-file src="src/android/WifiBillingAgentPlugin.java" target-dir="src/com/wifibilling/agent" />
-        <source-file src="src/android/WifiBillingService.java" target-dir="src/com/wifibilling/agent" />
+        <source-file src="src/android/WiFiBillingAgentPlugin.java" target-dir="src/com/wifibilling/agent" />
+        <source-file src="src/android/WiFiBillingService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/GossipService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/SessionMonitorService.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/BootReceiver.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/WiFiStateReceiver.java" target-dir="src/com/wifibilling/agent" />
         <source-file src="src/android/wifiwizard2/WifiWizard2Core.java" target-dir="src/com/wifibilling/agent/wifiwizard2" />
         <source-file src="src/android/agents/CoreAgent.java" target-dir="src/com/wifibilling/agent/agents" />
-        <source-file src="src/android/agents/WifiAgent.java" target-dir="src/com/wifibilling/agent/agents" />
+        <source-file src="src/android/agents/WiFiAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/BillingAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/AuthAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/agents/NotificationAgent.java" target-dir="src/com/wifibilling/agent/agents" />
         <source-file src="src/android/protocols/GossipNode.java" target-dir="src/com/wifibilling/agent/protocols" />
         <source-file src="src/android/protocols/WebRTCDataChannel.java" target-dir="src/com/wifibilling/agent/protocols" />
         <source-file src="src/android/protocols/BluetoothMesh.java" target-dir="src/com/wifibilling/agent/protocols" />
+        <source-file src="src/android/oem/OEMWiFiAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/StandardAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/SamsungAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/XiaomiAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/OPPOAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/VivoAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/oem/HMSAdapter.java" target-dir="src/com/wifibilling/agent/oem" />
+        <source-file src="src/android/protocols/VectorClock.java" target-dir="src/com/wifibilling/agent/protocols" />
         <source-file src="src/android/utils/StateManager.java" target-dir="src/com/wifibilling/agent/utils" />
         <source-file src="src/android/utils/CryptoUtils.java" target-dir="src/com/wifibilling/agent/utils" />
         <source-file src="src/android/utils/NetworkUtils.java" target-dir="src/com/wifibilling/agent/utils" />
