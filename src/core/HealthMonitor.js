@@ -22,9 +22,26 @@ class HealthMonitor extends EventEmitter {
     this.interval = setInterval(() => this.runChecks(), intervalMs);
     
     // Setup event listeners
-    this.agent.on('interaction', () => this.metrics.interactions++);
-    this.agent.skills.on('skillLoaded', (name) => {
-      this.metrics.skillExecutions.set(name, { count: 0, errors: 0 });
+    this.agent.on?.('interaction', () => this.metrics.interactions++);
+
+    // AgentOS now exposes the canonical ToolRegistry at agent.skills. It is a
+    // store, not an EventEmitter; seed metrics from the registry instead of
+    // subscribing to the removed legacy skillLoaded event.
+    const registry = this.agent.skills;
+    const entries = typeof registry?.getAllTools === 'function'
+      ? registry.getAllTools()
+      : [];
+    for (const entry of entries) {
+      const name = entry.skill || entry.domain || entry.fullName || entry.name;
+      if (name && !this.metrics.skillExecutions.has(name)) {
+        this.metrics.skillExecutions.set(name, { count: 0, errors: 0 });
+      }
+    }
+    const runtime = this.agent.runtime;
+    runtime?.on?.('skillLoaded', (name) => {
+      if (name && !this.metrics.skillExecutions.has(name)) {
+        this.metrics.skillExecutions.set(name, { count: 0, errors: 0 });
+      }
     });
   }
 
