@@ -13,7 +13,7 @@ describe('Phase 2 Inventory specialist vertical', () => {
     const specialistRegistry = new SpecialistRegistry();
     specialistRegistry.register(INVENTORY_SPECIALIST);
     specialistRegistry.register(CATALOG_SPECIALIST);
-    const toolRegistry = new ToolRegistry({ skills: [inventorySkill] });
+    const toolRegistry = new ToolRegistry({ skills: [inventorySkill], requireExecutionTask: false });
     const store = new ExecutionStore();
     const runtime = new SpecialistRuntime({ specialistRegistry, toolRegistry, executionStore: store, idFactory: (() => { let i = 0; return () => `exec_${++i}`; })() });
     return { runtime, store, provider };
@@ -23,6 +23,7 @@ describe('Phase 2 Inventory specialist vertical', () => {
     tenantId: 'tenant-a',
     userId: 'user-1',
     permissions: ['inventory:read', 'inventory:write'],
+    authorizedCapabilities: ['inventory:read', 'inventory:write'],
     inventory: provider,
     ...extra,
   });
@@ -75,7 +76,7 @@ describe('Phase 2 Inventory specialist vertical', () => {
     const request = {
       skill: 'inventory', tool: 'inventory.reserve', ticketType: 'reserve-stock',
       args: { itemId: 'item-1', quantity: 2, idempotencyKey: 'reserve-1', evidenceRefs: ['stock-count-1'] },
-      context: contextFor(provider, { approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } }),
+      context: contextFor(provider, { approvalGranted: true, approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } }),
     };
     const first = await runtime.execute('inventory-specialist', request);
     const replay = await runtime.execute('inventory-specialist', request);
@@ -92,7 +93,7 @@ describe('Phase 2 Inventory specialist vertical', () => {
     const result = await runtime.execute('inventory-specialist', {
       skill: 'inventory', tool: 'inventory.reconcile', ticketType: 'reconcile-stock',
       args: { itemId: 'item-1', countedQuantity: 8, evidenceRefs: ['count-sheet-8'], idempotencyKey: 'reconcile-1' },
-      context: contextFor(provider, { approval: { granted: true, action: 'inventory.reconcile', tenantId: 'tenant-a' } }),
+      context: contextFor(provider, { approvalGranted: true, approval: { granted: true, action: 'inventory.reconcile', tenantId: 'tenant-a' } }),
     });
     expect(result.success).toBe(true);
     expect(result.data).toMatchObject({ corrected: true });
