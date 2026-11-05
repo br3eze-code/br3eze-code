@@ -12,7 +12,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
   function setup() {
     const specialistRegistry = new SpecialistRegistry();
     specialistRegistry.register(INVENTORY_SPECIALIST);
-    const toolRegistry = new ToolRegistry({ skills: [inventorySkill] });
+    const toolRegistry = new ToolRegistry({ skills: [inventorySkill], requireExecutionTask: false });
     const store = new ExecutionStore();
     const runtime = new SpecialistRuntime({ specialistRegistry, toolRegistry, executionStore: store });
     return { specialistRegistry, toolRegistry, runtime, store };
@@ -35,6 +35,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
         tenantId: 'tenant-a',
         userId: 'user-1',
         permissions: ['inventory:read'],
+        authorizedCapabilities: ['inventory:read'],
         inventory: { async search({ scope }) { return [{ tenantId: scope.tenantId, itemId: 'item-1' }]; } },
       },
       correlationId: 'corr-1',
@@ -58,6 +59,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
         tenantId: 'tenant-a',
         userId: 'user-1',
         permissions: [],
+        authorizedCapabilities: [],
         inventory: { async search() { called = true; return []; } },
       },
     });
@@ -77,6 +79,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
         tenantId: 'tenant-a',
         userId: 'user-1',
         permissions: ['inventory:write'],
+        authorizedCapabilities: ['inventory:write'],
         inventory: { async reserve() { throw new Error('provider should not run'); } },
       },
       ticketType: 'reserve-stock',
@@ -105,7 +108,7 @@ describe('Phase 1 specialist runtime acceptance', () => {
 
     const approved = await runtime.execute('inventory-specialist', {
       ...base,
-      context: { ...base.context, approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } },
+      context: { ...base.context, approvalGranted: true, approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } },
     });
     expect(approved.status).toBe('success');
     expect(approved.output).toMatchObject({ reservationId: 'res-1' });
