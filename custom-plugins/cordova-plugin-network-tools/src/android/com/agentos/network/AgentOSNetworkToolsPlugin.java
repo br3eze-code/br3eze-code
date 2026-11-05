@@ -8,6 +8,7 @@ import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.content.pm.PackageManager;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -21,10 +22,16 @@ import java.util.Collections;
 /** Domain-agnostic Cordova adapter for local network telemetry. */
 public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
     private static final String CONTRACT_VERSION = "1.0";
+    private static final int LOCAL_NETWORK_PERMISSION_REQUEST = 4701;
+    private CallbackContext localNetworkPermissionCallback;
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        if ("capabilities".equals(action)) { callbackContext.success(capabilities()); return true; }
+        if ("requestLocalNetworkPermission".equals(action)) {
+            requestLocalNetworkPermission(callbackContext);
+            return true;
+        }
+        if ("capabilities".equals(action)) { callbackContext.success(capabilities()); return true;
         if ("connectivity".equals(action)) { callbackContext.success(connectivity()); return true; }
         if ("interfaces".equals(action)) { callbackContext.success(interfaces()); return true; }
         if ("wifiSignalStrength".equals(action)) { WifiUtils.getSignalStrength(cordova.getContext(), callbackContext); return true; }
@@ -43,6 +50,48 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
         if ("agentRequest".equals(action)) { callbackContext.error("AgentOS network-tool execution must be authorized by the gateway"); return true; }
         callbackContext.error("Unknown action: " + action);
         return false;
+    }
+
+
+    private void requestLocalNetworkPermission(CallbackContext callbackContext) throws JSONException {
+        if (Build.VERSION.SDK_INT < 37) {
+            JSONObject result = new JSONObject();
+            result.put("required", false);
+            result.put("granted", true);
+            callbackContext.success(result);
+            return;
+        }
+
+        final String permission = "android.permission.ACCESS_LOCAL_NETWORK";
+        if (cordova.hasPermission(permission)) {
+            JSONObject result = new JSONObject();
+            result.put("required", true);
+            result.put("granted", true);
+            callbackContext.success(result);
+            return;
+        }
+
+        localNetworkPermissionCallback = callbackContext;
+        cordova.requestPermission(this, LOCAL_NETWORK_PERMISSION_REQUEST, permission);
+    }
+
+    @Override
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionResult(requestCode, permissions, grantResults);
+        if (requestCode != LOCAL_NETWORK_PERMISSION_REQUEST || localNetworkPermissionCallback == null) return;
+
+        CallbackContext callback = localNetworkPermissionCallback;
+        localNetworkPermissionCallback = null;
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        try {
+            JSONObject result = new JSONObject();
+            result.put("required", true);
+            result.put("granted", granted);
+            if (granted) callback.success(result);
+            else callback.error(result);
+        } catch (JSONException error) {
+            callback.error("Could not report local network permission result");
+        }
     }
 
     private JSONObject capabilities() throws JSONException {
