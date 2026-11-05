@@ -9,8 +9,8 @@
     <content src="index.html" />
     <access origin="*" />
 
-    <hook src="scripts/minify-and-obfuscate.js" type="after_prepare" />
-    <hook src="scripts/ensure-signing.js" type="before_compile" />
+    <hook src="scripts/cordova-hooks/minify-and-obfuscate.js" type="after_prepare" />
+    <hook src="scripts/cordova-hooks/ensure-signing.js" type="before_compile" />
 
     <!-- Do not lock the app to portrait. Android 16+ may ignore orientation
          restrictions on large screens; allowing responsive layouts avoids a
