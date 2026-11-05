@@ -7,7 +7,7 @@ export function configureHttpApplication({
     helmet,
     cors,
     staticDirectory,
-    jsonLimit = '1mb'
+    jsonLimit = process.env.AGENTOS_JSON_LIMIT || '2mb'
 }) {
     if (typeof express !== 'function' || typeof express.json !== 'function' || typeof express.static !== 'function') {
         throw new TypeError('configureHttpApplication requires an Express factory with json() and static() middleware');
