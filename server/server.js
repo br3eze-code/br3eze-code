@@ -43,11 +43,38 @@ import { registerOrderTrackingRoutes } from './src/domains/commerce/order-tracki
 // §2 LOGGER
 // ============================================================
 
+const REDACTED_LOG_VALUE = '[REDACTED]';
+const SENSITIVE_LOG_FIELD = /authorization|cookie|password|secret|token|api[_-]?key|client[_-]?secret|private[_-]?key|refresh[_-]?token/i;
+
+function redactLogValue(value, fieldName = '') {
+    if (SENSITIVE_LOG_FIELD.test(fieldName)) return REDACTED_LOG_VALUE;
+    if (typeof value === 'string') {
+        return value
+            .replace(/\\bBearer\\s+[A-Za-z0-9._~+\\/=:-]+/gi, 'Bearer [REDACTED]')
+            .replace(/\\b(sk_(?:live|test)_)[A-Za-z0-9]+/gi, '$1[REDACTED]')
+            .replace(/\\b(sb_(?:secret|publishable)_)[A-Za-z0-9_-]+/gi, '$1[REDACTED]')
+            .replace(/([?&](?:token|key|secret|password)=)[^&\\s]+/gi, '$1[REDACTED]');
+    }
+    if (Array.isArray(value)) return value.map((item) => redactLogValue(item));
+    if (value && typeof value === 'object') {
+        const result = {};
+        for (const [key, item] of Object.entries(value)) result[key] = redactLogValue(item, key);
+        return result;
+    }
+    return value;
+}
+
+const redactSensitiveLogData = winston.format((info) => {
+    for (const key of Object.keys(info)) info[key] = redactLogValue(info[key], key);
+    return info;
+});
+
 const logger = winston.createLogger({
     level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.errors({ stack: true }),
+        redactSensitiveLogData(),
         winston.format.json()
     ),
     transports: [
