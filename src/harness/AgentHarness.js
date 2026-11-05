@@ -156,13 +156,25 @@ class AgentHarness extends EventEmitter {
           : async (params, ctx) => adapter.execute({ tool: tName, params, ...ctx }),
       }));
 
+      const registerOnce = (tool) => {
+        const fullName = tool.fullName || tool.name;
+        const existing = this._runtime.toolRegistry?.getTool?.(fullName);
+        if (existing) {
+          if (existing.domain === id) return; // Same canonical domain already registered by another harness lifecycle.
+          throw new Error(`Tool "${fullName}" is already owned by domain "${existing.domain || 'unknown'}"`);
+        }
+        this._runtime.registerTool(tool);
+      };
+
       if (toolDefs.length) {
-        for (const tool of toolDefs) this._runtime.registerTool({ ...tool, fullName: tool.name.includes('.') ? tool.name : id + '.' + tool.name, domain: id });
+        for (const tool of toolDefs) {
+          registerOnce({ ...tool, fullName: tool.name.includes('.') ? tool.name : id + '.' + tool.name, domain: id });
+        }
       } else if (typeof adapter.execute === 'function') {
         for (const capability of adapter.getCapabilities()) {
           const name = capability.name || capability.id;
           if (!name) continue;
-          this._runtime.registerTool({
+          registerOnce({
             name, fullName: id + '.' + name, domain: id,
             description: capability.description || '',
             parameters: capability.parameters || {}, risk: capability.risk || 'low',
