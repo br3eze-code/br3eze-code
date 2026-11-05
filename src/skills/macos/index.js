@@ -165,7 +165,9 @@ class MacOSSkill extends BaseSkill {
 
         case 'mac.process.list':
           const sortKey = args.sort === 'mem'? '-m' : '-r'
-          const ps = await this._exec(args.host, `ps aux ${sortKey} | head -n ${(args.top || 10) + 1}`)
+          const top = args.top === undefined ? 10 : Number(args.top)
+          if (!Number.isInteger(top) || top < 1 || top > 50) throw new TypeError('top must be an integer between 1 and 50')
+          const ps = await this._exec(args.host, `ps aux ${sortKey} | head -n ${top + 1}`)
           const lines = ps.split('\n').slice(1)
           return lines.map(l => {
             const p = l.trim().split(/\s+/)
