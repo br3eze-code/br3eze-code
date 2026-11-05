@@ -36,6 +36,10 @@ const invoke = (action, payload = {}) => {
 };
 
 const NetworkTools = {
+  requestLocalNetworkPermission() {
+    return invoke('requestLocalNetworkPermission');
+  },
+
   capabilities() {
     return invoke('capabilities');
   },
