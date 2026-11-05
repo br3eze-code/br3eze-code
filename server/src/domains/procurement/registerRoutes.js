@@ -20,6 +20,7 @@ function errorResponse(res, error) {
     SUPPLIER_NOT_ACTIVE: 409,
     SUPPLIER_API_NOT_CONFIGURED: 503,
     SUPPLIER_ORDER_CONFLICT: 409,
+    SUPPLIER_IDEMPOTENCY_CONFLICT: 409,
     SUPPLIER_SUBMISSION_UNKNOWN: 202,
   }[code] || (/required|must be|invalid|not found|outside the authorized|scope/.test(error?.message || '') ? 400 : 500));
   return res.status(status).json({
@@ -32,14 +33,14 @@ function errorResponse(res, error) {
 
 async function authenticatedScope(req, db) {
   const userId = req.user?.id;
-  if (!userId) throw Object.assign(new Error('Authenticated user identity is missing'), { status: 401 });
+  if (!userId) throw Object.assign(new Error('Authentication is required to access this resource.'), { status: 401 });
   const profileSnap = await db.collection('users').doc(String(userId)).get();
-  if (!profileSnap.exists) throw Object.assign(new Error('User profile not found'), { status: 403 });
+  if (!profileSnap.exists) throw Object.assign(new Error('The authenticated account is not configured for procurement access.'), { status: 403 });
   const profile = profileSnap.data();
   const tenantId = profile.tenantId || profile.organizationId;
   const projectId = profile.projectId || profile.defaultProjectId;
   if (!tenantId || !projectId) {
-    throw Object.assign(new Error('User profile must define tenantId and projectId before supplier provisioning'), { status: 403 });
+    throw Object.assign(new Error('The account must be assigned to an organization and project before procurement can proceed.'), { status: 403 });
   }
   return { tenantId: String(tenantId), projectId: String(projectId), userId: String(userId), profile };
 }
@@ -48,7 +49,7 @@ function requireProcurementRead(req) {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
   if (!roles.includes('ADMIN') && !permissions.includes('procurement:read') && !permissions.includes('procurement:write')) {
-    throw Object.assign(new Error('Procurement read permission is required'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
+    throw Object.assign(new Error('Your account does not have permission to view procurement information.'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
   }
 }
 
@@ -56,7 +57,7 @@ function requireProcurementWrite(req) {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
   if (!roles.includes('ADMIN') && !permissions.includes('procurement:write')) {
-    throw Object.assign(new Error('Procurement write permission is required'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
+    throw Object.assign(new Error('Your account does not have permission to create or update procurement requests.'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
   }
 }
 
@@ -223,7 +224,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
     try {
       const scope = await authenticatedScope(req, db);
       const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
-      if (!roles.includes('ADMIN')) return res.status(403).json({ error: 'ADMIN approval is required' });
+      if (!roles.includes('ADMIN')) return res.status(403).json({ error: 'Only an authorized administrator may approve a purchase proposal.' });
       const proposalRef = db.collection('supplierOrderProposals').doc(String(req.params.orderId));
       const proposalSnap = await proposalRef.get();
       if (!proposalSnap.exists) return res.status(404).json({ error: 'Purchase proposal not found' });
