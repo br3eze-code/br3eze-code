@@ -17,7 +17,7 @@ describe('MikroTikMeshRegistry', () => {
   });
 
   test('requires confirmation for mutations and executes read-only tools', async () => {
-    const mesh = new MikroTikMeshRegistry({ managerFactory: makeManager });
+    const mesh = new MikroTikMeshRegistry({ managerFactory: makeManager, readOnlyTools: ['system.health'] });
     mesh.register({ id: 'site-1', host: '10.20.0.1', tenantId: 'tenant-a' });
     await expect(mesh.execute('site-1', 'firewall.block', {}, { tenantId: 'tenant-a' }))
       .rejects.toMatchObject({ code: 'MESH_CONFIRMATION_REQUIRED' });
