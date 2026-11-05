@@ -95,7 +95,7 @@ __defs[1] = function(module, exports){
 // standard global objects
 // https://github.com/soldair/node-qrcode/issues/157
 
-export default function () {
+module.exports = function () {
   return typeof Promise === 'function' && Promise.prototype && Promise.prototype.then
 }
 
@@ -754,7 +754,7 @@ BitBuffer.prototype = {
   }
 }
 
-export default BitBuffer
+module.exports = BitBuffer
 
 };
 __defs[6] = function(module, exports){
@@ -822,7 +822,7 @@ BitMatrix.prototype.isReserved = function (row, col) {
   return this.reservedBit[row * this.size + col]
 }
 
-export default BitMatrix
+module.exports = BitMatrix
 
 };
 __defs[7] = function(module, exports){
@@ -1367,7 +1367,7 @@ ReedSolomonEncoder.prototype.encode = function encode (data) {
   return remainder
 }
 
-export default ReedSolomonEncoder
+module.exports = ReedSolomonEncoder
 
 };
 __defs[12] = function(module, exports){
@@ -2297,7 +2297,7 @@ NumericData.prototype.write = function write (bitBuffer) {
   }
 }
 
-export default NumericData
+module.exports = NumericData
 
 };
 __defs[21] = function(module, exports){
@@ -2359,7 +2359,7 @@ AlphanumericData.prototype.write = function write (bitBuffer) {
   }
 }
 
-export default AlphanumericData
+module.exports = AlphanumericData
 
 };
 __defs[22] = function(module, exports){
@@ -2392,7 +2392,7 @@ ByteData.prototype.write = function (bitBuffer) {
   }
 }
 
-export default ByteData
+module.exports = ByteData
 
 };
 __defs[23] = function(module, exports){
@@ -2449,7 +2449,7 @@ KanjiData.prototype.write = function (bitBuffer) {
   }
 }
 
-export default KanjiData
+module.exports = KanjiData
 
 };
 __defs[24] = function(module, exports){
