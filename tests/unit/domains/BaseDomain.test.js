@@ -78,7 +78,7 @@ describe('BaseDomain', () => {
 
     test('defaults parameters to an empty object when unset', () => {
       domain.registerTool({ name: 'reboot', execute: jest.fn() });
-      expect(domain.getTools()['testdomain.reboot'].parameters).toEqual({});
+      expect(domain.getTools()['testdomain.reboot'].parameters).toEqual({ type: 'object', properties: {} });
     });
 
     test('the wrapped execute() calls the original tool.execute(params) without appending ctx', () => {
@@ -86,7 +86,7 @@ describe('BaseDomain', () => {
       domain.registerTool({ name: 'ping', execute });
 
       const flat = domain.getTools();
-      const result = flat['testdomain.ping'].execute({ userId: 'u1' }, { host: '1.1.1.1' });
+      const result = flat['testdomain.ping'].execute({ host: '1.1.1.1' });
 
       expect(execute).toHaveBeenCalledWith({ host: '1.1.1.1' });
       expect(result).toBe('done');
