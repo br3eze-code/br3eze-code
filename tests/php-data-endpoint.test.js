@@ -24,6 +24,9 @@ describe('PHP data endpoint contract', () => {
 
   test('frontend routes product reads through DataStore', () => {
     expect(read('www/js/shop.js')).toMatch(/this\.products\s*=\s*await DataStore\.query\('products'/);
-    expect(read('www/js/06.firebase.js')).toContain("apiData('products')");
+    const firebaseAdapter = read('www/js/06.firebase.js');
+    expect(firebaseAdapter).toContain('window.DataStore = firebaseDataAdapter');
+    expect(firebaseAdapter).toContain('query(collectionName');
+    expect(firebaseAdapter).not.toContain("apiData('products')");
   });
 });
