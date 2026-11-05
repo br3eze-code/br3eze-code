@@ -6,6 +6,7 @@ function approvedReserveContext(runtime, extra = {}) {
   const context = {
     tenantId: 'tenant-1',
     permissions: ['inventory:reserve'],
+    authorizedCapabilities: ['inventory:reserve', 'inventory:read', 'inventory:write'],
     ...extra,
   };
   const pending = runtime.approvalGate.inspect({
@@ -17,7 +18,7 @@ function approvedReserveContext(runtime, extra = {}) {
     approvedBy: 'manager-1',
     tenantId: 'tenant-1',
   });
-  return { ...context, approval: { approvalId: approval.approvalId, status: 'approved' } };
+  return { ...context, approvalGranted: true, approval: { approvalId: approval.approvalId, status: 'APPROVED', action: 'inventory.reserve', tenantId: 'tenant-1' } };
 }
 
 describe('Inventory Specialist Phase 1 vertical', () => {
