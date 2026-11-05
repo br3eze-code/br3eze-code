@@ -116,7 +116,14 @@ class ToolRegistry {
     if (typeof toolDef.execute !== 'function' && typeof toolDef.handler !== 'function') throw new TypeError(`Tool "${fullName}" must provide execute() or handler()`);
     const [domain] = fullName.split('.');
     const handler = toolDef.handler || toolDef.execute;
-    const schema = toolDef.schema || {};
+    // Normalize both defineTool-style top-level metadata and legacy nested schemas.
+    // Explicit nested schema values win when both forms provide the same field.
+    const schema = {
+      ...(toolDef.description !== undefined ? { description: toolDef.description } : {}),
+      ...(toolDef.parameters !== undefined ? { parameters: toolDef.parameters } : {}),
+      ...(toolDef.returns !== undefined ? { returns: toolDef.returns } : {}),
+      ...(toolDef.schema || {}),
+    };
     const capability = describeCapability({
       id: toolDef.capabilityId || fullName,
       domain: toolDef.domain || domain,
