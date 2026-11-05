@@ -223,8 +223,13 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       };
       await db.runTransaction(async (tx) => {
         const current = await tx.get(proposalRef);
-        if (!current.exists || current.data().status !== 'PENDING_APPROVAL') {
-          throw Object.assign(new Error('Proposal is no longer pending approval'), { status: 409 });
+        const currentProposal = current.exists ? current.data() : null;
+        if (!currentProposal || currentProposal.status !== 'PENDING_APPROVAL' ||
+            currentProposal.tenantId !== scope.tenantId ||
+            currentProposal.projectId !== scope.projectId ||
+            currentProposal.action !== 'purchase.order' ||
+            currentProposal.requestedBy === scope.userId) {
+          throw Object.assign(new Error('Proposal is no longer eligible for approval in this scope'), { status: 409 });
         }
         tx.create(approvalRef, approval);
         tx.update(proposalRef, { status: 'APPROVED', approvalId: approvalRef.id, approvedBy: scope.userId, approvedAt: now, updatedAt: now });
