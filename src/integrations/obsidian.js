@@ -40,13 +40,18 @@ function extractGraph(markdown) {
   return { links: [...links].sort(), tags: [...tags].sort() };
 }
 
-function hasApproval(context) {
-  return context?.approval?.approved === true || context?.approval?.status === 'approved';
+function hasApproval(context, action) {
+  const approval = context?.approval || {};
+  if (approval.approved === true || approval.status === 'approved') return true;
+  const tenantId = context?.scope?.tenantId ?? context?.tenantId ?? null;
+  return approval.granted === true
+    && approval.action === action
+    && approval.tenantId === tenantId;
 }
 
-function assertIdentity(context, mutation = false) {
+function assertIdentity(context, mutation = false, action = null) {
   if (!context?.userId) throw new Error('authenticated identity required');
-  if (mutation && !hasApproval(context)) throw new Error('approved context required for Obsidian mutation');
+  if (mutation && !hasApproval(context, action)) throw new Error('approved context required for Obsidian mutation');
 }
 
 export class ObsidianVaultAdapter {
@@ -79,8 +84,8 @@ export class ObsidianVaultAdapter {
     return { path: safe, content };
   }
 
-  async writeNote(relativePath, content, context = {}) {
-    assertIdentity(context, true);
+  async writeNote(relativePath, content, context = {}, approvalAction = 'workspace.obsidian.write_note') {
+    assertIdentity(context, true, approvalAction);
     if (typeof content !== 'string') throw new TypeError('note content must be a string');
     const { safe, target } = this.resolve(relativePath);
     await this.fileSystem.mkdir(path.dirname(target), { recursive: true });
@@ -105,8 +110,8 @@ export class ObsidianVaultAdapter {
   }
 
   async create(relativePath, content = '', context = {}, { vault, overwrite = false } = {}) {
-    assertIdentity(context, true);
-    const result = await this.writeNote(relativePath, content, context);
+    assertIdentity(context, true, 'workspace.obsidian.create_note');
+    const result = await this.writeNote(relativePath, content, context, 'workspace.obsidian.create_note');
     const uri = createObsidianUri('new', { vault, file: result.path, content, overwrite });
     if (this.uriOpener) await this.uriOpener(uri);
     return { ...result, uri };
