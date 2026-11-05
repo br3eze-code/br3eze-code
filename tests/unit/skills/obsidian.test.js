@@ -43,7 +43,7 @@ describe('domain-neutral Obsidian skill', () => {
   });
 
   test('requires approval for agent mutations', async () => {
-    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const registry = new ToolRegistry({ requireExecutionTask: false }); registry.registerSkill(obsidianSkill);
     const result = await registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
     expect(result).toMatchObject({ status: 'approval_required', action: 'workspace.obsidian.write_note', approvalRequired: true });
     await expect(fs.access(path.join(root, 'new.md'))).rejects.toThrow();
@@ -58,7 +58,7 @@ describe('domain-neutral Obsidian skill', () => {
   });
 
   test('supports injected adapters without environment or hardcoded vault paths', async () => {
-    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const registry = new ToolRegistry({ requireExecutionTask: false }); registry.registerSkill(obsidianSkill);
     const result = await registry.execute('workspace.obsidian.status', {}, { ...baseContext, obsidianAdapter: adapter });
     expect(result).toMatchObject({ available: true, scope: expect.objectContaining(baseContext.scope) });
   });
