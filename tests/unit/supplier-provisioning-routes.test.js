@@ -164,7 +164,7 @@ describe('supplier provisioning HTTP boundary', () => {
     const submit = app.routes.post.get('/api/v1/shop/supplier-orders');
     const proposeRes = makeResponse();
     await submit({
-      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:read'] },
+      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:write'] },
       body: { productId: 'product-a', quantity: 2, idempotencyKey: 'order-flow-1' },
       get: () => undefined,
     }, proposeRes);
