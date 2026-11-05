@@ -191,6 +191,40 @@ describe('supplier provisioning HTTP boundary', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+
+  test('returns the original proposal on replay and rejects key reuse with changed details', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: { 'user-a': { tenantId: 'tenant-a', projectId: 'project-a' } },
+      products: records.products,
+    };
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      env: { NODE_ENV: 'test' },
+    });
+    const submit = app.routes.post.get('/api/v1/shop/supplier-orders');
+    const request = {
+      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:write'] },
+      body: { productId: 'product-a', quantity: 3, idempotencyKey: 'stable-proposal-key' },
+      get: () => undefined,
+    };
+    const first = makeResponse();
+    await submit(request, first);
+    const replay = makeResponse();
+    await submit(request, replay);
+    expect(first.statusCode).toBe(202);
+    expect(replay.statusCode).toBe(202);
+    expect(replay.body.replay).toBe(true);
+    expect(replay.body.proposal.proposalId).toBe(first.body.proposal.proposalId);
+    expect(Object.keys(dbRecords.supplierOrderProposals)).toHaveLength(1);
+
+    const conflicting = makeResponse();
+    await submit({ ...request, body: { ...request.body, quantity: 4 } }, conflicting);
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.body.code).toBe('SUPPLIER_IDEMPOTENCY_CONFLICT');
+    expect(Object.keys(dbRecords.supplierOrderProposals)).toHaveLength(1);
+  });
+
   test('rejects purchase proposals from identities without procurement write permission', async () => {
     const app = makeApp();
     const dbRecords = {
