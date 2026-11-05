@@ -37,10 +37,8 @@ export function configureHttpApplication({
     const allowedOrigins = new Set([
         'https://br3eze.africa',
         'https://www.br3eze.africa',
-        'https://br3eze-code.vercel.app',
-        'https://localhost',
-        'http://localhost',
-        ...configuredOrigins
+        ...configuredOrigins,
+        ...(process.env.NODE_ENV === 'production' ? [] : ['https://localhost', 'http://localhost'])
     ]);
     app.use(cors({
         origin(origin, callback) {
