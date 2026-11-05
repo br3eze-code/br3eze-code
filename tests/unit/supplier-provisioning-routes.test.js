@@ -147,6 +147,50 @@ describe('supplier provisioning HTTP boundary', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  test('persists proposals and requires a separate scoped approver before execution', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: {
+        'user-a': { tenantId: 'tenant-a', projectId: 'project-a' },
+        'user-b': { tenantId: 'tenant-a', projectId: 'project-a' },
+      },
+      products: records.products,
+    };
+    const fetchImpl = jest.fn();
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      fetchImpl, env: { NODE_ENV: 'test' },
+    });
+    const submit = app.routes.post.get('/api/v1/shop/supplier-orders');
+    const proposeRes = makeResponse();
+    await submit({
+      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:read'] },
+      body: { productId: 'product-a', quantity: 2, idempotencyKey: 'order-flow-1' },
+      get: () => undefined,
+    }, proposeRes);
+    expect(proposeRes.statusCode).toBe(202);
+    const proposalId = proposeRes.body.proposal.proposalId;
+    expect(dbRecords.supplierOrderProposals[proposalId].status).toBe('PENDING_APPROVAL');
+
+    const approve = app.routes.post.get('/api/v1/shop/supplier-orders/:orderId/approval');
+    const selfApproval = makeResponse();
+    await approve({
+      user: { id: 'user-a', roles: ['ADMIN'] },
+      params: { orderId: proposalId },
+    }, selfApproval);
+    expect(selfApproval.statusCode).toBe(403);
+
+    const approvalRes = makeResponse();
+    await approve({
+      user: { id: 'user-b', roles: ['ADMIN'] },
+      params: { orderId: proposalId },
+    }, approvalRes);
+    expect(approvalRes.statusCode).toBe(201);
+    expect(dbRecords.supplierOrderProposals[proposalId].status).toBe('APPROVED');
+    expect(dbRecords.supplierOrderProposals[proposalId].approvalId).toBe(approvalRes.body.approvalId);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   test('accepts only HTTPS supplier reference links without embedded credentials', () => {
     expect(safeReferenceUrl('https://supplier.example/product')).toBe('https://supplier.example/product');
     expect(safeReferenceUrl('http://supplier.example/product')).toBeNull();
