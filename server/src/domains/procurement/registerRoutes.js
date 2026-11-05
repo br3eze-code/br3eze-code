@@ -60,12 +60,12 @@ function requireProcurementWrite(req) {
   }
 }
 
-async function loadApproval(db, approvalId, scope, action = 'purchase.order') {
+async function loadApproval(db, approvalId, scope, action = 'purchase.order', proposalId = null) {
   if (!approvalId) return null;
   const snap = await db.collection('supplierApprovals').doc(String(approvalId)).get();
   if (!snap.exists) throw Object.assign(new Error('Supplier approval not found'), { code: 'SUPPLIER_APPROVAL_REQUIRED' });
   const record = snap.data();
-  if (record.status !== 'APPROVED' || record.tenantId !== scope.tenantId || record.projectId !== scope.projectId || record.action !== action) {
+  if (record.status !== 'APPROVED' || record.tenantId !== scope.tenantId || record.projectId !== scope.projectId || record.action !== action || (proposalId && record.proposalId !== proposalId)) {
     throw Object.assign(new Error('Approval is not approved for this tenant, project, and action'), { code: 'SUPPLIER_APPROVAL_SCOPE_MISMATCH' });
   }
   return { ...record, approvalId: snap.id };
@@ -117,7 +117,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
     try {
       requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
-      const { productId, quantity, approvalId } = req.body || {};
+      const { productId, quantity, approvalId, proposalId } = req.body || {};
       const qty = Number(quantity);
       if (typeof productId !== 'string' || !productId.trim() || !Number.isSafeInteger(qty) || qty <= 0 || qty > 100000) {
         return res.status(400).json({ error: 'productId and quantity (1..100000) are required' });
@@ -172,8 +172,21 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
         });
       }
       requireProcurementWrite(req);
-      const approval = await loadApproval(db, approvalId, scope);
-      const result = await makeService().createPurchaseOrder({ request, scope, approval, idempotencyKey });
+      if (typeof proposalId !== 'string' || !proposalId.trim()) {
+        return res.status(400).json({ error: 'proposalId from the persisted proposal is required for approved submission' });
+      }
+      const proposalSnap = await db.collection('supplierOrderProposals').doc(proposalId).get();
+      if (!proposalSnap.exists) return res.status(404).json({ error: 'Persisted purchase proposal not found' });
+      const proposal = proposalSnap.data();
+      if (proposal.status !== 'APPROVED' || proposal.tenantId !== scope.tenantId || proposal.projectId !== scope.projectId ||
+          proposal.productId !== productId || proposal.lines?.[0]?.quantity !== qty ||
+          proposal.lines?.[0]?.unitPrice !== unitPrice || proposal.supplierId !== supplierId ||
+          proposal.idempotencyKey !== idempotencyKey) {
+        return res.status(409).json({ error: 'Submission does not match the approved persisted proposal' });
+      }
+      const approval = await loadApproval(db, approvalId, scope, 'purchase.order', proposalId);
+      if (proposal.approvalId !== approvalId) return res.status(403).json({ error: 'Approval does not match the proposal' });
+      const result = await makeService().createPurchaseOrder({ request: { ...request, orderId: proposal.orderId }, scope, approval, idempotencyKey });
       return res.status(result.replay ? 200 : 201).json({ ...result, supplierReferenceUrl });
     } catch (error) { return errorResponse(res, error); }
   });
