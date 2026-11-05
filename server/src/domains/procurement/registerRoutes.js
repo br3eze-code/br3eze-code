@@ -20,6 +20,7 @@ function errorResponse(res, error) {
     SUPPLIER_NOT_ACTIVE: 409,
     SUPPLIER_API_NOT_CONFIGURED: 503,
     SUPPLIER_ORDER_CONFLICT: 409,
+    SUPPLIER_IDEMPOTENCY_CONFLICT: 409,
     SUPPLIER_SUBMISSION_UNKNOWN: 202,
   }[code] || (/required|must be|invalid|not found|outside the authorized|scope/.test(error?.message || '') ? 400 : 500));
   return res.status(status).json({
@@ -32,14 +33,14 @@ function errorResponse(res, error) {
 
 async function authenticatedScope(req, db) {
   const userId = req.user?.id;
-  if (!userId) throw Object.assign(new Error('Authenticated user identity is missing'), { status: 401 });
+  if (!userId) throw Object.assign(new Error('Authentication is required to access this resource.'), { status: 401 });
   const profileSnap = await db.collection('users').doc(String(userId)).get();
-  if (!profileSnap.exists) throw Object.assign(new Error('User profile not found'), { status: 403 });
+  if (!profileSnap.exists) throw Object.assign(new Error('The authenticated account is not configured for procurement access.'), { status: 403 });
   const profile = profileSnap.data();
   const tenantId = profile.tenantId || profile.organizationId;
   const projectId = profile.projectId || profile.defaultProjectId;
   if (!tenantId || !projectId) {
-    throw Object.assign(new Error('User profile must define tenantId and projectId before supplier provisioning'), { status: 403 });
+    throw Object.assign(new Error('The account must be assigned to an organization and project before procurement can proceed.'), { status: 403 });
   }
   return { tenantId: String(tenantId), projectId: String(projectId), userId: String(userId), profile };
 }
@@ -48,7 +49,7 @@ function requireProcurementRead(req) {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
   if (!roles.includes('ADMIN') && !permissions.includes('procurement:read') && !permissions.includes('procurement:write')) {
-    throw Object.assign(new Error('Procurement read permission is required'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
+    throw Object.assign(new Error('Your account does not have permission to view procurement information.'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
   }
 }
 
@@ -56,16 +57,16 @@ function requireProcurementWrite(req) {
   const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
   const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
   if (!roles.includes('ADMIN') && !permissions.includes('procurement:write')) {
-    throw Object.assign(new Error('Procurement write permission is required'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
+    throw Object.assign(new Error('Your account does not have permission to create or update procurement requests.'), { status: 403, code: 'PROCUREMENT_PERMISSION_REQUIRED' });
   }
 }
 
-async function loadApproval(db, approvalId, scope, action = 'purchase.order') {
+async function loadApproval(db, approvalId, scope, action = 'purchase.order', proposalId = null) {
   if (!approvalId) return null;
   const snap = await db.collection('supplierApprovals').doc(String(approvalId)).get();
   if (!snap.exists) throw Object.assign(new Error('Supplier approval not found'), { code: 'SUPPLIER_APPROVAL_REQUIRED' });
   const record = snap.data();
-  if (record.status !== 'APPROVED' || record.tenantId !== scope.tenantId || record.projectId !== scope.projectId || record.action !== action) {
+  if (record.status !== 'APPROVED' || record.tenantId !== scope.tenantId || record.projectId !== scope.projectId || record.action !== action || (proposalId && record.proposalId !== proposalId)) {
     throw Object.assign(new Error('Approval is not approved for this tenant, project, and action'), { code: 'SUPPLIER_APPROVAL_SCOPE_MISMATCH' });
   }
   return { ...record, approvalId: snap.id };
@@ -117,7 +118,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
     try {
       requireProcurementRead(req);
       const scope = await authenticatedScope(req, db);
-      const { productId, quantity, approvalId } = req.body || {};
+      const { productId, quantity, approvalId, proposalId } = req.body || {};
       const qty = Number(quantity);
       if (typeof productId !== 'string' || !productId.trim() || !Number.isSafeInteger(qty) || qty <= 0 || qty > 100000) {
         return res.status(400).json({ error: 'productId and quantity (1..100000) are required' });
@@ -132,36 +133,135 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       if (!supplierId || !supplierReferenceUrl || !Number.isFinite(unitPrice) || unitPrice < 0) {
         return res.status(409).json({ error: 'Product requires supplierId, HTTPS supplierReferenceUrl, and supplierUnitCost before provisioning' });
       }
-      const request = {
-        orderId: `po-${crypto.randomUUID()}`,
+      const idempotencyKey = String(req.get('idempotency-key') || req.body?.idempotencyKey || '').trim();
+      if (!idempotencyKey || idempotencyKey.length > 200) return res.status(400).json({ error: 'A valid idempotency key is required in the Idempotency-Key header or request body (maximum 200 characters).' });
+      const requestFingerprint = crypto.createHash('sha256').update(JSON.stringify({
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        requestedBy: scope.userId,
+        productId,
+        quantity: qty,
         supplierId,
-        lines: [{
-          productId,
-          quantity: qty,
-          unitPrice,
-          currency,
-          supplierSku: product.supplierSku || null,
-          supplierReferenceUrl,
-        }],
+        unitPrice,
+        currency,
+        supplierSku: product.supplierSku || null,
+        supplierReferenceUrl,
+        requiredAcceptanceEvidence: ['receipt_inspection', 'customer_acceptance'],
+      })).digest('hex');
+      const proposalIdForKey = crypto.createHash('sha256')
+        .update([scope.tenantId, scope.projectId, scope.userId, idempotencyKey].join(':'))
+        .digest('hex');
+      const proposalRefForKey = db.collection('supplierOrderProposals').doc(proposalIdForKey);
+      const request = {
+        orderId: `po-${proposalIdForKey}`,
+        supplierId,
+        lines: [{ productId, quantity: qty, unitPrice, currency, supplierSku: product.supplierSku || null, supplierReferenceUrl }],
         requiredAcceptanceEvidence: ['receipt_inspection', 'customer_acceptance'],
       };
-      const idempotencyKey = String(req.get('idempotency-key') || req.body?.idempotencyKey || '').trim();
-      if (!idempotencyKey || idempotencyKey.length > 200) return res.status(400).json({ error: 'An idempotency-key header or idempotencyKey is required (max 200 characters)' });
       if (!approvalId) {
-        return res.status(202).json({
-          status: 'approval_required',
+        requireProcurementWrite(req);
+        const proposal = {
+          ...request,
+          proposalId: proposalIdForKey,
+          requestFingerprint,
+          status: 'PENDING_APPROVAL',
           action: 'purchase.order',
           tenantId: scope.tenantId,
           projectId: scope.projectId,
+          requestedBy: scope.userId,
           idempotencyKey,
-          proposal: { ...request, estimatedTotal: Number((qty * unitPrice).toFixed(2)), supplierReferenceUrl },
-          externalSupplierCalled: false,
-        });
+          estimatedTotal: Number((qty * unitPrice).toFixed(2)),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        // Replays return the original proposal; a reused key cannot alter an existing request.
+        try {
+          await proposalRefForKey.create(proposal);
+        } catch (error) {
+          const existingSnap = await proposalRefForKey.get();
+          if (!existingSnap.exists) throw error;
+          const existing = existingSnap.data();
+          if (existing.requestFingerprint !== requestFingerprint) {
+            return res.status(409).json({ error: 'This idempotency key is already associated with a different purchase request.', code: 'SUPPLIER_IDEMPOTENCY_CONFLICT' });
+          }
+          return res.status(202).json({ status: 'approval_required', action: 'purchase.order', proposal: existing, externalSupplierCalled: false, replay: true });
+        }
+        return res.status(202).json({ status: 'approval_required', action: 'purchase.order', proposal, externalSupplierCalled: false });
       }
       requireProcurementWrite(req);
-      const approval = await loadApproval(db, approvalId, scope);
-      const result = await makeService().createPurchaseOrder({ request, scope, approval, idempotencyKey });
-      return res.status(result.replay ? 200 : 201).json({ ...result, supplierReferenceUrl });
+      if (typeof proposalId !== 'string' || !proposalId.trim()) {
+        return res.status(400).json({ error: 'The persisted proposal ID is required for approved submission.' });
+      }
+      const proposalSnap = await db.collection('supplierOrderProposals').doc(proposalId).get();
+      if (!proposalSnap.exists) return res.status(404).json({ error: 'The purchase proposal was not found.' });
+      const proposal = proposalSnap.data();
+      if (proposal.proposalId !== proposalId || proposal.status !== 'APPROVED' ||
+          proposal.tenantId !== scope.tenantId || proposal.projectId !== scope.projectId ||
+          proposal.requestedBy !== scope.userId || proposal.requestFingerprint !== requestFingerprint ||
+          proposal.lines?.length !== 1 || proposal.lines[0]?.productId !== productId ||
+          proposal.lines[0]?.quantity !== qty || proposal.lines[0]?.unitPrice !== unitPrice ||
+          proposal.lines[0]?.currency !== currency || (proposal.lines[0]?.supplierSku || null) !== (product.supplierSku || null) ||
+          proposal.lines[0]?.supplierReferenceUrl !== supplierReferenceUrl ||
+          proposal.supplierId !== supplierId || proposal.idempotencyKey !== idempotencyKey) {
+        return res.status(409).json({ error: 'The request differs from the approved proposal or the proposal is no longer eligible for submission.' });
+      }
+      const approval = await loadApproval(db, approvalId, scope, 'purchase.order', proposalId);
+      if (proposal.approvalId !== approvalId) return res.status(403).json({ error: 'The approval record does not match this proposal.' });
+      const approvedRequest = {
+        orderId: proposal.orderId,
+        supplierId: proposal.supplierId,
+        lines: proposal.lines,
+        requiredAcceptanceEvidence: proposal.requiredAcceptanceEvidence,
+      };
+      const result = await makeService().createPurchaseOrder({ request: approvedRequest, scope, approval, idempotencyKey });
+      return res.status(result.replay ? 200 : 201).json({ ...result, supplierReferenceUrl: proposal.lines[0].supplierReferenceUrl });
+    } catch (error) { return errorResponse(res, error); }
+  });
+
+  // Approval is a separate, explicit human action against a persisted proposal.
+  // Only ADMIN may approve; approval is scoped to the same tenant/project and proposal.
+  app.post('/api/v1/shop/supplier-orders/:orderId/approval', authMiddleware, async (req, res) => {
+    try {
+      const scope = await authenticatedScope(req, db);
+      const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+      if (!roles.includes('ADMIN')) return res.status(403).json({ error: 'Only an authorized administrator may approve a purchase proposal.' });
+      const proposalRef = db.collection('supplierOrderProposals').doc(String(req.params.orderId));
+      const proposalSnap = await proposalRef.get();
+      if (!proposalSnap.exists) return res.status(404).json({ error: 'Purchase proposal not found' });
+      const proposal = proposalSnap.data();
+      if (proposal.tenantId !== scope.tenantId || proposal.projectId !== scope.projectId ||
+          proposal.action !== 'purchase.order' || proposal.status !== 'PENDING_APPROVAL') {
+        return res.status(409).json({ error: 'Proposal is not pending approval in this tenant/project scope' });
+      }
+      if (proposal.requestedBy === scope.userId) {
+        return res.status(403).json({ error: 'Requester cannot approve their own purchase proposal' });
+      }
+      const approvalRef = db.collection('supplierApprovals').doc();
+      const now = new Date().toISOString();
+      const approval = {
+        status: 'APPROVED',
+        action: 'purchase.order',
+        approvalId: approvalRef.id,
+        proposalId: proposalRef.id,
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        approvedBy: scope.userId,
+        createdAt: now,
+      };
+      await db.runTransaction(async (tx) => {
+        const current = await tx.get(proposalRef);
+        const currentProposal = current.exists ? current.data() : null;
+        if (!currentProposal || currentProposal.status !== 'PENDING_APPROVAL' ||
+            currentProposal.tenantId !== scope.tenantId ||
+            currentProposal.projectId !== scope.projectId ||
+            currentProposal.action !== 'purchase.order' ||
+            currentProposal.requestedBy === scope.userId) {
+          throw Object.assign(new Error('Proposal is no longer eligible for approval in this scope'), { status: 409 });
+        }
+        tx.create(approvalRef, approval);
+        tx.update(proposalRef, { status: 'APPROVED', approvalId: approvalRef.id, approvedBy: scope.userId, approvedAt: now, updatedAt: now });
+      });
+      return res.status(201).json({ status: 'APPROVED', proposalId: proposalRef.id, approvalId: approvalRef.id });
     } catch (error) { return errorResponse(res, error); }
   });
 

@@ -2,20 +2,46 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { registerSupplierProvisioningRoutes, safeReferenceUrl } from '../../server/src/domains/procurement/registerRoutes.js';
 
 function makeDb(records) {
-  return {
+  const db = {
     collection(name) {
+      records[name] ||= {};
       return {
         doc(id) {
+          const key = id ?? `generated-${Math.random().toString(36).slice(2)}`;
           return {
+            id: key,
             async get() {
-              const value = records[name]?.[id];
-              return { exists: value != null, id, data: () => value };
+              const value = records[name][key];
+              return { exists: value != null, id: key, data: () => value };
+            },
+            async create(value) {
+              if (records[name][key] != null) throw Object.assign(new Error('already exists'), { code: 6 });
+              records[name][key] = value;
             },
           };
         },
       };
     },
+    async runTransaction(callback) {
+      const tx = {
+        async get(ref) { return ref.get(); },
+        create(ref, value) {
+          const name = Object.keys(records).find((n) => records[n] && ref.id in records[n]);
+          // The approval document is new; infer its collection from the captured reference.
+          const target = records.supplierApprovals ||= {};
+          if (target[ref.id] != null) throw new Error('already exists');
+          target[ref.id] = value;
+        },
+        update(ref, patch) {
+          const proposal = records.supplierOrderProposals?.[ref.id];
+          if (!proposal) throw new Error('document not found');
+          Object.assign(proposal, patch);
+        },
+      };
+      return callback(tx);
+    },
   };
+  return db;
 }
 
 function makeApp() {
@@ -119,6 +145,104 @@ describe('supplier provisioning HTTP boundary', () => {
       proposal: { supplierId: 'supplier-a', lines: [{ productId: 'product-a', quantity: 4, supplierSku: 'SKU-A' }] },
     });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('persists proposals and requires a separate scoped approver before execution', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: {
+        'user-a': { tenantId: 'tenant-a', projectId: 'project-a' },
+        'user-b': { tenantId: 'tenant-a', projectId: 'project-a' },
+      },
+      products: records.products,
+    };
+    const fetchImpl = jest.fn();
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      fetchImpl, env: { NODE_ENV: 'test' },
+    });
+    const submit = app.routes.post.get('/api/v1/shop/supplier-orders');
+    const proposeRes = makeResponse();
+    await submit({
+      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:write'] },
+      body: { productId: 'product-a', quantity: 2, idempotencyKey: 'order-flow-1' },
+      get: () => undefined,
+    }, proposeRes);
+    expect(proposeRes.statusCode).toBe(202);
+    const proposalId = proposeRes.body.proposal.proposalId;
+    expect(dbRecords.supplierOrderProposals[proposalId].status).toBe('PENDING_APPROVAL');
+
+    const approve = app.routes.post.get('/api/v1/shop/supplier-orders/:orderId/approval');
+    const selfApproval = makeResponse();
+    await approve({
+      user: { id: 'user-a', roles: ['ADMIN'] },
+      params: { orderId: proposalId },
+    }, selfApproval);
+    expect(selfApproval.statusCode).toBe(403);
+
+    const approvalRes = makeResponse();
+    await approve({
+      user: { id: 'user-b', roles: ['ADMIN'] },
+      params: { orderId: proposalId },
+    }, approvalRes);
+    expect(approvalRes.statusCode).toBe(201);
+    expect(dbRecords.supplierOrderProposals[proposalId].status).toBe('APPROVED');
+    expect(dbRecords.supplierOrderProposals[proposalId].approvalId).toBe(approvalRes.body.approvalId);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+
+  test('returns the original proposal on replay and rejects key reuse with changed details', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: { 'user-a': { tenantId: 'tenant-a', projectId: 'project-a' } },
+      products: records.products,
+    };
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      env: { NODE_ENV: 'test' },
+    });
+    const submit = app.routes.post.get('/api/v1/shop/supplier-orders');
+    const request = {
+      user: { id: 'user-a', roles: ['PROCUREMENT'], permissions: ['procurement:write'] },
+      body: { productId: 'product-a', quantity: 3, idempotencyKey: 'stable-proposal-key' },
+      get: () => undefined,
+    };
+    const first = makeResponse();
+    await submit(request, first);
+    const replay = makeResponse();
+    await submit(request, replay);
+    expect(first.statusCode).toBe(202);
+    expect(replay.statusCode).toBe(202);
+    expect(replay.body.replay).toBe(true);
+    expect(replay.body.proposal.proposalId).toBe(first.body.proposal.proposalId);
+    expect(Object.keys(dbRecords.supplierOrderProposals)).toHaveLength(1);
+
+    const conflicting = makeResponse();
+    await submit({ ...request, body: { ...request.body, quantity: 4 } }, conflicting);
+    expect(conflicting.statusCode).toBe(409);
+    expect(conflicting.body.code).toBe('SUPPLIER_IDEMPOTENCY_CONFLICT');
+    expect(Object.keys(dbRecords.supplierOrderProposals)).toHaveLength(1);
+  });
+
+  test('rejects purchase proposals from identities without procurement write permission', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: { 'user-a': { tenantId: 'tenant-a', projectId: 'project-a' } },
+      products: records.products,
+    };
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      env: { NODE_ENV: 'test' },
+    });
+    const res = makeResponse();
+    await app.routes.post.get('/api/v1/shop/supplier-orders')({
+      user: { id: 'user-a', roles: ['USER'], permissions: ['profile.read'] },
+      body: { productId: 'product-a', quantity: 1, idempotencyKey: 'unauthorized-order' },
+      get: () => undefined,
+    }, res);
+    expect(res.statusCode).toBe(403);
+    expect(dbRecords.supplierOrderProposals || {}).toEqual({});
   });
 
   test('accepts only HTTPS supplier reference links without embedded credentials', () => {
