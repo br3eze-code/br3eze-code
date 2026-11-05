@@ -60,6 +60,17 @@ describe('Cordova Android build integrity', () => {
     expect(broken).toEqual([]);
   });
 
+  test('API 37 target declares the local-network permission bridge', () => {
+    expect(configXml).toContain('android-targetSdkVersion" value="37"');
+    expect(configXml).toContain('android-compileSdkVersion" value="37"');
+    const manifest = read('custom-plugins/cordova-plugin-network-tools/plugin.xml');
+    const native = read('custom-plugins/cordova-plugin-network-tools/src/android/com/agentos/network/AgentOSNetworkToolsPlugin.java');
+    const bridge = read('custom-plugins/cordova-plugin-network-tools/www/NetworkTools.js');
+    expect(manifest).toContain('android.permission.ACCESS_LOCAL_NETWORK');
+    expect(native).toContain('requestLocalNetworkPermission');
+    expect(native).toContain('onRequestPermissionResult');
+    expect(bridge).toContain('requestLocalNetworkPermission()');
+  });
   test('Play rollout publishes config.xml application id and matching Cordova Android major', () => {
     const wf = read('.github/workflows/play-rollout.yml');
     const id = configXml.match(/<widget[^>]*\sid="([^"]+)"/)[1];
