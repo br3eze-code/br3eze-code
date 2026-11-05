@@ -137,7 +137,7 @@ describe('ToolRegistry integration', () => {
 
   test('ToolRegistry class is accessible', () => {
     expect(typeof ToolRegistry).toBe('function');
-    const r = new ToolRegistry();
+    const r = new ToolRegistry({ requireExecutionTask: false });
     expect(r).toBeInstanceOf(ToolRegistry);
   });
 
