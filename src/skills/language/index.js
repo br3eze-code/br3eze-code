@@ -4,6 +4,18 @@ import nlp from 'compromise';
 
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+const { execFileSync } = require('node:child_process');
+
+function runEspeak(text, language = 'en', ipa = true) {
+  const voice = String(language).replace(/-/g, '_');
+  if (!/^[A-Za-z0-9_+-]{1,40}$/.test(voice)) {
+    throw new TypeError('Invalid eSpeak voice name');
+  }
+  const args = ['-v', voice, '-q', '-x'];
+  if (ipa) args.push('--ipa');
+  args.push('--', String(text));
+  return execFileSync('espeak-ng', args, { encoding: 'utf8', timeout: 5000 }).trim();
+}
 
 class LanguageSkill extends BaseSkill {
   static id = 'language'
@@ -513,8 +525,7 @@ Text:\n${args.text}`
   if (args.mode === 'stress' || args.mode === 'all') {
     // Syllables + stress via espeak if available
     try {
-      const { execSync } = require('child_process')
-      const ipa = execSync(`espeak-ng -v ${args.lang} -q -x --ipa "${args.text.replace(/"/g, '\\"')}"`, { encoding: 'utf8' }).trim()
+      const ipa = runEspeak(args.text, args.lang)
       const stress_marks = [...ipa.matchAll(/[ˈˌ]/g)].map((m, i) => ({ position: m.index, type: m[0] === 'ˈ'? 'primary' : 'secondary' }))
       result.stress = { ipa, marks: stress_marks, pattern: ipa.replace(/[^ˈˌ]/g, '').split('').join('-') }
     } catch {
@@ -607,17 +618,10 @@ JSON: {
   this.logger.info(`LANGUAGE IPA ${args.lang}: ${args.text.slice(0, 30)}`, { user: ctx.userId })
   // Use eSpeak NG if available, else LLM
   try {
-    const { execSync } = require('child_process')
-    const escaped = args.text.replace(/"/g, '\\"')
-    const voice = args.lang.replace('-', '_') // en-us -> en_us
-    let cmd = `espeak-ng -v ${voice} -q -x --ipa "${escaped}"`
-
-    if (args.format === 'arpa') cmd = `espeak-ng -v ${voice} -q -x --phonout "${escaped}"`
-
-    const ipa = execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim()
+    const ipa = runEspeak(args.text, args.lang, args.format !== 'arpa')
 
     if (args.format === 'both') {
-      const arpa = execSync(`espeak-ng -v ${voice} -q -x --phonout "${escaped}"`, { encoding: 'utf8' }).trim()
+      const arpa = runEspeak(args.text, args.lang, false)
       return { text: args.text, lang: args.lang, ipa, arpa }
     }
     return { text: args.text, lang: args.lang, [args.format]: ipa }
@@ -642,8 +646,7 @@ case 'language.phonetics': {
   // Try espeak for stress pattern
   let stress = null, phonemes = null
   try {
-    const { execSync } = require('child_process')
-    const ipa = execSync(`espeak-ng -v en -q -x --ipa "${args.word}"`, { encoding: 'utf8' }).trim()
+    const ipa = runEspeak(args.word, 'en')
     stress = (ipa.match(/ˈ/g) || []).length? 'primary' : 'none'
     if (ipa.includes('ˌ')) stress = 'secondary'
     phonemes = ipa.split('').filter(c => c.trim())
