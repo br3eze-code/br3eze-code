@@ -148,13 +148,26 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       const idempotencyKey = String(req.get('idempotency-key') || req.body?.idempotencyKey || '').trim();
       if (!idempotencyKey || idempotencyKey.length > 200) return res.status(400).json({ error: 'An idempotency-key header or idempotencyKey is required (max 200 characters)' });
       if (!approvalId) {
-        return res.status(202).json({
-          status: 'approval_required',
+        const proposal = {
+          ...request,
+          proposalId: request.orderId,
+          status: 'PENDING_APPROVAL',
           action: 'purchase.order',
           tenantId: scope.tenantId,
           projectId: scope.projectId,
+          requestedBy: scope.userId,
           idempotencyKey,
-          proposal: { ...request, estimatedTotal: Number((qty * unitPrice).toFixed(2)), supplierReferenceUrl },
+          estimatedTotal: Number((qty * unitPrice).toFixed(2)),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        // Persist the exact server-calculated proposal before returning it.
+        // A client-supplied approval ID alone must never authorize execution.
+        await db.collection('supplierOrderProposals').doc(proposal.proposalId).create(proposal);
+        return res.status(202).json({
+          status: 'approval_required',
+          action: 'purchase.order',
+          proposal,
           externalSupplierCalled: false,
         });
       }
@@ -162,6 +175,48 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       const approval = await loadApproval(db, approvalId, scope);
       const result = await makeService().createPurchaseOrder({ request, scope, approval, idempotencyKey });
       return res.status(result.replay ? 200 : 201).json({ ...result, supplierReferenceUrl });
+    } catch (error) { return errorResponse(res, error); }
+  });
+
+  // Approval is a separate, explicit human action against a persisted proposal.
+  // Only ADMIN may approve; approval is scoped to the same tenant/project and proposal.
+  app.post('/api/v1/shop/supplier-orders/:orderId/approval', authMiddleware, async (req, res) => {
+    try {
+      const scope = await authenticatedScope(req, db);
+      const roles = Array.isArray(req.user?.roles) ? req.user.roles : [];
+      if (!roles.includes('ADMIN')) return res.status(403).json({ error: 'ADMIN approval is required' });
+      const proposalRef = db.collection('supplierOrderProposals').doc(String(req.params.orderId));
+      const proposalSnap = await proposalRef.get();
+      if (!proposalSnap.exists) return res.status(404).json({ error: 'Purchase proposal not found' });
+      const proposal = proposalSnap.data();
+      if (proposal.tenantId !== scope.tenantId || proposal.projectId !== scope.projectId ||
+          proposal.action !== 'purchase.order' || proposal.status !== 'PENDING_APPROVAL') {
+        return res.status(409).json({ error: 'Proposal is not pending approval in this tenant/project scope' });
+      }
+      if (proposal.requestedBy === scope.userId) {
+        return res.status(403).json({ error: 'Requester cannot approve their own purchase proposal' });
+      }
+      const approvalRef = db.collection('supplierApprovals').doc();
+      const now = new Date().toISOString();
+      const approval = {
+        status: 'APPROVED',
+        action: 'purchase.order',
+        approvalId: approvalRef.id,
+        proposalId: proposalRef.id,
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        approvedBy: scope.userId,
+        createdAt: now,
+      };
+      await db.runTransaction(async (tx) => {
+        const current = await tx.get(proposalRef);
+        if (!current.exists || current.data().status !== 'PENDING_APPROVAL') {
+          throw Object.assign(new Error('Proposal is no longer pending approval'), { status: 409 });
+        }
+        tx.create(approvalRef, approval);
+        tx.update(proposalRef, { status: 'APPROVED', approvalId: approvalRef.id, approvedBy: scope.userId, approvedAt: now, updatedAt: now });
+      });
+      return res.status(201).json({ status: 'APPROVED', proposalId: proposalRef.id, approvalId: approvalRef.id });
     } catch (error) { return errorResponse(res, error); }
   });
 
