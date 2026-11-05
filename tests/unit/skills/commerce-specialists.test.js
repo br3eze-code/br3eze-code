@@ -20,6 +20,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const context = {
       agentRole: 'inventory',
       permissions: ['inventory:read'],
+      authorizedCapabilities: ['inventory:read'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       siteId: 'site-1',
@@ -41,6 +42,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     await expect(registry.execute('inventory.get', { itemId: 'item-1' }, {
       agentRole: 'inventory',
       permissions: ['inventory:read'],
+      authorizedCapabilities: ['inventory:read'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       inventory: { async get() { return { tenantId: 'tenant-b', itemId: 'item-1' }; } },
@@ -53,13 +55,14 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const context = {
       agentRole: 'inventory',
       permissions: ['inventory:write'],
+      authorizedCapabilities: ['inventory:write'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       inventory: { async reserve() { return { tenantId: 'tenant-a', reservationId: 'r-1' }; } },
     };
     const proposal = await registry.execute('inventory.reserve', { itemId: 'item-1', quantity: 1, idempotencyKey: 'idem-1' }, context);
     expect(proposal).toMatchObject({ status: 'approval_required', action: 'inventory.reserve' });
-    const approved = await registry.execute('inventory.reserve', { itemId: 'item-1', quantity: 1, idempotencyKey: 'idem-1' }, { ...context, approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } });
+    const approved = await registry.execute('inventory.reserve', { itemId: 'item-1', quantity: 1, idempotencyKey: 'idem-1' }, { ...context, approvalGranted: true, approval: { granted: true, action: 'inventory.reserve', tenantId: 'tenant-a' } });
     expect(approved).toMatchObject({ reservationId: 'r-1' });
   });
 
@@ -70,6 +73,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const result = await registry.execute('catalog.search', { name: 'Camera', include: ['description', 'availability'] }, {
       agentRole: 'catalog',
       permissions: ['catalog:read'],
+      authorizedCapabilities: ['catalog:read'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       productQueryService: {
@@ -92,7 +96,8 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(catalogSkill);
     const result = await registry.execute('catalog.search', { name: 'Unsafe item' }, {
-      agentRole: 'catalog', permissions: ['catalog:read'], tenantId: 'tenant-a', userId: 'user-1',
+      agentRole: 'catalog', permissions: ['catalog:read'],
+      authorizedCapabilities: ['catalog:read'], tenantId: 'tenant-a', userId: 'user-1',
       catalog: {
         async search({ scope }) {
           return { tenantId: scope.tenantId, items: [
@@ -123,6 +128,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     };
     const context = {
       agentRole: 'procurement', permissions: ['procurement:read', 'procurement:write'],
+      authorizedCapabilities: ['procurement:read', 'procurement:write'],
       tenantId: 'tenant-a', userId: 'user-1', projectId: 'project-a',
       supplierCatalog, supplierProvisioning,
     };
@@ -135,7 +141,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     expect(provisioningCalls).toHaveLength(0);
     const result = await registry.execute('procurement.provision-product', {
       productId: 'p-1', quantity: 3, idempotencyKey: 'po-request-1',
-    }, { ...context, approval: { status: 'APPROVED', approvalId: 'appr-1', action: 'purchase.order', tenantId: 'tenant-a', projectId: 'project-a' } });
+    }, { ...context, approvalGranted: true, approval: { status: 'APPROVED', approvalId: 'appr-1', action: 'purchase.order', tenantId: 'tenant-a', projectId: 'project-a' } });
     expect(result).toMatchObject({ tenantId: 'tenant-a', orderId: 'po-1', status: 'ordered' });
     expect(provisioningCalls).toHaveLength(1);
   });
@@ -147,6 +153,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const context = {
       agentRole: 'catalog',
       permissions: ['catalog:write'],
+      authorizedCapabilities: ['catalog:write'],
       tenantId: 'tenant-a',
       userId: 'user-1',
       catalog: { async publish(input) { calls.push(input); return { tenantId: 'tenant-a', status: 'published' }; } },
@@ -154,7 +161,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
     const proposal = await registry.execute('catalog.publish', { productId: 'p-1', version: 'v2', compatibilityPlan: 'backward-compatible' }, context);
     expect(proposal).toMatchObject({ status: 'approval_required', action: 'catalog.publish' });
     expect(calls).toHaveLength(0);
-    const approved = await registry.execute('catalog.publish', { productId: 'p-1', version: 'v2', compatibilityPlan: 'backward-compatible' }, { ...context, approval: { granted: true, action: 'catalog.publish', tenantId: 'tenant-a' } });
+    const approved = await registry.execute('catalog.publish', { productId: 'p-1', version: 'v2', compatibilityPlan: 'backward-compatible' }, { ...context, approvalGranted: true, approval: { granted: true, action: 'catalog.publish', tenantId: 'tenant-a' } });
     expect(approved).toMatchObject({ status: 'published' });
     expect(calls[0].scope.tenantId).toBe('tenant-a');
   });
