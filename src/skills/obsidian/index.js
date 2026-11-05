@@ -13,6 +13,17 @@ function getAdapter(context = {}) {
   });
 }
 
+function hasApprovedAction(context, action) {
+  const approval = context.approval || {};
+  const tenantId = context.scope?.tenantId ?? context.tenantId ?? null;
+  return approval.granted === true && approval.action === action && approval.tenantId === tenantId;
+}
+
+function approvalProposal(action, args, context) {
+  const tenantId = context.scope?.tenantId ?? context.tenantId ?? null;
+  return { status: 'approval_required', action, tenantId, proposal: args, approvalRequired: true };
+}
+
 function requireContext(context = {}) {
   if (!context.userId) throw new Error('authenticated identity required');
   return context;
@@ -55,13 +66,23 @@ const obsidianSkill = defineSkill({
       name: 'workspace.obsidian.write_note',
       description: 'Write a vault-relative note; requires an authenticated approved context.',
       parameters: { type: 'object', required: ['path', 'content'], properties: { path: { type: 'string' }, content: { type: 'string' } } },
-      handler: async ({ path, content }, context) => getAdapter(requireContext(context)).writeNote(path, content, context)
+      handler: async ({ path, content }, context) => {
+        const safeContext = requireContext(context);
+        const action = 'workspace.obsidian.write_note';
+        if (!hasApprovedAction(safeContext, action)) return approvalProposal(action, { path, content }, safeContext);
+        return getAdapter(safeContext).writeNote(path, content, safeContext);
+      }
     }),
     defineTool({
       name: 'workspace.obsidian.create_note',
       description: 'Create and optionally open a vault-relative note; requires approval.',
       parameters: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, content: { type: 'string' }, vault: { type: 'string' } } },
-      handler: async ({ path, content = '', vault }, context) => getAdapter(requireContext(context)).create(path, content, context, { vault })
+      handler: async ({ path, content = '', vault }, context) => {
+        const safeContext = requireContext(context);
+        const action = 'workspace.obsidian.create_note';
+        if (!hasApprovedAction(safeContext, action)) return approvalProposal(action, { path, content, vault }, safeContext);
+        return getAdapter(safeContext).create(path, content, safeContext, { vault });
+      }
     })
   ],
   match(input) {
