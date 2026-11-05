@@ -45,12 +45,11 @@ describe('capability manifest', () => {
 
   test('capability route does not trust spoofable role headers and follows API auth middleware', () => {
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-    const source = fs.readFileSync(path.join(root, 'src/core/gateway-engine.js'), 'utf8');
-    const authIndex = source.indexOf("this.app.use('/api', async");
-    const routeIndex = source.indexOf("this.app.get('/api/v1/capabilities'");
-
-    expect(authIndex).toBeGreaterThanOrEqual(0);
-    expect(routeIndex).toBeGreaterThan(authIndex);
+    // The canonical HTTP route now lives in the Wi-Fi domain adapter.
+    // Assert its actual middleware boundary rather than a retired gateway implementation.
+    const source = fs.readFileSync(path.join(root, 'server/src/domains/wifi/registerRoutes.js'), 'utf8');
+    const routeIndex = source.indexOf("app.get('/api/v1/capabilities', authMiddleware");
+    expect(routeIndex).toBeGreaterThanOrEqual(0);
     expect(source).not.toContain("req.headers['x-agent-role']");
     expect(source).not.toContain("req.headers['x-agent-capabilities']");
   });

@@ -32,7 +32,8 @@ export class SpecialistRuntime {
     if (!selectedSkill) return specialistResult({ status: 'failed', error: `Skill not found: ${skill}` });
     const selectedTool = this.toolRegistry.getTool(tool) || null;
     if (!selectedTool) return specialistResult({ status: 'failed', error: `Tool not found: ${tool}` });
-    if (selectedTool.skill !== selectedSkill.name) return specialistResult({ status: 'failed', error: `Tool ${tool} does not belong to skill ${skill}` });
+    const canonicalSkillName = (value) => String(value || '').toLowerCase().replace(/-specialist$/, '');
+    if (canonicalSkillName(selectedTool.skill) !== canonicalSkillName(selectedSkill.name)) return specialistResult({ status: 'failed', error: `Tool ${tool} does not belong to skill ${skill}` });
     const ownedTools = this.toolRegistry.toolsForSpecialist(specialist);
     if (!ownedTools.some((candidate) => candidate.name === selectedTool.name)) return specialistResult({ status: 'failed', error: `Tool ${tool} is not owned by specialist ${specialist.id}` });
     if (task && ticketType && task.ticketType && task.ticketType !== ticketType) return specialistResult({ status: 'failed', error: 'Task ticket type does not match execution ticket type' });
