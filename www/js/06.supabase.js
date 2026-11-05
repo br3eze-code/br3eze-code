@@ -173,7 +173,7 @@ window.DataStore = {
         const table = TABLES[resource] || resource;
         const params = new URLSearchParams({select:'*'});
         for (const [field, value] of Object.entries(filters || {})) {
-            params.set(field, Array.isArray(value) ? 'in.(' + value.map(encode).join(',') + ')' : 'eq.' + encode(value);
+            params.set(field, Array.isArray(value) ? 'in.(' + value.map(encode).join(',') + ')' : 'eq.' + encode(value));
         }
         if (options.orderBy) params.set('order', options.orderBy + '.' + (options.direction === 'desc' ? 'desc' : 'asc'));
         if (options.limit) params.set('limit', String(options.limit));
