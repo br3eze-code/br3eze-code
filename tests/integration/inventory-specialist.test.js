@@ -18,7 +18,7 @@ function approvedReserveContext(runtime, extra = {}) {
     approvedBy: 'manager-1',
     tenantId: 'tenant-1',
   });
-  return { ...context, approvalGranted: true, approval: { approvalId: approval.approvalId, status: 'APPROVED', action: 'inventory.reserve', tenantId: 'tenant-1' } };
+  return { ...context, approvalGranted: true, approval };
 }
 
 describe('Inventory Specialist Phase 1 vertical', () => {
