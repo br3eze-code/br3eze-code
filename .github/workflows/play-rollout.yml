@@ -84,13 +84,22 @@ jobs:
           if [ -n "${{ github.event.inputs.version_code }}" ]; then
             VC="${{ github.event.inputs.version_code }}"
           else
-            VC="${{ github.run_number }}"
+            # Configured floor plus this workflow run keeps automatic codes monotonic
+            # relative to the committed config baseline. Verify Play Console history
+            # before using a manually supplied code or changing the baseline.
+            BASE=$(grep -o 'android:versionCode="[0-9]*"' config.xml | grep -o '[0-9]*')
+            VC=$(( BASE + ${{ github.run_number }} ))
+          fi
+          BASE=$(grep -o 'android:versionCode="[0-9]*"' config.xml | grep -o '[0-9]*')
+          if ! [[ "$VC" =~ ^[1-9][0-9]*$ ]] || [ "$VC" -le "$BASE" ]; then
+            echo "::error::version_code must be a positive integer greater than config.xml android:versionCode ($BASE)"
+            exit 1
           fi
           echo "code=$VC" >> $GITHUB_OUTPUT
           echo "📱 versionCode: $VC"
 
       - name: Add Android platform
-        run: cordova platform add android@12 --save || true
+        run: cordova platform add android@15
 
       - name: Cordova prepare
         run: cordova prepare android
@@ -133,7 +142,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.br3eze.agentos
+          packageName: africa.br3eze
           releaseFiles: ${{ steps.artifacts.outputs.aab }}
           track: ${{ github.event.inputs.track || 'internal' }}
           status: completed
