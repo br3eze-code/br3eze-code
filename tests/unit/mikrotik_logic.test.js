@@ -76,9 +76,8 @@ describe('MikroTikManager Logic', () => {
 
     describe('addHotspotUser', () => {
         test('adds a new user with default profile', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
-            mockMenu.get.mockResolvedValueOnce([]); // 2. No existing user
-            mockMenu.add.mockResolvedValueOnce('*1'); // Return ID
+            mockMenu.get.mockResolvedValueOnce([]); // No existing user
+            mockMenu.add.mockResolvedValueOnce('*1'); // RouterOS item ID
 
             const result = await manager.addHotspotUser('testuser', 'password123');
 
@@ -88,14 +87,22 @@ describe('MikroTikManager Logic', () => {
                 profile: 'default',
                 disabled: 'no'
             });
-            expect(result).toBe('http://br3eze.africa/login?username=testuser&password=password123');
+            expect(result).toEqual({
+                success: true,
+                username: 'testuser',
+                action: 'created',
+                profile: 'default',
+                id: '*1'
+            });
+            expect(JSON.stringify(result)).not.toContain('password123');
         });
 
         test('updates an existing user', async () => {
-            mockMenu.get.mockResolvedValueOnce([{ 'dns-name': 'br3eze.africa' }]); // 1. Profiles for DNS name
-            mockMenu.get.mockResolvedValueOnce([{ '.id': '*1', name: 'testuser' }]); // 2. Existing user
+            mockMenu.get.mockResolvedValueOnce([{ '.id': '*1', name: 'testuser' }]); // Existing user
 
-            await manager.addHotspotUser('testuser', 'newpassword');
+            const result = await manager.addHotspotUser('testuser', 'newpassword');
+
+            expect(result).toEqual({ success: true, username: 'testuser', action: 'updated' });
 
             expect(mockMenu.update).toHaveBeenCalledWith('*1', {
                 password: 'newpassword',
@@ -125,7 +132,7 @@ describe('MikroTikManager Logic', () => {
             const result = await manager.kickUser('activeuser');
 
             expect(mockMenu.remove).toHaveBeenCalledWith('*A1');
-            expect(result.kicked).toBe(true);
+            expect(result).toEqual({ kicked: true, username: 'activeuser' });
         });
 
         test('returns false if user is not active', async () => {
@@ -134,7 +141,7 @@ describe('MikroTikManager Logic', () => {
             const result = await manager.kickUser('inactiveuser');
 
             expect(mockMenu.remove).not.toHaveBeenCalled();
-            expect(result.kicked).toBe(false);
+            expect(result).toEqual({ kicked: false, username: 'inactiveuser' });
         });
     });
 
