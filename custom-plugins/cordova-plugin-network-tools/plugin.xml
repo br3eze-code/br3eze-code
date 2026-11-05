@@ -16,6 +16,7 @@
     <platform name="android">
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
             <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
             <!-- Declared for capability-aware Wi-Fi identity reads; the app must still request runtime access when needed. -->
             <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
