@@ -63,6 +63,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android 17 SDK platform
+        run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+
       - name: Cache Gradle
         uses: actions/cache@v6
         with:
@@ -99,7 +102,7 @@ jobs:
           echo "📱 versionCode: $VC"
 
       - name: Add Android platform
-        run: cordova platform add android@15
+        run: cordova platform add android@15.1.0
 
       - name: Cordova prepare
         run: cordova prepare android
