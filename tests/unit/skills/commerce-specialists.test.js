@@ -14,7 +14,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('inventory search preserves tenant and site scope', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(inventorySkill);
     const calls = [];
     const context = {
@@ -36,7 +36,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('inventory rejects a cross-tenant provider result', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(inventorySkill);
     await expect(registry.execute('inventory.get', { itemId: 'item-1' }, {
       agentRole: 'inventory',
@@ -48,7 +48,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('inventory mutations return proposals until matching approval is present', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(inventorySkill);
     const context = {
       agentRole: 'inventory',
@@ -64,7 +64,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('catalog search delegates to the provider-neutral product query service', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(catalogSkill);
     const calls = [];
     const result = await registry.execute('catalog.search', { name: 'Camera', include: ['description', 'availability'] }, {
@@ -89,7 +89,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
 
 
   test('catalog removes unsafe supplier URLs before returning product results', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(catalogSkill);
     const result = await registry.execute('catalog.search', { name: 'Unsafe item' }, {
       agentRole: 'catalog', permissions: ['catalog:read'], tenantId: 'tenant-a', userId: 'user-1',
@@ -107,7 +107,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('procurement exposes supplier references and approval-gates API provisioning', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(procurementSkill);
     const provisioningCalls = [];
     const supplierCatalog = {
@@ -141,7 +141,7 @@ describe('Inventory and Catalog specialist runtime contracts', () => {
   });
 
   test('catalog publication is approval-gated and does not mutate pricing or inventory', async () => {
-    const registry = new ToolRegistry();
+    const registry = new ToolRegistry({ requireExecutionTask: false });
     registry.registerSkill(catalogSkill);
     const calls = [];
     const context = {
