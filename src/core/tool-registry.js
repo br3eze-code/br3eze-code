@@ -307,6 +307,8 @@ class ToolRegistry {
     this.logger.warn(`No manifest found for skill "${skillName}"`); return null;
   }
 
+  count() { return this.skills.size; }
+
   async _loadTools(skillPath, manifest) {
     const tools = new Map();
     if (!Array.isArray(manifest.tools)) return tools;
