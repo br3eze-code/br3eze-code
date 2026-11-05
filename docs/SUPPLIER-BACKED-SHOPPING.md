@@ -48,7 +48,8 @@ The gateway must implement `POST {BR3EZE_SUPPLIER_API_URL}/purchase-orders`, acc
 All routes below require a bearer-authenticated user and tenant/project profile.
 
 - `GET /api/v1/shop/products/:productId/supplier-reference` — read supplier reference metadata.
-- `POST /api/v1/shop/supplier-orders` — create a purchase proposal or, with a persisted approved `approvalId`, submit an order. Requires `productId`, `quantity`, `idempotencyKey`; the key may also be sent as the `Idempotency-Key` header.
+- `POST /api/v1/shop/supplier-orders` — persist a purchase proposal and return `proposalId` when no `approvalId` is supplied. To submit, send the same `productId`, `quantity`, and `idempotencyKey` plus the returned `proposalId` and its approved `approvalId`; the server checks the persisted proposal and approval match before supplier submission.
+- `POST /api/v1/shop/supplier-orders/:orderId/approval` — explicit ADMIN approval of a persisted pending proposal. The requester cannot approve their own proposal. The route returns the persisted `approvalId` needed for submission. The key may be sent as the `Idempotency-Key` header.
 - `GET /api/v1/shop/supplier-orders/:orderId` — recover persisted state, evidence, and next action.
 - `POST /api/v1/shop/supplier-orders/:orderId/receipts` — record accepted/rejected quantities and evidence; stock increments only for accepted units, in the same Firestore transaction as the receipt/order update.
 - `POST /api/v1/shop/supplier-orders/:orderId/invoice-match` — compare invoice quantity and total against order/receipt state; requires settlement-release approval. This matches the invoice but does **not** itself send money.
