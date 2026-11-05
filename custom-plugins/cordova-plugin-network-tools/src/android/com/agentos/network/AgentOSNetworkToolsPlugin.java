@@ -31,7 +31,7 @@ public class AgentOSNetworkToolsPlugin extends CordovaPlugin {
             requestLocalNetworkPermission(callbackContext);
             return true;
         }
-        if ("capabilities".equals(action)) { callbackContext.success(capabilities()); return true;
+        if ("capabilities".equals(action)) { callbackContext.success(capabilities()); return true; }
         if ("connectivity".equals(action)) { callbackContext.success(connectivity()); return true; }
         if ("interfaces".equals(action)) { callbackContext.success(interfaces()); return true; }
         if ("wifiSignalStrength".equals(action)) { WifiUtils.getSignalStrength(cordova.getContext(), callbackContext); return true; }
