@@ -11,6 +11,8 @@ describe('domain-neutral Obsidian skill', () => {
   let events;
   const baseContext = {
     userId: 'agent-user',
+    tenantId: 'tenant-a',
+    authorizedCapabilities: ['*'],
     scope: { tenantId: 'tenant-a', domain: 'workspace', siteId: 'site-7' }
   };
 
