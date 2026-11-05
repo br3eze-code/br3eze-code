@@ -71,6 +71,13 @@ describe('Cordova Android build integrity', () => {
     expect(native).toContain('onRequestPermissionResult');
     expect(bridge).toContain('requestLocalNetworkPermission()');
   });
+  test('server boundary restricts browser origins and bounds JSON requests', () => {
+    const serverBoundary = read('server/src/core/configureHttpApplication.js');
+    expect(serverBoundary).toContain('AGENTOS_ALLOWED_ORIGINS');
+    expect(serverBoundary).toContain('allowedOrigins.has(origin)');
+    expect(serverBoundary).toContain("jsonLimit = process.env.AGENTOS_JSON_LIMIT || '2mb'");
+    expect(serverBoundary).not.toContain('app.use(cors());');
+  });
   test('Play rollout publishes config.xml application id and matching Cordova Android major', () => {
     const wf = read('.github/workflows/play-rollout.yml');
     const id = configXml.match(/<widget[^>]*\sid="([^"]+)"/)[1];
