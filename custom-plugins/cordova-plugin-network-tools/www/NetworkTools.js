@@ -73,7 +73,12 @@ const NetworkTools = {
   },
 
   connectedDevices() {
-    return invoke('connectedDevices');
+    return this.requestLocalNetworkPermission().then((permission) => {
+      if (!permission || permission.granted !== true) {
+        throw new Error('Local network permission is required to inspect connected devices');
+      }
+      return invoke('connectedDevices');
+    });
   },
 
   execute(tool, params = {}, context = {}) {
