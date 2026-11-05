@@ -10,15 +10,40 @@ describe('Supabase identity boundary', () => {
     expect(extractBearerToken('')).toBeNull();
   });
 
-  test('requires a distinct configured service token for service authority', async () => {
-    const previous = process.env.AGENTOS_SERVICE_TOKEN;
+  test('service token has only explicitly configured permissions', async () => {
+    const previousToken = process.env.AGENTOS_SERVICE_TOKEN;
+    const previousPermissions = process.env.AGENTOS_SERVICE_PERMISSIONS;
     process.env.AGENTOS_SERVICE_TOKEN = 'explicit-service-token';
+    process.env.AGENTOS_SERVICE_PERMISSIONS = 'orders.read,agent.run';
     try {
-      expect(await authenticateBearer('explicit-service-token')).toMatchObject({ provider: 'service', permissions: ['*'] });
+      expect(await authenticateBearer('explicit-service-token')).toMatchObject({
+        provider: 'service',
+        permissions: ['orders.read', 'agent.run']
+      });
       expect(await authenticateBearer('not-the-service-token')).toBeNull();
     } finally {
-      if (previous === undefined) delete process.env.AGENTOS_SERVICE_TOKEN;
-      else process.env.AGENTOS_SERVICE_TOKEN = previous;
+      if (previousToken === undefined) delete process.env.AGENTOS_SERVICE_TOKEN;
+      else process.env.AGENTOS_SERVICE_TOKEN = previousToken;
+      if (previousPermissions === undefined) delete process.env.AGENTOS_SERVICE_PERMISSIONS;
+      else process.env.AGENTOS_SERVICE_PERMISSIONS = previousPermissions;
+    }
+  });
+
+  test('service token receives no permissions when scope is not configured', async () => {
+    const previousToken = process.env.AGENTOS_SERVICE_TOKEN;
+    const previousPermissions = process.env.AGENTOS_SERVICE_PERMISSIONS;
+    process.env.AGENTOS_SERVICE_TOKEN = 'explicit-service-token';
+    delete process.env.AGENTOS_SERVICE_PERMISSIONS;
+    try {
+      expect(await authenticateBearer('explicit-service-token')).toMatchObject({
+        provider: 'service',
+        permissions: []
+      });
+    } finally {
+      if (previousToken === undefined) delete process.env.AGENTOS_SERVICE_TOKEN;
+      else process.env.AGENTOS_SERVICE_TOKEN = previousToken;
+      if (previousPermissions === undefined) delete process.env.AGENTOS_SERVICE_PERMISSIONS;
+      else process.env.AGENTOS_SERVICE_PERMISSIONS = previousPermissions;
     }
   });
 
