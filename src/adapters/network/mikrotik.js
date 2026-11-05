@@ -173,12 +173,63 @@ export class MikroTikManager extends EventEmitter {
     }
   }
 
-  getSystemStats() { return this.executeTool('system.stats'); }
+  async getSystemStats() {
+    const result = await this.executeTool('system.stats');
+    const stats = Array.isArray(result) ? (result[0] || {}) : (result || {});
+    const totalMemory = parseRouterOSBytes(stats['total-memory']);
+    const freeMemory = parseRouterOSBytes(stats['free-memory']);
+    const cpuLoad = Number.parseFloat(String(stats['cpu-load'] ?? '0').replace('%', '')) || 0;
+    return {
+      ...stats,
+      'cpu-load': cpuLoad,
+      'total-memory': totalMemory,
+      'free-memory': freeMemory,
+      'memory-usage-percent': totalMemory > 0
+        ? (((totalMemory - freeMemory) / totalMemory) * 100).toFixed(0)
+        : '0',
+    };
+  }
   getActiveUsers() { return this.executeTool('users.active'); }
   getArpTable() { return this.executeTool('arp.table'); }
   reboot() { return this.executeTool('system.reboot'); }
   addUser(username, password, profile = 'default') { return this.executeTool('user.add', { username, password, profile }); }
-  kickUser(username) { return this.executeTool('user.kick', { username }); }
+  async addHotspotUser(username, password, profile = 'default') {
+    if (username && typeof username === 'object') {
+      ({ username, password, profile = 'default' } = username);
+    }
+    if (typeof username !== 'string' || !username.trim()) throw new TypeError('username is required');
+    if (typeof password !== 'string' || !password) throw new TypeError('password is required');
+    const name = username.trim();
+    await this.connect();
+    const usersMenu = this._menu('/ip/hotspot/user');
+    const existing = await usersMenu.where('name', name).get();
+    const user = existing?.[0];
+    const payload = { password, profile: profile || 'default', disabled: 'no' };
+    if (user?.['.id']) {
+      await usersMenu.update(user['.id'], payload);
+      return { success: true, username: name, action: 'updated' };
+    }
+    let created;
+    try {
+      created = await usersMenu.add({ name, ...payload });
+    } catch (error) {
+      if (payload.profile === 'default' || !/profile/i.test(error.message)) throw error;
+      created = await usersMenu.add({ name, ...payload, profile: 'default' });
+      return { success: true, username: name, action: 'created', profile: 'default', id: created || null, profileFallback: true };
+    }
+    return { success: true, username: name, action: 'created', profile: payload.profile, id: created || null };
+  }
+  async kickUser(username) {
+    if (typeof username !== 'string' || !username.trim()) throw new TypeError('username is required');
+    const name = username.trim();
+    await this.connect();
+    const activeMenu = this._menu('/ip/hotspot/active');
+    const active = await activeMenu.where('user', name).get();
+    const session = active?.[0];
+    if (!session?.['.id']) return { kicked: false, username: name };
+    await activeMenu.remove(session['.id']);
+    return { kicked: true, username: name };
+  }
 
   async getUserStats(username) {
     if (!username) throw new TypeError('username is required');
