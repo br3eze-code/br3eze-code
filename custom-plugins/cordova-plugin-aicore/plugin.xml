@@ -25,6 +25,7 @@
         <source-file src="src/android/AICorePlugin.java" target-dir="src/zw/power/www" />
         <source-file src="src/android/AiCapabilityDetector.java" target-dir="src/zw/power/www" />
         <source-file src="src/android/AiRouter.java" target-dir="src/zw/power/www" />
+        <source-file src="src/android/models/AiResponse.java" target-dir="src/zw/power/www/models" />
         <framework src="com.google.mlkit:pose-detection:18.0.0-beta5" />
     </platform>
 </plugin>
