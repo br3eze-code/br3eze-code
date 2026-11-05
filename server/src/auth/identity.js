@@ -62,6 +62,10 @@ export async function authenticateBearer(token) {
 
   // Machine authentication is distinct from every human identity provider.
   const serviceToken = process.env.AGENTOS_SERVICE_TOKEN || '';
+  const servicePermissions = String(process.env.AGENTOS_SERVICE_PERMISSIONS || '')
+    .split(',')
+    .map((permission) => permission.trim())
+    .filter(Boolean);
   if (serviceToken && safeEqual(token, serviceToken)) {
     return Object.freeze({
       id: 'agentos-service',
@@ -70,7 +74,8 @@ export async function authenticateBearer(token) {
       name: 'AgentOS service',
       role: 'SERVICE',
       roles: ['SERVICE'],
-      permissions: ['*'],
+      // A machine token is authenticated but has no authority unless explicitly scoped.
+      permissions: servicePermissions,
       authenticatedAt: new Date().toISOString(),
       metadata: { service: true }
     });
