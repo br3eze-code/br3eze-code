@@ -1432,7 +1432,8 @@ app.post('/api/checkout/create', authMiddleware, async (req, res) => {
         }), { auth: { username: SK, password: '' }, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         res.json({ url: r.data.url, id: r.data.id });
     } catch (e) {
-        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+        logger.error('Stripe operation failed', { status: e.response?.status || null, code: e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 app.post('/api/checkout/verify', authMiddleware, async (req, res) => {
@@ -1458,7 +1459,8 @@ app.post('/api/checkout/verify', authMiddleware, async (req, res) => {
         const credited = await _creditOnce(db, admin, sessionId, uid, credits);
         res.json({ paid: true, credited, amount: credits });
     } catch (e) {
-        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+        logger.error('Stripe operation failed', { status: e.response?.status || null, code: e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 
@@ -1502,7 +1504,8 @@ app.post('/api/setup-intent/create', authMiddleware, async (req, res) => {
         }), { auth, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
         res.json({ clientSecret: si.data.client_secret, customerId });
     } catch (e) {
-        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+        logger.error('Stripe operation failed', { status: e.response?.status || null, code: e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 
@@ -1543,7 +1546,8 @@ app.post('/api/payment-method/save', authMiddleware, async (req, res) => {
         await userRef.set({ billing }, { merge: true });
         res.json({ card, address: billing.address });
     } catch (e) {
-        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+        logger.error('Stripe operation failed', { status: e.response?.status || null, code: e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 
@@ -1589,7 +1593,8 @@ app.post('/api/charge-card', authMiddleware, async (req, res) => {
         if (stripeErr && stripeErr.payment_intent && stripeErr.payment_intent.status === 'requires_action') {
             return res.json({ requiresAction: true, clientSecret: stripeErr.payment_intent.client_secret, paymentIntentId: stripeErr.payment_intent.id });
         }
-        res.status(500).json({ error: (stripeErr && stripeErr.message) || e.message });
+        logger.error('Stripe payment confirmation failed', { status: stripeErr?.statusCode || e.response?.status || null, code: stripeErr?.code || e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 
@@ -1612,7 +1617,8 @@ app.post('/api/charge-card/confirm', authMiddleware, async (req, res) => {
         const credited = await _creditOnce(db, admin, pi.data.id, uid, dollars);
         res.json({ paid: true, credited, amount: dollars });
     } catch (e) {
-        res.status(500).json({ error: (e.response && e.response.data && e.response.data.error && e.response.data.error.message) || e.message });
+        logger.error('Stripe operation failed', { status: e.response?.status || null, code: e.code || 'UNKNOWN' });
+        res.status(500).json({ error: 'Payment provider request failed' });
     }
 });
 
