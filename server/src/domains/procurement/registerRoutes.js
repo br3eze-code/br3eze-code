@@ -148,6 +148,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       const idempotencyKey = String(req.get('idempotency-key') || req.body?.idempotencyKey || '').trim();
       if (!idempotencyKey || idempotencyKey.length > 200) return res.status(400).json({ error: 'An idempotency-key header or idempotencyKey is required (max 200 characters)' });
       if (!approvalId) {
+        requireProcurementWrite(req);
         const proposal = {
           ...request,
           proposalId: request.orderId,
