@@ -191,6 +191,26 @@ describe('supplier provisioning HTTP boundary', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  test('rejects purchase proposals from identities without procurement write permission', async () => {
+    const app = makeApp();
+    const dbRecords = {
+      users: { 'user-a': { tenantId: 'tenant-a', projectId: 'project-a' } },
+      products: records.products,
+    };
+    registerSupplierProvisioningRoutes({
+      app, authMiddleware: (_req, _res, next) => next(), db: makeDb(dbRecords),
+      env: { NODE_ENV: 'test' },
+    });
+    const res = makeResponse();
+    await app.routes.post.get('/api/v1/shop/supplier-orders')({
+      user: { id: 'user-a', roles: ['USER'], permissions: ['profile.read'] },
+      body: { productId: 'product-a', quantity: 1, idempotencyKey: 'unauthorized-order' },
+      get: () => undefined,
+    }, res);
+    expect(res.statusCode).toBe(403);
+    expect(dbRecords.supplierOrderProposals || {}).toEqual({});
+  });
+
   test('accepts only HTTPS supplier reference links without embedded credentials', () => {
     expect(safeReferenceUrl('https://supplier.example/product')).toBe('https://supplier.example/product');
     expect(safeReferenceUrl('http://supplier.example/product')).toBeNull();
