@@ -179,7 +179,7 @@ export function registerSupplierProvisioningRoutes({ app, authMiddleware, db, fe
       if (!proposalSnap.exists) return res.status(404).json({ error: 'Persisted purchase proposal not found' });
       const proposal = proposalSnap.data();
       if (proposal.status !== 'APPROVED' || proposal.tenantId !== scope.tenantId || proposal.projectId !== scope.projectId ||
-          proposal.productId !== productId || proposal.lines?.[0]?.quantity !== qty ||
+          proposal.lines?.[0]?.productId !== productId || proposal.lines?.[0]?.quantity !== qty ||
           proposal.lines?.[0]?.unitPrice !== unitPrice || proposal.supplierId !== supplierId ||
           proposal.idempotencyKey !== idempotencyKey) {
         return res.status(409).json({ error: 'Submission does not match the approved persisted proposal' });
