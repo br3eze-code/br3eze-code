@@ -36,7 +36,7 @@ describe('domain-neutral Obsidian skill', () => {
 
   test('runs through the domain-agnostic runtime and preserves scope', async () => {
     await adapter.writeNote('context.md', '[[Next]] #agent', { ...baseContext, approval: { approved: true } });
-    const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
+    const registry = new ToolRegistry({ requireExecutionTask: false }); registry.registerSkill(obsidianSkill);
     const result = await registry.execute('workspace.obsidian.graph_context', { path: 'context.md' }, { ...baseContext, obsidianAdapter: adapter });
     expect(result).toMatchObject({ path: 'context.md', links: ['Next'], tags: ['#agent'] });
     expect(events.at(-1)).toMatchObject({ action: 'obsidian.read', userId: 'agent-user', tenantId: 'tenant-a', domain: 'workspace', siteId: 'site-7' });
@@ -44,9 +44,17 @@ describe('domain-neutral Obsidian skill', () => {
 
   test('requires approval for agent mutations', async () => {
     const registry = new ToolRegistry(); registry.registerSkill(obsidianSkill);
-    const result = registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
-    await expect(registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter }))
-      .resolves.toMatchObject({ status: 'approval_required' });
+    const result = await registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, { ...baseContext, obsidianAdapter: adapter });
+    expect(result).toMatchObject({ status: 'approval_required', action: 'workspace.obsidian.write_note', approvalRequired: true });
+    await expect(fs.access(path.join(root, 'new.md'))).rejects.toThrow();
+
+    const approved = await registry.execute('workspace.obsidian.write_note', { path: 'new.md', content: 'x' }, {
+      ...baseContext,
+      obsidianAdapter: adapter,
+      approval: { granted: true, action: 'workspace.obsidian.write_note', tenantId: 'tenant-a' },
+    });
+    expect(approved).toMatchObject({ path: 'new.md', bytes: 1 });
+    await expect(fs.readFile(path.join(root, 'new.md'), 'utf8')).resolves.toBe('x');
   });
 
   test('supports injected adapters without environment or hardcoded vault paths', async () => {
