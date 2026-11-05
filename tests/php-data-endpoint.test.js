@@ -26,7 +26,7 @@ describe('PHP data endpoint contract', () => {
     expect(read('www/js/shop.js')).toMatch(/this\.products\s*=\s*await DataStore\.query\('products'/);
     const firebaseAdapter = read('www/js/06.firebase.js');
     expect(firebaseAdapter).toContain('window.DataStore = firebaseDataAdapter');
-    expect(firebaseAdapter).toContain('query(collectionName');
-    expect(firebaseAdapter).not.toContain("apiData('products')");
+    expect(firebaseAdapter).toContain('async getProducts()');
+    expect(firebaseAdapter).toContain("firebaseApiData('products')");
   });
 });
