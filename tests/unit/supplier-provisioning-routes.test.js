@@ -2,20 +2,46 @@ import { describe, expect, test, jest } from '@jest/globals';
 import { registerSupplierProvisioningRoutes, safeReferenceUrl } from '../../server/src/domains/procurement/registerRoutes.js';
 
 function makeDb(records) {
-  return {
+  const db = {
     collection(name) {
+      records[name] ||= {};
       return {
         doc(id) {
+          const key = id ?? `generated-${Math.random().toString(36).slice(2)}`;
           return {
+            id: key,
             async get() {
-              const value = records[name]?.[id];
-              return { exists: value != null, id, data: () => value };
+              const value = records[name][key];
+              return { exists: value != null, id: key, data: () => value };
+            },
+            async create(value) {
+              if (records[name][key] != null) throw Object.assign(new Error('already exists'), { code: 6 });
+              records[name][key] = value;
             },
           };
         },
       };
     },
+    async runTransaction(callback) {
+      const tx = {
+        async get(ref) { return ref.get(); },
+        create(ref, value) {
+          const name = Object.keys(records).find((n) => records[n] && ref.id in records[n]);
+          // The approval document is new; infer its collection from the captured reference.
+          const target = records.supplierApprovals ||= {};
+          if (target[ref.id] != null) throw new Error('already exists');
+          target[ref.id] = value;
+        },
+        update(ref, patch) {
+          const proposal = records.supplierOrderProposals?.[ref.id];
+          if (!proposal) throw new Error('document not found');
+          Object.assign(proposal, patch);
+        },
+      };
+      return callback(tx);
+    },
   };
+  return db;
 }
 
 function makeApp() {
