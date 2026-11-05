@@ -33,8 +33,12 @@
 
     <platform name="android">
         <preference name="android-minSdkVersion" value="26" />
-        <preference name="android-compileSdkVersion" value="36" />
-        <preference name="android-targetSdkVersion" value="36" />
+        <preference name="android-compileSdkVersion" value="37" />
+        <preference name="android-targetSdkVersion" value="37" />
+    <!-- Android 17 / API 37: required for direct LAN access used by router management. Request at runtime only when the user invokes LAN features. -->
+    <config-file target="AndroidManifest.xml" parent="/manifest">
+        <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    </config-file>
 
         <config-file parent="/manifest" target="app/src/main/AndroidManifest.xml" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
             <uses-permission android:name="android.permission.INTERNET" />
