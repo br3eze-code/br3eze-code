@@ -1,5 +1,6 @@
 import { describe, expect, test, jest } from '@jest/globals';
 import { HardwareCapabilityRegistry } from '../../src/core/hardware/HardwareCapabilityRegistry.js';
+import { WorldStateRegistry } from '../../src/core/world-state/WorldStateRegistry.js';
 
 const auth = { tenantId: 'tenant-a', userId: 'operator-1' };
 
@@ -51,6 +52,43 @@ describe('HardwareCapabilityRegistry', () => {
     );
   });
 
+
+  test('requires fresh declared state before executing a capability', async () => {
+    let now = Date.parse('2026-11-06T10:00:00.000Z');
+    const worldState = new WorldStateRegistry({ clock: () => now, defaultMaxAgeMs: 1000 });
+    const execute = jest.fn(async (_args, context) => ({ online: context.statePreconditions[0].value.online }));
+    const registry = new HardwareCapabilityRegistry({ worldState });
+    registry.registerAdapter({
+      id: 'router-1',
+      capabilities: [{
+        name: 'reconfigure',
+        access: 'write',
+        requiresFreshState: [{ resourceId: 'router-1', key: 'connectivity', maxAgeMs: 1000 }],
+        execute,
+      }],
+    });
+
+    const approved = { ...auth, approvalGranted: true, approvalId: 'approval-123' };
+    await expect(registry.execute('hardware.router-1.reconfigure', {}, approved))
+      .rejects.toThrow('world-state observation is unknown');
+    expect(execute).not.toHaveBeenCalled();
+
+    worldState.record({
+      resourceId: 'router-1',
+      key: 'connectivity',
+      value: { online: true },
+      source: 'routeros.read-only',
+    });
+    await expect(registry.execute('hardware.router-1.reconfigure', {}, approved)).resolves.toEqual({ online: true });
+    expect(execute).toHaveBeenCalledWith({}, expect.objectContaining({
+      statePreconditions: [expect.objectContaining({ resourceId: 'router-1', key: 'connectivity', version: 1 })],
+    }));
+
+    now += 1001;
+    await expect(registry.execute('hardware.router-1.reconfigure', {}, approved))
+      .rejects.toThrow('world-state observation is stale');
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 
   test('validates capability arguments before any device call', async () => {
     const execute = jest.fn(async () => ({ moved: true }));
