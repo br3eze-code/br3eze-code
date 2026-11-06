@@ -45,8 +45,10 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git stash push -m "dependency-repair" -- package.json package-lock.json
           git fetch origin "${GITHUB_REF_NAME}"
           git rebase "origin/${GITHUB_REF_NAME}"
+          git stash pop
           git add package.json package-lock.json
           git commit -m "chore: automated dependency security repair"
           git push origin "HEAD:${GITHUB_REF_NAME}"
