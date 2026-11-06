@@ -123,7 +123,22 @@ export class MikroTikManager extends EventEmitter {
         case 'users.active': return this._get('/ip/hotspot/active');
         case 'mikrotik.hotspot.user.getAll':
         case 'users.all': return this._get('/ip/hotspot/user');
-        case 'system.stats': return this._get('/system/resource');
+        case 'system.stats': {
+          const result = await this._get('/system/resource');
+          const stats = Array.isArray(result) ? (result[0] || {}) : (result || {});
+          const totalMemory = parseRouterOSBytes(stats['total-memory']);
+          const freeMemory = parseRouterOSBytes(stats['free-memory']);
+          const cpuLoad = Number.parseFloat(String(stats['cpu-load'] ?? '0').replace('%', '')) || 0;
+          return {
+            ...stats,
+            'cpu-load': cpuLoad,
+            'total-memory': totalMemory,
+            'free-memory': freeMemory,
+            'memory-usage-percent': totalMemory > 0
+              ? (((totalMemory - freeMemory) / totalMemory) * 100).toFixed(0)
+              : '0',
+          };
+        }
         case 'system.resources': return this._get('/system/resource');
         case 'system.uptime': { const r = await this._get('/system/resource'); return r[0]?.uptime || null; }
         case 'system.identity': return this._get('/system/identity');

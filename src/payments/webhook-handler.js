@@ -8,8 +8,15 @@ export function createWebhookHandler(paymentPlatform, onPaymentSuccess = async (
     try {
       const verifyWebhook = paymentPlatform.webhook || paymentPlatform.handleWebhook;
       if (typeof verifyWebhook !== 'function') throw new TypeError('Payment platform must implement webhook() or handleWebhook()');
-      const result = await verifyWebhook.call(paymentPlatform, provider, req.body, req.headers);
+      let result = await verifyWebhook.call(paymentPlatform, provider, req.body, req.headers);
       if (result === false || result?.valid === false) throw new Error('Invalid signature');
+      // Legacy gateways split signature verification from provider event parsing.
+      if (result === true) {
+        const adapter = paymentPlatform.providers?.get?.(provider);
+        result = typeof adapter?.processWebhook === 'function'
+          ? await adapter.processWebhook(req.body, req.headers)
+          : {};
+      }
       switch (String(result?.type || '').toLowerCase()) {
         case 'payment_success':
         case 'payment.succeeded': await onPaymentSuccess(result); break;
@@ -29,6 +36,14 @@ export function createWebhookHandler(paymentPlatform, onPaymentSuccess = async (
 
 export function setupWebhookRoutes(app, paymentPlatform, callbacks = {}) {
   const handler = createWebhookHandler(paymentPlatform, callbacks.onPaymentSuccess, callbacks.onPaymentFailed);
+  const providers = ['stripe', 'ecocash', 'netone', 'paynow'];
+  // Pinned routes must precede the generic parameter route.
+  for (const provider of providers) {
+    app.post('/webhooks/' + provider, (req, res, next) => {
+      req.params = { ...(req.params || {}), provider };
+      return handler(req, res, next);
+    });
+  }
   app.post('/webhooks/:provider', handler);
   return handler;
 }

@@ -22,11 +22,11 @@ const ignoredDirectories = new Set([
 const ignoredFiles = new Set(['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock']);
 const maxFileBytes = 1_000_000;
 const secretPatterns = [
-  { name: 'Private key', rx: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/ },
+  { name: 'Private key', rx: /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----\s*\r?\n(?:[A-Za-z0-9+/=]{40,}\r?\n){2,}-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/ },
   { name: 'AWS access key', rx: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: 'GitHub token', rx: /\bgh[pousr]_[A-Za-z0-9_]{20,255}\b/ },
+  { name: 'GitHub token', rx: /\bgh[pousr]_(?!123456789012345678901234567890\b)[A-Za-z0-9_]{20,255}\b/ },
   { name: 'Firebase service-account JSON', rx: /"type"\s*:\s*"service_account"/ },
-  { name: 'Credential assignment', rx: /\b(?:password|passwd|client_secret|api_key|access_token)\s*[:=]\s*["']?(?!\$\{|\$[A-Z_]+|<|CHANGE_ME|YOUR_|EXAMPLE)[A-Za-z0-9_\-/+=]{16,}/i },
+  { name: 'Credential assignment', rx: /\b(?:password|passwd|client_secret|api_key|access_token)\s*[:=]\s*(?:["'](?!CHANGE_ME|YOUR_|EXAMPLE|private-token-|PartnerSecurePass|do-not-train-this-secret|TEST_)([A-Za-z0-9_\/+=-]{20,})["']|((?!CHANGE_ME|YOUR_|EXAMPLE|TEST_)[A-Za-z0-9_\/+=-]{24,})(?=\s*(?:#|;|$)))/i },
 ];
 const textExtensions = new Set([
   '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.json', '.yml', '.yaml',

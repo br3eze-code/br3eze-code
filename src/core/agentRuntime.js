@@ -12,7 +12,7 @@ import { ExecutionRecord } from '../workgraph/executionRecord.js';
 import { VerificationEngine } from '../verification/verificationEngine.js';
 import { AgentLoop, TURN_STATES } from './agent-loop.js';
 import { validateModelPort, createModelRequest } from './ports/model.js';
-import toolRegistry from './ToolRegistry.js';
+import toolRegistry, { ToolRegistry } from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
@@ -33,6 +33,13 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
   { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
   { name: 'ping', keywords: ['ping', 'latency', 'check host'] },
+];
+const LEGACY_ROUTE_HINTS = [
+  { name: 'users.active', keywords: ['active users', 'connected users', 'hotspot users', 'sessions'] },
+  { name: 'memory.health', keywords: ['memory health', 'heap health', 'memory diagnostics'] },
+  { name: 'user.add', keywords: ['add user', 'create user', 'register user', 'hotspot user'] },
+  { name: 'firewall.block', keywords: ['block', 'ban', 'blacklist', 'block ip', 'block address'] },
+  { name: 'system.reboot', keywords: ['restart', 'reboot', 'restart system', 'reboot system'] },
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
@@ -73,7 +80,12 @@ function normalizeToolParameters(parameters) {
   return { type: 'object', properties: {} };
 }
 
-function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
+function scorePrompt(tokens, entry) {
+  return entry.keywords.filter((keyword) => {
+    const words = String(keyword).toLowerCase().split(/\s+/).filter(Boolean);
+    return words.length > 0 && words.every((word) => tokens.has(word));
+  }).length;
+}
 
 class UsageSummary {
   constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
@@ -136,7 +148,7 @@ class AgentRuntime extends EventEmitter {
     super();
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     // AgentRuntime owns capability orchestration; registries are implementation stores.
-    this.toolRegistry = config.toolRegistry || toolRegistry;
+    this.toolRegistry = config.toolRegistry || new ToolRegistry();
     this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
     this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
     // AgentRuntime is the sole lifecycle owner; managers below are stores/adapters.
@@ -261,18 +273,20 @@ class AgentRuntime extends EventEmitter {
 
   routePrompt(prompt, limit = 5) {
     const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  const manifest = registeredTools.length
-  ? [
-    ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
-    ...registeredTools.map(tool => ({
-      name: tool.fullName || tool.name,
-      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
-    })),
-  ]
-  : this.toolManifest || DEFAULT_TOOL_MANIFEST;
-    return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
-      .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const manifest = [
+      ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
+      ...LEGACY_ROUTE_HINTS,
+      ...registeredTools.map((tool) => ({
+        name: tool.fullName || tool.name,
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
+      })),
+    ];
+    return manifest.map((entry) => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((entry) => entry.name);
   }
 
   registerTool(tool) {
@@ -771,6 +785,7 @@ class AgentRuntime extends EventEmitter {
         approvalId: actionId,
         approvalGranted: true,
         approved: true,
+        [APPROVAL_AUTHORIZATION]: true,
       }),
     });
   }
@@ -798,8 +813,14 @@ class AgentRuntime extends EventEmitter {
   }
 
   listTools() {
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
+    const declared = this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    const registered = this.toolRegistry?.getAllTools?.() || [];
+    const names = new Set();
+    for (const tool of [...declared, ...registered]) {
+      const name = tool.fullName || tool.name;
+      if (typeof name === 'string' && name) names.add(name);
+    }
+    return [...names];
   }
   findTools(query) {
   const needle = String(query).toLowerCase();
@@ -818,7 +839,7 @@ class AgentRuntime extends EventEmitter {
 let _runtime = null;
 function getAgentRuntime(config = {}) {
   if (!_runtime) {
-    _runtime = config.runtime || new AgentRuntime(config);
+    _runtime = config.runtime || new AgentRuntime({ ...config, toolRegistry: config.toolRegistry || toolRegistry });
   } else if (config.runtime && config.runtime !== _runtime) {
     throw new Error('AgentRuntime is already composed; inject the canonical runtime instead of creating a second owner.');
   }

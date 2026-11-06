@@ -36,12 +36,13 @@ describe('TOOL_MANIFEST', () => {
         expect(new Set(names).size).toBe(names.length);
     });
 
-    test('expected tools are present', () => {
+    test('core defaults remain domain-neutral', () => {
         const names = new Set(TOOL_MANIFEST.map(t => t.name));
         expect(names.has('system.stats')).toBe(true);
-        expect(names.has('user.add')).toBe(true);
         expect(names.has('ping')).toBe(true);
-        expect(names.has('firewall.block')).toBe(true);
+        expect(names.has('user.add')).toBe(false);
+        expect(names.has('firewall.block')).toBe(false);
+        expect(names.has('system.reboot')).toBe(false);
     });
 });
 

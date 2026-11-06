@@ -74,32 +74,8 @@ jobs:
           DATA_BACKEND: local
           LLM_PROVIDER: gemini
 
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: javascript
-          queries: security-and-quality
-          config: |
-            paths-ignore:
-              - 'node_modules'
-              - 'platforms'
-              - 'www/lib'
-              - 'docs'
-              - '**/*.min.js'
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
-        with:
-          category: /language:javascript
-
+  # CodeQL scanning is managed by repository default setup. Keeping a second
+  # advanced workflow here conflicts with that configuration and fails analysis.
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest

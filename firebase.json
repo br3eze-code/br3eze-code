@@ -14,9 +14,9 @@
   },
   "hosting": {
     "predeploy": [
-      "node scripts/generate-env-www.js"
+      "npm run build:web"
     ],
-    "public": "www",
+    "public": "dist-web",
     "ignore": [
       "firebase.json",
       "**/.*",

@@ -42,9 +42,9 @@ class PaymentService {
     const reference = `VOUCHER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const paymentResult = await this.platform.createPayment(paymentMethod, { amount, currency, description: `WiFi Voucher: ${voucherType}`, reference, phoneNumber: customerPhone, email: customerEmail, metadata: { userId, voucherType, ...metadata } });
     const transaction = {
-      user_id: userId, voucher_type: voucherType, amount, currency, payment_method: paymentMethod,
-      status: paymentResult.status, reference, transaction_id: paymentResult.transactionId,
-      created_at: new Date().toISOString(), metadata: paymentResult
+      userId, voucherType, user_id: userId, voucher_type: voucherType, amount, currency, paymentMethod, payment_method: paymentMethod,
+      status: paymentResult.status, reference, transactionId: paymentResult.transactionId, transaction_id: paymentResult.transactionId,
+      createdAt: new Date().toISOString(), created_at: new Date().toISOString(), metadata: paymentResult
     };
     if (typeof this.db?.set === 'function') {
       await this.db.set('transactions', paymentResult.transactionId, transaction);
@@ -84,17 +84,29 @@ class PaymentService {
 
   async processRefund(transactionId, provider, amount, reason) {
     const result = await this.platform.refund(provider, transactionId, amount, reason);
-    if (this.db?.update) await this.db.update('transactions', transactionId, {
-      refunded: true, refund_amount: amount, refund_reason: reason, refund_id: result.refundId,
-      refunded_at: new Date().toISOString()
-    });
+    const refundPatch = {
+      refunded: true, refundAmount: amount, refundReason: reason, refundId: result.refundId,
+      refund_amount: amount, refund_reason: reason, refund_id: result.refundId,
+      refundedAt: new Date().toISOString(), refunded_at: new Date().toISOString()
+    };
+    if (typeof this.db?.update === 'function') await this.db.update('transactions', transactionId, refundPatch);
+    else if (typeof this.db?.collection === 'function') await this.db.collection('transactions').doc(transactionId).update(refundPatch);
     return result;
   }
 
   async getTransactionHistory(userId, options = {}) {
-    if (!this.db?.query) return [];
+    if (!this.db) return [];
     const { limit = 50, offset = 0 } = options;
-    return this.db.query('transactions', { user_id: userId }, { orderBy: 'created_at', direction: 'desc', limit, offset });
+    if (typeof this.db.query === 'function') {
+      return this.db.query('transactions', { user_id: userId }, { orderBy: 'created_at', direction: 'desc', limit, offset });
+    }
+    if (typeof this.db.collection === 'function') {
+      let query = this.db.collection('transactions').where('userId', '==', userId).orderBy('created_at', 'desc').limit(limit);
+      if (offset > 0 && typeof query.offset === 'function') query = query.offset(offset);
+      const snapshot = await query.get();
+      return (snapshot.docs || []).map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+    return [];
   }
 
   generateVoucherCode() {
