@@ -17,6 +17,7 @@ import _cmd_google from './src/cli/commands/google.js';
 import _cmd_update from './src/cli/commands/update.js';
 import _cmd_cli from './src/cli/commands/cli.js';
 import _cmd_grok from './src/cli/commands/grok.js';
+import _cmd_serve from './src/cli/commands/serve.js';
 import { program } from 'commander';
 import _chalk from 'chalk';
 import _boxen from 'boxen';
@@ -36,7 +37,7 @@ global.AGENTOS = { BRAND, CONFIG_PATH, STATE_PATH, PROFILE_DIR: getProfileDir(),
 [path.join(process.cwd(), 'data', 'sessions'), path.join(process.cwd(), 'data', 'skills'), path.join(process.cwd(), 'logs'), STATE_PATH].forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
 const showBanner = () => { if (!process.argv.includes('--no-banner') && !process.argv.includes('--json')) { try { console.log(boxen(`${chalk.cyan.bold(`${BRAND.emoji} ${BRAND.name} ${BRAND.version}`)}\n${chalk.gray(BRAND.tagline)}`, { padding: 1, margin: 0, borderStyle: 'round', borderColor: 'cyan' })); } catch (_) { console.log(`\n  ${BRAND.emoji} ${BRAND.name} ${BRAND.version} — ${BRAND.tagline}\n`); } } };
 program.name('agentos').description(`${BRAND.name} — Modular AI Agent Operating System`).version(BRAND.version, '-V, --version', 'Output version number').option('--dev', 'Use dev profile (~/.agentos-dev)').option('--profile <name>', 'Named profile (isolates config/state)').option('--log-level <level>', 'Log level: silent|error|warn|info|debug', 'info').option('--no-color', 'Disable ANSI colors').option('--json', 'Machine-readable JSON output').option('--no-banner', 'Suppress startup banner').configureOutput({ writeErr: str => process.stdout.write(str), getOutHelpWidth: () => 100, getErrHelpWidth: () => 100 });
-_cmd_onboard(program); _cmd_ask(program); _cmd_gateway(program); _cmd_config(program); _cmd_doctor(program); _cmd_domain(program); _cmd_status(program); _cmd_dashboard(program); _cmd_skill(program); _cmd_agent(program); _cmd_shop(program); _cmd_wacli(program); _cmd_telegram(program); _cmd_google(program); _cmd_update(program); _cmd_cli(program); _cmd_grok(program);
+_cmd_onboard(program); _cmd_ask(program); _cmd_gateway(program); _cmd_config(program); _cmd_doctor(program); _cmd_domain(program); _cmd_status(program); _cmd_dashboard(program); _cmd_skill(program); _cmd_agent(program); _cmd_shop(program); _cmd_wacli(program); _cmd_telegram(program); _cmd_google(program); _cmd_update(program); _cmd_cli(program); _cmd_grok(program); _cmd_serve(program);
 
 async function registerOptionalDomainCommands() {
   const domain = String(process.env.AGENTOS_DOMAIN || 'network').trim().toLowerCase();
