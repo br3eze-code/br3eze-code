@@ -139,9 +139,12 @@ class AgentRuntime extends EventEmitter {
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || toolRegistry;
     this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
-    this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
     // Observations are runtime-scoped and volatile: a restart returns state to unknown until refreshed.
     this.worldState = config.worldState || new WorldStateRegistry(config.worldStateOptions || {});
+    this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry({
+      ...(config.hardwareOptions || {}),
+      worldState: this.worldState,
+    });
     // AgentRuntime is the sole lifecycle owner; managers below are stores/adapters.
     this.serviceSupervisor = config.serviceSupervisor || config.applications?.supervisor
       || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
