@@ -82,7 +82,7 @@ function normalizeToolParameters(parameters) {
 
 function scorePrompt(tokens, entry) {
   return entry.keywords.filter((keyword) => {
-    const words = String(keyword).toLowerCase().split(/\\s+/).filter(Boolean);
+    const words = String(keyword).toLowerCase().split(/\s+/).filter(Boolean);
     return words.length > 0 && words.every((word) => tokens.has(word));
   }).length;
 }
@@ -272,14 +272,14 @@ class AgentRuntime extends EventEmitter {
   }
 
   routePrompt(prompt, limit = 5) {
-    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(Boolean));
+    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
     const registeredTools = this.toolRegistry?.getAllTools?.() || [];
     const manifest = [
       ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
       ...LEGACY_ROUTE_HINTS,
       ...registeredTools.map((tool) => ({
         name: tool.fullName || tool.name,
-        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\\s+/).slice(0, 12),
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
       })),
     ];
     return manifest.map((entry) => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
