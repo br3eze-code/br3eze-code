@@ -51,6 +51,9 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
+      - name: Build native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
+
       - name: Build and smoke-test dev and production serving
         run: npm run test:serve
 
