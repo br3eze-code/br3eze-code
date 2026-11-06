@@ -104,7 +104,10 @@ export class HardwareCapabilityRegistry {
           throw new TypeError('state requirement must be an object');
         }
         assertName(requirement.key, 'state requirement key');
-        if (requirement.resourceId !== undefined) assertName(requirement.resourceId, 'state requirement resourceId');
+        if (requirement.resourceId !== undefined &&
+          (typeof requirement.resourceId !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,191}$/.test(requirement.resourceId))) {
+          throw new TypeError('state requirement resourceId must be a valid resource identifier');
+        }
         if (requirement.maxAgeMs !== undefined && (!Number.isSafeInteger(requirement.maxAgeMs) || requirement.maxAgeMs < 1)) {
           throw new RangeError('state requirement maxAgeMs must be a positive safe integer');
         }
