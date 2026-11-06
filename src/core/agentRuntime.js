@@ -776,6 +776,7 @@ class AgentRuntime extends EventEmitter {
         approvalId: actionId,
         approvalGranted: true,
         approved: true,
+        [APPROVAL_AUTHORIZATION]: true,
       }),
     });
   }
