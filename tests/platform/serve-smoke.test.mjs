@@ -11,9 +11,9 @@ async function unusedPort() {
   return port;
 }
 
-test('local server serves homepage, HTML assets, API health, and safe API 404s', { timeout: 45000 }, async t => {
+async function startServer(t, mode) {
   const port = await unusedPort();
-  const child = spawn(process.execPath, ['scripts/serve.mjs', '--mode=dev'], {
+  const child = spawn(process.execPath, ['scripts/serve.mjs', `--mode=${mode}`], {
     cwd: process.cwd(),
     env: { ...process.env, NODE_ENV: 'test', DATA_BACKEND: 'local', HOST: '127.0.0.1', PORT: String(port) },
     stdio: ['ignore', 'pipe', 'pipe']
@@ -42,20 +42,12 @@ test('local server serves homepage, HTML assets, API health, and safe API 404s',
     await new Promise(resolve => setTimeout(resolve, 250));
   }
   assert.ok(health?.ok, `server did not become ready:\n${output}`);
-  assert.equal((await health.json()).mode, 'development');
+  const status = await health.json();
+  assert.equal(status.mode, mode === 'prod' ? 'production' : 'development');
+  return base;
+}
 
-  const home = await fetch(base);
-  assert.equal(home.status, 200);
-  assert.match(await home.text(), /Prepaid WiFi that keeps working/i);
-
-  const explicitHome = await fetch(`${base}/home.html`);
-  assert.equal(explicitHome.status, 200);
-  assert.match(await explicitHome.text(), /Prepaid WiFi/i);
-
-  const connect = await fetch(`${base}/connect.html`);
-  assert.equal(connect.status, 200);
-  assert.match(await connect.text(), /Power Connect/i);
-
+async function assertApiRoutes(base) {
   const apiHealth = await fetch(`${base}/api/health`);
   assert.equal(apiHealth.status, 200);
   assert.equal((await apiHealth.json()).ok, true);
@@ -63,4 +55,39 @@ test('local server serves homepage, HTML assets, API health, and safe API 404s',
   const missingApi = await fetch(`${base}/api/not-a-real-endpoint`);
   assert.equal(missingApi.status, 404);
   assert.equal((await missingApi.json()).error, 'not_found');
+}
+
+test('development server serves PWA pages and canonical API routes', { timeout: 45000 }, async t => {
+  const base = await startServer(t, 'dev');
+
+  const home = await fetch(base);
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /Prepaid WiFi/i);
+
+  const explicitHome = await fetch(`${base}/home.html`);
+  assert.equal(explicitHome.status, 200);
+  assert.match(await explicitHome.text(), /WiFi that stays on/i);
+
+  const connect = await fetch(`${base}/connect.html`);
+  assert.equal(connect.status, 200);
+  assert.match(await connect.text(), /Power Connect/i);
+
+  await assertApiRoutes(base);
+});
+
+test('production server serves the generated marketing root and portal alias', { timeout: 45000 }, async t => {
+  const base = await startServer(t, 'prod');
+
+  const home = await fetch(base);
+  assert.equal(home.status, 200);
+  assert.match(await home.text(), /WiFi that stays on/i);
+
+  const connect = await fetch(`${base}/connect.html`);
+  assert.equal(connect.status, 200);
+  assert.match(await connect.text(), /Power Connect/i);
+
+  const env = await fetch(`${base}/js/env.js`);
+  assert.equal(env.status, 200);
+
+  await assertApiRoutes(base);
 });
