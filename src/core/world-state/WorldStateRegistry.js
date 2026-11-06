@@ -78,11 +78,11 @@ export class WorldStateRegistry {
   get(resourceId, key, { maxAgeMs } = {}) {
     assertIdentifier(resourceId, 'resourceId');
     assertIdentifier(key, 'key');
-    const observation = this.observations.get(`${resourceId}\u0000${key}`);
-    if (!observation) return { resourceId, key, status: 'unknown', value: null, reason: 'never_observed' };
     if (maxAgeMs !== undefined && (!Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1)) {
       throw new RangeError('maxAgeMs must be a positive safe integer');
     }
+    const observation = this.observations.get(`${resourceId}\u0000${key}`);
+    if (!observation) return { resourceId, key, status: 'unknown', value: null, reason: 'never_observed' };
     return this.#present(observation, this.clock(), maxAgeMs);
   }
 
