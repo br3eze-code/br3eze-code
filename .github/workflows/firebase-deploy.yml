@@ -1,7 +1,7 @@
 name: Firebase Deploy
 
 # Runs after a GitHub Release is published (see release.yml), or manually.
-# Deploys www/ to Firebase Hosting, server/ as the "api" Cloud Function,
+# Deploys the shared dist-web/ artifact to Firebase Hosting, server/ as the "api" Cloud Function,
 # and firestore.rules / firestore.indexes.json — everything firebase.json
 # points at. Does NOT touch the Cloud Run deployment (apphosting.yaml) or
 # Kubernetes (deploy.yml) — those are separate, unrelated targets.
@@ -11,6 +11,9 @@ on:
     branches: [main]
     paths:
       - 'www/**'
+      - 'scripts/vercel-build.mjs'
+      - 'package.json'
+      - 'package-lock.json'
       - 'scripts/generate-env-www.js'
       - 'server/**'
       - 'api/chat/otp/**'
@@ -101,7 +104,7 @@ jobs:
           create_credentials_file: true
           export_environment_variables: true
 
-      - name: Write CI .env for the hosting predeploy step
+      - name: Write CI .env for the shared web build
         # Firebase's checked-in Android client config contains the public project
         # settings required by the web SDK. Keep secrets out of the browser bundle.
         env:
