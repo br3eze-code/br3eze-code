@@ -59,6 +59,11 @@ jobs:
         run: npm run check:ci-quality
       - name: Build required native SQLite binding
         run: npm rebuild better-sqlite3 --no-audit --no-fund
+      - name: Smoke-test local PWA and API serving
+        run: npm run test:serve
+        env:
+          NODE_ENV: test
+          DATA_BACKEND: local
       - name: Validate agent identity authorization boundary
         run: npm test -- --runTestsByPath tests/unit/agent-authorization.test.js --coverage=false
       - name: Test Supabase identity and bearer boundary
