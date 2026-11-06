@@ -13,7 +13,7 @@ import proactiveProposalRouter from '../src/api/routes/proactive-proposals.js';
 import { createFirebaseDataSessionRouter } from '../src/api/routes/firebase-data-session.js';
 import { getAuth as getFirebaseAuth } from '../src/adapters/firebase/admin.js';
 
-const app = express();
+export const app = express();
 
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
