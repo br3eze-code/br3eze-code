@@ -7,7 +7,7 @@ import net from 'node:net';
  * composition boundary. The kernel/core must not know vendor protocols.
  */
 export class MeshRegistry extends EventEmitter {
-  constructor({ managerFactory = null, auditSink = null, readOnlyTools = [] } = {}) {
+  constructor({ managerFactory = null, auditSink = null, readOnlyTools = ['system.health', 'system.resources', 'system.uptime', 'system.identity', 'system.logs', 'ping', 'traceroute'] } = {}) {
     super();
     this.managerFactory = managerFactory;
     this.auditSink = auditSink;
