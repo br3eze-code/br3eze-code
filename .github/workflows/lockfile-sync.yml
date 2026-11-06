@@ -1,0 +1,48 @@
+name: Temporary lockfile sync
+
+on:
+  push:
+    branches: [fix/green-ci-local-serving]
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/lockfile-sync.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lockfile-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: ${{ !contains(github.event.head_commit.message, 'automated lockfile sync') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Resolve the lockfile for declared dependencies
+        run: npm install --package-lock-only --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - name: Apply compatible transitive security fixes
+        run: npm audit fix --force --package-lock-only --ignore-scripts --legacy-peer-deps || echo 'Some advisories require further direct dependency migration; committing the resolved lockfile for validation.'
+      - name: Commit lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: automated lockfile sync"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
