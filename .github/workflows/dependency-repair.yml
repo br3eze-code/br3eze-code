@@ -31,6 +31,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies without lifecycle scripts
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit
+      - name: Restore the declared Supabase adapter dependency
+        run: npm install @supabase/supabase-js --save --ignore-scripts --legacy-peer-deps --no-audit --no-fund
       - name: Apply published security fixes and required major updates
         run: npm audit fix --force --ignore-scripts || echo 'npm audit fix left advisories; committing the generated dependency changes for validation'
       - name: Commit only dependency manifests
