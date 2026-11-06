@@ -63,7 +63,7 @@ function validateArguments(schema, args) {
  * accepted by this boundary.
  */
 export class HardwareCapabilityRegistry {
-  constructor({ timeoutMs = 15_000, maxAdapters = 64 } = {}) {
+  constructor({ timeoutMs = 15_000, maxAdapters = 64, worldState = null } = {}) {
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 120_000) {
       throw new RangeError('timeoutMs must be an integer between 1 and 120000');
     }
@@ -72,6 +72,10 @@ export class HardwareCapabilityRegistry {
       throw new RangeError('maxAdapters must be an integer between 1 and 1024');
     }
     this.maxAdapters = maxAdapters;
+    if (worldState !== null && typeof worldState.requireFresh !== 'function') {
+      throw new TypeError('worldState must expose requireFresh(resourceId, key, options)');
+    }
+    this.worldState = worldState;
     this.adapters = new Map();
     this.capabilities = new Map();
     this.mountedRegistries = new WeakMap();
@@ -92,6 +96,19 @@ export class HardwareCapabilityRegistry {
       assertName(capability.name, 'capability.name');
       if (!ACCESS.has(capability.access)) throw new TypeError('capability.access must be read or write');
       if (typeof capability.execute !== 'function') throw new TypeError('capability.execute must be a function');
+      if (capability.requiresFreshState !== undefined && !Array.isArray(capability.requiresFreshState)) {
+        throw new TypeError('capability.requiresFreshState must be an array');
+      }
+      for (const requirement of capability.requiresFreshState || []) {
+        if (!requirement || typeof requirement !== 'object' || Array.isArray(requirement)) {
+          throw new TypeError('state requirement must be an object');
+        }
+        assertName(requirement.key, 'state requirement key');
+        if (requirement.resourceId !== undefined) assertName(requirement.resourceId, 'state requirement resourceId');
+        if (requirement.maxAgeMs !== undefined && (!Number.isSafeInteger(requirement.maxAgeMs) || requirement.maxAgeMs < 1)) {
+          throw new RangeError('state requirement maxAgeMs must be a positive safe integer');
+        }
+      }
       const fullName = `hardware.${adapter.id}.${capability.name}`;
       if (this.capabilities.has(fullName) || seen.has(fullName)) {
         throw new Error(`Hardware capability already registered: ${fullName}`);
@@ -167,6 +184,25 @@ export class HardwareCapabilityRegistry {
 
     validateArguments(entry.capability.schema, args);
 
+    const statePreconditions = [];
+    for (const requirement of entry.capability.requiresFreshState || []) {
+      if (!this.worldState) {
+        throw new Error(`fresh world-state registry required for hardware capability: ${fullName}`);
+      }
+      const resourceId = requirement.resourceId || entry.adapter.deviceId || entry.adapter.id;
+      const observation = this.worldState.requireFresh(resourceId, requirement.key, {
+        ...(requirement.maxAgeMs === undefined ? {} : { maxAgeMs: requirement.maxAgeMs }),
+      });
+      statePreconditions.push({
+        resourceId,
+        key: requirement.key,
+        version: observation.version,
+        observedAt: observation.observedAt,
+        source: observation.source,
+        value: observation.value,
+      });
+    }
+
     const controller = new AbortController();
     let timeout;
     const timeoutFailure = new Promise((_, reject) => {
@@ -198,6 +234,7 @@ export class HardwareCapabilityRegistry {
         signal: controller.signal,
         approved: entry.capability.access === 'write' && context.approvalGranted === true,
         approvalId: context.approvalId || null,
+        statePreconditions,
       }));
       return await Promise.race([operation, timeoutFailure, abortFailure]);
     } finally {
