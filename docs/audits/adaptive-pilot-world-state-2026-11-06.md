@@ -12,23 +12,25 @@ The runtime must distinguish intended state from observed state. An absent obser
 - `requireFresh` fails closed unless an observation is current.
 - Values are cloned at the boundary to prevent callers mutating recorded state by reference.
 - The canonical `AgentRuntime` owns the registry and exposes observation/query methods; this does not introduce another agent loop.
+- Hardware capabilities may declare `requiresFreshState`; the hardware boundary then fails closed if any required observation is missing or stale and passes the observed version/provenance to the adapter.
 - State is intentionally volatile. After restart, callers must re-observe rather than infer that old state remains valid.
 
 ## Not yet proven
 
 - The registry is not durable storage, device telemetry, or an authorization system.
-- Hardware actions do not automatically consume state observations yet. Device adapters and execution paths must explicitly require fresh state before risky actions.
+- Only hardware capabilities that explicitly declare `requiresFreshState` are guarded by this contract; existing capabilities without declarations are not automatically state-gated. Device adapters should enforce state-version preconditions at the device boundary where supported.
 - Multi-source contradiction resolution and atomic state-version checks at the device boundary remain future work.
 - Repository tests have been authored but were not run in a checked-out Node.js environment during this patch.
 
 ## Acceptance tests
 
 1. Never-observed state is `unknown`.
-2. Fresh observations are `current`; expired observations become `stale`.
-3. Callers cannot mutate stored observations through returned object references.
-4. Invalid provenance, confidence, future timestamps, freshness limits, and capacity overflow are rejected.
-5. `requireFresh` throws for unknown or stale state.
-6. Full repository CI must pass on the PR revision before merge.
+2. A hardware capability declaring a state requirement must not execute when that observation is unknown or stale.
+3. Fresh observations are `current`; expired observations become `stale`.
+4. Callers cannot mutate stored observations through returned object references.
+5. Invalid provenance, confidence, future timestamps, freshness limits, and capacity overflow are rejected.
+6. `requireFresh` throws for unknown or stale state.
+7. Full repository CI must pass on the PR revision before merge.
 
 ## Next required integration
 
