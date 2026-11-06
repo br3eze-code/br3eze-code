@@ -10,6 +10,7 @@ describe('WorldStateRegistry', () => {
       reason: 'never_observed',
     });
     expect(() => state.requireFresh('router-1', 'connectivity')).toThrow('world-state observation is unknown');
+    expect(() => state.get('router-1', 'connectivity', { maxAgeMs: 0 })).toThrow('maxAgeMs must be a positive');
   });
 
   test('records an observation with provenance, freshness and monotonic version', () => {
