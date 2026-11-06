@@ -1,0 +1,48 @@
+name: Temporary dependency repair
+
+on:
+  push:
+    branches: [fix/green-ci-local-serving]
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/dependency-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependency-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair-lockfile:
+    if: !contains(github.event.head_commit.message, 'automated dependency security repair')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit
+      - name: Apply published security fixes and required major updates
+        run: npm audit fix --force --ignore-scripts
+      - name: Commit only dependency manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "No dependency manifest changes were produced."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: automated dependency security repair"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
