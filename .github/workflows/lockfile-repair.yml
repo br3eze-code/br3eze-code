@@ -1,0 +1,40 @@
+name: Temporary lockfile repair
+
+on:
+  push:
+    branches: [fix/green-ci-local-serving]
+    paths:
+      - package.json
+      - package-lock.json
+      - .github/workflows/lockfile-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Rebuild a consistent lockfile without running lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+      - name: Commit lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already matches package.json."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: automated consistent lockfile repair"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
