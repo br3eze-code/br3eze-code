@@ -99,6 +99,9 @@ export class WorldStateRegistry {
 
   snapshot(resourceId, options = {}) {
     assertIdentifier(resourceId, 'resourceId');
+    if (options.maxAgeMs !== undefined && (!Number.isSafeInteger(options.maxAgeMs) || options.maxAgeMs < 1)) {
+      throw new RangeError('maxAgeMs must be a positive safe integer');
+    }
     const now = this.clock();
     return [...this.observations.values()]
       .filter((observation) => observation.resourceId === resourceId)
