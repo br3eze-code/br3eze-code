@@ -52,7 +52,7 @@
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
-    "vercel:build": "npm run build && node scripts/vercel-build.mjs",
+    "vercel:build": "npm run build:web",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
     "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs",
     "model:train": "node scripts/train-model.mjs",
@@ -63,8 +63,9 @@
     "test:auth": "npm test -- --runInBand --runTestsByPath tests/unit/auth-identity.test.js --coverage=false",
     "serve": "node scripts/serve.mjs",
     "serve:dev": "node scripts/serve.mjs --mode=dev",
-    "serve:prod": "npm run vercel:build && node scripts/serve.mjs --mode=prod",
-    "test:serve": "npm run vercel:build && node --test tests/platform/serve-smoke.test.mjs"
+    "serve:prod": "npm run build:web && node scripts/serve.mjs --mode=prod",
+    "test:serve": "npm run build:web && node --test tests/platform/serve-smoke.test.mjs",
+    "build:web": "node scripts/vercel-build.mjs"
   },
   "publishConfig": {
     "access": "public",
