@@ -33,8 +33,10 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
   { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
   { name: 'ping', keywords: ['ping', 'latency', 'check host'] },
-  // Legacy capability names remain discoverable while execution stays behind
-  // the canonical registry and its permission/approval gates.
+];
+const LEGACY_ROUTE_HINTS = [
+  { name: 'users.active', keywords: ['active users', 'connected users', 'hotspot users', 'sessions'] },
+  { name: 'memory.health', keywords: ['memory health', 'heap health', 'memory diagnostics'] },
   { name: 'user.add', keywords: ['add user', 'create user', 'register user', 'hotspot user'] },
   { name: 'firewall.block', keywords: ['block', 'ban', 'blacklist', 'block ip', 'block address'] },
   { name: 'system.reboot', keywords: ['restart', 'reboot', 'restart system', 'reboot system'] },
@@ -78,7 +80,12 @@ function normalizeToolParameters(parameters) {
   return { type: 'object', properties: {} };
 }
 
-function scorePrompt(tokens, entry) { return entry.keywords.filter(k => tokens.has(k)).length; }
+function scorePrompt(tokens, entry) {
+  return entry.keywords.filter((keyword) => {
+    const words = String(keyword).toLowerCase().split(/\\s+/).filter(Boolean);
+    return words.length > 0 && words.every((word) => tokens.has(word));
+  }).length;
+}
 
 class UsageSummary {
   constructor(inputTokens = 0, outputTokens = 0) { this.inputTokens = inputTokens; this.outputTokens = outputTokens; }
@@ -265,19 +272,21 @@ class AgentRuntime extends EventEmitter {
   }
 
   routePrompt(prompt, limit = 5) {
-    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  const manifest = registeredTools.length
-  ? [
-    ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
-    ...registeredTools.map(tool => ({
-      name: tool.fullName || tool.name,
-      keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\s+/).slice(0, 12),
-    })),
-  ]
-  : this.toolManifest || DEFAULT_TOOL_MANIFEST;
-    return manifest.map(entry => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
-      .filter(x => x.score > 0).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.name);
+    const tokens = new Set(String(prompt).toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(Boolean));
+    const registeredTools = this.toolRegistry?.getAllTools?.() || [];
+    const manifest = [
+      ...(this.toolManifest || DEFAULT_TOOL_MANIFEST),
+      ...LEGACY_ROUTE_HINTS,
+      ...registeredTools.map((tool) => ({
+        name: tool.fullName || tool.name,
+        keywords: tool.keywords || String(tool.description || '').toLowerCase().split(/\\s+/).slice(0, 12),
+      })),
+    ];
+    return manifest.map((entry) => ({ name: entry.name, score: scorePrompt(tokens, entry) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((entry) => entry.name);
   }
 
   registerTool(tool) {
