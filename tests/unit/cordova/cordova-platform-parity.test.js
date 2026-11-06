@@ -94,7 +94,7 @@ describe('Cordova platform parity and domain boundaries', () => {
       code: 'NATIVE_BRIDGE_UNAVAILABLE',
     });
     await expect(new Promise((resolve, reject) => {
-      bridge.default.checkAvailability(resolve, reject);
+      bridge.checkAvailability(resolve, reject);
     })).rejects.toMatchObject({ action: 'checkAvailability', code: 'NATIVE_BRIDGE_UNAVAILABLE' });
   });
 
