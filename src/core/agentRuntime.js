@@ -33,6 +33,11 @@ const DEFAULT_TOOL_MANIFEST = [
   { name: 'runtime.status', keywords: ['runtime status', 'agentos status', 'runtime health'] },
   { name: 'system.stats', keywords: ['system stats', 'cpu', 'memory', 'resource usage', 'uptime'] },
   { name: 'ping', keywords: ['ping', 'latency', 'check host'] },
+  // Legacy capability names remain discoverable while execution stays behind
+  // the canonical registry and its permission/approval gates.
+  { name: 'user.add', keywords: ['add user', 'create user', 'register user', 'hotspot user'] },
+  { name: 'firewall.block', keywords: ['block', 'ban', 'blacklist', 'block ip', 'block address'] },
+  { name: 'system.reboot', keywords: ['restart', 'reboot', 'restart system', 'reboot system'] },
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
@@ -798,8 +803,14 @@ class AgentRuntime extends EventEmitter {
   }
 
   listTools() {
-  const registeredTools = this.toolRegistry?.getAllTools?.() || [];
-  return (registeredTools.length ? registeredTools : (this.toolManifest || DEFAULT_TOOL_MANIFEST)).map(t => t.fullName || t.name);
+    const declared = this.toolManifest || DEFAULT_TOOL_MANIFEST;
+    const registered = this.toolRegistry?.getAllTools?.() || [];
+    const names = new Set();
+    for (const tool of [...declared, ...registered]) {
+      const name = tool.fullName || tool.name;
+      if (typeof name === 'string' && name) names.add(name);
+    }
+    return [...names];
   }
   findTools(query) {
   const needle = String(query).toLowerCase();
