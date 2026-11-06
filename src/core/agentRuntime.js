@@ -12,7 +12,7 @@ import { ExecutionRecord } from '../workgraph/executionRecord.js';
 import { VerificationEngine } from '../verification/verificationEngine.js';
 import { AgentLoop, TURN_STATES } from './agent-loop.js';
 import { validateModelPort, createModelRequest } from './ports/model.js';
-import toolRegistry from './ToolRegistry.js';
+import toolRegistry, { ToolRegistry } from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
@@ -148,7 +148,7 @@ class AgentRuntime extends EventEmitter {
     super();
     this.defaultConfig = { permissionMode: config.permissionMode || PermissionMode.PROMPT, maxTurns: config.maxTurns || 8, maxBudgetTokens: config.maxBudgetTokens || 4000, compactAfterTurns: config.compactAfterTurns || 12 };
     // AgentRuntime owns capability orchestration; registries are implementation stores.
-    this.toolRegistry = config.toolRegistry || toolRegistry;
+    this.toolRegistry = config.toolRegistry || new ToolRegistry();
     this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
     this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
     // AgentRuntime is the sole lifecycle owner; managers below are stores/adapters.
@@ -839,7 +839,7 @@ class AgentRuntime extends EventEmitter {
 let _runtime = null;
 function getAgentRuntime(config = {}) {
   if (!_runtime) {
-    _runtime = config.runtime || new AgentRuntime(config);
+    _runtime = config.runtime || new AgentRuntime({ ...config, toolRegistry: config.toolRegistry || toolRegistry });
   } else if (config.runtime && config.runtime !== _runtime) {
     throw new Error('AgentRuntime is already composed; inject the canonical runtime instead of creating a second owner.');
   }
