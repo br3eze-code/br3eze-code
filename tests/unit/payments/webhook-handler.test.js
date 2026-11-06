@@ -115,11 +115,11 @@ describe('setupWebhookRoutes', () => {
 
     const registeredPaths = app.post.mock.calls.map(call => call[0]);
     expect(registeredPaths).toEqual([
-      '/webhooks/:provider',
       '/webhooks/stripe',
       '/webhooks/ecocash',
       '/webhooks/netone',
       '/webhooks/paynow',
+      '/webhooks/:provider',
     ]);
   });
 
