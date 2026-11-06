@@ -44,6 +44,11 @@ describe('WorldStateRegistry', () => {
     expect(() => state.record({ ...base, observedAt: '2026-11-06T10:01:00.000Z' })).toThrow('too far in the future');
   });
 
+  test('rejects invalid snapshot freshness overrides', () => {
+    const state = new WorldStateRegistry();
+    expect(() => state.snapshot('router-1', { maxAgeMs: 0 })).toThrow('maxAgeMs must be a positive');
+  });
+
   test('limits new observations and supports resource-scoped clearing', () => {
     const state = new WorldStateRegistry({ maxObservations: 1 });
     state.record({ resourceId: 'router-1', key: 'connectivity', value: true, source: 'routeros' });
