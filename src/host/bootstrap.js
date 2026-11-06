@@ -5,7 +5,7 @@ import supabaseDatabaseAdapter from '../adapters/persistence/supabase-database.j
 import BillingAdapter from '../adapters/payments/universal-billing.js';
 import FinancialService from '../services/financial.js';
 import { registerDatabaseProvider } from '../core/database.js';
-import { registerPersistenceProvider } from '../core/firebase.js';
+import { registerPersistenceProvider } from '../core/persistence.js';
 import { registerBillingProvider } from '../core/universal-billing.js';
 import { registerFinancialProvider } from '../core/financial.js';
 import nodeRegistry from '../core/node-registry.js';
