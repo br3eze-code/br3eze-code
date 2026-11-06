@@ -1,0 +1,69 @@
+name: Vercel Deployment
+
+# Vercel's connected Git integration is the single deployment authority for
+# preview branches and production main. This workflow validates the exact
+# dist-web artifact and local API/PWA contract; it deliberately does not run a
+# second `vercel deploy` command or compete for the production alias.
+on:
+  pull_request:
+    paths:
+      - 'www/**'
+      - 'api/**'
+      - 'scripts/vercel-build.mjs'
+      - 'scripts/serve.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/vercel-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'www/**'
+      - 'api/**'
+      - 'scripts/vercel-build.mjs'
+      - 'scripts/serve.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/vercel-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-artifact-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build & Deploy to Vercel
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build and smoke-test dev and production serving
+        run: npm run test:serve
+
+      - name: Verify the deployable artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d dist-web
+          test -f dist-web/index.html
+          test -f dist-web/connect.html
+          test -f dist-web/js/env.js
+          if find dist-web -type f \\( -name '*.php' -o -name '.htaccess' -o -name '.htpasswd' \\) | grep -q .; then
+            echo 'Private/server-only files found in dist-web' >&2
+            exit 1
+          fi
+          du -sh dist-web
