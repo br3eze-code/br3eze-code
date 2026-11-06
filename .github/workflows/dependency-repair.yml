@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   repair-lockfile:
-    if: !contains(github.event.head_commit.message, 'automated dependency security repair')
+    if: ${{ !contains(github.event.head_commit.message, 'automated dependency security repair') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
