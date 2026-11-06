@@ -89,11 +89,17 @@ jobs:
       - name: Verify build output
         run: |
           set -euo pipefail
-          test -d www
-          test -f www/index.html
+          test -d dist-web
+          test -f dist-web/index.html
+          test -f dist-web/connect.html
+          test -f dist-web/js/env.js
           test -f api/index.js
           test -f 'api/[...path].js'
-          du -sh www
+          if find dist-web -type f \\( -name '*.php' -o -name '.htaccess' -o -name '.htpasswd' \\) | grep -q .; then
+            echo 'Private/server-only files found in deployment output' >&2
+            exit 1
+          fi
+          du -sh dist-web
 
       - name: Validate deployment configuration
         env:
