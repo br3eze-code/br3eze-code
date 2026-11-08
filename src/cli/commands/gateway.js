@@ -411,10 +411,16 @@ export default (program) => {
                 });
 
                 // 5. Start Gateway
+                // Compose the provider-neutral gateway with the existing HTTP API app.
+                // The API app remains the single owner of its route/auth contracts;
+                // the gateway only supplies the shared local HTTP listener.
+                const { default: apiApp } = await import('../../../api/index.js');
+                const configuredRoutes = Array.isArray(config.routes) ? config.routes : [];
                 const gateway = new AgentOSGateway({
                     ...config,
                     host: Host,
                     port: Port,
+                    routes: [...configuredRoutes, { path: '/', router: apiApp }],
                     verbose: options.verbose
                 });
                 gateway.runtime = runtime;
