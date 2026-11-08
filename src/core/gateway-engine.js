@@ -78,14 +78,14 @@ export class Gateway extends EventEmitter {
       this.webServer.attach(this.app, express);
       this.app.use(this.webServer);
       this.app.use((req, res) => {
-        if (req.method === 'GET' && req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
+        if (req.method === 'GET' && (req.path === '/api' || req.path.startsWith('/api/'))) return res.status(404).json({ error: 'API route not found' });
         return res.status(404).type('text').send('Not found');
       });
     } else {
       this.app.get('/', (_req, res) => res.type('html').send(DASHBOARD_HTML));
       this.app.get('/index.html', (_req, res) => res.type('html').send(DASHBOARD_HTML));
       this.app.use((req, res) => {
-        if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
+        if (req.path === '/api' || req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
         return res.status(404).type('text').send('Not found');
       });
     }
