@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import express from 'express';
 import request from 'supertest';
 import { Gateway } from '../../src/core/gateway-engine.js';
 
@@ -13,7 +14,9 @@ describe('Gateway live web serving', () => {
     await fs.writeFile(path.join(root, 'index.html'), '<!doctype html><html><body><main>AgentOS console</main></body></html>');
     await fs.mkdir(path.join(root, 'assets'));
     await fs.writeFile(path.join(root, 'assets', 'app.js'), 'window.agentosReady = true;');
-    gateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: root, web: { development: true } });
+    const apiApp = express();
+    apiApp.get('/api/health', (_req, res) => res.json({ ok: true, owner: 'api-app' }));
+    gateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: root, web: { development: true }, routes: [{ path: '/', router: apiApp }] });
   });
 
   afterEach(async () => {
@@ -39,6 +42,12 @@ describe('Gateway live web serving', () => {
     const response = await request(gateway.getApp()).get('/assets/app.js');
     expect(response.status).toBe(200);
     expect(response.text).toContain('agentosReady');
+  });
+
+  test('dispatches API routes through the configured API app before static fallback', async () => {
+    const response = await request(gateway.getApp()).get('/api/health');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ ok: true, owner: 'api-app' });
   });
 
   test('does not let unknown API routes fall back to the frontend', async () => {
