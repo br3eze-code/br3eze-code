@@ -3,9 +3,41 @@ import http from 'node:http';
 import EventEmitter from 'node:events';
 import { logger } from './logger.js';
 
-/**
- * Domain-neutral HTTP/WebSocket gateway. Routes, authentication, channels,
- * tools and external services are injected by the host application.
+const DASHBOARD_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>AgentOS Gateway</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#0b1020;color:#e8edf8}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#172747,#0b1020 60%);padding:clamp(20px,5vw,64px)}
+main{max-width:920px;margin:auto}.eyebrow{color:#7dd3fc;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;font-weight:700}
+h1{font-size:clamp(2.2rem,6vw,4rem);margin:.5rem 0}.muted{color:#a8b4cb;line-height:1.6}
+.panel{margin-top:28px;border:1px solid #293956;background:#111a2d;border-radius:18px;padding:24px}
+.status{display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.15rem}.dot{width:11px;height:11px;border-radius:50%;background:#fbbf24}.dot.ok{background:#34d399;box-shadow:0 0 16px #34d39988}.dot.bad{background:#fb7185}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:22px}.item{padding:16px;border-radius:12px;background:#0b1222;border:1px solid #25324b}.label{font-size:.78rem;color:#9baac3}.value{margin-top:8px;font-size:1rem;overflow-wrap:anywhere}
+a{color:#7dd3fc}button{border:0;border-radius:9px;padding:10px 14px;background:#2563eb;color:white;font-weight:700;cursor:pointer;margin-top:18px}
+code{color:#bae6fd}footer{margin-top:28px;color:#8090aa;font-size:.85rem}
+</style></head><body><main>
+<div class="eyebrow">Br3eze · Local runtime</div><h1>AgentOS Gateway</h1>
+<p class="muted">Your local gateway dashboard. This page is served by the same process as the gateway API.</p>
+<section class="panel"><div class="status"><span id="dot" class="dot"></span><span id="state">Checking gateway…</span></div>
+<div class="grid"><div class="item"><div class="label">Dashboard</div><div class="value" id="page">Loading…</div></div>
+<div class="item"><div class="label">Health endpoint</div><div class="value"><a href="/health" target="_blank" rel="noreferrer">/health</a></div></div>
+<div class="item"><div class="label">Readiness</div><div class="value"><a href="/health/ready" target="_blank" rel="noreferrer">/health/ready</a></div></div>
+<div class="item"><div class="label">Live check</div><div class="value"><a href="/health/live" target="_blank" rel="noreferrer">/health/live</a></div></div></div>
+<button id="refresh" type="button">Refresh status</button><p id="detail" class="muted" role="status"></p></section>
+<footer>Local-first by default. This dashboard does not expose gateway credentials.</footer>
+</main><script>
+const state=document.querySelector('#state'),dot=document.querySelector('#dot'),detail=document.querySelector('#detail');
+document.querySelector('#page').textContent=location.origin;
+async function refresh(){state.textContent='Checking gateway…';dot.className='dot';try{const r=await fetch('/health/ready',{cache:'no-store'});const data=await r.json();if(!r.ok||data.ok===false)throw new Error(data.error||'Gateway is not ready');state.textContent='Gateway ready';dot.className='dot ok';detail.textContent='Health check passed · '+new Date().toLocaleTimeString()}catch(e){state.textContent='Gateway check failed';dot.className='dot bad';detail.textContent=e.message}}
+document.querySelector('#refresh').addEventListener('click',refresh);refresh();setInterval(refresh,15000);
+</script></body></html>`;
+
+ /**
+ * Domain-neutral HTTP gateway. Routes, authentication, channels, tools and
+ * external services are injected by the host application.
  */
 export class Gateway extends EventEmitter {
   constructor(config = {}) {
@@ -19,8 +51,10 @@ export class Gateway extends EventEmitter {
     this.app.disable('x-powered-by');
     this.app.use(express.json({ limit: this.config.bodyLimit || '1mb' }));
     for (const middleware of this.config.middleware) this.app.use(middleware);
+    this.app.get('/', (_req, res) => res.type('html').send(DASHBOARD_HTML));
+    this.app.get('/index.html', (_req, res) => res.type('html').send(DASHBOARD_HTML));
     this.app.get('/health', async (req, res) => { try { res.json(await this.config.health(req)); } catch (error) { res.status(503).json({ ok: false, error: error.message }); } });
-    this.app.get('/health/live', (req, res) => res.json({ ok: true, live: true }));
+    this.app.get('/health/live', (_req, res) => res.json({ ok: true, live: true }));
     this.app.get('/health/ready', async (req, res) => { try { const value = await this.config.health(req); res.status(value?.ok === false ? 503 : 200).json(value); } catch (error) { res.status(503).json({ ok: false, error: error.message }); } });
     for (const route of this.config.routes) { if (route?.path && route.router) this.app.use(route.path, route.router); }
   }
