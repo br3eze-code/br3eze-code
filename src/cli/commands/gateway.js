@@ -609,6 +609,7 @@ export default (program) => {
             const pid = parseInt(fs.readFileSync(pidFile, 'utf8').trim());
             const config = getConfig();
             const Port = config.gateway?.port || 19876;
+            const Host = config.gateway?.host || '127.0.0.1';
 
             try {
                 // Check if process is actually running
@@ -647,7 +648,7 @@ export default (program) => {
                         resolve();
                     });
                     tester.once('listening', () => { tester.close(); resolve(); });
-                    tester.listen(Port, '0.0.0.0');
+                    tester.listen(Port, Host);
                 });
 
                 if (fs.existsSync(pidFile)) {
