@@ -8,7 +8,7 @@ export default (program) => {
         .command('cli')
         .description('Connect to AgentOS Interactive CLI via WebSocket')
         .option('--host <host>', 'Gateway host (defaults to configured gateway host)')
-        .option('--port <port>', 'Gateway port', '19876')
+        .option('--port <port>', 'Gateway port')
         .option('--token <token>', 'Authentication token')
         .action(async (options) => {
             const config = getConfig();
