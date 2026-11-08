@@ -47,7 +47,10 @@ export class Gateway extends EventEmitter {
     this.app = express();
     this.server = null;
     const webRoot = resolveWebRoot(this.config);
-    this.webServer = createLiveWebServer({ root: webRoot, development: this.config.web?.development ?? process.env.NODE_ENV !== 'production' });
+    const loopbackHost = ['127.0.0.1', 'localhost', '::1'].includes(this.config.host);
+    const developmentRequested = this.config.web?.development ?? process.env.NODE_ENV !== 'production';
+    // Live reload is a local developer feature; never expose its event stream on a non-loopback listener.
+    this.webServer = createLiveWebServer({ root: webRoot, development: developmentRequested && loopbackHost });
     this._configure();
   }
   _configure() {
