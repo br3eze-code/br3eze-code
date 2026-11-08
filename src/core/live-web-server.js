@@ -38,7 +38,9 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
 
     let pathname;
     try { pathname = decodeURIComponent(req.path); } catch (_) { return res.status(400).end('Invalid path'); }
-    if (pathname.split('/').some((part) => part === '..')) return res.status(400).end('Invalid path');
+    const segments = pathname.split('/');
+    if (segments.some((part) => part === '..')) return res.status(400).end('Invalid path');
+    if (segments.some((part) => part.startsWith('.') && part !== '.' && part !== '')) return res.status(404).end('Not found');
 
     const hasExtension = path.posix.extname(pathname) !== '';
     let file = path.resolve(webRoot, `.${pathname}`);
