@@ -34,7 +34,7 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
 
   async function serveHtml(req, res, next) {
     if (req.method !== 'GET' || (!req.headers.accept?.includes('text/html') && req.path !== '/')) return next();
-    if (req.path === '/__agentos/live' || req.path.startsWith('/api/')) return next();
+    if (req.path === '/__agentos/live' || req.path === '/api' || req.path.startsWith('/api/')) return next();
 
     let pathname;
     try { pathname = decodeURIComponent(req.path); } catch (_) { return res.status(400).end('Invalid path'); }
@@ -61,7 +61,7 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
   }
 
   function middleware(req, res, next) {
-    if (req.path.startsWith('/api/')) return next();
+    if (req.path === '/api' || req.path.startsWith('/api/')) return next();
     if (req.method === 'GET' && req.path === '/__agentos/live') {
       if (!development) return res.status(404).end();
       res.status(200).set({
