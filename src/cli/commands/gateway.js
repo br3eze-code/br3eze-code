@@ -80,6 +80,7 @@ export default (program) => {
         .description('Start the local AgentOS gateway and live web server')
         .option('--daemon, -d', 'Run as background service')
         .option('--port <port>', 'Override gateway port')
+        .option('--web-root <path>', 'Serve the PWA from this directory')
         .option('--force', 'Kill existing process on port')
         .option('--verbose, -v', 'Verbose logging')
         .option('--no-open', 'Do not automatically open the local dashboard')
@@ -110,6 +111,7 @@ export default (program) => {
                 const gatewayScript = path.join(process.cwd(), 'bin', 'agentos.js');
                 const gatewayArgs = ['gateway'];
                 if (options.port) gatewayArgs.push('--port', String(options.port));
+                if (options.webRoot) gatewayArgs.push('--web-root', String(options.webRoot));
                 if (options.force) gatewayArgs.push('--force');
                 if (options.verbose) gatewayArgs.push('--verbose');
 
@@ -420,6 +422,7 @@ export default (program) => {
                     ...config,
                     host: Host,
                     port: Port,
+                    webRoot: options.webRoot || config.gateway?.webRoot,
                     routes: [...configuredRoutes, { path: '/', router: apiApp }],
                     verbose: options.verbose
                 });
