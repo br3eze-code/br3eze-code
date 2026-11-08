@@ -24,6 +24,19 @@ import TaskScheduler from '../../core/taskScheduler.js';
 const DAEMON_NAME = 'agentos-gateway';
 const PM2_BIN = process.platform === 'win32' ? 'pm2.cmd' : 'pm2';
 
+function openLocalDashboard(url) {
+    // Use platform launchers with argument arrays; never pass the URL through a shell.
+    const command = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+    const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
+    try {
+        const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true });
+        child.once('error', (error) => logger.warn(`Could not open browser automatically: ${error.message}`));
+        child.unref();
+    } catch (error) {
+        logger.warn(`Could not open browser automatically: ${error.message}`);
+    }
+}
+
 function runPm2(args) {
     return new Promise((resolve, reject) => {
         execFile(PM2_BIN, args, { cwd: process.cwd(), windowsHide: true }, (error, stdout = '', stderr = '') => {
@@ -69,6 +82,7 @@ export default (program) => {
         .option('--port <port>', 'Override gateway port')
         .option('--force', 'Kill existing process on port')
         .option('--verbose, -v', 'Verbose logging')
+        .option('--no-open', 'Do not automatically open the local dashboard')
         .action(async (options) => {
             // Dynamic import for @clack/prompts
             const { intro, outro, log, spinner: clackSpinner, cancel, confirm, isCancel } = await import('@clack/prompts');
@@ -113,7 +127,8 @@ export default (program) => {
             }
 
             const config = getConfig();
-            const Port = options.port || config.gateway?.port || 19876;
+            const Host = config.gateway?.host || '127.0.0.1';
+            const Port = Number(options.port || config.gateway?.port || 19876);
 
             // ── PID file / single-instance guard ────────────────────────────
             const pidFile = path.join(STATE_PATH, 'gateway.pid');
@@ -185,7 +200,7 @@ export default (program) => {
                             resolve();
                         });
                         tester.once('listening', () => { tester.close(); resolve(); });
-                        tester.listen(Port, '0.0.0.0');
+                        tester.listen(Port, Host);
                     });
                 }
 
@@ -393,6 +408,7 @@ export default (program) => {
                 // 5. Start Gateway
                 const gateway = new AgentOSGateway({
                     ...config,
+                    host: Host,
                     port: Port,
                     verbose: options.verbose
                 });
@@ -410,8 +426,14 @@ export default (program) => {
                 spinner.stop(chalk.green('✓ AgentOS Services & Gateway running'));
 
                 log.message(chalk.cyan('📡 Connection Info:'));
-                log.message(chalk.gray(`  WebSocket: ws://127.0.0.1:${Port}/index.html`));
-                log.message(chalk.gray(`  HTTP API:  http://127.0.0.1:${Port}/index.html`));
+                const dashboardUrl = `http://${Host.includes(':') && !Host.startsWith('[') ? `[${Host}]` : Host}:${Port}/`;
+                log.message(chalk.gray(`  Dashboard: ${dashboardUrl}`));
+                log.message(chalk.gray(`  Health:    ${dashboardUrl}health/ready`));
+                if (options.open && ['127.0.0.1', 'localhost', '::1'].includes(Host)) {
+                    openLocalDashboard(dashboardUrl);
+                } else if (options.open) {
+                    log.message(chalk.yellow('Browser auto-open skipped because gateway host is not loopback.'));
+                }
                 const tokenPreview = config.gateway?.token
                     ? config.gateway.token.substring(0, 16) + '...'
                     : '(not set)';
