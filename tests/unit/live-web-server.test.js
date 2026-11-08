@@ -48,7 +48,9 @@ describe('Gateway live web serving', () => {
   });
 
   test('keeps the built-in gateway dashboard when no AgentOS web root exists', async () => {
-    const emptyGateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: path.join(root, 'missing') });
+    const emptyRoot = path.join(root, 'empty');
+    await fs.mkdir(emptyRoot);
+    const emptyGateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: emptyRoot });
     const response = await request(emptyGateway.getApp()).get('/').set('Accept', 'text/html');
     expect(response.status).toBe(200);
     expect(response.text).toContain('AgentOS Gateway');
