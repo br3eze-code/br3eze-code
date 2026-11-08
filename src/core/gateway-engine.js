@@ -43,7 +43,7 @@ document.querySelector('#refresh').addEventListener('click',refresh);refresh();s
 export class Gateway extends EventEmitter {
   constructor(config = {}) {
     super();
-    this.config = { host: config.host || '0.0.0.0', port: config.port || 3000, cors: config.cors, routes: config.routes || [], middleware: config.middleware || [], health: config.health || (() => ({ ok: true })) };
+    this.config = { host: config.host || '0.0.0.0', port: config.port ?? 3000, cors: config.cors, routes: config.routes || [], middleware: config.middleware || [], health: config.health || (() => ({ ok: true })), webRoot: config.webRoot || config.gateway?.webRoot, web: config.web || config.gateway?.web };
     this.app = express();
     this.server = null;
     const webRoot = resolveWebRoot(this.config);
