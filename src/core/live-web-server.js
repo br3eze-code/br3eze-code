@@ -73,7 +73,7 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
       res.flushHeaders?.();
       res.write('event: ready\ndata: {}\n\n');
       clients.add(res);
-      req.on('close', () => clients.delete(res));
+      res.on('close', () => clients.delete(res));
       return;
     }
     serveHtml(req, res, (error) => {
