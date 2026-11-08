@@ -113,6 +113,7 @@ export default (program) => {
             }
 
             const config = getConfig();
+            const Host = config.gateway?.host || '127.0.0.1';
             const Port = options.port || config.gateway?.port || 19876;
 
             // ── PID file / single-instance guard ────────────────────────────
@@ -185,7 +186,7 @@ export default (program) => {
                             resolve();
                         });
                         tester.once('listening', () => { tester.close(); resolve(); });
-                        tester.listen(Port, '0.0.0.0');
+                        tester.listen(Port, Host);
                     });
                 }
 
@@ -387,12 +388,13 @@ export default (program) => {
                         }
                     });
                     tester.once('listening', () => { tester.close(); resolve(); });
-                    tester.listen(Port, '0.0.0.0');
+                    tester.listen(Port, Host);
                 });
 
                 // 5. Start Gateway
                 const gateway = new AgentOSGateway({
                     ...config,
+                    host: Host,
                     port: Port,
                     verbose: options.verbose
                 });
@@ -410,8 +412,8 @@ export default (program) => {
                 spinner.stop(chalk.green('✓ AgentOS Services & Gateway running'));
 
                 log.message(chalk.cyan('📡 Connection Info:'));
-                log.message(chalk.gray(`  WebSocket: ws://127.0.0.1:${Port}/index.html`));
-                log.message(chalk.gray(`  HTTP API:  http://127.0.0.1:${Port}/index.html`));
+                log.message(chalk.gray(`  WebSocket: ws://${Host}:${Port}/ws`));
+                log.message(chalk.gray(`  HTTP API:  http://${Host}:${Port}/health`));
                 const tokenPreview = config.gateway?.token
                     ? config.gateway.token.substring(0, 16) + '...'
                     : '(not set)';
@@ -619,7 +621,7 @@ export default (program) => {
                         resolve();
                     });
                     tester.once('listening', () => { tester.close(); resolve(); });
-                    tester.listen(Port, '0.0.0.0');
+                    tester.listen(Port, Host);
                 });
 
                 if (fs.existsSync(pidFile)) {
