@@ -412,8 +412,7 @@ export default (program) => {
                 spinner.stop(chalk.green('✓ AgentOS Services & Gateway running'));
 
                 log.message(chalk.cyan('📡 Connection Info:'));
-                log.message(chalk.gray(`  WebSocket: ws://${Host}:${Port}/ws`));
-                log.message(chalk.gray(`  HTTP API:  http://${Host}:${Port}/health`));
+                log.message(chalk.gray(`  HTTP health: http://${Host}:${Port}/health`));
                 const tokenPreview = config.gateway?.token
                     ? config.gateway.token.substring(0, 16) + '...'
                     : '(not set)';
