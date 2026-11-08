@@ -422,6 +422,8 @@ export default (program) => {
                     ...config,
                     host: Host,
                     port: Port,
+                    // Match api/index.js's JSON contract while keeping one HTTP listener.
+                    bodyLimit: '256kb',
                     webRoot: options.webRoot || config.gateway?.webRoot,
                     routes: [...configuredRoutes, { path: '/', router: apiApp }],
                     verbose: options.verbose
