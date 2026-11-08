@@ -50,6 +50,13 @@ describe('Gateway live web serving', () => {
     expect(response.body).toEqual({ ok: true, owner: 'api-app' });
   });
 
+  test('does not expose hidden HTML files from the configured web root', async () => {
+    await fs.writeFile(path.join(root, '.private.html'), 'not public');
+    const response = await request(gateway.getApp()).get('/.private.html').set('Accept', 'text/html');
+    expect(response.status).toBe(404);
+    expect(response.text).not.toContain('not public');
+  });
+
   test('does not let unknown API routes fall back to the frontend', async () => {
     const response = await request(gateway.getApp()).get('/api/not-registered').set('Accept', 'text/html');
     expect(response.status).toBe(404);
