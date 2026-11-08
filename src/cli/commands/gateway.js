@@ -76,14 +76,19 @@ const clackProxy = {
 
 export default (program) => {
     program
-        .command('gateway')
-        .description('Run, inspect, and query the WebSocket Gateway')
+        .command('gateway [action]')
+        .description('Start the local AgentOS gateway and live web server')
         .option('--daemon, -d', 'Run as background service')
         .option('--port <port>', 'Override gateway port')
         .option('--force', 'Kill existing process on port')
         .option('--verbose, -v', 'Verbose logging')
         .option('--no-open', 'Do not automatically open the local dashboard')
-        .action(async (options) => {
+        .action(async (action, options = {}) => {
+            if (action && action !== 'start') {
+                console.error(chalk.red(`Unknown gateway action: ${action}. Use: agentos gateway [start]`));
+                process.exitCode = 1;
+                return;
+            }
             // Dynamic import for @clack/prompts
             const { intro, outro, log, spinner: clackSpinner, cancel, confirm, isCancel } = await import('@clack/prompts');
 
@@ -402,7 +407,7 @@ export default (program) => {
                         }
                     });
                     tester.once('listening', () => { tester.close(); resolve(); });
-                    tester.listen(Port, '0.0.0.0');
+                    tester.listen(Port, Host);
                 });
 
                 // 5. Start Gateway
@@ -434,11 +439,6 @@ export default (program) => {
                 } else if (options.open) {
                     log.message(chalk.yellow('Browser auto-open skipped because gateway host is not loopback.'));
                 }
-                const tokenPreview = config.gateway?.token
-                    ? config.gateway.token.substring(0, 16) + '...'
-                    : '(not set)';
-                log.message(chalk.gray(`  Token:     ${tokenPreview}`));
-
                 log.message(chalk.cyan('\nCommands:'));
                 log.message('  ' + chalk.yellow('Ctrl+C') + '          - Stop gateway');
                 log.message('  ' + chalk.yellow('agentos status') + '    - Check health');
