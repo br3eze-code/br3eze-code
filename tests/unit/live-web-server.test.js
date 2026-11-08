@@ -63,6 +63,18 @@ describe('Gateway live web serving', () => {
     expect(response.body.error).toBe('API route not found');
   });
 
+  test('does not expose the live reload stream on non-loopback listeners', async () => {
+    const remoteGateway = new Gateway({
+      host: '0.0.0.0',
+      port: 0,
+      webRoot: root,
+      web: { development: true }
+    });
+    const response = await request(remoteGateway.getApp()).get('/__agentos/live');
+    expect(response.status).toBe(404);
+    await remoteGateway.stop();
+  });
+
   test('keeps the built-in gateway dashboard when no AgentOS web root exists', async () => {
     const emptyRoot = path.join(root, 'empty');
     await fs.mkdir(emptyRoot);
