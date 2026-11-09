@@ -43,7 +43,7 @@ describe('local browser screen and notification diagnostics', () => {
     events.record({ tenantId: 'tenant-b', source: 'browser.notification', level: 'info', message: 'Other tenant' });
     const provider = createBrowserObservationProvider({ captureStore: new DiagnosticCaptureStore(), eventStore: events, enabled: true });
     expect(await provider.getCapabilities()).toEqual({
-      screenCapture: true, notifications: true, osNotifications: false,
+      screenCapture: true, notifications: true, browserNotifications: true, osNotifications: false,
     });
     expect(await provider.readNotifications({ context: { tenantId: 'tenant-a' } }))
       .toEqual(expect.arrayContaining([
