@@ -126,7 +126,7 @@ describe('local gateway diagnostic ingestion', () => {
     gateway = new Gateway({host:'127.0.0.1',port:0,webRoot:root,web:{development:true},diagnosticStore:store,diagnosticCaptureStore:captureStore});
     const invalid=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:text/html;base64,PHNjcmlwdD4='});
     expect(invalid.status).toBe(400);
-    const large=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:image/png;base64,QUFBQUFBQUFBQUFB',width:320,height:200});
+    const large=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:image/png;base64,iVBORw0KGgoAAAAA',width:320,height:200});
     expect(large.status).toBe(413); expect(captureStore.size).toBe(0);
   });
 

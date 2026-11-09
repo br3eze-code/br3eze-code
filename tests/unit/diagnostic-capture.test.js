@@ -25,7 +25,7 @@ describe('local browser screen and notification diagnostics', () => {
       .toThrow('INVALID_SCREEN_CAPTURE');
     expect(() => store.record({ dataUrl: 'data:image/png;base64,not base64!', tenantId: 'local' }))
       .toThrow('INVALID_SCREEN_CAPTURE');
-    expect(() => store.record({ dataUrl: 'data:image/png;base64,QUFBQUFBQUFBQUFB', tenantId: 'local' }))
+    expect(() => store.record({ dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAAA', tenantId: 'local' }))
       .toThrow('SCREEN_CAPTURE_TOO_LARGE');
   });
 
