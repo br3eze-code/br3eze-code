@@ -13,7 +13,7 @@ function normalizeEvent(input = {}) {
     : 'browser.runtime';
   const level = ['error', 'warn', 'info'].includes(input.level) ? input.level : 'error';
   return Object.freeze({
-    id: String(input.id || ''),
+    id: '',
     timestamp: Number.isFinite(Date.parse(input.timestamp)) ? new Date(input.timestamp).toISOString() : new Date().toISOString(),
     source,
     level,
