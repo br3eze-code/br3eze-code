@@ -47,6 +47,24 @@ export function createBrowserDiagnosticsScript() {
       const reason = event.reason instanceof Error ? (event.reason.stack || event.reason.message) : String(event.reason ?? 'Unhandled promise rejection');
       send('browser.runtime', 'error', reason);
     });
+    const recentNotices = new Map();
+    const observeVisibleErrors = () => {
+      const selector = '[role="alert"], [aria-live="assertive"], [data-toast-type="error"], [data-sonner-toast][data-type="error"], .toast-error, .notification-error';
+      for (const element of document.querySelectorAll(selector)) {
+        if (!element.getClientRects().length) continue;
+        const message = clean(element.innerText || element.textContent || '', 600).trim();
+        if (!message) continue;
+        const previous = recentNotices.get(message);
+        if (previous && Date.now() - previous < 10000) continue;
+        recentNotices.set(message, Date.now());
+        if (recentNotices.size > 100) recentNotices.clear();
+        send('browser.notification', 'error', message);
+      }
+    };
+    if (document.documentElement) {
+      new MutationObserver(observeVisibleErrors).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+      observeVisibleErrors();
+    }
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (...args) => {
       let safePath = 'unknown';
