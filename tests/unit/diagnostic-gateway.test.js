@@ -14,6 +14,9 @@ describe('local gateway diagnostic ingestion', () => {
   afterEach(async () => {
     await gateway?.stop();
     if (root) await fs.rm(root, { recursive: true, force: true });
+    root = undefined;
+    gateway = undefined;
+    store = undefined;
   });
 
   test('injects browser observer and stores only redacted error metadata', async () => {
@@ -61,6 +64,23 @@ describe('local gateway diagnostic ingestion', () => {
 
     const invalid = await request(gateway.getApp()).post('/__agentos/diagnostics/events').send({ source: 'browser.console' });
     expect(invalid.status).toBe(400);
+  });
+
+  test('does not inject or expose diagnostics in production mode', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-diagnostics-production-'));
+    await fs.writeFile(path.join(root, 'index.html'), '<html><body>Production page</body></html>');
+    store = new DiagnosticEventStore();
+    gateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: root, web: { development: false }, diagnosticStore: store });
+
+    const page = await request(gateway.getApp()).get('/').set('Accept', 'text/html');
+    expect(page.status).toBe(200);
+    expect(page.text).not.toContain('__agentosDiagnosticsInstalled');
+    const response = await request(gateway.getApp())
+      .post('/__agentos/diagnostics/events')
+      .set('Content-Type', 'application/json')
+      .send({ source: 'browser.console', level: 'error', message: 'must not be stored' });
+    expect(response.status).toBe(404);
+    expect(store.list()).toHaveLength(0);
   });
 
   test('does not expose diagnostic ingestion when the gateway listener is non-loopback', async () => {
