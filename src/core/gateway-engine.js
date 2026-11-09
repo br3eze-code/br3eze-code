@@ -78,7 +78,7 @@ export class Gateway extends EventEmitter {
           return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
         }
         try {
-          const stored = this.diagnosticStore.record(event);
+          const stored = this.diagnosticStore.record({ ...event, tenantId: req.tenantId || req.user?.tenantId || 'local' });
           return res.status(202).json({ ok: true, id: stored.id });
         } catch (error) {
           logger.warn('Rejected browser diagnostic event', { error: error.message });
