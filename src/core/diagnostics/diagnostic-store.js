@@ -19,6 +19,7 @@ function normalizeEvent(input = {}) {
     level,
     message: redactDiagnosticText(input.message),
     page: redactDiagnosticText(input.page || '', 300),
+    tenantId: String(input.tenantId || 'local').slice(0, 128),
     correlationId: /^[a-zA-Z0-9._:-]{1,100}$/.test(String(input.correlationId || '')) ? String(input.correlationId) : null,
   });
 }
@@ -37,9 +38,9 @@ export class DiagnosticEventStore {
     return this.events[this.events.length - 1];
   }
 
-  list({ limit = 50, source = null, level = null } = {}) {
+  list({ limit = 50, source = null, level = null, tenantId = null } = {}) {
     const boundedLimit = Math.max(1, Math.min(this.maxEvents, Number.parseInt(limit, 10) || 50));
-    return this.events.filter((event) => (!source || event.source === source) && (!level || event.level === level))
+    return this.events.filter((event) => (!tenantId || event.tenantId === tenantId) && (!source || event.source === source) && (!level || event.level === level))
       .slice(-boundedLimit).map((event) => ({ ...event }));
   }
 
