@@ -38,8 +38,9 @@ describe('local gateway diagnostic ingestion', () => {
   });
 
   test('instruments the built-in gateway dashboard when no PWA root exists', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-diagnostics-empty-'));
     store = new DiagnosticEventStore();
-    gateway = new Gateway({ host: '127.0.0.1', port: 0, web: { development: true }, diagnosticStore: store });
+    gateway = new Gateway({ host: '127.0.0.1', port: 0, webRoot: root, web: { development: true }, diagnosticStore: store });
     const page = await request(gateway.getApp()).get('/').set('Accept', 'text/html');
     expect(page.status).toBe(200);
     expect(page.text).toContain('__agentosDiagnosticsInstalled');
