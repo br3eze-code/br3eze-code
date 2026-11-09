@@ -22,6 +22,7 @@ import { ApplicationManager } from './os/ApplicationManager.js';
 import { LocalStateStore } from '../adapters/persistence/local-state-store.js';
 import { diagnosticEventStore } from './diagnostics/diagnostic-store.js';
 import { createDiagnosticTools } from './diagnostics/diagnostic-tools.js';
+import { browserObservationProvider } from '../adapters/diagnostics/browser-observation-provider.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
@@ -176,7 +177,7 @@ class AgentRuntime extends EventEmitter {
       .map((tool) => tool.fullName || tool.name));
     for (const diagnosticTool of createDiagnosticTools({
       store: this.diagnosticStore,
-      provider: config.observationProvider || null,
+      provider: config.observationProvider || browserObservationProvider,
     })) {
       if (!existingToolNames.has(diagnosticTool.name)) this.registerTool(diagnosticTool);
     }

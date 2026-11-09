@@ -7,6 +7,8 @@ async function safeCapabilities(provider) {
     return {
       screenCapture: capabilities?.screenCapture === true,
       notifications: capabilities?.notifications === true,
+      browserNotifications: capabilities?.browserNotifications === true,
+      osNotifications: capabilities?.osNotifications === true,
     };
   } catch {
     // Optional host adapters must fail closed. A broken provider is not a capability.
@@ -29,7 +31,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     {
       name: 'diagnostics.capabilities',
       passContext: true,
-      description: 'Report available browser, screen-capture, and operating-system notification observation capabilities.',
+      description: 'Report local browser observation capabilities. Operating-system notification access is not supported.',
       keywords: ['diagnostics', 'capabilities', 'screen', 'notifications'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
       risk: 'low',
@@ -45,7 +47,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
         type: 'object',
         properties: {
           limit: { type: 'integer', minimum: 1, maximum: 100 },
-          source: { type: 'string', enum: ['browser.console', 'browser.runtime', 'browser.network', 'browser.notification'] },
+          source: { type: 'string', enum: ['browser.console', 'browser.runtime', 'browser.network', 'browser.notification', 'browser.screen'] },
           level: { type: 'string', enum: ['error', 'warn', 'info'] },
         },
         additionalProperties: false,
@@ -57,7 +59,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     {
       name: 'diagnostics.capture',
       passContext: true,
-      description: 'Capture a screen only through an explicitly authorized platform observation provider.',
+      description: 'Read metadata for the latest user-approved local browser screen capture. Use the browser capture button first.',
       keywords: ['diagnostics', 'screen', 'screenshot', 'capture'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
       risk: 'medium',
@@ -73,7 +75,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     {
       name: 'diagnostics.notifications',
       passContext: true,
-      description: 'Read operating-system notifications only through an explicitly authorized platform observation provider.',
+      description: 'Read redacted browser notification titles and visible in-page alerts. Notification bodies and the operating-system tray are not read.',
       keywords: ['diagnostics', 'notifications', 'alerts', 'desktop'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
       risk: 'medium',

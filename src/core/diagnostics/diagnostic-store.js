@@ -16,7 +16,7 @@ function safePagePath(value) {
 }
 
 function normalizeEvent(input = {}) {
-  const source = ['browser.console', 'browser.runtime', 'browser.network', 'browser.notification'].includes(input.source)
+  const source = ['browser.console', 'browser.runtime', 'browser.network', 'browser.notification', 'browser.screen'].includes(input.source)
     ? input.source
     : 'browser.runtime';
   const level = ['error', 'warn', 'info'].includes(input.level) ? input.level : 'error';
