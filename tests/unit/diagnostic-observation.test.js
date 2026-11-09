@@ -51,7 +51,7 @@ describe('AgentOS diagnostic observation', () => {
       store: new DiagnosticEventStore(),
       provider: { getCapabilities: async () => { throw new Error('provider failure'); } },
     });
-    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: false, notifications: false });
+    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: false, notifications: false, browserNotifications: false, osNotifications: false });
     expect(await tools[2].execute({})).toMatchObject({ available: false });
     expect(await tools[3].execute({})).toMatchObject({ available: false });
   });
@@ -72,7 +72,7 @@ describe('AgentOS diagnostic observation', () => {
     await tools[3].execute({}, context);
     expect(captureScreen).toHaveBeenCalledWith({ context: { tenantId: 'tenant-a', sessionId: 'session-a' } });
     expect(readNotifications).toHaveBeenCalledWith({ context: { tenantId: 'tenant-a', sessionId: 'session-a' } });
-    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: true, notifications: true });
+    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: true, notifications: true, browserNotifications: true, osNotifications: false });
   });
 
   test('browser observer captures console errors, unhandled exceptions and failed fetches without request bodies', () => {
@@ -83,6 +83,11 @@ describe('AgentOS diagnostic observation', () => {
     expect(script).toContain('MutationObserver');
     expect(script).toContain('browser.notification');
     expect(script).toContain('/__agentos/diagnostics/events');
+    expect(script).toContain('getDisplayMedia');
+    expect(script).toContain('agentos-diagnostic-capture');
+    expect(script).toContain('/__agentos/diagnostics/captures');
+    expect(script).toContain('Native.permission');
+    expect(script).not.toContain('options.body');
     expect(script).not.toContain('request.body');
   });
 });

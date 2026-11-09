@@ -5,11 +5,13 @@ import request from 'supertest';
 import { afterEach, describe, expect, test } from '@jest/globals';
 import { Gateway } from '../../src/core/gateway-engine.js';
 import { DiagnosticEventStore } from '../../src/core/diagnostics/diagnostic-store.js';
+import { DiagnosticCaptureStore } from '../../src/core/diagnostics/diagnostic-capture-store.js';
 
 describe('local gateway diagnostic ingestion', () => {
   let root;
   let gateway;
   let store;
+  let captureStore;
 
   afterEach(async () => {
     await gateway?.stop();
@@ -17,6 +19,7 @@ describe('local gateway diagnostic ingestion', () => {
     root = undefined;
     gateway = undefined;
     store = undefined;
+    captureStore = undefined;
   });
 
   test('injects browser observer and stores only redacted error metadata', async () => {
@@ -96,4 +99,44 @@ describe('local gateway diagnostic ingestion', () => {
     expect(response.status).toBe(404);
     expect(store.list()).toHaveLength(0);
   });
+
+  test('accepts user-approved capture on local development and serves a no-store preview', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-capture-'));
+    await fs.writeFile(path.join(root, 'index.html'), '<html><body>AgentOS</body></html>');
+    store = new DiagnosticEventStore(); captureStore = new DiagnosticCaptureStore();
+    gateway = new Gateway({ host:'127.0.0.1', port:0, webRoot:root, web:{development:true}, diagnosticStore:store, diagnosticCaptureStore:captureStore });
+    const caps = await request(gateway.getApp()).get('/__agentos/diagnostics/capabilities');
+    expect(caps.body).toMatchObject({screenCapture:true,browserNotifications:true,osNotifications:false});
+    const saved = await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json')
+      .send({dataUrl:'data:image/png;base64,iVBORw0KGgo=',width:320,height:200});
+    expect(saved.status).toBe(202);
+    const meta = await request(gateway.getApp()).get('/__agentos/diagnostics/captures/latest/metadata');
+    expect(meta.status).toBe(200); expect(meta.body.id).toBe(saved.body.id);
+    expect(JSON.stringify(meta.body)).not.toContain('iVBORw0KGgo');
+    const preview = await request(gateway.getApp()).get('/__agentos/diagnostics/captures/latest');
+    expect(preview.status).toBe(200); expect(preview.headers['content-type']).toContain('image/png');
+    expect(preview.headers['cache-control']).toBe('no-store'); expect(Buffer.isBuffer(preview.body)).toBe(true);
+    expect(preview.body.toString('base64')).toBe('iVBORw0KGgo=');
+  });
+
+  test('rejects invalid and oversized captures before storage', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-capture-invalid-'));
+    await fs.writeFile(path.join(root, 'index.html'), '<html><body>AgentOS</body></html>');
+    store = new DiagnosticEventStore(); captureStore = new DiagnosticCaptureStore({maxBytes:8});
+    gateway = new Gateway({host:'127.0.0.1',port:0,webRoot:root,web:{development:true},diagnosticStore:store,diagnosticCaptureStore:captureStore});
+    const invalid=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:text/html;base64,PHNjcmlwdD4='});
+    expect(invalid.status).toBe(400);
+    const large=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:image/png;base64,QUFBQUFBQUFBQUFB',width:320,height:200});
+    expect(large.status).toBe(413); expect(captureStore.size).toBe(0);
+  });
+
+  test('does not expose capture routes in production', async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-capture-prod-'));
+    await fs.writeFile(path.join(root, 'index.html'), '<html><body>Production</body></html>');
+    store = new DiagnosticEventStore(); captureStore = new DiagnosticCaptureStore();
+    gateway = new Gateway({host:'127.0.0.1',port:0,webRoot:root,web:{development:false},diagnosticStore:store,diagnosticCaptureStore:captureStore});
+    const response=await request(gateway.getApp()).post('/__agentos/diagnostics/captures').set('Content-Type','application/json').send({dataUrl:'data:image/png;base64,iVBORw0KGgo='});
+    expect(response.status).toBe(404); expect(captureStore.size).toBe(0);
+  });
+
 });
