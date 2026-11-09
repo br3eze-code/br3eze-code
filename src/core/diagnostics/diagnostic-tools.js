@@ -1,7 +1,24 @@
-function safeCapabilities(provider) {
-  return Promise.resolve(typeof provider?.getCapabilities === 'function'
-    ? provider.getCapabilities()
-    : { screenCapture: false, notifications: false });
+async function safeCapabilities(provider) {
+  if (typeof provider?.getCapabilities !== 'function') {
+    return { screenCapture: false, notifications: false };
+  }
+  try {
+    const capabilities = await provider.getCapabilities();
+    return {
+      screenCapture: capabilities?.screenCapture === true,
+      notifications: capabilities?.notifications === true,
+    };
+  } catch {
+    // Optional host adapters must fail closed. A broken provider is not a capability.
+    return { screenCapture: false, notifications: false };
+  }
+}
+
+function safeProviderContext(context = {}) {
+  return {
+    tenantId: typeof context.tenantId === 'string' ? context.tenantId.slice(0, 128) : 'local',
+    sessionId: typeof context.sessionId === 'string' ? context.sessionId.slice(0, 128) : null,
+  };
 }
 
 export function createDiagnosticTools({ store, provider = null } = {}) {
@@ -50,7 +67,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
         if (!capabilities.screenCapture || typeof provider?.captureScreen !== 'function') {
           return { available: false, reason: 'SCREEN_CAPTURE_PROVIDER_UNAVAILABLE' };
         }
-        return provider.captureScreen({ ...args, context });
+        return provider.captureScreen({ ...args, context: safeProviderContext(context) });
       },
     },
     {
@@ -66,7 +83,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
         if (!capabilities.notifications || typeof provider?.readNotifications !== 'function') {
           return { available: false, reason: 'NOTIFICATION_PROVIDER_UNAVAILABLE' };
         }
-        return provider.readNotifications({ ...args, context });
+        return provider.readNotifications({ ...args, context: safeProviderContext(context) });
       },
     },
   ];
