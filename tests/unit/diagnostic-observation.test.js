@@ -61,6 +61,8 @@ describe('AgentOS diagnostic observation', () => {
     expect(script).toContain('console.error');
     expect(script).toContain('unhandledrejection');
     expect(script).toContain('fetch');
+    expect(script).toContain('MutationObserver');
+    expect(script).toContain('browser.notification');
     expect(script).toContain('/__agentos/diagnostics/events');
     expect(script).not.toContain('request.body');
   });
