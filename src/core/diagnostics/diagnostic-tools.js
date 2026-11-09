@@ -12,7 +12,7 @@ async function safeCapabilities(provider) {
     };
   } catch {
     // Optional host adapters must fail closed. A broken provider is not a capability.
-    return { screenCapture: false, notifications: false };
+    return { screenCapture: false, notifications: false, browserNotifications: false, osNotifications: false };
   }
 }
 
