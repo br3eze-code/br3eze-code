@@ -21,6 +21,7 @@
 ## Review Focus
 
 - Secrets embedded in error text must be redacted before retention — covered by the store tests.
+- One tenant must not read another tenant's observations — covered by the diagnostic tool tests.
 - Diagnostic event floods must remain bounded — covered by the store tests.
 - The observer must not recursively report its own failed ingestion request — excluded by endpoint path in the browser observer.
 - Non-loopback listeners must not expose ingestion — covered by the gateway tests.
