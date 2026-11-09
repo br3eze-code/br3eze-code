@@ -11,6 +11,7 @@ export class DiagnosticCaptureStore {
     if(typeof dataUrl!=='string') throw new TypeError('INVALID_SCREEN_CAPTURE');
     const match=DATA_URL.exec(dataUrl);
     if(!match||match[2].length%4!==0) throw new TypeError('INVALID_SCREEN_CAPTURE');
+    if(match[2].length>Math.ceil(this.maxBytes/3)*4) throw new RangeError('SCREEN_CAPTURE_TOO_LARGE');
     const bytes=Buffer.from(match[2],'base64');
     if(bytes.toString('base64')!==match[2]) throw new TypeError('INVALID_SCREEN_CAPTURE');
     if(bytes.length>this.maxBytes) throw new RangeError('SCREEN_CAPTURE_TOO_LARGE');
