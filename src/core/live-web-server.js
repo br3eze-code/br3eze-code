@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { logger } from './logger.js';
-import { diagnosticEventStore } from './diagnostics/diagnostic-store.js';
 import { createBrowserDiagnosticsScript } from '../adapters/diagnostics/browser-observer.js';
 
 const DEFAULT_ROOTS = ['agentos-pwa', 'pwa', 'public', 'dist'];
@@ -24,7 +23,7 @@ export function resolveWebRoot(config = {}, cwd = process.cwd()) {
   return null;
 }
 
-export function createLiveWebServer({ root, development = process.env.NODE_ENV !== 'production', diagnosticsStore = diagnosticEventStore } = {}) {
+export function createLiveWebServer({ root, development = process.env.NODE_ENV !== 'production' } = {}) {
   if (!root) return { middleware: (_req, _res, next) => next(), start() {}, stop() {} };
   const webRoot = path.resolve(root);
   const clients = new Set();
@@ -68,27 +67,6 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
   }
 
   function middleware(req, res, next) {
-    if (req.path.startsWith('/__agentos/diagnostics')) {
-      if (!development) return res.status(404).json({ ok: false, error: 'DIAGNOSTICS_DISABLED' });
-      if (req.method === 'GET' && req.path === '/__agentos/diagnostics/capabilities') {
-        return res.json({ ok: true, browserEvents: true, screenCapture: false, notifications: false });
-      }
-      if (req.method === 'POST' && req.path === '/__agentos/diagnostics/events') {
-        if (!req.is('application/json')) return res.status(415).json({ ok: false, error: 'JSON_REQUIRED' });
-        const event = req.body;
-        if (!event || typeof event !== 'object' || Array.isArray(event) || typeof event.message !== 'string') {
-          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
-        }
-        try {
-          const stored = diagnosticsStore.record(event);
-          return res.status(202).json({ ok: true, id: stored.id });
-        } catch (error) {
-          logger.warn('Rejected browser diagnostic event', { error: error.message });
-          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
-        }
-      }
-      return res.status(405).json({ ok: false, error: 'METHOD_NOT_ALLOWED' });
-    }
     if (req.path === '/api' || req.path.startsWith('/api/')) return next();
     if (req.method === 'GET' && req.path === '/__agentos/live') {
       if (!development) return res.status(404).end();
