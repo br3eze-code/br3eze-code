@@ -29,9 +29,11 @@ describe('AgentOS diagnostic observation', () => {
       'diagnostics.capture',
       'diagnostics.notifications',
     ]);
-    expect(await tools[1].execute({ limit: 10 })).toHaveLength(1);
+    expect(await tools[1].execute({ limit: 10 }, { tenantId: 'local' })).toHaveLength(1);
     expect(await tools[2].execute({})).toMatchObject({ available: false });
     expect(await tools[3].execute({})).toMatchObject({ available: false });
+    expect(tools[2].requiresApproval).toBe(true);
+    expect(tools[3].requiresApproval).toBe(true);
   });
 
   test('does not expose one tenant’s diagnostic events to another tenant', async () => {
@@ -41,19 +43,36 @@ describe('AgentOS diagnostic observation', () => {
     const tools = createDiagnosticTools({ store });
     expect(await tools[1].execute({}, { tenantId: 'tenant-a' })).toHaveLength(1);
     expect((await tools[1].execute({}, { tenantId: 'tenant-a' }))[0].message).toBe('tenant A error');
+    expect((await tools[1].execute({}, { tenantId: 'tenant-b' })).map((event) => event.message)).toEqual(['tenant B error']);
   });
 
-  test('requires provider capabilities for screen and OS notifications', async () => {
+  test('fails closed when an optional provider cannot report capabilities', async () => {
+    const tools = createDiagnosticTools({
+      store: new DiagnosticEventStore(),
+      provider: { getCapabilities: async () => { throw new Error('provider failure'); } },
+    });
+    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: false, notifications: false });
+    expect(await tools[2].execute({})).toMatchObject({ available: false });
+    expect(await tools[3].execute({})).toMatchObject({ available: false });
+  });
+
+  test('passes only minimal session context to approved providers', async () => {
+    const captureScreen = jest.fn(async () => ({ available: true, mediaType: 'image/png' }));
+    const readNotifications = jest.fn(async () => []);
     const tools = createDiagnosticTools({
       store: new DiagnosticEventStore(),
       provider: {
-        getCapabilities: async () => ({ screenCapture: true, notifications: true }),
-        captureScreen: async () => ({ available: true, mediaType: 'image/png', data: 'sample' }),
-        readNotifications: async () => [{ source: 'os', title: 'Build failed', text: 'exit code 1' }],
+        getCapabilities: async () => ({ screenCapture: true, notifications: true, arbitraryExtra: 'ignored' }),
+        captureScreen,
+        readNotifications,
       },
     });
-    expect(await tools[2].execute({})).toMatchObject({ available: true, mediaType: 'image/png' });
-    expect(await tools[3].execute({})).toEqual([{ source: 'os', title: 'Build failed', text: 'exit code 1' }]);
+    const context = { tenantId: 'tenant-a', sessionId: 'session-a', authorization: 'must-not-leak' };
+    await tools[2].execute({}, context);
+    await tools[3].execute({}, context);
+    expect(captureScreen).toHaveBeenCalledWith({ context: { tenantId: 'tenant-a', sessionId: 'session-a' } });
+    expect(readNotifications).toHaveBeenCalledWith({ context: { tenantId: 'tenant-a', sessionId: 'session-a' } });
+    expect(await tools[0].execute()).toEqual({ browserEvents: true, screenCapture: true, notifications: true });
   });
 
   test('browser observer captures console errors, unhandled exceptions and failed fetches without request bodies', () => {
