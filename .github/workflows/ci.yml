@@ -53,6 +53,8 @@ jobs:
         run: npm ci --ignore-scripts --legacy-peer-deps
       - name: Run architecture gate
         run: npm run check:architecture
+      - name: Check STE-inspired technical writing
+        run: npm run check:technical-writing
       - name: Run CI quality gate
         env:
           CI_BASE_SHA: ${{ steps.base.outputs.sha }}
