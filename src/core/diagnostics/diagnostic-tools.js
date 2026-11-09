@@ -1,13 +1,13 @@
 async function safeCapabilities(provider) {
   if (typeof provider?.getCapabilities !== 'function') {
-    return { screenCapture: false, notifications: false };
+    return { screenCapture: false, notifications: false, browserNotifications: false, osNotifications: false };
   }
   try {
     const capabilities = await provider.getCapabilities();
     return {
       screenCapture: capabilities?.screenCapture === true,
       notifications: capabilities?.notifications === true,
-      browserNotifications: capabilities?.browserNotifications === true,
+      browserNotifications: capabilities?.browserNotifications === true || capabilities?.notifications === true,
       osNotifications: capabilities?.osNotifications === true,
     };
   } catch {

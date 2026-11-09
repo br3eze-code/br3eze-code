@@ -41,7 +41,7 @@ describe('local browser screen and notification diagnostics', () => {
     events.record({ tenantId: 'tenant-a', source: 'browser.notification', level: 'info', message: 'Notification created: Build complete' });
     events.record({ tenantId: 'tenant-a', source: 'browser.notification', level: 'error', message: 'Save failed' });
     events.record({ tenantId: 'tenant-b', source: 'browser.notification', level: 'info', message: 'Other tenant' });
-    const provider = createBrowserObservationProvider({ captureStore: new DiagnosticCaptureStore(), eventStore: events });
+    const provider = createBrowserObservationProvider({ captureStore: new DiagnosticCaptureStore(), eventStore: events, enabled: true });
     expect(await provider.getCapabilities()).toEqual({
       screenCapture: true, notifications: true, osNotifications: false,
     });
@@ -58,7 +58,7 @@ describe('local browser screen and notification diagnostics', () => {
   test('provider returns the latest capture path without returning image bytes to the agent', async () => {
     const captureStore = new DiagnosticCaptureStore();
     const capture = captureStore.record({ dataUrl: png, tenantId: 'tenant-a', width: 320, height: 200 });
-    const provider = createBrowserObservationProvider({ captureStore, eventStore: new DiagnosticEventStore() });
+    const provider = createBrowserObservationProvider({ captureStore, eventStore: new DiagnosticEventStore(), enabled: true });
     const result = await provider.captureScreen({ context: { tenantId: 'tenant-a' } });
     expect(result).toMatchObject({
       available: true, id: capture.id, mediaType: 'image/png',
