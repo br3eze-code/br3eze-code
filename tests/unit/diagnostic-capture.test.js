@@ -21,6 +21,8 @@ describe('local browser screen and notification diagnostics', () => {
     const store = new DiagnosticCaptureStore({ maxBytes: 8 });
     expect(() => store.record({ dataUrl: 'data:text/html;base64,PHNjcmlwdD4=', tenantId: 'local' }))
       .toThrow('INVALID_SCREEN_CAPTURE');
+    expect(() => store.record({ dataUrl: 'data:image/png;base64,PHNjcmlwdD4=', tenantId: 'local' }))
+      .toThrow('INVALID_SCREEN_CAPTURE');
     expect(() => store.record({ dataUrl: 'data:image/png;base64,not base64!', tenantId: 'local' }))
       .toThrow('INVALID_SCREEN_CAPTURE');
     expect(() => store.record({ dataUrl: 'data:image/png;base64,QUFBQUFBQUFBQUFB', tenantId: 'local' }))
