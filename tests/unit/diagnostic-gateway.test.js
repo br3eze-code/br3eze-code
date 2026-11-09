@@ -37,6 +37,20 @@ describe('local gateway diagnostic ingestion', () => {
     expect(JSON.stringify(store.list())).not.toContain('private-secret');
   });
 
+  test('instruments the built-in gateway dashboard when no PWA root exists', async () => {
+    store = new DiagnosticEventStore();
+    gateway = new Gateway({ host: '127.0.0.1', port: 0, web: { development: true }, diagnosticStore: store });
+    const page = await request(gateway.getApp()).get('/').set('Accept', 'text/html');
+    expect(page.status).toBe(200);
+    expect(page.text).toContain('__agentosDiagnosticsInstalled');
+    const response = await request(gateway.getApp())
+      .post('/__agentos/diagnostics/events')
+      .set('Content-Type', 'application/json')
+      .send({ source: 'browser.runtime', level: 'error', message: 'startup exception' });
+    expect(response.status).toBe(202);
+    expect(store.list()[0].message).toBe('startup exception');
+  });
+
   test('rejects malformed events and disables ingestion outside development', async () => {
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentos-diagnostics-'));
     await fs.writeFile(path.join(root, 'index.html'), '<html><body>AgentOS</body></html>');
