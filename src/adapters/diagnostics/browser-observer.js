@@ -9,9 +9,9 @@ export function createBrowserDiagnosticsScript() {
     const endpoint='/__agentos/diagnostics/events',captureEndpoint='/__agentos/diagnostics/captures',capturePreview='/__agentos/diagnostics/captures/latest';
     let sent=0,started=Date.now();
     const clean=(v,n=1200)=>String(v??'')
-      .replace(/(?:authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+/ig,'Authorization: [REDACTED]')
-      .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|token)\\s*[:=]\\s*)[^\\s,;]+/ig,'$1[REDACTED]')
-      .replace(/\\b(?:sk|pk|ghp|gho|github_pat)_[A-Za-z0-9_-]{8,}/ig,'[REDACTED]').slice(0,n);
+      .replace(/(?:authorization\s*[:=]\s*bearer\s+)[^\s,;]+/ig,'Authorization: [REDACTED]')
+      .replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|token)\s*[:=]\s*)[^\s,;]+/ig,'$1[REDACTED]')
+      .replace(/\b(?:sk|pk|ghp|gho|github_pat)_[A-Za-z0-9_-]{8,}/ig,'[REDACTED]').slice(0,n);
     const safePath=value=>{try{const u=new URL(value,location.href);return u.origin===location.origin?u.pathname:u.origin;}catch{return 'unknown';}};
     const originalFetch=window.fetch.bind(window);
     const send=(source,level,message)=>{
