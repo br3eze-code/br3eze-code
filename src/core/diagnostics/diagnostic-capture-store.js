@@ -14,6 +14,10 @@ export class DiagnosticCaptureStore {
     if(match[2].length>Math.ceil(this.maxBytes/3)*4) throw new RangeError('SCREEN_CAPTURE_TOO_LARGE');
     const bytes=Buffer.from(match[2],'base64');
     if(bytes.toString('base64')!==match[2]) throw new TypeError('INVALID_SCREEN_CAPTURE');
+    const validSignature=match[1]==='png'
+      ? bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+      : bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff;
+    if(!validSignature) throw new TypeError('INVALID_SCREEN_CAPTURE');
     if(bytes.length>this.maxBytes) throw new RangeError('SCREEN_CAPTURE_TOO_LARGE');
     const tenant=normalizeTenant(tenantId);
     const capture=Object.freeze({

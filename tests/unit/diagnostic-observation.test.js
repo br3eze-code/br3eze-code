@@ -1,4 +1,4 @@
-import { describe, expect, test } from '@jest/globals';
+import { describe, expect, jest, test } from '@jest/globals';
 import { DiagnosticEventStore, redactDiagnosticText } from '../../src/core/diagnostics/diagnostic-store.js';
 import { createDiagnosticTools } from '../../src/core/diagnostics/diagnostic-tools.js';
 import { createBrowserDiagnosticsScript } from '../../src/adapters/diagnostics/browser-observer.js';
