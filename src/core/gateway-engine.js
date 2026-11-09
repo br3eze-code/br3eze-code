@@ -3,6 +3,8 @@ import http from 'node:http';
 import EventEmitter from 'node:events';
 import { logger } from './logger.js';
 import { createLiveWebServer, resolveWebRoot } from './live-web-server.js';
+import { diagnosticEventStore } from './diagnostics/diagnostic-store.js';
+import { createBrowserDiagnosticsScript } from '../adapters/diagnostics/browser-observer.js';
 
 const DASHBOARD_HTML = `<!doctype html>
 <html lang="en">
@@ -36,6 +38,11 @@ async function refresh(){state.textContent='Checking gateway…';dot.className='
 document.querySelector('#refresh').addEventListener('click',refresh);refresh();setInterval(refresh,15000);
 </script></body></html>`;
 
+function dashboardHtmlWithDiagnostics(enabled) {
+  if (!enabled) return DASHBOARD_HTML;
+  return DASHBOARD_HTML.replace('</head>', `<script>${createBrowserDiagnosticsScript()}</script></head>`);
+}
+
  /**
  * Domain-neutral HTTP gateway. Routes, authentication, channels, tools and
  * external services are injected by the host application.
@@ -49,14 +56,36 @@ export class Gateway extends EventEmitter {
     const webRoot = resolveWebRoot(this.config);
     const loopbackHost = ['127.0.0.1', 'localhost', '::1'].includes(this.config.host);
     const developmentRequested = this.config.web?.development ?? process.env.NODE_ENV !== 'production';
-    // Live reload is a local developer feature; never expose its event stream on a non-loopback listener.
-    this.webServer = createLiveWebServer({ root: webRoot, development: developmentRequested && loopbackHost, diagnosticsStore: this.config.diagnosticStore });
+    this.diagnosticsEnabled = developmentRequested && loopbackHost;
+    this.diagnosticStore = this.config.diagnosticStore || diagnosticEventStore;
+    // Live reload and diagnostic ingestion are local developer features; never expose them on a non-loopback listener.
+    this.webServer = createLiveWebServer({ root: webRoot, development: this.diagnosticsEnabled });
     this._configure();
   }
   _configure() {
     this.app.disable('x-powered-by');
     this.app.use(express.json({ limit: this.config.bodyLimit || '1mb' }));
     for (const middleware of this.config.middleware) this.app.use(middleware);
+
+    if (this.diagnosticsEnabled) {
+      this.app.get('/__agentos/diagnostics/capabilities', (_req, res) => {
+        res.json({ ok: true, browserEvents: true, screenCapture: false, notifications: false });
+      });
+      this.app.post('/__agentos/diagnostics/events', (req, res) => {
+        if (!req.is('application/json')) return res.status(415).json({ ok: false, error: 'JSON_REQUIRED' });
+        const event = req.body;
+        if (!event || typeof event !== 'object' || Array.isArray(event) || typeof event.message !== 'string') {
+          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
+        }
+        try {
+          const stored = this.diagnosticStore.record(event);
+          return res.status(202).json({ ok: true, id: stored.id });
+        } catch (error) {
+          logger.warn('Rejected browser diagnostic event', { error: error.message });
+          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
+        }
+      });
+    }
 
     this.app.get('/health', async (req, res) => {
       try { res.json(await this.config.health(req)); }
@@ -85,8 +114,8 @@ export class Gateway extends EventEmitter {
         return res.status(404).type('text').send('Not found');
       });
     } else {
-      this.app.get('/', (_req, res) => res.type('html').send(DASHBOARD_HTML));
-      this.app.get('/index.html', (_req, res) => res.type('html').send(DASHBOARD_HTML));
+      this.app.get('/', (_req, res) => res.type('html').send(dashboardHtmlWithDiagnostics(this.diagnosticsEnabled)));
+      this.app.get('/index.html', (_req, res) => res.type('html').send(dashboardHtmlWithDiagnostics(this.diagnosticsEnabled)));
       this.app.use((req, res) => {
         if (req.path === '/api' || req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
         return res.status(404).type('text').send('Not found');
