@@ -11,6 +11,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
   return [
     {
       name: 'diagnostics.capabilities',
+      passContext: true,
       description: 'Report available browser, screen-capture, and operating-system notification observation capabilities.',
       keywords: ['diagnostics', 'capabilities', 'screen', 'notifications'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -20,6 +21,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     },
     {
       name: 'diagnostics.events',
+      passContext: true,
       description: 'Read recent redacted browser diagnostic events such as console errors, unhandled exceptions, and failed HTTP requests.',
       keywords: ['diagnostics', 'errors', 'console', 'network', 'debug', 'logs'],
       parameters: {
@@ -37,6 +39,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     },
     {
       name: 'diagnostics.capture',
+      passContext: true,
       description: 'Capture a screen only through an explicitly authorized platform observation provider.',
       keywords: ['diagnostics', 'screen', 'screenshot', 'capture'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -52,6 +55,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
     },
     {
       name: 'diagnostics.notifications',
+      passContext: true,
       description: 'Read operating-system notifications only through an explicitly authorized platform observation provider.',
       keywords: ['diagnostics', 'notifications', 'alerts', 'desktop'],
       parameters: { type: 'object', properties: {}, additionalProperties: false },
