@@ -60,7 +60,8 @@
     "test:platform": "node --test tests/platform/*.test.js",
     "test:node": "node --test tests/unit/phase9-approval-prompt.test.js tests/unit/phase9-terminal-boundary.test.js tests/platform/*.test.js",
     "infra:compare:supabase": "node scripts/infra/check-supabase-migrations.mjs",
-    "test:auth": "npm test -- --runInBand --runTestsByPath tests/unit/auth-identity.test.js --coverage=false"
+    "test:auth": "npm test -- --runInBand --runTestsByPath tests/unit/auth-identity.test.js --coverage=false",
+    "check:technical-writing": "node scripts/technical-writing-gate.mjs"
   },
   "publishConfig": {
     "access": "public",
