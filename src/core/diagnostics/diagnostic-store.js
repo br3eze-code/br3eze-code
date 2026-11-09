@@ -1,10 +1,10 @@
 export function redactDiagnosticText(value, maxLength = 2000) {
   let text = String(value ?? '');
-  text = text.replace(/(authorization\\s*[:=]\\s*bearer\\s+)[^\\s,;]+/gi, '$1[REDACTED]');
-  text = text.replace(/(bearer\\s+)[A-Za-z0-9._~+\\/-]+=*/gi, '$1[REDACTED]');
-  text = text.replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|token)\\s*[:=]\\s*)[^\\s,;]+/gi, '$1[REDACTED]');
-  text = text.replace(/\\b(?:sk|pk|ghp|gho|github_pat)_[A-Za-z0-9_\\-]{8,}/gi, '[REDACTED]');
-  return text.replace(/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]/g, '').slice(0, maxLength);
+  text = text.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,;]+/gi, '$1[REDACTED]');
+  text = text.replace(/(bearer\s+)[A-Za-z0-9._~+\/-]+=*/gi, '$1[REDACTED]');
+  text = text.replace(/((?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|token)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
+  text = text.replace(/\b(?:sk|pk|ghp|gho|github_pat)_[A-Za-z0-9_-]{8,}/gi, '[REDACTED]');
+  return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, maxLength);
 }
 
 function normalizeEvent(input = {}) {
