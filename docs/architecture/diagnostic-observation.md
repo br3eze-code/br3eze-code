@@ -10,7 +10,7 @@ Let the existing AgentRuntime diagnose localhost PWA failures by reading structu
 - The Gateway/live-web-server remains the owner of the localhost HTTP surface and serves the development observer from the same origin.
 - A bounded in-memory DiagnosticEventStore is the source of truth for browser observations within the process. Events are not persisted by default.
 - Browser observation records console errors, unhandled exceptions/rejections, and failed fetch metadata. It never records request/response bodies, cookies, local storage, form values, or query strings from network URLs.
-- The store redacts common credentials before retaining event text and caps event size/count.
+- The store redacts common credentials before retaining event text, caps event size/count, and filters reads by server-assigned tenant scope.
 - Ingestion is enabled only for the development live server on a loopback listener. Production and non-loopback listeners return 404 for diagnostic ingestion.
 - Screen capture and OS notification tools fail closed and report unavailable until a platform adapter explicitly advertises the capability. Browser JavaScript cannot enumerate arbitrary OS notifications.
 - Capture and OS notification tools require approval. Reading already-redacted browser error events is read-only.
