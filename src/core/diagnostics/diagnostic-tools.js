@@ -35,7 +35,7 @@ export function createDiagnosticTools({ store, provider = null } = {}) {
       },
       risk: 'low',
       requiresApproval: false,
-      execute: async (args = {}) => store.list({ limit: args.limit, source: args.source, level: args.level }),
+      execute: async (args = {}, context = {}) => store.list({ limit: args.limit, source: args.source, level: args.level, tenantId: context.tenantId || 'local' }),
     },
     {
       name: 'diagnostics.capture',
