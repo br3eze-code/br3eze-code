@@ -7,13 +7,13 @@ describe('AgentOS diagnostic observation', () => {
   test('bounds retained events and redacts common secrets before storage', () => {
     const store = new DiagnosticEventStore({ maxEvents: 2 });
     store.record({ source: 'browser.console', level: 'error', message: 'token=secret-value failed' });
+    expect(store.list()[0].message).toContain('[REDACTED]');
     store.record({ source: 'browser.network', level: 'error', message: 'second failure' });
     store.record({ source: 'browser.runtime', level: 'error', message: 'third failure' });
 
     const events = store.list();
     expect(events).toHaveLength(2);
     expect(events[0].message).toBe('second failure');
-    expect(store.list()[1].message).toContain('[REDACTED]');
     expect(JSON.stringify(events)).not.toContain('secret-value');
     expect(redactDiagnosticText('Authorization: Bearer abc.def')).toContain('[REDACTED]');
   });
