@@ -98,6 +98,9 @@ describe('local gateway diagnostic ingestion', () => {
       .send({ source: 'browser.console', level: 'error', message: 'should not be collected' });
     expect(response.status).toBe(404);
     expect(store.list()).toHaveLength(0);
+    const capture = await request(gateway.getApp()).post('/__agentos/diagnostics/captures')
+      .set('Content-Type', 'application/json').send({ dataUrl: 'data:image/png;base64,iVBORw0KGgo=' });
+    expect(capture.status).toBe(404);
   });
 
   test('accepts user-approved capture on local development and serves a no-store preview', async () => {

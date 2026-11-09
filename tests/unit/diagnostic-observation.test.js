@@ -88,6 +88,9 @@ describe('AgentOS diagnostic observation', () => {
     expect(script).toContain('/__agentos/diagnostics/captures');
     expect(script).toContain('Native.permission');
     expect(script).not.toContain('options.body');
+    expect(script.indexOf("button.addEventListener('click'")).toBeLessThan(script.indexOf('getDisplayMedia'));
+    expect(() => new Function(script)).not.toThrow();
+    expect(script).not.toContain('Notification.requestPermission()');
     expect(script).not.toContain('request.body');
   });
 });

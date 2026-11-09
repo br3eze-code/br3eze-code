@@ -2,11 +2,11 @@
 
 ## Monitor browser errors
 
-1. Start AgentOS in development mode on \`127.0.0.1\` or \`localhost\`.
+1. Start AgentOS in development mode on `127.0.0.1` or `localhost`.
 2. Open the local PWA or Gateway dashboard.
 3. Open browser DevTools. Check Console and Network.
 4. Reproduce the failure.
-5. Read recent redacted events with \`diagnostics.events\`.
+5. Read recent redacted events with `diagnostics.events`.
 
 The observer records console errors, unhandled exceptions, failed Fetch/XHR requests, failed page resources, and visible in-page error alerts. It does not record request or response bodies.
 
@@ -16,7 +16,7 @@ The observer records console errors, unhandled exceptions, failed Fetch/XHR requ
 2. Select a screen, window, or tab in the browser's native permission prompt.
 3. Cancel the prompt if the selected content is not safe to share.
 4. Open **Open latest capture** to view the image.
-5. Ask AgentOS to read \`diagnostics.capture\` for the capture time, size, and local preview path.
+5. Ask AgentOS to read `diagnostics.capture` for the capture time, size, and local preview path.
 
 The browser controls permission. AgentOS cannot bypass the browser's screen-share prompt. The capture is reduced to at most 1280 by 720 pixels and stored in process memory. The latest capture replaces the previous capture for the same tenant. A process restart removes captures.
 
@@ -26,7 +26,7 @@ The observer reads titles and tags from page-created browser notifications only 
 
 The observer also records visible in-page error alerts and toast messages. This does not provide access to the operating-system notification tray. Desktop notification history is not available through standard browser APIs.
 
-Use \`diagnostics.notifications\` to read redacted browser notification events. Use \`diagnostics.events\` with the \`browser.notification\` source to review in-page alerts.
+Use `diagnostics.notifications` to read redacted browser notification events. Use `diagnostics.events` with the `browser.notification` source to review in-page alerts.
 
 ## If no events appear
 
