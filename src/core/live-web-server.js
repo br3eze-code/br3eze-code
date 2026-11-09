@@ -58,7 +58,7 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
           !html.includes("EventSource('/__agentos/live')") ? liveScript : '',
           !html.includes('__agentosDiagnosticsInstalled') ? diagnosticsScript : '',
         ].filter(Boolean).join('');
-        if (additions) html = html.includes('</body>') ? html.replace('</body>', additions + '</body>') : html + additions;
+        if (additions) html = html.includes('</head>') ? html.replace('</head>', additions + '</head>') : html.includes('</body>') ? html.replace('</body>', additions + '</body>') : html + additions;
       }
       res.set('Cache-Control', development ? 'no-store' : 'public, max-age=0, must-revalidate');
       return res.type('html').send(html);
