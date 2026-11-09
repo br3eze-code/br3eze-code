@@ -34,6 +34,7 @@ describe('local gateway diagnostic ingestion', () => {
     expect(accepted.status).toBe(202);
     expect(store.list()).toHaveLength(1);
     expect(store.list()[0].message).toContain('[REDACTED]');
+    expect(store.list()[0].page).toBe('/settings');
     expect(JSON.stringify(store.list())).not.toContain('private-secret');
   });
 
