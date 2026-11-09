@@ -7,6 +7,14 @@ export function redactDiagnosticText(value, maxLength = 2000) {
   return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, maxLength);
 }
 
+function safePagePath(value) {
+  try {
+    return redactDiagnosticText(new URL(String(value || '/'), 'http://agentos.local').pathname, 300);
+  } catch {
+    return '';
+  }
+}
+
 function normalizeEvent(input = {}) {
   const source = ['browser.console', 'browser.runtime', 'browser.network', 'browser.notification'].includes(input.source)
     ? input.source
@@ -18,7 +26,7 @@ function normalizeEvent(input = {}) {
     source,
     level,
     message: redactDiagnosticText(input.message),
-    page: redactDiagnosticText(input.page || '', 300),
+    page: safePagePath(input.page),
     tenantId: String(input.tenantId || 'local').slice(0, 128),
     correlationId: /^[a-zA-Z0-9._:-]{1,100}$/.test(String(input.correlationId || '')) ? String(input.correlationId) : null,
   });
