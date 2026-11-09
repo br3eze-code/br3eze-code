@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add redacted browser-error observation and canonical AgentRuntime diagnostic tools, with explicit adapter hooks for screen capture and OS notifications.
+**Goal:** Add redacted browser-error and visible in-page notification observation plus canonical AgentRuntime diagnostic tools, with explicit adapter hooks for screen capture and OS notifications.
 
 **Architecture:** The existing Gateway injects a same-origin observer only in local development and stores events in a bounded in-memory store. AgentRuntime registers diagnostic tools into its existing ToolRegistry; optional platform providers supply screen capture or OS notification access without adding another runtime.
 
