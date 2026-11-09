@@ -34,6 +34,15 @@ describe('AgentOS diagnostic observation', () => {
     expect(await tools[3].execute({})).toMatchObject({ available: false });
   });
 
+  test('does not expose one tenant’s diagnostic events to another tenant', async () => {
+    const store = new DiagnosticEventStore();
+    store.record({ tenantId: 'tenant-a', source: 'browser.console', level: 'error', message: 'tenant A error' });
+    store.record({ tenantId: 'tenant-b', source: 'browser.console', level: 'error', message: 'tenant B error' });
+    const tools = createDiagnosticTools({ store });
+    expect(await tools[1].execute({}, { tenantId: 'tenant-a' })).toHaveLength(1);
+    expect((await tools[1].execute({}, { tenantId: 'tenant-a' }))[0].message).toBe('tenant A error');
+  });
+
   test('requires provider capabilities for screen and OS notifications', async () => {
     const tools = createDiagnosticTools({
       store: new DiagnosticEventStore(),
