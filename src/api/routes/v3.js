@@ -1,9 +1,8 @@
 import express from 'express';
 import { isIP } from 'node:net';
+import { randomBytes } from 'node:crypto';
+import { add as addDate } from '../../utils/date.js';
 import { logger } from '../../core/logger.js';
-
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
 
 ﻿/**
  * API Routes v3 — AgentOS Advanced
@@ -60,10 +59,6 @@ router.get('/health', (req, res) => {
 router.post('/bulk/vouchers', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const crypto    = require('crypto');
-    const { DEFAULT_PLANS } = require('../../core/database');
-    const dateUtils = require('../../utils/date');
-
     const { count = 1, plan = 'default', createdBy = 'api-v3-bulk' } = req.body || {};
     if (typeof count === 'boolean' || !Number.isSafeInteger(Number(count)) || !/^\d+$/.test(String(count)) || Number(count) < 1 || Number(count) > 100) {
       return res.status(400).json({ ok: false, version: 'v3', error: 'count must be an integer from 1 to 100' });
@@ -75,13 +70,14 @@ router.post('/bulk/vouchers', async (req, res) => {
       return res.status(400).json({ ok: false, version: 'v3', error: 'createdBy must be a non-empty string of at most 100 characters' });
     }
     const n = Number(count);
+    const { DEFAULT_PLANS } = await import('../../adapters/persistence/database.js');
 
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
     const expiresAt = planObj.durationValue && planObj.durationUnit
-      ? dateUtils.add(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
+      ? addDate(new Date(), planObj.durationValue, planObj.durationUnit).toISOString()
       : null;
 
-    const part = () => crypto.randomBytes(2).toString('hex').toUpperCase();
+    const part = () => randomBytes(2).toString('hex').toUpperCase();
     const generated = [];
 
     for (let i = 0; i < n; i++) {
