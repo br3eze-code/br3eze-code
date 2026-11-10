@@ -1,4 +1,5 @@
 import express from 'express';
+import { isIP } from 'node:net';
 import { logger } from '../../core/logger.js';
 
 import { createRequire } from 'module';
@@ -20,6 +21,18 @@ const err      = (res, e, status = 500) => {
   res.status(status).json({ ok: false, version: 'v3', error: e.message });
 };
 const notReady = (res, svc) => res.status(503).json({ ok: false, error: `${svc} not ready` });
+
+function isValidPingTarget(value) {
+  if (typeof value !== 'string') return false;
+  const host = value.trim();
+  if (!host || host.length > 253 || /[\\s\\u0000-\\u001f]/.test(host)) return false;
+  if (isIP(host)) return true;
+  const hostname = host.endsWith('.') ? host.slice(0, -1) : host;
+  return hostname.length > 0 && hostname.split('.').every(label =>
+    label.length >= 1 && label.length <= 63
+    && /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(label)
+  );
+}
 
 router.use((req, res, next) => {
   const t = Date.now();
@@ -273,9 +286,8 @@ router.get('/diagnostics/connectivity', async (req, res) => {
 router.post('/diagnostics/ping-router', async (req, res) => {
   try {
     const { host, count = 3 } = req.body || {};
-    if (typeof host !== 'string' || !host.trim() || host.length > 253
-      || /[\s\u0000-\u001f]/.test(host)) {
-      return res.status(400).json({ ok: false, version: 'v3', error: 'host must be a hostname or IP address without whitespace' });
+    if (!isValidPingTarget(host)) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'host must be a valid hostname or IP address' });
     }
     if (typeof count === 'boolean' || !Number.isSafeInteger(Number(count)) || !/^\d+$/.test(String(count)) || Number(count) < 1 || Number(count) > 10) {
       return res.status(400).json({ ok: false, version: 'v3', error: 'count must be an integer from 1 to 10' });
