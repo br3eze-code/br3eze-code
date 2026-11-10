@@ -25,7 +25,7 @@ const notReady = (res, svc) => res.status(503).json({ ok: false, error: `${svc} 
 function isValidPingTarget(value) {
   if (typeof value !== 'string') return false;
   const host = value.trim();
-  if (!host || host.length > 253 || /[\\s\\u0000-\\u001f]/.test(host)) return false;
+  if (!host || host.length > 253 || /[\s\u0000-\u001f]/.test(host)) return false;
   if (isIP(host)) return true;
   const hostname = host.endsWith('.') ? host.slice(0, -1) : host;
   return hostname.length > 0 && hostname.split('.').every(label =>
