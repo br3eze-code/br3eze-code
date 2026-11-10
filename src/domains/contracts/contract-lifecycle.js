@@ -32,14 +32,6 @@ function requiredString(value, field) {
   return value.trim();
 }
 
-function canonicalJson(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
 export function hashContractDocument(document) {
   if (typeof document !== 'string' || !document.length) {
     throw new TypeError('document must be a non-empty string');
@@ -112,6 +104,9 @@ export function transitionContract(contract, nextStatus, {
   if (contract.tenantId !== tenantId) throw new Error('tenant scope mismatch');
   if (expectedVersion !== contract.version) throw new Error('contract version conflict');
   if (!CONTRACT_STATUSES.includes(nextStatus)) throw new TypeError('unknown contract status');
+  if (nextStatus === 'signed') {
+    throw new Error('signature evidence is required; use recordContractSignature');
+  }
   if (!TRANSITIONS[contract.status]?.has(nextStatus)) {
     throw new Error(`invalid contract transition: ${contract.status} -> ${nextStatus}`);
   }
@@ -125,7 +120,7 @@ export function transitionContract(contract, nextStatus, {
   return Object.freeze({
     ...contract,
     status: nextStatus,
-    updatedAt: now().toISOString(),
+    updatedAt: recordedAt,
     updatedBy: actorId,
   });
 }
@@ -152,13 +147,14 @@ export function recordContractSignature(contract, evidence, {
   }
   if (Number.isNaN(Date.parse(evidence.signedAt))) throw new TypeError('evidence.signedAt must be a valid timestamp');
 
+  const recordedAt = now().toISOString();
   const signatureEvidence = Object.freeze({
     provider: evidence.provider,
     providerEventId: evidence.providerEventId,
     signerIdentity: evidence.signerIdentity,
     signedAt: new Date(evidence.signedAt).toISOString(),
     documentHash: evidence.documentHash,
-    recordedAt: now().toISOString(),
+    recordedAt,
     recordedBy: actorId,
   });
 
