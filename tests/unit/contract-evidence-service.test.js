@@ -1,5 +1,3 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
 import { ContractEvidenceService } from '../../src/contracts/contract-evidence-service.js';
 
 function createStore() {
@@ -36,30 +34,28 @@ describe('ContractEvidenceService', () => {
     const service = new ContractEvidenceService({ store, clock: () => '2026-11-10T10:00:00.000Z' });
     const first = await service.append(base);
     const second = await service.append({ ...base, eventType: 'contract.approved', idempotencyKey: 'request-2' });
-    assert.equal(second.previousHash, first.eventHash);
-    assert.equal(ContractEvidenceService.verifyChain(store.records), true);
+    expect(second.previousHash).toBe(first.eventHash);
+    expect(ContractEvidenceService.verifyChain(store.records)).toBe(true);
   });
 
   it('rejects signature events without a document digest', async () => {
     const service = new ContractEvidenceService({ store: createStore() });
-    await assert.rejects(
-      service.append({ ...base, eventType: 'signature.completed' }),
-      /documentSha256/,
-    );
+    await expect(service.append({ ...base, eventType: 'signature.completed' }))
+      .rejects.toThrow(/documentSha256/);
   });
 
   it('fails closed when persistence does not confirm durable append', async () => {
     const store = createStore();
     store.appendEvidence = async () => ({ persisted: false });
     const service = new ContractEvidenceService({ store });
-    await assert.rejects(service.append(base), /not durably persisted/);
+    await expect(service.append(base)).rejects.toThrow(/not durably persisted/);
   });
 
   it('detects tampering and rejects missing tenant scope', async () => {
     const store = createStore();
     const service = new ContractEvidenceService({ store });
     const event = await service.append(base);
-    assert.equal(ContractEvidenceService.verifyChain([{ ...event, actorId: 'forged' }]), false);
-    await assert.rejects(service.append({ ...base, tenantId: '' }), /tenantId is required/);
+    expect(ContractEvidenceService.verifyChain([{ ...event, actorId: 'forged' }])).toBe(false);
+    await expect(service.append({ ...base, tenantId: '' })).rejects.toThrow(/tenantId is required/);
   });
 });
