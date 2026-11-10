@@ -43,7 +43,7 @@ test('enforces tenant scope, optimistic version and legal state transitions', ()
   }), /tenant scope mismatch/);
   assert.throws(() => transitionContract(contract, 'signed', {
     actorId: 'user-a', tenantId: 'tenant-a', expectedVersion: 1, now: fixedNow,
-  }), /invalid contract transition/);
+  }), /signature evidence is required/);
   assert.throws(() => transitionContract(contract, 'in_review', {
     actorId: 'user-a', tenantId: 'tenant-a', expectedVersion: 2, now: fixedNow,
   }), /version conflict/);
