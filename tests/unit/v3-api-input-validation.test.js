@@ -52,6 +52,17 @@ describe('v3 API endpoint input validation', () => {
     expect(response.body.error).toMatch(/hostname or IP address/i);
   });
 
+  test('rejects RouterOS command-like ping targets without contacting the router', async () => {
+    global.mikrotik = {
+      state: { isConnected: true },
+      executeTool: () => { throw new Error('must not execute'); }
+    };
+    const response = await request(app).post('/api/v3/diagnostics/ping-router')
+      .send({ host: 'router.local/system/reboot', count: 3 });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/valid hostname or IP address/i);
+  });
+
   test('bounds audit pagination and rejects malformed numeric values', async () => {
     global.database = {};
     const response = await request(app).get('/api/v3/audit?limit=1000&offset=0');
