@@ -117,6 +117,7 @@ export function transitionContract(contract, nextStatus, {
     throw new Error('document integrity check failed');
   }
 
+  const recordedAt = now().toISOString();
   return Object.freeze({
     ...contract,
     status: nextStatus,
