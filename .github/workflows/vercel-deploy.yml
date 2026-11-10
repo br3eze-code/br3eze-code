@@ -65,7 +65,12 @@ jobs:
           test -f dist-web/index.html
           test -f dist-web/connect.html
           test -f dist-web/js/env.js
-          if find dist-web -type f \\( -name '*.php' -o -name '.htaccess' -o -name '.htpasswd' \\) | grep -q .; then
+          if find dist-web -type f -print | grep -Eq '(^|/)([^/]+\\.php|\\.htaccess|\\.htpasswd)
+            echo 'Private/server-only files found in dist-web' >&2
+            exit 1
+          fi
+          du -sh dist-web
+; then
             echo 'Private/server-only files found in dist-web' >&2
             exit 1
           fi
