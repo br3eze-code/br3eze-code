@@ -51,8 +51,17 @@ router.post('/bulk/vouchers', async (req, res) => {
     const { DEFAULT_PLANS } = require('../../core/database');
     const dateUtils = require('../../utils/date');
 
-    const { count = 1, plan = 'default', createdBy = 'api-v3-bulk' } = req.body;
-    const n = Math.min(Math.max(parseInt(count) || 1, 1), 100);
+    const { count = 1, plan = 'default', createdBy = 'api-v3-bulk' } = req.body || {};
+    if (typeof count === 'boolean' || !Number.isSafeInteger(Number(count)) || !/^\d+$/.test(String(count)) || Number(count) < 1 || Number(count) > 100) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'count must be an integer from 1 to 100' });
+    }
+    if (typeof plan !== 'string' || !plan.trim() || plan.length > 100) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'plan must be a non-empty string of at most 100 characters' });
+    }
+    if (typeof createdBy !== 'string' || !createdBy.trim() || createdBy.length > 100) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'createdBy must be a non-empty string of at most 100 characters' });
+    }
+    const n = Number(count);
 
     const planObj   = DEFAULT_PLANS[plan] || { name: 'Custom', deviceLimit: 1 };
     const expiresAt = planObj.durationValue && planObj.durationUnit
@@ -94,8 +103,11 @@ router.post('/bulk/vouchers', async (req, res) => {
 router.post('/bulk/users/disconnect', async (req, res) => {
   try {
     if (!global.mikrotik?.state?.isConnected) return notReady(res, 'MikroTik');
-    const { ids } = req.body;
-    if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ ok: false, error: 'ids[] required' });
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > 100
+      || ids.some(id => typeof id !== 'string' || !id.trim() || id.length > 100)) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'ids must contain 1 to 100 non-empty RouterOS ID strings' });
+    }
 
     const results = await Promise.allSettled(
       ids.map(id => global.mikrotik.executeCommand('/ip/hotspot/active/remove', { '.id': id }))
@@ -117,8 +129,10 @@ router.post('/bulk/users/disconnect', async (req, res) => {
 router.delete('/bulk/vouchers', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const { status } = req.body;
-    if (!status) return res.status(400).json({ ok: false, error: 'status required: used | expired | all' });
+    const { status } = req.body || {};
+    if (!['used', 'expired', 'all'].includes(status)) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'status must be one of: used, expired, all' });
+    }
     const deleted = await global.database.bulkDeleteVouchers?.({ status }) || { count: 0 };
     ok(res, deleted);
   } catch (e) { err(res, e); }
@@ -258,10 +272,16 @@ router.get('/diagnostics/connectivity', async (req, res) => {
  */
 router.post('/diagnostics/ping-router', async (req, res) => {
   try {
-    const { host, count = 3 } = req.body;
-    if (!host) return res.status(400).json({ ok: false, error: 'host required' });
+    const { host, count = 3 } = req.body || {};
+    if (typeof host !== 'string' || !host.trim() || host.length > 253
+      || /[\s\u0000-\u001f]/.test(host)) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'host must be a hostname or IP address without whitespace' });
+    }
+    if (typeof count === 'boolean' || !Number.isSafeInteger(Number(count)) || !/^\d+$/.test(String(count)) || Number(count) < 1 || Number(count) > 10) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'count must be an integer from 1 to 10' });
+    }
     if (!global.mikrotik?.state?.isConnected) return notReady(res, 'MikroTik');
-    const result = await global.mikrotik.executeTool('ping', { host, count });
+    const result = await global.mikrotik.executeTool('ping', { host: host.trim(), count: Number(count) });
     ok(res, result);
   } catch (e) { err(res, e); }
 });
@@ -276,9 +296,13 @@ router.post('/diagnostics/ping-router', async (req, res) => {
 router.get('/audit', async (req, res) => {
   try {
     if (!global.database) return notReady(res, 'Database');
-    const { limit = 50, offset = 0, userId, event } = req.query;
+    const { limit = '50', offset = '0', userId, event } = req.query;
+    if (!/^\d+$/.test(String(limit)) || !Number.isSafeInteger(Number(limit)) || Number(limit) < 1 || Number(limit) > 100
+      || !/^\d+$/.test(String(offset)) || !Number.isSafeInteger(Number(offset))) {
+      return res.status(400).json({ ok: false, version: 'v3', error: 'limit must be 1-100 and offset must be a non-negative integer' });
+    }
     const entries = await global.database.getAuditLog?.({
-      limit: +limit, offset: +offset, userId, event,
+      limit: Number(limit), offset: Number(offset), userId, event,
     }) || [];
     ok(res, entries, { count: entries.length });
   } catch (e) { err(res, e); }
