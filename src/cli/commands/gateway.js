@@ -18,6 +18,7 @@ import toolRegistry from '../../core/ToolRegistry.js';
 import { Gateway as AgentOSGateway } from '../../core/gateway-engine.js';
 import { createConfiguredProviderModelPort } from '../../adapters/models/configured-provider.js';
 import TaskScheduler from '../../core/taskScheduler.js';
+import { ProjectObserver } from '../../core/observation/project-observer.js';
 
 
 // Proxy for @clack/prompts to avoid ERR_REQUIRE_ESM during command registration
@@ -154,6 +155,11 @@ export default (program) => {
 
                 if (global.taskScheduler) {
                     try { global.taskScheduler.stop(); } catch (_) { /* best effort */ }
+                }
+
+                if (global.projectObserver) {
+                    try { global.projectObserver.stop(); } catch (_) { /* best effort */ }
+                    global.projectObserver = null;
                 }
 
                 if (global.gateway) {
@@ -374,6 +380,12 @@ export default (program) => {
                 await runtime.loadSkills();
                 global.agentRuntime = runtime;
                 global.askEngine = runtime;
+                // Read-only event observer shares the canonical runtime; it never executes tasks.
+                global.projectObserver?.stop?.();
+                global.projectObserver = new ProjectObserver({
+                    runtime,
+                    projectId: config.projectId || config.tenantId || config.siteId || null,
+                }).start();
 
                 // 2b. Scheduled task runner ("agent employee") — built (SQLite-backed
                 // cron/interval/once), just never instantiated anywhere until now.
