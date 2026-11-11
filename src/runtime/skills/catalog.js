@@ -1,4 +1,5 @@
 import { defineSkill, defineTool } from '../skill.js';
+import { stableSerialize } from './commerce-helpers.js';
 
 function scopeFrom(context = {}) {
   const tenantId = context.tenantId || context.scope?.tenantId;
@@ -44,7 +45,7 @@ function assertTenant(result, tenantId) {
 function approvalOrProposal(action, args, context) {
   const approval = context.approval || {};
   const tenantId = context.tenantId || context.scope?.tenantId || null;
-  const samePayload = approval.args != null && JSON.stringify(approval.args) === JSON.stringify(args ?? null);
+  const samePayload = approval.args != null && stableSerialize(approval.args) === stableSerialize(args);
   if (approval.granted === true && approval.action === action && approval.tenantId === tenantId && samePayload) return null;
   return { status: 'approval_required', action, tenantId, proposal: args, approvalRequired: true };
 }
