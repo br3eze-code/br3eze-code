@@ -64,3 +64,14 @@ Suggested safe routine prompt:
 - User administration starts read-only. Verify account type, environment, operator identity, and policy before mutations. Destructive or privilege-changing actions require explicit approval.
 - Provider-specific code stays behind adapters. A listed integration is not proof of configured credentials or live connectivity.
 - Verify outcomes and report evidence. Do not claim local tests or plugin validation were run unless they actually were.
+
+
+## Portable skills and full release workflow
+
+The Claude Code plugin is only one adapter. Canonical specialist packages live in `skills/<name>/SKILL.md` and can be consumed by compatible agent hosts. Use the portable skill names `cordova`, `agentos-web-design`, `agentos-android-release`, `agentos-vercel-deploy`, `agentos-live-project-observer`, and `agentos-multi-agent-ide` for staged delivery and cross-agent coordination.
+
+Use [the release WBS](RELEASE-WBS.md) as the baseline from discovery through design, implementation, QA, security, Vercel preview/production, Android internal testing, approved distribution and launch monitoring. Each activity must have one accountable owner and evidence. A local build is not proof of Play publication or a successful Vercel deployment.
+
+The live observer is read-only by default. It can only report on sources that are actually connected; a cloud routine cannot inspect local IDE activity or localhost without an approved authenticated bridge. See [real-time observation](REALTIME-OBSERVATION.md) and [multi-IDE integration](IDE-INTEGRATION.md).
+
+**Next priority:** make portable skill metadata validation pass in CI, then resolve the existing dependency/build and test failures before enabling continuous observation or adding more host-specific plugins.
