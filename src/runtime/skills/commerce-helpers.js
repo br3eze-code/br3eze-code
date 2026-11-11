@@ -1,3 +1,7 @@
+function stable(value) {
+  return JSON.stringify(value ?? null);
+}
+
 export function scopeFrom(context = {}) {
   const tenantId = context.tenantId || context.scope?.tenantId;
   const userId = context.userId || context.scope?.userId;
@@ -23,12 +27,19 @@ export function assertTenant(result, tenantId) {
 
 export function approvalOrProposal(action, args, context, { risk = 'medium' } = {}) {
   const approval = context.approval || {};
-  if (approval.granted === true && approval.action === action && approval.tenantId === context.tenantId) return null;
+  const tenantId = context.tenantId || context.scope?.tenantId || null;
+  const samePayload = approval.args != null && stable(approval.args) === stable(args);
+  if (
+    approval.granted === true
+    && approval.action === action
+    && approval.tenantId === tenantId
+    && samePayload
+  ) return null;
   return {
     status: 'approval_required',
     action,
     risk,
-    tenantId: context.tenantId,
+    tenantId,
     proposal: args,
     approvalRequired: true,
   };
