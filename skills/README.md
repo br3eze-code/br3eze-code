@@ -1,62 +1,92 @@
-# Specialist Skills
+# Br3eze AgentOS Specialist Skills
 
-This directory contains the repository’s **11 specialist skill definitions** for product, commerce, operations, design, and delivery coordination. Each skill is a standalone `SKILL.md` package with a clear trigger description, operating workflow, ownership boundary, and control guidance.
+This is the portable skill source catalogue. Skills are standalone `SKILL.md` packages with YAML frontmatter and an embedded cross-agent operating contract. They are designed to be consumed by compatible agents and IDEs without making Claude Code or GitHub a runtime requirement.
 
-## Skill roster
+## Release and cross-agent specialists
 
-| Skill | Primary responsibility | Use it when |
-|---|---|---|
-| [Designer](designer/SKILL.md) | User journeys, interaction design, design systems, accessibility, visual language, and engineering handoff | Designing or reviewing product experiences, interfaces, workflows, brand surfaces, or interaction specifications |
-| [Catalog Specialist](catalog-specialist/SKILL.md) | Products, services, plans, SKUs, offers, eligibility, and catalog publication | Defining or reviewing product metadata, hierarchy, bundles, plans, or publication workflows |
-| [Pricing and Promotions Specialist](pricing-promotions-specialist/SKILL.md) | Prices, discounts, taxes, credits, promotions, rounding, and commercial rules | Calculating, proposing, validating, publishing, or reviewing prices and promotions |
-| [Inventory Specialist](inventory-specialist/SKILL.md) | Stock, capacity, reservations, availability, and reconciliation | Checking, reserving, releasing, reconciling, or forecasting availability |
-| [Orders and Checkout Specialist](orders-checkout-specialist/SKILL.md) | Cart, checkout, orders, customer commitments, amendments, cancellation, and fulfillment state | Creating, validating, changing, or reviewing orders and checkout flows |
-| [Voucher and Access Specialist](voucher-access-specialist/SKILL.md) | Voucher issuance, redemption eligibility, access plans, and hotspot entitlements | Defining, issuing, validating, redeeming, or reviewing vouchers and access plans |
-| [Fulfillment and Expeditor Specialist](fulfillment-expeditor-specialist/SKILL.md) | Shipment milestones, provider evidence, delay detection, recovery, and exception closure | Reconciling tracking, managing delivery delays, coordinating providers, or closing exceptions |
-| [Procurement Specialist](procurement-specialist/SKILL.md) | Supplier response, sourcing, re-tendering, buy-versus-make, and commercial recovery | Handling supplier delays, alternate suppliers, purchase decisions, or scope changes |
-| [Billing and Payments Specialist](billing-payments-specialist/SKILL.md) | Payment authorization, settlement, refunds, credits, invoices, and financial ledgers | Validating or executing product-related financial operations and state transitions |
-| [Product Specialist](product-specialist/SKILL.md) | Cross-domain product and commerce routing across catalog, pricing, inventory, orders, vouchers, fulfillment, procurement, and payments | Selecting the narrowest product specialist, defining handoffs, or reviewing ownership boundaries |
-| [Project Manager](project-manager/SKILL.md) | Scope, milestones, owners, dependencies, risks, approvals, exceptions, and closure evidence | Starting, planning, tracking, recovering, or closing a project or cross-team work package |
+| Skill | Responsibility |
+|---|---|
+| [Cordova](cordova/SKILL.md) | Staged WBS delivery from discovery/design through tests, Vercel, Android release and launch verification |
+| [Android Release](agentos-android-release/SKILL.md) | Android release candidate, signing readiness, Play tracks, approval and publication evidence |
+| [Web Design](agentos-web-design/SKILL.md) | Accessible responsive design, low-dependency implementation and browser QA |
+| [Live Project Observer](agentos-live-project-observer/SKILL.md) | Read-only evidence-based status across connected agents, CI, GitHub, local bridge and deployments |
+| [Multi-Agent IDE](agentos-multi-agent-ide/SKILL.md) | Portable skills and tool contracts across IDEs, with one execution owner |
+| [Vercel Deploy](agentos-vercel-deploy/SKILL.md) | `vercel.json`, minimal dependencies, build/output/route checks and approved rollout |
 
-## Ownership and routing model
+## Project, engineering and governance
 
-Route work by **the record or state that will change**, not by the channel that submitted the request. Keep product definitions, commercial calculations, inventory reservations, customer commitments, entitlements, delivery evidence, supplier decisions, and financial ledgers under separate owners.
+| Skill | Responsibility |
+|---|---|
+| [AgentOS Accountant](agentos-accountant/SKILL.md) | Cost, estimates and financial evidence |
+| [AgentOS Designer](agentos-designer/SKILL.md) | Experience design and handoff |
+| [AgentOS Draftsman](agentos-draftsman/SKILL.md) | Controlled technical/project documents |
+| [AgentOS Editor](agentos-editor/SKILL.md) | Editing and quality of written artifacts |
+| [AgentOS Engineer](agentos-engineer/SKILL.md) | Implementation and technical validation |
+| [AgentOS Expeditor](agentos-expeditor/SKILL.md) | Dependencies, blockers and delivery follow-up |
+| [AgentOS Planner](agentos-planner/SKILL.md) | WBS, schedule and dependencies |
+| [AgentOS Procurement](agentos-procurement/SKILL.md) | Sourcing and supplier decisions |
+| [AgentOS Project Manager](agentos-project-manager/SKILL.md) | Baseline, owners, WBS, risks, approvals and closeout |
+| [AgentOS QA](agentos-qa/SKILL.md) | Test strategy and acceptance evidence |
+| [Role Skill Factory](agentos-role-skill-factory/SKILL.md) | Specialist skill creation and validation |
+| [AgentOS Secretary](agentos-secretary/SKILL.md) | Records, communications and decision trails |
+| [Security Remediation](agentos-security-remediation/SKILL.md) | Risk triage and secure remediation |
+| [Specialist Swarm](agentos-specialist-swarm/SKILL.md) | Controlled specialist delegation and handoffs |
 
-The Product Specialist provides the cross-domain routing layer. The Project Manager coordinates the work package, milestones, dependencies, risks, approvals, and closure. The Designer owns experience quality and design handoff but does not replace the product or domain owner for business controls.
+## Domain specialists
 
-| Request or state change | Primary owner | Common collaborators |
-|---|---|---|
-| Product, plan, SKU, or offer definition | Catalog Specialist | Pricing, Inventory, Designer |
-| Price, discount, tax, credit, or promotion rule | Pricing and Promotions Specialist | Catalog, Billing, Orders |
-| Stock, capacity, reservation, or availability | Inventory Specialist | Catalog, Orders, Procurement |
-| Cart, order, checkout, amendment, or cancellation | Orders and Checkout Specialist | Pricing, Inventory, Billing, Fulfillment |
-| Voucher or access-plan entitlement | Voucher and Access Specialist | Worker/Hotspot Operations, Billing, Catalog |
-| Shipment delay, tracking mismatch, or delivery exception | Fulfillment and Expeditor Specialist | Orders, Inventory, Procurement, Billing |
-| Supplier recovery, re-tender, or buy-versus-make | Procurement Specialist | Fulfillment, Inventory, Project Manager, approver |
-| Payment, settlement, refund, credit, or ledger state | Billing and Payments Specialist | Pricing, Orders, Procurement, approver |
-| Cross-team scope, milestone, dependency, or closure | Project Manager | All affected specialists |
-| User journey, interface, accessibility, or interaction design | Designer | Product owner, Engineering, affected specialist |
+- [Billing and Payments](billing-payments-specialist/SKILL.md)
+- [Br3eze Service Agent](br3eze-service-agent/SKILL.md)
+- [Calendar](calendar/SKILL.md)
+- [Catalog](catalog-specialist/SKILL.md)
+- [Coding](coding/SKILL.md)
+- [Design](design/SKILL.md)
+- [Designer](designer/SKILL.md)
+- [Email](email/SKILL.md)
+- [Finance](finance/SKILL.md)
+- [Fulfillment and Expeditor](fulfillment-expeditor-specialist/SKILL.md)
+- [General](general/SKILL.md)
+- [Inventory](inventory-specialist/SKILL.md)
+- [Loop](loop/SKILL.md)
+- [MCPorter](mcporter/SKILL.md)
+- [Mesh](mesh/SKILL.md)
+- [MikroTik](mikrotik/SKILL.md)
+- [NanoPDF](nanopdf/SKILL.md)
+- [Orders and Checkout](orders-checkout-specialist/SKILL.md)
+- [Pricing and Promotions](pricing-promotions-specialist/SKILL.md)
+- [Procurement](procurement-specialist/SKILL.md)
+- [Product](product-specialist/SKILL.md)
+- [Project Manager](project-manager/SKILL.md)
+- [Project CPM/EVM](project/SKILL.md)
+- [Research](research/SKILL.md)
+- [System](system/SKILL.md)
+- [Tasks](tasks/SKILL.md)
+- [TTS](tts/SKILL.md)
+- [VMware](vmware/SKILL.md)
+- [Voucher Access](voucher-access-specialist/SKILL.md)
+- [Voucher](voucher/SKILL.md)
+- [Windows](windows/SKILL.md)
+- [Test](test/SKILL.md)
 
-## VoucherAgent ownership
+## Install
 
-Assign `VoucherAgent` to the **Voucher and Access Specialist** for product-level voucher and access-plan operations. When the task changes MikroTik, router, network, or device state, the operational owner is **Worker / Hotspot Operations**. When it changes credits, redemption records, payment state, or a financial ledger, involve **Billing and Payments**.
+Install one skill with the Agent Skills CLI:
 
-VoucherAgent must not independently approve pricing, charge an account, change supplier scope, or alter network infrastructure. Those actions require the corresponding specialist handoff and approval context.
+```bash
+npx skills add br3eze-code/br3eze-code --skill cordova
+npx skills add br3eze-code/br3eze-code --skill agentos-live-project-observer
+npx skills list
+```
 
-## Shared controls
+The CLI's list command reports skills installed in the current scope; it is not the source catalogue.
 
-All specialists should preserve tenant, project, user, and site scope where applicable. They should use stable identifiers, explicit state transitions, idempotency for retried operations, evidence-backed status, deterministic activity records, and approval gates for irreversible, high-value, externally visible, security-sensitive, or contractually binding actions.
+## Architecture and release guidance
 
-A cross-specialist handoff should identify the source and destination owners, work-package or activity ID, scoped object IDs, requested action, evidence references, due date, acceptance criteria, approval status, and return path. Do not close an exception or work package without resolution or acceptance evidence.
+- [Portable skill operating contract](../docs/skills/operating-contract.md)
+- [Multi-agent and IDE integration](../docs/IDE-INTEGRATION.md)
+- [Release WBS from discovery to launch](../docs/RELEASE-WBS.md)
+- [Real-time observation model](../docs/REALTIME-OBSERVATION.md)
+- [Claude Code plugin guide](../docs/CLAUDE-CODE.md)
 
-## Validation status
+## Ownership rule
 
-All 11 `SKILL.md` files passed the skill package validator, and the repository diff passed `git diff --check`. The skill files were added in commit [`0c0c694`](https://github.com/br3eze-code/br3eze-code/commit/0c0c694ce79ea228eefd83f0a9261819296c40ac), titled `feat: add designer and product specialist skills`.
-
-The repository-wide audit remains separate from skill validation. At the audited remote baseline, the Jest suite reported **85 passing suites and one failing suite** because `src/core/fulfillment-exception-coordinator.js` imports the missing `src/core/specialist-activity.js` module.
-
-## Agent specialization registry
-
-The machine-readable ownership map lives at `config/specialist-agent-roster.json`. Runtime consumers can use `src/core/specialist-agent-roster.js` to list all eleven teams, resolve a skill to its accountable team, check declared handoff boundaries, and validate dependency references.
-
-The registry keeps routing separate from execution. A specialist may recommend or hand off work according to its declared boundary, but consequential actions still require the existing tenant, approval, evidence, and audit controls. Voucher operations belong to the Voucher and Access Specialist; financial redemption, credits, and settlement hand off to Billing and Payments.
+Anything swappable; one owner. Skills define procedures and specialist boundaries. `src/core/agentRuntime.js` remains the single execution owner. IDE plugins are thin adapters, not parallel business logic or runtimes.
