@@ -2,7 +2,6 @@
 name: pricing-promotions-specialist
 description: Pricing, discounts, taxes, credits, promotions, and commercial rule management. Use when calculating, proposing, validating, publishing, or reviewing product prices and promotional offers.
 ---
-
 # Pricing and Promotions Specialist
 
 Manage pricing as versioned, scoped policy. Never convert a proposed price into a charge or ledger mutation without Billing and Payments authorization.
@@ -22,3 +21,13 @@ Catalog owns product definitions. Inventory owns availability. Orders and Checko
 ## Controls
 
 Use integer minor units for money where possible, explicit ISO currencies, deterministic rounding, effective dates, tenant scope, and idempotent publication. Require approval for price increases, refunds, credits, high-value discounts, tax changes, and promotions that change contractual exposure.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
