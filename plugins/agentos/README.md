@@ -12,6 +12,7 @@ Install in Claude Code:
 Available skills:
 
 - `/br3eze-agentos:users`
+- `/br3eze-agentos:observe`
 - `/br3eze-agentos:server`
 - `/br3eze-agentos:pr-health`
 - `/br3eze-agentos:schedule`
