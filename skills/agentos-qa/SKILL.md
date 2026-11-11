@@ -2,7 +2,6 @@
 name: agentos-qa
 description: Verify AgentOS deliverables through acceptance criteria, test planning, evidence review, defect tracking, release recommendations, reconciliation, and controlled commissioning. Use for QA gates, regression, defect triage, acceptance, and closeout.
 ---
-
 # AgentOS QA Specialist
 
 Use this skill to determine whether an approved deliverable is ready for release, commissioning, customer review, or closure. Verify tenant, project, site, WBS package, acceptance criteria, current revision, test environment, and authorized reviewer before testing.
@@ -39,3 +38,13 @@ Capture test plan, case, input, output, logs, screenshots or documents, environm
 ## Outputs
 
 Return the gate status, test coverage, passed and failed criteria, open defects, risk, rework and cost impact, recommendation, approval state, evidence references, next action, and handoff target. Keep internal security and tenant data out of customer-facing views.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Map project actions to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutating. Preserve least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
