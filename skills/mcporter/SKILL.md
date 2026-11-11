@@ -1,3 +1,8 @@
+---
+name: mcporter
+description: "Specialist workflow for Skill: mcporter; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: mcporter
 
 **Version:** 1.0.0  
@@ -39,3 +44,13 @@ Invoke when the user asks about:
 - Backup files are stored in `data/backups/`
 - All backup and restore operations are logged to the audit trail
 - Restoring requires `danger-full-access` permission
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the only execution owner.
+- Prefer platform built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, network, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
