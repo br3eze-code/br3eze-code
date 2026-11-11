@@ -4,7 +4,7 @@
   "name": "br3eze-code",
   "buildCommand": "npm run vercel:build",
   "outputDirectory": "dist-web",
-  "installCommand": "npm cache clean --force && npm install --legacy-peer-deps --prefer-online --no-audit --no-fund",
+  "installCommand": "npm ci --legacy-peer-deps --no-audit --no-fund",
   "framework": null,
   "functions": {
     "api/index.js": {

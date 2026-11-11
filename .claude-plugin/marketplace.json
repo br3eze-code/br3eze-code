@@ -1,0 +1,14 @@
+{
+  "name": "br3eze-agentos-marketplace",
+  "description": "Br3eze AgentOS skills and developer operations for Claude Code.",
+  "owner": {
+    "name": "Br3eze Africa"
+  },
+  "plugins": [
+    {
+      "name": "br3eze-agentos",
+      "source": "./plugins/agentos",
+      "description": "AgentOS user administration, local server operations, and pull-request health workflows with explicit safety gates."
+    }
+  ]
+}
