@@ -1,6 +1,6 @@
 import { test } from '@jest/globals';
 import assert from 'node:assert/strict';
-import { approvalOrProposal } from '../../src/runtime/skills/commerce-helpers.js';
+import { approvalOrProposal, stableSerialize } from '../../src/runtime/skills/commerce-helpers.js';
 import { createMikrotikSkill } from '../../src/runtime/skills/mikrotik.js';
 
 test('approval does not authorize a different payload', () => {
@@ -39,4 +39,10 @@ test('mikrotik text match cannot select a disconnect', () => {
   assert.equal(kick.risk, 'high');
   assert.deepEqual(kick.permissions, ['network:disconnect']);
   assert.deepEqual(kick.parameters.required, ['username']);
+});
+
+
+test('approval payload canonicalization ignores object key order but preserves values', () => {
+  assert.equal(stableSerialize({ amount: 100, metadata: { b: 2, a: 1 } }), stableSerialize({ metadata: { a: 1, b: 2 }, amount: 100 }));
+  assert.notEqual(stableSerialize({ amount: 100 }), stableSerialize({ amount: 101 }));
 });
