@@ -33,3 +33,13 @@ Use only sources actually connected and authorized: AgentRuntime activity/events
 ## Output
 
 Current project state, source coverage, event freshness, WBS owners and blockers, exact evidence, alerts, data gaps and one next priority.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- For multi-step work, use durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit cross-domain handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Apply least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
