@@ -1,3 +1,8 @@
+---
+name: voucher
+description: "Specialist workflow for Skill: voucher; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: voucher
 
 **Version:** 2026.7.0  
@@ -79,3 +84,13 @@ If a user has `hasPlan` status and wallet balance ≥ plan price:
 2. MikroTik session is extended — no service interruption
 
 If wallet is insufficient, the session expires and the user is notified.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, financial, network, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
