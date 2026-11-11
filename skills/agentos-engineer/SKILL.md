@@ -2,7 +2,6 @@
 name: agentos-engineer
 description: Execute safe AgentOS engineering workflows for diagnostics, technical baselines, risk analysis, bounded code or configuration changes, tests, rollback, deployment proposals, and operational handoff. Use for debugging, implementation planning, infrastructure changes, and technical verification.
 ---
-
 # AgentOS Engineer
 
 Use this skill to investigate and prepare the smallest safe technical change. Require authenticated identity, tenant, project, site, domain, authorized environment, and explicit scope before reading or modifying systems.
@@ -64,3 +63,13 @@ handoff and evidence references
 ```
 
 Keep activity, logs, approvals, and audit records tenant-scoped and restart-safe. Render the same activity number and execution status in all supported channels.
+
+
+## Cross-agent delivery contract
+
+- Treat this file as portable instructions: do not assume Claude Code, GitHub, a particular IDE, an MCP server, or a provider-specific plugin is available. Discover tools at runtime and state capability gaps honestly.
+- For project work, consume or create a durable WBS activity with an accountable owner, inputs, dependencies, estimate, risk, approval gate, acceptance criteria, evidence links, and next action. Respect the project manager's coordination role and this skill's specialist authority.
+- Execute only this skill's owned domain. Hand off cross-domain changes with explicit inputs/outputs; never create a second execution owner. AgentRuntime in `src/core/agentRuntime.js` remains the canonical runtime owner.
+- Prefer existing Node.js/platform capabilities and locked dependencies. Do not add packages for a task that can be safely completed with built-ins or existing dependencies. Any dependency change requires rationale, lockfile update, licence/security review, and build/test evidence.
+- Observe before mutating. Use least privilege, tenant/project/site scoping where relevant, redaction, idempotency, and explicit approval for destructive, privileged, financial, production, release, or externally visible actions.
+- Report observed state separately from assumptions. Include commands/checks actually run, results, unresolved risks, artifact or deployment references, and the single next priority. Never claim a test, deployment, user action, or live connection that was not verified.
