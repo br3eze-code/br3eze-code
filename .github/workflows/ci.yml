@@ -55,6 +55,8 @@ jobs:
         run: npm run check:claude-plugin
       - name: Validate portable specialist skill packages
         run: npm run check:skills
+      - name: Validate Vercel and Cordova release configuration
+        run: npm run check:release-config
       - name: Run architecture gate
         run: npm run check:architecture
       - name: Run CI quality gate
