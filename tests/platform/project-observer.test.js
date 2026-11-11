@@ -55,3 +55,16 @@ test('ProjectObserver stop detaches runtime listeners and start is idempotent', 
   assert.equal(observer.getEvents().length, 1);
   assert.equal(observer.getStatus().connected, false);
 });
+
+test('ProjectObserver filters event history by authenticated user scope', () => {
+  const runtime = new EventEmitter();
+  const observer = new ProjectObserver({ runtime }).start();
+  runtime.emit('task:dispatched', { taskId: 't1', context: { userId: 'user-a' }, wbs: { id: 'WBS-1' } });
+  runtime.emit('task:dispatched', { taskId: 't2', context: { userId: 'user-b' }, wbs: { id: 'WBS-2' } });
+
+  assert.equal(observer.getEvents({ userId: 'user-a' }).length, 1);
+  assert.equal(observer.getEvents({ userId: 'user-a' })[0].evidenceRef, 't1');
+  assert.equal(observer.getEvents({ userId: 'user-a' })[0].activityId, 'WBS-1');
+  assert.equal(observer.getEvents({ userId: 'user-c' }).length, 0);
+  observer.stop();
+});
