@@ -20,6 +20,8 @@ import { ServiceSupervisor } from './os/ServiceSupervisor.js';
 import { IPCMessageBus } from './os/IPCMessageBus.js';
 import { ApplicationManager } from './os/ApplicationManager.js';
 import { LocalStateStore } from '../adapters/persistence/local-state-store.js';
+import { AGENT_RUNTIME_CONTRACT_VERSION, createRuntimeRequest } from './runtime-contract.js';
+export { AGENT_RUNTIME_CONTRACT_VERSION, createRuntimeRequest } from './runtime-contract.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
@@ -43,21 +45,6 @@ const LEGACY_ROUTE_HINTS = [
 ];
 export const TOOL_MANIFEST = DEFAULT_TOOL_MANIFEST;
 
-/** Stable request contract owned by the canonical runtime. */
-export const AGENT_RUNTIME_CONTRACT_VERSION = '1.0';
-
-export function createRuntimeRequest({ sessionId, input, context = {}, capabilities = [], checkpoint = null } = {}) {
-  if (!sessionId) throw new TypeError('sessionId is required');
-  if (input === undefined || input === null) throw new TypeError('input is required');
-  return Object.freeze({
-    contractVersion: AGENT_RUNTIME_CONTRACT_VERSION,
-    sessionId,
-    input,
-    context: Object.freeze({ ...context }),
-    capabilities: Object.freeze([...capabilities]),
-    checkpoint,
-  });
-}
 
 export function validateRuntime(runtime) {
   if (!runtime || typeof runtime !== 'object') throw new TypeError('runtime must be an object');
