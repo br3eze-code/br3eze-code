@@ -65,7 +65,8 @@
     "serve:dev": "node scripts/serve.mjs --mode=dev",
     "serve:prod": "npm run build:web && node scripts/serve.mjs --mode=prod",
     "test:serve": "npm run build:web && node --test tests/platform/serve-smoke.test.mjs",
-    "build:web": "node scripts/vercel-build.mjs"
+    "build:web": "node scripts/vercel-build.mjs",
+    "test:contracts": "node --test tests/contracts/*.test.js"
   },
   "publishConfig": {
     "access": "public",
