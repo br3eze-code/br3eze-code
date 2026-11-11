@@ -1,3 +1,8 @@
+---
+name: system
+description: "Specialist workflow for Skill: system; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: system
 
 **Version:** 1.0.0  
@@ -42,3 +47,13 @@ Invoke when the user asks about:
 - `sys.doctor` iterates all `registry.drivers` and calls `healthCheck()` on each
 - `sys.help` filters tools by the caller's role (read-only / workspace-write / danger-full-access)
 - This skill runs on the **AgentOS host**, not on the MikroTik router. For router-level ping, use the `mikrotik` skill's `ping` tool.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's domain; use explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
