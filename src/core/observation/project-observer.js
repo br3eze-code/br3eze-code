@@ -26,6 +26,7 @@ function normalizeRuntimeEvent(type, payload, options = {}) {
   const activityId = safeId(activity.activityId || activity.id || task.activityId || data.activityId);
   const taskId = safeId(task.taskId || data.taskId || session.taskId);
   const sessionId = safeId(session.sessionId || data.sessionId);
+  const userId = safeId(data.userId || data.context?.userId || task.userId || task.context?.userId || session.userId || session.context?.userId);
   const summaryByType = {
     'session:created': 'Agent session created',
     turn: failed ? 'Agent turn stopped before normal completion' : 'Agent turn completed',
@@ -38,6 +39,7 @@ function normalizeRuntimeEvent(type, payload, options = {}) {
     timestamp: safeTimestamp(data.timestamp || data.createdAt || turn.timestamp),
     source: 'agent-runtime',
     projectId: safeId(options.projectId),
+    userId,
     activityId,
     owner: safeId(activity.owner || task.owner || options.owner) || 'agent-runtime',
     severity: failed ? 'warning' : 'info',
@@ -98,10 +100,11 @@ export class ProjectObserver extends EventEmitter {
     return this;
   }
 
-  getEvents({ since = null, limit = 50 } = {}) {
+  getEvents({ since = null, limit = 50, userId = null } = {}) {
     const boundedLimit = Number.isInteger(limit) ? Math.max(1, Math.min(limit, this.historyLimit)) : 50;
     const sinceTime = since && !Number.isNaN(Date.parse(since)) ? Date.parse(since) : null;
     return this.history
+      .filter((event) => userId === null || event.userId === userId)
       .filter((event) => sinceTime === null || Date.parse(event.timestamp) > sinceTime)
       .slice(-boundedLimit);
   }
