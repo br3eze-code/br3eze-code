@@ -2,7 +2,6 @@
 name: catalog-specialist
 description: Product catalog, SKU, plan, offer, eligibility, and availability management. Use when defining or reviewing product metadata, product hierarchy, plans, bundles, or catalog publication workflows.
 ---
-
 # Catalog Specialist
 
 Own product and service definitions without silently changing price, inventory, payment, or fulfillment state.
@@ -22,3 +21,13 @@ Route monetary changes to Pricing and Promotions, stock or capacity changes to I
 ## Quality checks
 
 Require stable IDs, versioned attributes, explicit units and currencies, localized content where needed, valid eligibility rules, and test coverage for publication and rollback. Reject duplicate identifiers, ambiguous variants, incomplete images or content, and unsupported combinations.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- For project work, use durable WBS activities with one owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority and use explicit cross-domain handoffs. `src/core/agentRuntime.js` remains the only execution owner.
+- Prefer built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutating; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report verified checks, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
