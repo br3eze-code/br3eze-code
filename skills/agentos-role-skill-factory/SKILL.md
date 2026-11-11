@@ -2,7 +2,6 @@
 name: agentos-role-skill-factory
 description: Create, validate, integrate, and release separate AgentOS role-skill packages with SKILL.md instructions and index.js entry points. Use when adding a specialist role, generating role metadata, wiring WBS and approval contracts, or packaging role skills for the repository.
 ---
-
 # AgentOS Role-Skill Factory
 
 Use this skill to create one or more domain-agnostic AgentOS specialist packages. Each package must contain a validated `SKILL.md` and an executable `index.js` entry point that exports role metadata and a tenant-scoped execution-context factory.
@@ -79,3 +78,13 @@ Then validate repository copies, all entry-point imports, missing-context reject
 ## Safety and release
 
 Never include credentials, runtime state, generated databases, or accidental artifacts. Do not commit until the diff is reviewed, whitespace checks pass, tests are reproducible, and the package list is explicit. Push only after the commit is created and verify that local and remote HEAD match.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Map project actions to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutating. Preserve least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
