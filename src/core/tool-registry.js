@@ -292,6 +292,7 @@ class ToolRegistry {
   getAllTools() { return [...this.tools.values()]; }
   getToolsByDomain(domain) { return [...this.tools.values()].filter((tool) => tool.domain === domain); }
   getToolsForDomain(domain) { return this.getToolsByDomain(domain); }
+  count() { return this.skills.size; }
   getSkillNames() { return [...this.skills.keys()]; }
   getToolCount() { return this.tools.size; }
   getToolsBySkill(skillName) { const skill = this.skills.get(skillName); return skill ? [...skill.tools.values()] : []; }
@@ -306,8 +307,6 @@ class ToolRegistry {
     for (const [file, type] of candidates) { try { const raw = await fsp.readFile(file, 'utf8'); return type === 'yaml' ? yaml.load(raw) : JSON.parse(raw); } catch { /* Try next manifest format. */ } }
     this.logger.warn(`No manifest found for skill "${skillName}"`); return null;
   }
-
-  count() { return this.skills.size; }
 
   async _loadTools(skillPath, manifest) {
     const tools = new Map();
