@@ -1,5 +1,15 @@
-function stable(value) {
-  return JSON.stringify(value ?? null);
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+export function stableSerialize(value) {
+  return JSON.stringify(canonicalize(value ?? null));
 }
 
 export function scopeFrom(context = {}) {
@@ -28,7 +38,7 @@ export function assertTenant(result, tenantId) {
 export function approvalOrProposal(action, args, context, { risk = 'medium' } = {}) {
   const approval = context.approval || {};
   const tenantId = context.tenantId || context.scope?.tenantId || null;
-  const samePayload = approval.args != null && stable(approval.args) === stable(args);
+  const samePayload = approval.args != null && stableSerialize(approval.args) === stableSerialize(args);
   if (
     approval.granted === true
     && approval.action === action
