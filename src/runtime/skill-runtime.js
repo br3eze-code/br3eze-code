@@ -1,9 +1,9 @@
 /**
- * Portable skill runner for @agentos/runtime.
+ * Portable skill selector for @agentos/runtime.
  *
- * This is not AgentRuntime. It only matches a skill tool and calls its handler
- * after an optional host authorizer. Production request paths stay in
- * src/core/agentRuntime.js.
+ * This module never invokes a skill's handler directly. A host must provide
+ * an authorization decision and an executor owned by AgentRuntime. This keeps
+ * the skill package from becoming a competing production execution loop.
  */
 
 function assertSkill(skill) {
@@ -12,10 +12,13 @@ function assertSkill(skill) {
   }
 }
 
-export function createSkillRuntime({ skills = [], authorize = null } = {}) {
+export function createSkillRuntime({ skills = [], authorize, execute } = {}) {
   if (!Array.isArray(skills)) throw new TypeError('skills must be an array');
-  if (authorize != null && typeof authorize !== 'function') {
-    throw new TypeError('authorize must be a function when provided');
+  if (typeof authorize !== 'function') {
+    throw new TypeError('authorize is required; skill execution must fail closed');
+  }
+  if (typeof execute !== 'function') {
+    throw new TypeError('execute is required; delegate execution to the host AgentRuntime');
   }
 
   const registered = [];
@@ -48,19 +51,28 @@ export function createSkillRuntime({ skills = [], authorize = null } = {}) {
       if (!tool || typeof tool.handler !== 'function') {
         throw new Error(`skill ${skill.name} matched unknown tool ${match.tool}`);
       }
-      const args = match.args && typeof match.args === 'object' ? match.args : {};
-      if (authorize) {
-        const decision = await authorize({ skill, tool, args, context, input });
-        if (!decision || decision.allowed !== true) {
-          return {
-            ok: false,
-            reason: decision?.reason || 'denied',
-            skill: skill.name,
-            tool: tool.name,
-          };
-        }
+      const args = match.args && typeof match.args === 'object' && !Array.isArray(match.args)
+        ? match.args
+        : {};
+
+      let decision;
+      try {
+        decision = await authorize({ skill, tool, args, context, input });
+      } catch {
+        return { ok: false, reason: 'authorization_error', skill: skill.name, tool: tool.name };
       }
-      const result = await tool.handler(args, context);
+      if (!decision || decision.allowed !== true) {
+        return {
+          ok: false,
+          reason: decision?.reason || 'denied',
+          skill: skill.name,
+          tool: tool.name,
+        };
+      }
+
+      // The host executor must route through the canonical AgentRuntime and its
+      // task, tenant, permission, approval, and audit boundaries.
+      const result = await execute({ skill, tool, args, context, input, authorization: decision });
       return { ok: true, skill: skill.name, tool: tool.name, result };
     }
 
