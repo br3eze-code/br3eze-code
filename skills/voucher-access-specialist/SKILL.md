@@ -2,7 +2,6 @@
 name: voucher-access-specialist
 description: Voucher issuance, redemption eligibility, access plans, user access, and hotspot entitlement management. Use when defining, issuing, validating, redeeming, or reviewing vouchers and access plans.
 ---
-
 # Voucher and Access Specialist
 
 Manage voucher and access entitlements with explicit scope, lifecycle, eligibility, and evidence. Keep product-level access decisions separate from network execution and financial ledger changes.
@@ -22,3 +21,13 @@ Manage voucher and access entitlements with explicit scope, lifecycle, eligibili
 ## Controls
 
 Enforce tenant and site isolation, one-time or bounded redemption, explicit time zones, hashed or protected voucher secrets, rate limits, revocation, audit events, and safe error messages. Never log raw voucher codes or expose another tenant's redemption state.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, financial, network, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
