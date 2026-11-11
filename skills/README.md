@@ -1,6 +1,6 @@
 # Specialist Skills
 
-This directory contains the repository’s **11 specialist skill definitions** for product, commerce, operations, design, and delivery coordination. Each skill is a standalone `SKILL.md` package with a clear trigger description, operating workflow, ownership boundary, and control guidance.
+This is the repository source for AgentOS skills and installable Agent Skills. It contains specialist packages, operational skills, and legacy runtime skill modules. Installable packages use one directory per skill with a `SKILL.md` containing YAML frontmatter (`name` and `description`) plus the instructions. The directory currently has 47 skill package directories; `skills/cordova/` and `skills/test/` have been standardized with `SKILL.md` files so all package directories follow the same discoverable shape.
 
 ## Skill roster
 
@@ -51,7 +51,7 @@ A cross-specialist handoff should identify the source and destination owners, wo
 
 ## Validation status
 
-All 11 `SKILL.md` files passed the skill package validator, and the repository diff passed `git diff --check`. The skill files were added in commit [`0c0c694`](https://github.com/br3eze-code/br3eze-code/commit/0c0c694ce79ea228eefd83f0a9261819296c40ac), titled `feat: add designer and product specialist skills`.
+Historical note: the original 11 specialist `SKILL.md` files passed the skill package validator in commit [`0c0c694`](https://github.com/br3eze-code/br3eze-code/commit/0c0c694ce79ea228eefd83f0a9261819296c40ac), titled `feat: add designer and product specialist skills`. That historical result does not certify the entire repository or the current change.
 
 The repository-wide audit remains separate from skill validation. At the audited remote baseline, the Jest suite reported **85 passing suites and one failing suite** because `src/core/fulfillment-exception-coordinator.js` imports the missing `src/core/specialist-activity.js` module.
 
@@ -60,3 +60,23 @@ The repository-wide audit remains separate from skill validation. At the audited
 The machine-readable ownership map lives at `config/specialist-agent-roster.json`. Runtime consumers can use `src/core/specialist-agent-roster.js` to list all eleven teams, resolve a skill to its accountable team, check declared handoff boundaries, and validate dependency references.
 
 The registry keeps routing separate from execution. A specialist may recommend or hand off work according to its declared boundary, but consequential actions still require the existing tenant, approval, evidence, and audit controls. Voucher operations belong to the Voucher and Access Specialist; financial redemption, credits, and settlement hand off to Billing and Payments.
+
+## Installable Agent Skills (skills.sh CLI)
+
+The root `skills/` directory is the source catalogue. To install selected packages into the current workspace with the skills CLI, use Node.js 22.20 or newer:
+
+```bash
+npx skills add br3eze-code/br3eze-code --skill cordova
+npx skills add br3eze-code/br3eze-code --skill test
+npx skills list
+```
+
+Use `npx skills list` to inspect skills installed in the current workspace; it is not a repository-wide inventory of every source package. Use `npx skills add` to install packages from this repository. Do not duplicate the runtime registry: these `SKILL.md` files describe agent-facing workflows, while executable skill modules and the canonical AgentRuntime remain responsible for runtime behavior and governed execution.
+
+### Package-shape check
+
+#### Shared operating contract coverage
+
+All 47 skill packages now include the shared AgentOS operating contract in their `SKILL.md`. It standardizes the single `src/core/agentRuntime.js` execution owner, gateway ownership, WBS-to-specialist-to-skill-to-tool flow, policy and approval gates, tenant scope, evidence and verification, provider adapters, environment boundaries, execution budgets, and skills.sh CLI semantics. Each package retains its specialist-specific instructions; this shared section does not replace domain workflows or prove that any listed provider is connected or deployed.
+
+Every directory intended as an installable Agent Skill should contain `SKILL.md` with valid YAML frontmatter and non-empty `name` and `description` fields. Some directories under `skills/` also contain legacy executable modules; adding a `SKILL.md` documents the workflow and does not replace those modules or register a second execution path.
