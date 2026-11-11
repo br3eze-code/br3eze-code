@@ -1,23 +1,45 @@
 /**
- * AgentOS runtime — a domain-agnostic agent library + runtime.
+ * @agentos/runtime — portable skill library.
  *
- * The public entry point. Build an agent for ANY domain by composing skills:
+ *     import { createSkillRuntime, defineSkill, defineTool } from './src/runtime/index.js';
  *
- *     const { createRuntime, defineSkill, defineTool } = require('agentos/runtime');
- *     const rt = createRuntime({ llm });
- *     rt.use(defineSkill({
+ *     const runtime = createSkillRuntime();
+ *     runtime.use(defineSkill({
  *       name: 'weather',
- *       tools: [defineTool({ name: 'forecast', description: '...', handler: async (a) => {...} })],
- *       match: (input) => /weather/i.test(input) ? { tool: 'forecast', args: {} } : null,
+ *       tools: [defineTool({
+ *         name: 'forecast',
+ *         description: 'Read a forecast',
+ *         handler: async () => ({ summary: 'clear' }),
+ *       })],
+ *       match: (input) => /weather/i.test(String(input)) ? { tool: 'forecast', args: {} } : null,
  *     }));
- *     await rt.run('what is the weather');
+ *     await runtime.run('what is the weather');
  *
- * The runtime core has no domain knowledge — MikroTik, the shop, etc. are all
- * skills. See ./skills for first-party skill adapters.
+ * Production orchestration is AgentRuntime in src/core/agentRuntime.js.
+ * This module does not create a second production loop.
  */
-'use strict';
-
 
 export { SpecialistRegistry } from './specialist-registry.js';
-export { INVENTORY_SPECIALIST, CATALOG_SPECIALIST, PRICING_SPECIALIST, ORDERS_SPECIALIST, VOUCHER_SPECIALIST, FULFILLMENT_SPECIALIST, PROCUREMENT_SPECIALIST, BILLING_SPECIALIST, PROJECT_MANAGER_SPECIALIST, registerCommerceSpecialists, inventorySkill, catalogSkill, pricingSkill, ordersSkill, voucherSkill, fulfillmentSkill, procurementSkill, billingSkill, projectManagerSkill } from './commerce-specialists.js';
-export { defineSkill, defineTool, loadSkillsFrom } from './skill.js';
+export {
+  INVENTORY_SPECIALIST,
+  CATALOG_SPECIALIST,
+  PRICING_SPECIALIST,
+  ORDERS_SPECIALIST,
+  VOUCHER_SPECIALIST,
+  FULFILLMENT_SPECIALIST,
+  PROCUREMENT_SPECIALIST,
+  BILLING_SPECIALIST,
+  PROJECT_MANAGER_SPECIALIST,
+  registerCommerceSpecialists,
+  inventorySkill,
+  catalogSkill,
+  pricingSkill,
+  ordersSkill,
+  voucherSkill,
+  fulfillmentSkill,
+  procurementSkill,
+  billingSkill,
+  projectManagerSkill,
+} from './commerce-specialists.js';
+export { defineSkill, defineTool, loadSkillsFrom, discoverSkillMetadata } from './skill.js';
+export { createSkillRuntime } from './skill-runtime.js';
