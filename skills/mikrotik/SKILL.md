@@ -1,3 +1,8 @@
+---
+name: mikrotik
+description: "Specialist workflow for Skill: mikrotik; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: mikrotik
 
 **Version:** 2026.7.0  
@@ -78,3 +83,13 @@ Invoke when the user asks about:
 | `MIKROTIK_PORT` | `8728` | RouterOS API port |
 | `MIKROTIK_USER` | `admin` | Router username |
 | `MIKROTIK_PASS` | *(required)* | Router password |
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the only execution owner.
+- Prefer platform built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, network, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
