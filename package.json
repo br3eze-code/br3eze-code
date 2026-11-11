@@ -67,7 +67,8 @@
     "test:serve": "npm run build:web && node --test tests/platform/serve-smoke.test.mjs",
     "build:web": "node scripts/vercel-build.mjs",
     "check:claude-plugin": "node scripts/validate-claude-plugin.mjs",
-    "check:skills": "node scripts/validate-skill-packages.mjs"
+    "check:skills": "node scripts/validate-skill-packages.mjs",
+    "check:release-config": "node scripts/validate-release-config.mjs"
   },
   "publishConfig": {
     "access": "public",
@@ -99,7 +100,8 @@
     "docs/RELEASE-WBS.md",
     "docs/REALTIME-OBSERVATION.md",
     "docs/skills/",
-    "scripts/validate-skill-packages.mjs"
+    "scripts/validate-skill-packages.mjs",
+    "scripts/validate-release-config.mjs"
   ],
   "build": {
     "appId": "com.br3eze.agentos",
