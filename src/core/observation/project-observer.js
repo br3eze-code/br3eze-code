@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 
-const RUNTIME_EVENTS = ['session:created', 'turn', 'task:dispatched', 'os.lifecycle', 'os.ipc.audit'];
+const RUNTIME_EVENTS = ['session:created', 'turn', 'task:dispatched', 'task:completed', 'task:failed', 'os.lifecycle', 'os.ipc.audit'];
 const DEFAULT_HISTORY_LIMIT = 200;
 
 function safeId(value) {
@@ -21,7 +21,7 @@ function normalizeRuntimeEvent(type, payload, options = {}) {
   const task = type === 'task:dispatched' ? data : {};
   const session = type === 'session:created' ? data : {};
   const turn = type === 'turn' ? data : {};
-  const failed = type === 'turn' && turn.stopReason && turn.stopReason !== 'completed';
+  const failed = (type === 'turn' && turn.stopReason && turn.stopReason !== 'completed') || type === 'task:failed';
   const activity = task.wbs || data.wbs || {};
   const activityId = safeId(activity.activityId || activity.id || task.activityId || data.activityId);
   const taskId = safeId(task.taskId || data.taskId || session.taskId);
@@ -31,6 +31,8 @@ function normalizeRuntimeEvent(type, payload, options = {}) {
     'session:created': 'Agent session created',
     turn: failed ? 'Agent turn stopped before normal completion' : 'Agent turn completed',
     'task:dispatched': 'Agent task dispatched',
+    'task:completed': 'Agent task completed',
+    'task:failed': 'Agent task failed',
     'os.lifecycle': 'Operating-system lifecycle event observed',
     'os.ipc.audit': 'IPC audit event observed',
   };
