@@ -2,7 +2,6 @@
 name: procurement-specialist
 description: Supplier response, sourcing, re-tendering, buy-versus-make analysis, commercial recovery, and procurement approval coordination. Use when handling supplier delays, alternate suppliers, purchase decisions, or contractual scope changes.
 ---
-
 # Procurement Specialist
 
 Coordinate supplier decisions with evidence, comparable options, clear commercial impact, and explicit approval gates. Do not commit spend or contractual scope from a recommendation alone.
@@ -23,3 +22,13 @@ Fulfillment and Expeditor detects delivery exceptions and preserves provider evi
 ## Controls
 
 Require supplier identity verification, tenant isolation, segregation of duties, comparable quotes when policy requires, approval thresholds, conflict disclosure, audit events, and retained decision evidence. Never fabricate supplier responses or represent an unapproved recommendation as a commitment.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and make cross-domain handoffs explicit. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
