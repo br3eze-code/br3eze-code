@@ -28,9 +28,9 @@ export default function registerOnboardCommand(program) {
       if (options.yes || !process.stdin.isTTY || !process.stdout.isTTY) {
         config.onboarding = { ...(config.onboarding || {}), completed: true, mode: 'non-interactive', completedAt: new Date().toISOString() };
         saveConfig(config);
-        const result = { ok: true, configPath: CONFIG_PATH, mode: 'non-interactive', next: ['agentos ask "Check system status"', 'agentos gateway'] };
+        const result = { ok: true, configPath: CONFIG_PATH, mode: 'non-interactive', next: ['agentos serve', 'agentos serve --mode prod', 'npm run serve:dev', 'npm run serve:prod', 'agentos ask "Check system status"', 'agentos gateway'] };
         if (options.json) console.log(JSON.stringify(result, null, 2));
-        else console.log(`[AgentOS] Profile ready at ${CONFIG_PATH}. Run: agentos gateway`);
+        else console.log(`[AgentOS] Profile ready at ${CONFIG_PATH}. Run: agentos serve (PWA + API) or agentos gateway (agent gateway).`);
         return;
       }
 
@@ -54,6 +54,6 @@ export default function registerOnboardCommand(program) {
       wait.start('Saving your AgentOS profile');
       await new Promise(resolve => setTimeout(resolve, 120));
       wait.stop('Profile saved');
-      outro(enableAsk ? 'Ready. Start the gateway, then use `agentos ask`.' : 'Ready. Start the gateway when you are ready.');
+      outro(enableAsk ? 'Ready. Run `agentos serve` for the PWA + API, then start the agent gateway and use `agentos ask`.' : 'Ready. Run `agentos serve` for the PWA + API; start the gateway when ready.');
     });
 }

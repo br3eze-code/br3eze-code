@@ -52,7 +52,7 @@
     "preuninstall": "node scripts/preuninstall.js",
     "clean": "rm -rf dist",
     "test:production": "npm test -- --runInBand --coverage=false",
-    "vercel:build": "npm run build && node scripts/vercel-build.mjs",
+    "vercel:build": "npm run build:web",
     "audit:architecture-direction": "node scripts/architecture-direction-gate.mjs",
     "audit:runtime-boundaries": "node scripts/runtime-boundary-audit.mjs",
     "model:train": "node scripts/train-model.mjs",
@@ -60,7 +60,12 @@
     "test:platform": "node --test tests/platform/*.test.js",
     "test:node": "node --test tests/unit/phase9-approval-prompt.test.js tests/unit/phase9-terminal-boundary.test.js tests/platform/*.test.js",
     "infra:compare:supabase": "node scripts/infra/check-supabase-migrations.mjs",
-    "test:auth": "npm test -- --runInBand --runTestsByPath tests/unit/auth-identity.test.js --coverage=false"
+    "test:auth": "npm test -- --runInBand --runTestsByPath tests/unit/auth-identity.test.js --coverage=false",
+    "serve": "node scripts/serve.mjs",
+    "serve:dev": "node scripts/serve.mjs --mode=dev",
+    "serve:prod": "npm run build:web && node scripts/serve.mjs --mode=prod",
+    "test:serve": "npm run build:web && node --test tests/platform/serve-smoke.test.mjs",
+    "build:web": "node scripts/vercel-build.mjs"
   },
   "publishConfig": {
     "access": "public",
@@ -132,7 +137,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -146,6 +151,7 @@
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
     "@slack/bolt": "^5.0.0",
+    "@supabase/supabase-js": "^2.86.0",
     "axios": "^1.17.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
@@ -165,7 +171,7 @@
     "express": "5.1.0",
     "express-rate-limit": "8.5.1",
     "express-validator": "^7.3.2",
-    "firebase": "^12.13.0",
+    "firebase": "^13.2.0",
     "firebase-admin": "^14.2.0",
     "form-data": "^4.0.5",
     "franc": "^6.2.0",
@@ -185,7 +191,7 @@
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^1.2.0",
     "node-thermal-printer": "^4.6.0",
-    "nodemailer": "^9.0.0",
+    "nodemailer": "^10.3.1",
     "onvif": "^0.8.0",
     "openai": "^4.52.0",
     "ora": "^5.4.1",
@@ -220,7 +226,7 @@
     "xml2js": "^0.6.2",
     "xss-clean": "^0.1.4",
     "xterm": "^5.3.0",
-    "zod": "^3.22.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
@@ -231,7 +237,7 @@
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.1.0",
     "@testing-library/user-event": "^14.5.0",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.3.7",
@@ -256,15 +262,15 @@
     "cordova-plugin-wifi-billing-agent": "file:custom-plugins/cordova-plugin-wifi-billing-agent",
     "cordova-sqlite-storage": "^7.0.0",
     "electron": "^43.4.0",
-    "electron-builder": "^26.15.0",
+    "electron-builder": "^26.18.0",
     "eslint-config-prettier": "*",
     "eslint-plugin-prettier": "*",
     "javascript-obfuscator": "^5.4.0",
-    "jest": "^29.7.0",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.11",
     "prettier": "^3.2.5",
     "supertest": "^6.3.0",
-    "ts-jest": "^29.1.0",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },

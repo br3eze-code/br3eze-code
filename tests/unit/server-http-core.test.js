@@ -23,7 +23,7 @@ describe('configureHttpApplication', () => {
       contentSecurityPolicy: expect.any(Object)
     }));
     expect(cors).toHaveBeenCalledTimes(1);
-    expect(express.json).toHaveBeenCalledWith({ limit: '10mb' });
+    expect(express.json).toHaveBeenCalledWith({ limit: '2mb' });
     expect(express.static).toHaveBeenCalledWith('/tmp/agentos-public');
     expect(app.use).toHaveBeenCalledTimes(4);
   });

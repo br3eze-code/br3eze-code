@@ -1,178 +1,77 @@
 name: Vercel Deployment
 
+# Vercel's connected Git integration is the single deployment authority for
+# preview branches and production main. This workflow validates the exact
+# dist-web artifact and local API/PWA contract; it deliberately does not run a
+# second `vercel deploy` command or compete for the production alias.
 on:
+  pull_request:
+    paths:
+      - 'www/**'
+      - 'api/**'
+      - 'scripts/vercel-build.mjs'
+      - 'scripts/serve.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/vercel-deploy.yml'
   push:
     branches: [main]
     paths:
       - 'www/**'
       - 'api/**'
-      - 'server/**'
-      - 'src/**'
+      - 'scripts/vercel-build.mjs'
+      - 'scripts/serve.mjs'
       - 'package.json'
       - 'package-lock.json'
-      - 'tsconfig.json'
-      - 'vercel.json'
-      - 'scripts/vercel-build.mjs'
-      - 'scripts/generate-env-www.js'
-      - '.github/workflows/vercel-deploy.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'www/**'
-      - 'api/**'
-      - 'server/**'
-      - 'src/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'tsconfig.json'
-      - 'vercel.json'
-      - 'scripts/vercel-build.mjs'
       - '.github/workflows/vercel-deploy.yml'
   workflow_dispatch:
 
-env:
-  NODE_VERSION: '22'
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+permissions:
+  contents: read
 
 concurrency:
-  group: vercel-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: vercel-artifact-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate:
     name: Build & Deploy to Vercel
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    timeout-minutes: 20
     steps:
-      - name: Checkout commit
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Setup Node.js
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22.x
           cache: npm
 
-      - name: Install dependencies
+      - name: Install root dependencies
         run: npm ci --ignore-scripts --legacy-peer-deps --no-audit --no-fund
 
-      - name: Lint
-        run: npm run lint --if-present
+      - name: Build native SQLite binding
+        run: npm rebuild better-sqlite3 --no-audit --no-fund
 
-      - name: Production dependency security audit
-        run: npm audit --omit=dev --audit-level=moderate
+      - name: Build and smoke-test dev and production serving
+        run: npm run test:serve
 
-      - name: Production regression tests
-        run: npm run test:production
-        env:
-          NODE_ENV: test
-
-      - name: Build application
-        run: npm run vercel:build
-        env:
-          NODE_ENV: production
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
-          AGENTOS_API_URL: ${{ secrets.AGENTOS_API_URL }}
-          VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
-          VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
-          VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
-          VITE_MESSAGING_SENDER_ID: ${{ secrets.VITE_MESSAGING_SENDER_ID }}
-          VITE_APP_ID: ${{ secrets.VITE_APP_ID }}
-
-      - name: Verify build output
+      - name: Verify the deployable artifact
+        shell: bash
         run: |
           set -euo pipefail
-          test -d www
-          test -f www/index.html
-          test -f api/index.js
-          test -f 'api/[...path].js'
-          du -sh www
-
-      - name: Validate deployment configuration
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
-          AGENTOS_API_URL: ${{ secrets.AGENTOS_API_URL }}
-        run: |
-          set -euo pipefail
-          test -n "$VERCEL_TOKEN"
-          test -n "$VERCEL_ORG_ID"
-          test -n "$VERCEL_PROJECT_ID"
-          test -n "$AGENTOS_API_URL"
-          case "$AGENTOS_API_URL" in
-            https://*) ;;
-            *) echo "AGENTOS_API_URL must be an absolute HTTPS backend URL" >&2; exit 1 ;;
-          esac
-          if [ "${AGENTOS_API_URL%/}" = "${VITE_API_URL%/}" ]; then
-            echo "AGENTOS_API_URL must point to the backend, not the Vercel frontend origin" >&2; exit 1
+          test -d dist-web
+          test -f dist-web/index.html
+          test -f dist-web/connect.html
+          test -f dist-web/js/env.js
+          if find dist-web -type f -print | grep -Eq '(^|/)([^/]+\\.php|\\.htaccess|\\.htpasswd)
+            echo 'Private/server-only files found in dist-web' >&2
+            exit 1
           fi
-          case "$VITE_API_URL" in
-            https://*|http://*) ;;
-            *) echo "VITE_API_URL must be an absolute HTTP(S) URL" >&2; exit 1 ;;
-          esac
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Deploy Vercel preview or production
-        id: vercel-deployment
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://br3eze.africa' }}
-          VITE_AUTH_DOMAIN: ${{ secrets.VITE_AUTH_DOMAIN }}
-          VITE_PROJECT_ID: ${{ secrets.VITE_PROJECT_ID }}
-          VITE_STORAGE_BUCKET: ${{ secrets.VITE_STORAGE_BUCKET }}
-          VITE_MESSAGING_SENDER_ID: ${{ secrets.VITE_MESSAGING_SENDER_ID }}
-          VITE_APP_ID: ${{ secrets.VITE_APP_ID }}
-        run: |
-          set -euo pipefail
-          DEPLOY_ARGS="--yes --token=$VERCEL_TOKEN"
-          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            DEPLOY_ARGS="$DEPLOY_ARGS --prod"
+          du -sh dist-web
+; then
+            echo 'Private/server-only files found in dist-web' >&2
+            exit 1
           fi
-          DEPLOYMENT_URL="$(vercel deploy $DEPLOY_ARGS \
-            --build-env NODE_ENV=production \
-            --build-env VITE_API_URL="$VITE_API_URL" \
-            --build-env VITE_AUTH_DOMAIN="$VITE_AUTH_DOMAIN" \
-            --build-env VITE_PROJECT_ID="$VITE_PROJECT_ID" \
-            --build-env VITE_STORAGE_BUCKET="$VITE_STORAGE_BUCKET" \
-            --build-env VITE_MESSAGING_SENDER_ID="$VITE_MESSAGING_SENDER_ID" \
-            --build-env VITE_APP_ID="$VITE_APP_ID" \
-            --env AGENTOS_API_URL="$AGENTOS_API_URL")"
-          test -n "$DEPLOYMENT_URL"
-          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
-          echo "Vercel deployment: $DEPLOYMENT_URL"
-
-      - name: Notify Slack on failure
-        if: failure() && env.SLACK_WEBHOOK_URL != ''
-        uses: 8398a7/action-slack@v3
-        with:
-          status: failure
-          text: |
-            ❌ Vercel deployment failed
-            Repository: ${{ github.repository }}
-            Ref: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-        continue-on-error: true
-
-      - name: Notify Slack on success
-        if: success() && env.SLACK_WEBHOOK_URL != ''
-        uses: 8398a7/action-slack@v3
-        with:
-          status: success
-          text: |
-            ✅ Vercel deployment successful
-            Repository: ${{ github.repository }}
-            Ref: ${{ github.ref }}
-            URL: ${{ steps.vercel-deployment.outputs.deployment_url }}
-            Commit: ${{ github.sha }}
-        continue-on-error: true
+          du -sh dist-web

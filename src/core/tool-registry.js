@@ -292,6 +292,7 @@ class ToolRegistry {
   getAllTools() { return [...this.tools.values()]; }
   getToolsByDomain(domain) { return [...this.tools.values()].filter((tool) => tool.domain === domain); }
   getToolsForDomain(domain) { return this.getToolsByDomain(domain); }
+  count() { return this.skills.size; }
   getSkillNames() { return [...this.skills.keys()]; }
   getToolCount() { return this.tools.size; }
   getToolsBySkill(skillName) { const skill = this.skills.get(skillName); return skill ? [...skill.tools.values()] : []; }
