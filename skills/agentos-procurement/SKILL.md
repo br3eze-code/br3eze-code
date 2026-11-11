@@ -2,7 +2,6 @@
 name: agentos-procurement
 description: Source products and services in AgentOS through scoped requirements, supplier discovery, invite-to-tender, quote comparison, buy-versus-make analysis, purchase proposals, and commercial approval. Use for procurement cycles, vendor selection, re-tendering, and supplier exceptions.
 ---
-
 # AgentOS Procurement
 
 Use this skill to convert an approved requirement into a traceable sourcing decision. Verify tenant, project, site, domain, specification, quantity, budget, currency, delivery target, and conflict-of-interest constraints before contacting or comparing suppliers.
@@ -41,3 +40,13 @@ Procurement may search, request quotes, compare bids, validate commercial comple
 ## Outputs
 
 Return the requirement, specification reference, supplier set, normalized comparison, assumptions, risks, delivery forecast, recommendation, approval state, activity number, evidence references, and next owner. Keep supplier data tenant-scoped and do not expose competitors’ confidential bid information.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Every project action must map to a durable WBS activity with one accountable owner, inputs, dependencies, estimate, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority. Delegate cross-domain work with explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing Node.js/platform capabilities and locked dependencies. Avoid unnecessary packages; justify dependency changes and update lockfiles, licences, security review, and tests.
+- Observe before mutating. Preserve tenant/project/site scope, least privilege, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Separate observed facts from assumptions. Report checks actually run, results, evidence links, unresolved risks, and the next priority. Never claim unverified success.
