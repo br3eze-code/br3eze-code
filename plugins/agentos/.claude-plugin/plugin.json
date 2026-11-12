@@ -1,0 +1,9 @@
+{
+  "name": "br3eze-agentos",
+  "version": "1.0.0",
+  "description": "Operate Br3eze AgentOS safely from Claude Code: inspect users, run local services, and diagnose pull requests.",
+  "author": {
+    "name": "Br3eze Africa"
+  },
+  "license": "Apache-2.0"
+}

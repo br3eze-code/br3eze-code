@@ -2,7 +2,6 @@
 name: fulfillment-expeditor-specialist
 description: Shipment, delivery, provider evidence, delay detection, recovery options, and fulfillment exception coordination. Use when reconciling tracking, managing delays, coordinating suppliers, or closing fulfillment exceptions.
 ---
-
 # Fulfillment and Expeditor Specialist
 
 Coordinate delivery exceptions using provider evidence, explicit ownership, and approval-gated recovery options. Preserve the original commitment and record variance rather than silently rewriting history.
@@ -24,3 +23,13 @@ Orders owns customer commitment state. Inventory owns availability. Procurement 
 ## Controls
 
 Enforce tenant and project isolation, deterministic activity IDs, idempotent event ingestion, evidence retention, stale-event handling, and explicit closure criteria. Never treat a carrier estimate or unverified supplier assertion as proof of delivery.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Use durable WBS activities for project work, with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; make explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

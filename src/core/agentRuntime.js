@@ -620,7 +620,17 @@ class AgentRuntime extends EventEmitter {
     const registry = getTaskRegistry();
     const task = registry.create(prompt, { description: opts.description, action: opts.action || 'assist.task', owner: { userId: opts.context?.userId || null, platformId: opts.context?.platformId || null }, context: opts.context || {}, wbs: opts.wbs || null });
     registry.setStatus(task.taskId, TaskStatus.RUNNING); this.emit('task:dispatched', task);
-    this._executeTask(task.taskId, prompt, opts).catch(err => { registry.setStatus(task.taskId, TaskStatus.FAILED, err.message); logger.error(`Task ${task.taskId} failed:`, err.message); });
+    this._executeTask(task.taskId, prompt, opts).catch(err => {
+      registry.setStatus(task.taskId, TaskStatus.FAILED, err.message);
+      this.emit('task:failed', {
+        taskId: task.taskId,
+        userId: opts.context?.userId || null,
+        context: { userId: opts.context?.userId || null },
+        wbs: opts.wbs || task.wbs || null,
+        failureCategory: err?.name || 'Error',
+      });
+      logger.error(`Task ${task.taskId} failed:`, err.message);
+    });
     return task;
   }
 
@@ -629,7 +639,17 @@ class AgentRuntime extends EventEmitter {
     const { results } = await this.runTurnLoop(prompt, { ...opts, wbs: opts.wbs || registry.get(taskId)?.wbs, context: opts.context || registry.get(taskId)?.scope || {} });
     for (const r of results) registry.appendOutput(taskId, 'assistant', r.output);
     const last = results[results.length - 1];
-    registry.setStatus(taskId, last?.stopReason === 'completed' ? TaskStatus.COMPLETED : TaskStatus.FAILED);
+    const completed = last?.stopReason === 'completed';
+    const status = completed ? TaskStatus.COMPLETED : TaskStatus.FAILED;
+    registry.setStatus(taskId, status);
+    const context = opts.context || registry.get(taskId)?.scope || {};
+    this.emit(completed ? 'task:completed' : 'task:failed', {
+      taskId,
+      userId: context.userId || context.user_id || context.uid || null,
+      context: { userId: context.userId || context.user_id || context.uid || null },
+      wbs: opts.wbs || registry.get(taskId)?.wbs || null,
+      failureCategory: completed ? null : 'turn-incomplete',
+    });
   }
 
   _inferDenials(toolNames, engine) { return toolNames.flatMap(name => { const check = engine.enforcer.check(name); return check.allowed ? [] : [new PermissionDenial(name, check.reason)]; }); }

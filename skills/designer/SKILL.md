@@ -2,7 +2,6 @@
 name: designer
 description: Product, interface, and service design coordination for user journeys, design systems, accessibility, prototypes, visual language, and engineering handoff. Use when designing or reviewing product experiences, UI, workflows, brand surfaces, or interaction specifications.
 ---
-
 # Designer
 
 Translate product goals into clear, accessible, testable experiences. Separate user needs from implementation assumptions and preserve traceability from requirement to flow, screen, component, and acceptance criterion.
@@ -32,3 +31,13 @@ The Designer owns experience quality and design decisions within the approved sc
 ## Review checklist
 
 Verify hierarchy, consistency, clarity, error recovery, accessibility, privacy exposure, destructive-action confirmation, responsive behavior, empty states, and handoff completeness. Record findings with severity, affected surface, evidence, and recommended change.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime rather than assuming a provider-specific plugin.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Own this skill's domain only; hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies; do not add packages without a clear need. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Apply least privilege, project/site scope, redaction, idempotency, and explicit approval for destructive, privileged, production, release, or external actions.
+- State checks actually run, results, evidence, risks, and the next priority. Never claim unverified success.

@@ -2,7 +2,6 @@
 name: agentos-planner
 description: Plan and control AgentOS project work with tenant-scoped objectives, WBS decomposition, dependencies, milestones, critical path, resource and cost trade-offs, handoffs, and closeout. Use when creating or updating project plans, schedules, tickets, or specialist work packages.
 ---
-
 # AgentOS Planner
 
 Use this skill to turn an authorized objective into a measurable, dependency-aware WBS. Require `userId`, `tenantId`, `projectId`, and applicable `siteId` and `domain` before reading or changing project state.
@@ -67,3 +66,13 @@ next action
 ```
 
 Render the same activity number and status in CLI, Telegram, WhatsApp, web, desktop, and mobile. Preserve tenant isolation and restart-safe durable state.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Every project action must map to a durable WBS activity with one accountable owner, inputs, dependencies, estimate, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority. Delegate cross-domain work with explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing Node.js/platform capabilities and locked dependencies. Avoid unnecessary packages; justify dependency changes and update lockfiles, licences, security review, and tests.
+- Observe before mutating. Preserve tenant/project/site scope, least privilege, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Separate observed facts from assumptions. Report checks actually run, results, evidence links, unresolved risks, and the next priority. Never claim unverified success.

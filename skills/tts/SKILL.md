@@ -1,3 +1,8 @@
+---
+name: tts
+description: "Specialist workflow for Skill: tts; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: tts
 
 **Version:** 1.0.0  
@@ -50,3 +55,13 @@ Invoke when the user asks about:
 ## Permissions
 
 - `audio:synthesize` — required for all TTS actions
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority and use explicit handoffs. `src/core/agentRuntime.js` remains the only execution owner.
+- Prefer built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, production, release, financial, or external actions.
+- Report verified checks, results, evidence, unresolved risks, and the next priority. Never claim unverified success.

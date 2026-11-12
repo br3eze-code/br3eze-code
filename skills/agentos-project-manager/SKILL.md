@@ -2,7 +2,6 @@
 name: agentos-project-manager
 description: Plan and coordinate AgentOS projects through durable WBS packages, specialist delegation, dependencies, subcontractors, time-cost trade-offs, approvals, risks, evidence, and controlled closeout. Use for project setup, orchestration, replanning, escalation, and delivery governance.
 ---
-
 # AgentOS Project Manager
 
 Use this skill to turn an authorized objective into tenant-scoped, WBS-linked delivery. Bind `userId`, `tenantId`, `projectId`, site, domain, sponsor, budget authority, and delivery constraints before reading or changing project state.
@@ -40,3 +39,13 @@ cost per day saved = (crash cost − normal cost) ÷ (normal duration − crash 
 ## Outputs
 
 Return the project baseline, WBS, owners, dependencies, critical path, resource histogram, cost and time scenarios, decisions required, risks, next actions, approvals, evidence gaps, and closeout criteria. Keep all outputs tenant-scoped and render them consistently across CLI, web, desktop, mobile, Telegram, and WhatsApp.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Every project action must map to a durable WBS activity with one accountable owner, inputs, dependencies, estimate, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority. Delegate cross-domain work with explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing Node.js/platform capabilities and locked dependencies. Avoid unnecessary packages; justify dependency changes and update lockfiles, licences, security review, and tests.
+- Observe before mutating. Preserve tenant/project/site scope, least privilege, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Separate observed facts from assumptions. Report checks actually run, results, evidence links, unresolved risks, and the next priority. Never claim unverified success.

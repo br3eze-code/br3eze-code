@@ -2,7 +2,6 @@
 name: product-specialist
 description: Product and commerce domain coordination for catalog, plans, pricing, inventory, orders, vouchers, fulfillment, and procurement handoffs. Use when designing product specialist sub-agents, routing commerce tasks, defining ownership boundaries, or coordinating product operations.
 ---
-
 # Product Specialist
 
 Coordinate product and commerce work through explicit ownership, scope, evidence, and approval gates. Treat every request as tenant-, project-, user-, and site-scoped when those identifiers exist. Do not infer authority from a product name, channel, or supplier record.
@@ -58,3 +57,13 @@ State the owning specialist first. Then identify collaborators, scope, evidence 
 When integrating this skill into a codebase, locate the existing policy, routing, activity, and event-bus modules before adding new abstractions. Add unit tests for tenant isolation, role boundaries, approval gates, deterministic activity identity, and invalid cross-domain mutations. Keep the skill definition independent of any one provider or channel.
 
 The repository's current VoucherAgent mapping is: product-level voucher work routes to Voucher and Access; router or hotspot execution routes to Worker / Hotspot Operations; financial voucher effects route to Billing and Payments.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and make cross-domain handoffs explicit. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

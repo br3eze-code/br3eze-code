@@ -1,3 +1,8 @@
+---
+name: calendar
+description: "Specialist workflow for Skill: calendar; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: calendar
 
 **Version:** 1.0.0  
@@ -57,3 +62,13 @@ Invoke when the user asks about:
   }
 }
 ```
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- For project work, use durable WBS activities with one owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority and use explicit cross-domain handoffs. `src/core/agentRuntime.js` remains the only execution owner.
+- Prefer built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutating; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report verified checks, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

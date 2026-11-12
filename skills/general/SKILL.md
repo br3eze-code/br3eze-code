@@ -1,3 +1,8 @@
+---
+name: general
+description: "Specialist workflow for Skill: general; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: general
 
 **Version:** 1.0.0  
@@ -37,3 +42,13 @@ This is the **default fallback** skill. Invoked when:
 - Responses are bounded by the 3-tier Ask Engine (Tier 3 LLM loop)
 - Max 5 tool-call turns before forced return
 - EmotionEngine tone hint is always injected into the system prompt
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's domain and use explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and the next priority. Never claim unverified success.

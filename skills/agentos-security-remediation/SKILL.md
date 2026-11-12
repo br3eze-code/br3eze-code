@@ -3,7 +3,6 @@ name: agentos-security-remediation
 description: Review and remediate Dependabot and dependency vulnerabilities in AgentOS repositories. Use for critical or high-severity alert triage, dependency-path analysis, specialist assignment, secure upgrades, regression testing, rollback planning, release gates, and audit evidence.
 license: Complete terms in LICENSE.txt
 ---
-
 # AgentOS security remediation
 
 Use this skill to turn a vulnerability inventory into controlled remediation work. Do not claim that an alert is fixed until the advisory, affected dependency path, patch, validation evidence, and released version are recorded.
@@ -169,3 +168,13 @@ If the security API cannot be read, state exactly that the live alert list is un
 A residual-risk decision must identify the affected package, why it cannot be upgraded, reachability evidence, compensating controls, risk owner, expiry date, monitoring, and re-review trigger. Critical findings should not be accepted as residual risk without explicit executive or security-owner approval.
 
 Finish every remediation wave with a signed evidence bundle containing the alert export, dependency diff, audit output, test results, deployment reference, rollback plan, and decision record.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts: discover tools at runtime; never assume a specific provider/plugin is present.
+- Map project actions to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Keep this skill inside its specialist authority. Use explicit handoffs for cross-domain work; `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

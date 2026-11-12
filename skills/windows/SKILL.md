@@ -1,3 +1,8 @@
+---
+name: windows
+description: "Specialist workflow for Skill: windows; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: windows
 
 **Version:** 1.0.0  
@@ -34,3 +39,13 @@ Invoke when the user asks about Windows services, processes, Event Log, AD accou
 - All medium/high-risk actions require an explicit `reason` string (logged with user ID)
 - `host` must match a configured workspace `windows_hosts` entry
 - Commands run via `Invoke-Command` over WinRM using stored credentials
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, financial, network, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

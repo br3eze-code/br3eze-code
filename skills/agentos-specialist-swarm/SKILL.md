@@ -2,7 +2,6 @@
 name: agentos-specialist-swarm
 description: Coordinate AgentOS specialist work across Planner, Engineer, Accountant, Secretary, Procurement, Expeditor, Designer, and Draftsman roles. Use for role onboarding, WBS delegation, skill selection, activity tracking, handoffs, approvals, evidence, channel rendering, procurement exceptions, and project delivery coordination.
 ---
-
 # AgentOS Specialist Swarm
 
 Use this skill to turn an authorized request into tenant-scoped, WBS-linked work performed by the correct specialist. Treat each specialist as a role-bound executor, not a general-purpose chatbot.
@@ -136,3 +135,13 @@ Mark a specialist `ready` only when identity isolation, WBS dependencies, skills
 ## Safety invariants
 
 Never cross tenant, project, site, or domain scope. Never use a role label as authorization. Never turn a proposal into an execution result. Never close work without evidence and acceptance criteria. Never let a channel shortcut bypass policy. Never expose private records in customer updates. Preserve WBS, activity, transaction, order, courier, approval, and audit references across restarts.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts: discover tools at runtime; never assume a specific provider/plugin is present.
+- Map project actions to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Keep this skill inside its specialist authority. Use explicit handoffs for cross-domain work; `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

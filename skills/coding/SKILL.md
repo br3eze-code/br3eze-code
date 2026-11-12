@@ -1,3 +1,8 @@
+---
+name: coding
+description: "Specialist workflow for Skill: coding; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: coding
 
 **Version:** 1.0.0  
@@ -47,3 +52,13 @@ Invoke when the user asks about:
 - `execute` only runs in a sandboxed environment
 - RouterOS scripts are validated against the shell-injection denylist before execution
 - No `eval()` or dynamic code loading in generated JavaScript
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime rather than assuming a provider-specific plugin.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Own this skill's domain only; hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies; do not add packages without a clear need. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation. Apply least privilege, project/site scope, redaction, idempotency, and explicit approval for destructive, privileged, production, release, or external actions.
+- State checks actually run, results, evidence, risks, and the next priority. Never claim unverified success.

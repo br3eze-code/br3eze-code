@@ -12,11 +12,13 @@ import authHandoffRouter from '../src/api/routes/auth-handoff.js';
 import proactiveProposalRouter from '../src/api/routes/proactive-proposals.js';
 import { createFirebaseDataSessionRouter } from '../src/api/routes/firebase-data-session.js';
 import { getAuth as getFirebaseAuth } from '../src/adapters/firebase/admin.js';
+import observerRouter from '../src/api/routes/observer.js';
 
 export const app = express();
 
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'agentos', protocol: 'agentos-a2a/1.0' }));
+app.use('/api/observer', requireUser, observerRouter);
 
 // Provider-neutral authentication handoff; legacy from/type aliases remain accepted by the route.
 app.use('/api/auth/handoff', authHandoffRouter);

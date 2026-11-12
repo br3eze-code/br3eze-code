@@ -1,3 +1,8 @@
+---
+name: nanopdf
+description: "Specialist workflow for Skill: nanopdf; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: nanopdf
 
 **Version:** 1.0.0  
@@ -52,3 +57,13 @@ Invoke when the user asks about:
 
 - `document:create` — required for create/merge/fill/sign/compress
 - `document:read` — required for extract/split
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

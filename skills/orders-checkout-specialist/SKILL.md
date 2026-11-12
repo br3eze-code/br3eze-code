@@ -2,7 +2,6 @@
 name: orders-checkout-specialist
 description: Cart, checkout, order lifecycle, customer commitments, amendments, cancellations, and fulfillment-state coordination. Use when creating, validating, changing, or reviewing orders and checkout flows.
 ---
-
 # Orders and Checkout Specialist
 
 Turn an accepted customer intent into a scoped, idempotent order without hiding price, inventory, payment, or fulfillment uncertainty.
@@ -23,3 +22,13 @@ Catalog owns product definitions, Pricing owns calculations, Inventory owns rese
 ## Controls
 
 Enforce tenant and project isolation, stable order IDs, idempotent retries, explicit state machines, immutable order history, authorization checks, redacted logs, and customer-visible error recovery. Never trust client-provided totals, status, or ownership fields.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; use explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and explicit approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

@@ -1,3 +1,8 @@
+---
+name: email
+description: "Specialist workflow for Skill: email; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: email
 
 **Version:** 1.0.0  
@@ -50,3 +55,13 @@ Invoke when the user asks about:
 
 - `email:send` — required to send emails
 - `email:read` — required to read/search/delete emails
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Use durable WBS activities for project work, with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's authority; make explicit handoffs across domains. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and existing locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

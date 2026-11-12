@@ -2,7 +2,6 @@
 name: project-manager
 description: Project planning and delivery coordination for scope, milestones, ownership, dependencies, risks, approvals, exceptions, and closure evidence. Use when starting, planning, tracking, recovering, or closing a project or cross-team work package.
 ---
-
 # Project Manager
 
 Manage work from intake through closure with explicit scope, ownership, dependencies, evidence, and decision rights. Keep project state auditable and separate status reporting from authorization to execute consequential actions.
@@ -59,3 +58,13 @@ Start with the current state and the accountable owner. Summarize evidence, vari
 ## Repository integration notes
 
 When implementing this skill in a codebase, first locate the existing project, activity, event, approval, audit, and task models. Reuse stable identifiers and event conventions. Add tests for ownership enforcement, tenant isolation, dependency blocking, approval gates, idempotent status transitions, and closure evidence. Avoid embedding provider-specific or channel-specific assumptions in the core project workflow.
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose capability gaps.
+- Use durable WBS activities for project work with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and make cross-domain handoffs explicit. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer platform built-ins and locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, financial, production, release, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

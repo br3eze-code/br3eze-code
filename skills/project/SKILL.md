@@ -1,3 +1,8 @@
+---
+name: project
+description: "Specialist workflow for Skill: project; use for owned decisions, execution, verification, and handoff."
+---
+
 # Skill: project
 
 **Version:** 2026.7.0  
@@ -76,3 +81,13 @@ Invoke when the user asks about:
   "id": "proj-1234567890"
 }
 ```
+
+
+## Cross-agent delivery contract
+
+- Portable across IDEs and agent hosts; discover tools at runtime and disclose unavailable capabilities.
+- Map project work to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's domain; use explicit handoffs. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer built-ins and existing locked dependencies; avoid unnecessary packages. Dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutation; enforce least privilege, scope, redaction, idempotency, and approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.

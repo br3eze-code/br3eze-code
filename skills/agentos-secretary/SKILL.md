@@ -2,7 +2,6 @@
 name: agentos-secretary
 description: Coordinate AgentOS stakeholders, meetings, decisions, communications, follow-ups, controlled records, and distribution with tenant-scoped disclosure and approval gates. Use for project administration, decision logging, scheduling, drafting, and records management.
 ---
-
 # AgentOS Secretary
 
 Use this skill to prepare, route, record, and preserve project coordination. Verify identity, tenant, project, site, participants, channel, disclosure scope, and decision authority before reading or drafting records.
@@ -37,3 +36,13 @@ Show recipients, content, attachments, and disclosure scope before approval. Mas
 ## Outputs
 
 Return the stakeholder or recipient scope, purpose, draft or agenda, decision owner, deadline, next action, activity number, evidence references, approval required, and distribution history. Keep internal notes distinct from customer-safe communications.
+
+
+## Cross-agent delivery contract
+
+- These instructions are portable across IDEs and agent hosts; discover available tools and disclose unavailable capabilities instead of assuming a specific provider.
+- Map project actions to durable WBS activities with one accountable owner, dependencies, risks, approvals, acceptance criteria, evidence, and next action.
+- Stay within this skill's specialist authority and hand off cross-domain work explicitly. `src/core/agentRuntime.js` remains the single execution owner.
+- Prefer existing platform capabilities and locked dependencies. Avoid unnecessary packages; dependency changes require rationale, lockfile, licence/security review, and tests.
+- Observe before mutating. Preserve least privilege, tenant/project/site scope, redaction, idempotency, and approval for privileged, destructive, production, release, financial, or external actions.
+- Report checks actually run, results, evidence, unresolved risks, and one next priority. Never claim unverified success.
