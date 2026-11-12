@@ -11,7 +11,7 @@ const root = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const ignoredDirs = new Set([
   '.git', 'node_modules', 'coverage', 'dist', 'build', 'release',
-  '.next', '.vercel', '.claude', 'vendor', 'platforms', 'plugins'
+  '.next', '.vercel', '.claude', 'vendor', 'platforms'
 ]);
 const scannedExtensions = new Set([
   '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.json', '.yml',
@@ -43,9 +43,7 @@ const declared = {
 };
 const candidates = [];
 for (const [name, meta] of Object.entries(declared)) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp('(^|[^\\w@./-])' + escaped + '([^\\w./-]|$)');
-  const hits = contents.filter(file => pattern.test(file.text)).map(file => file.path);
+  const hits = contents.filter(file => file.text.includes(name)).map(file => file.path);
   if (hits.length === 0) candidates.push({
     name, version: meta.version, group: meta.group,
     status: 'manual-review-only',
