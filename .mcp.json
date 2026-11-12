@@ -1,7 +1,6 @@
 {
   "mcpServers": {
     "agentos-mock-market-data": {
-      "type": "stdio",
       "command": "node",
       "args": ["integrations/mcp/mock-market-data-server.js"]
     }
