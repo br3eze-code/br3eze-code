@@ -79,3 +79,7 @@ bin/agentos.js  (shim: require('../main.js'))
 - Prefer async/await.
 - Keep skills modular under `skills/`; register new ones in `skills/manifest.yaml` and document them in `SKILL.md` (which describes the 3-tier ReAct dispatch: Tier 1 keyword match, Tier 2 regex rule, Tier 3 LLM ReAct loop — see `SKILL.md` for the full tool registry, permission tiers, and cron schedule).
 - Run `npm run lint` before submitting changes.
+
+## Power Connect integration context
+
+Power Connect's Wi-Fi billing, Cordova/PWA, Firebase, and MikroTik site-agent implementation notes are maintained separately in [`docs/power-connect/CLAUDE.md`](docs/power-connect/CLAUDE.md). Keep this product-specific integration behind adapters/tools/skills; preserve AgentOS as the single execution owner. Treat the companion document as supplied context and verify current code before relying on its implementation claims.
