@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "agentos-mock-market-data": {
-      "command": "node",
-      "args": ["integrations/mcp/mock-market-data-server.js"]
-    }
-  }
-}
