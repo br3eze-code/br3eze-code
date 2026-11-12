@@ -10,13 +10,15 @@ Establish an evidence-based baseline for `main`, record failures by exact commit
 - Node target: 22.x.
 - The package's default Jest configuration excludes `tests/platform/`, `tests/infrastructure/`, `tests/unit/phase9-approval-prompt.test.js`, and `tests/unit/phase9-terminal-boundary.test.js`.
 - CI defines separate checks for serving, authorization, auth, infrastructure, Node-native tests, syntax, types, and security. A green `npm test` alone is not a complete pass.
-- At this document's creation, no new test result has been observed. Do not treat prior audit counts as current results.
+- Source review found a malformed shell `if` block in `.github/workflows/vercel-deploy.yml`; the branch fixes the conditional and removes duplicated trailing commands. The push-triggered run for the original branch commit failed and exposed no jobs, so its exact failure reason is not proven from job logs.
+- Full CI and security results for this PR are pending. Do not treat prior audit counts as current results.
 
 ## Error ledger
 
 | ID | Commit / run | Command / job | Failure and evidence | Root cause | Severity | Status |
 |---|---|---|---|---|---|---|
-| BASELINE-001 | Pending CI | Full GitHub Actions workflow | Pending; capture first failing job and log excerpt | Pending investigation | Unknown | Open |
+| BASELINE-001 | Original branch run 43240410309 | Vercel deployment workflow | Workflow run failed; API returned zero jobs. Source review found malformed multiline shell conditional and duplicate trailing `fi`/commands in the workflow file. | Invalid shell block in deployment validation step; confirm with the rerun after patch | High | Fix committed on this branch; rerun pending |
+| BASELINE-002 | PR #288 head | Full GitHub Actions workflow | CI and security jobs started; no final test results captured yet | Pending | Unknown | In progress |
 
 For each failure, record the first actionable stack trace or assertion, affected test, reproducible command, root cause, minimal fix, regression test, and verification commit. Keep secrets, tokens, user data, and unredacted environment dumps out of the ledger.
 
