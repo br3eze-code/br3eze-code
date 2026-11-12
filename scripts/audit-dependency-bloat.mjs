@@ -25,7 +25,11 @@ function walk(dir) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (!ignoredDirs.has(entry.name)) walk(full);
-    } else if (entry.isFile() && scannedExtensions.has(path.extname(entry.name).toLowerCase())) {
+    } else if (
+      entry.isFile() &&
+      path.relative(root, full).split(path.sep).join('/') !== 'package.json' &&
+      scannedExtensions.has(path.extname(entry.name).toLowerCase())
+    ) {
       files.push(full);
     }
   }
