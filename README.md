@@ -37,6 +37,11 @@ The default remains `network` for backward compatibility. See [non-network deplo
 - **Observability** — runtime events, tool metrics, transcripts, and execution records.
 - **Interoperability** — external capability protocols such as MCP can be adapters rather than core dependencies.
 
+
+## Universal harness and platform debugging
+
+The [AgentOS universal harness architecture](docs/architecture/agentos-universal-harness.md) documents how the PWA, Cordova app/native plugins, Node.js runtime, hardware adapters, and future AOSP-based OS fit together while preserving one AgentRuntime and one canonical ToolRegistry. The [AgentOS Platform Debug skill](skills/agentos-platform-debug/SKILL.md) defines a redacted, evidence-driven workflow for debugging, maintaining, and upgrading those hosts.
+
 ## Architecture
 
 
