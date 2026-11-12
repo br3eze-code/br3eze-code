@@ -40,6 +40,8 @@ The default remains `network` for backward compatibility. See [non-network deplo
 ## Architecture
 
 
+For the separate Linux/AOSP build workspace, pinned Android 17 baseline scripts, and controlled security patch ledger, see [AgentOS Mobile OS workspace](mobile-os/README.md) and [security patch ledger](mobile-os/security-patch-ledger.csv). This workspace keeps AOSP/GrapheneOS source checkouts outside the Node.js runtime repository.
+
 For the source-backed, feature-by-feature mapping of GrapheneOS security/privacy features to the correct AgentOS layer, see [GrapheneOS Feature Port Plan](docs/roadmaps/grapheneos-feature-port.md). It separates Node.js runtime work from Android app work and privileged AOSP/device changes, with explicit acceptance gates.
 
 For the proposed Android-based AgentOS mobile operating system, including AOSP foundations, GrapheneOS-inspired security review, Android system-service integration, device bring-up phases, and release gates, see [AgentOS Mobile OS Architecture](docs/architecture/agentos-mobile-os.md). This is a design proposal, not a bootable OS or completed GrapheneOS port.
