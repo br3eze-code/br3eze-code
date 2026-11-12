@@ -117,7 +117,9 @@ describe('AgentRuntime.listTools', () => {
         const tools = runtime.listTools();
         expect(tools).toHaveLength(TOOL_MANIFEST.length);
         expect(tools).toContain('ping');
-        expect(tools).toContain('user.add');
+        expect(tools).toContain('agent.create');
+        // Domain-specific legacy route hints are not executable registrations.
+        expect(tools).not.toContain('user.add');
     });
 });
 
@@ -125,15 +127,15 @@ describe('AgentRuntime.findTools', () => {
     let runtime;
     beforeEach(() => { runtime = new AgentRuntime(); });
 
-    test('finds by name substring', () => {
-        const tools = runtime.findTools('firewall');
+    test('finds registered tools by name substring', () => {
+        const tools = runtime.findTools('agent');
         expect(tools.length).toBeGreaterThan(0);
-        expect(tools.every(t => t.includes('firewall'))).toBe(true);
+        expect(tools.every(t => t.includes('agent'))).toBe(true);
     });
 
-    test('finds by keyword', () => {
-        const tools = runtime.findTools('ban');
-        expect(tools).toContain('firewall.block');
+    test('does not expose legacy routing hints as registered tools', () => {
+        expect(runtime.findTools('firewall')).toEqual([]);
+        expect(runtime.findTools('ban')).toEqual([]);
     });
 
     test('returns empty array for no match', () => {

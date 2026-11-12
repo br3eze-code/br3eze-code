@@ -51,6 +51,8 @@ jobs:
         run: npm run check:repository-hygiene
       - name: Install dependencies
         run: npm ci --ignore-scripts --legacy-peer-deps
+      - name: Audit dependency usage candidates (report only)
+        run: node scripts/audit-dependency-bloat.mjs --output="$RUNNER_TEMP/dependency-usage-audit.json"
       - name: Run architecture gate
         run: npm run check:architecture
       - name: Run CI quality gate
@@ -111,4 +113,11 @@ jobs:
         with:
           name: coverage
           path: coverage/
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dependency-usage-audit
+          path: ${{ runner.temp }}/dependency-usage-audit.json
+          if-no-files-found: warn
           retention-days: 14
