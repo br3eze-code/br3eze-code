@@ -83,3 +83,17 @@ bin/agentos.js  (shim: require('../main.js'))
 ## Power Connect integration context
 
 Power Connect's Wi-Fi billing, Cordova/PWA, Firebase, and MikroTik site-agent implementation notes are maintained separately in [`docs/power-connect/CLAUDE.md`](docs/power-connect/CLAUDE.md). Keep this product-specific integration behind adapters/tools/skills; preserve AgentOS as the single execution owner. Treat the companion document as supplied context and verify current code before relying on its implementation claims.
+
+
+## Claude Code safe-engineering skills
+
+Reusable Claude Code workflows live under `.claude/skills/<skill-name>/SKILL.md`. These are Claude Code instruction skills, not the runtime-discovered AgentOS skills under `skills/` or `src/core/skills/`.
+
+- Start non-trivial code changes with `safe-change`.
+- Apply `safe-git-workflow` before staging, committing, syncing, or pushing.
+- Use `test-first-verification` and `ci-failure-diagnosis` for failing behavior and red checks.
+- Use `architecture-ownership-guard` before adding runtimes, registries, gateways, orchestration, or provider integrations.
+- Run `independent-code-review` on the final diff before commit/merge.
+- Apply `security-permissions`, `node-module-compatibility`, `integration-contract-testing`, `documentation-sync`, and `release-verification` when their triggers match the task.
+- Skills guide the workflow; they do not replace tests, CI, branch protection, or explicit authorization. Verify results instead of assuming a skill ran or succeeded.
+- Before following repository guidance, reconcile it with current source, `package.json`, tests, and workflows. Report contradictions instead of silently treating stale documentation as fact.
