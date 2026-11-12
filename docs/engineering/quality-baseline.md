@@ -8,7 +8,7 @@ Establish an evidence-based baseline, record failures by exact commit and comman
 
 - Branch: `chore/test-baseline-error-ledger`.
 - Draft PR: #288, based on `main`; not merged.
-- Latest observed branch head: `08916cacb080b210e710eff9c53c6810292d4951`.
+- Latest verified change: commit `aaa902caead52ae3ec2f9214e8769a5a22dc23d7` updates the runtime-discovery tests; CI for this commit is pending.
 - Node target: 22.x.
 - The default Jest configuration excludes `tests/platform/`, `tests/infrastructure/`, `tests/unit/phase9-approval-prompt.test.js`, and `tests/unit/phase9-terminal-boundary.test.js`. Separate CI commands cover some of these areas; audit their actual coverage before changing discovery.
 - Latest observed CI run 43240878285 failed at the full Jest `Test` step; the remaining post-test jobs were skipped. The log reports 10 failed suites, 219 passed suites; 27 failed tests, 1,350 passed tests (1,377 total).
