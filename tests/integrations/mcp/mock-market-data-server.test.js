@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const serverPath = new URL('../../../integrations/mcp/mock-market-data-server.js', import.meta.url);
+const serverPath = fileURLToPath(new URL('../../../integrations/mcp/mock-market-data-server.js', import.meta.url));
 
 function runMessages(messages) {
   const input = messages.map((message) => JSON.stringify(message)).join('\n') + '\n';
