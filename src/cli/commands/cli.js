@@ -7,14 +7,14 @@ export default (program) => {
     program
         .command('cli')
         .description('Connect to AgentOS Interactive CLI via WebSocket')
-        .option('--host <host>', 'Gateway host', '127.0.0.1')
-        .option('--port <port>', 'Gateway port', '19876')
+        .option('--host <host>', 'Gateway host (defaults to configured gateway host)')
+        .option('--port <port>', 'Gateway port')
         .option('--token <token>', 'Authentication token')
         .action(async (options) => {
             const config = getConfig();
             const token = options.token || config.gateway?.token || process.env.GATEWAY_TOKEN;
             const port = options.port || config.gateway?.port || 19876;
-            const host = options.host || '127.0.0.1';
+            const host = options.host || config.gateway?.host || '127.0.0.1';
             
             const wsUrl = `ws://${host}:${port}/ws`;
             
@@ -34,20 +34,25 @@ export default (program) => {
                 const wsRef = React.useRef(null);
                 
                 React.useEffect(() => {
-                    const ws = new WebSocket(wsUrl, {
-                        headers: {
-                            'x-agentos-token': token
-                        }
-                    });
-                    ws.on('error', () => {}); // Handle errors silently to prevent crash
-                    wsRef.current = ws;
-                    
-                    ws.on('open', () => {
-                        setConnected(true);
-                        ws.send(JSON.stringify({ type: 'cli.start' }));
-                    });
-                    
-                    ws.on('message', (data) => {
+                    let stopped = false;
+                    let retryTimer;
+                    let retryDelay = 1000;
+                    let ws;
+                    const connect = () => {
+                        if (stopped) return;
+                        setStatus('connecting');
+                        ws = new WebSocket(wsUrl, {
+                            headers: { 'x-agentos-token': token }
+                        });
+                        wsRef.current = ws;
+                        ws.on('error', () => {}); // close handler schedules reconnect
+                        ws.on('open', () => {
+                            retryDelay = 1000;
+                            setConnected(true);
+                            setStatus('idle');
+                            ws.send(JSON.stringify({ type: 'cli.start' }));
+                        });
+                        ws.on('message', (data) => {
                         try {
                             const msg = JSON.parse(data);
                             if (msg.type === 'cli.output') {
@@ -73,12 +78,21 @@ export default (program) => {
                         } catch (e) {}
                     });
                     
-                    ws.on('close', () => {
-                        setConnected(false);
-                        process.exit(0);
-                    });
-                    
-                    return () => ws.close();
+                        ws.on('close', () => {
+                            setConnected(false);
+                            if (!stopped) {
+                                setStatus('reconnecting');
+                                retryTimer = setTimeout(connect, retryDelay);
+                                retryDelay = Math.min(retryDelay * 2, 10000);
+                            }
+                        });
+                    };
+                    connect();
+                    return () => {
+                        stopped = true;
+                        clearTimeout(retryTimer);
+                        ws?.close();
+                    };
                 }, []);
                 
                 useInput((char, key) => {
