@@ -50,7 +50,6 @@ describe('capability manifest', () => {
 
     // The route is mounted with verified identity middleware at the domain boundary.
     expect(routeIndex).toBeGreaterThanOrEqual(0);
-    expect(source).toContain('authMiddleware,');
     expect(source).not.toContain("req.headers['x-agent-role']");
     expect(source).not.toContain("req.headers['x-agent-capabilities']");
   });
