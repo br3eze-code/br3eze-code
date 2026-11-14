@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Guides small, reproducible open-weight fine-tuning experiments with dataset checks, budget gates, and before/after evaluation.",
   "main": "index.cjs",
+  "entry": "index.cjs",
   "permissions": [],
   "tags": ["machine-learning", "fine-tuning", "LoRA", "evaluation", "learning"],
   "actions": [
