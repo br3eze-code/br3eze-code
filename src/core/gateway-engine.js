@@ -3,6 +3,10 @@ import http from 'node:http';
 import EventEmitter from 'node:events';
 import { logger } from './logger.js';
 import { createLiveWebServer, resolveWebRoot } from './live-web-server.js';
+import { diagnosticEventStore } from './diagnostics/diagnostic-store.js';
+import { createBrowserDiagnosticsScript } from '../adapters/diagnostics/browser-observer.js';
+import { diagnosticCaptureStore } from './diagnostics/diagnostic-capture-store.js';
+import { browserObservationProvider } from '../adapters/diagnostics/browser-observation-provider.js';
 
 const DASHBOARD_HTML = `<!doctype html>
 <html lang="en">
@@ -36,6 +40,11 @@ async function refresh(){state.textContent='Checking gateway…';dot.className='
 document.querySelector('#refresh').addEventListener('click',refresh);refresh();setInterval(refresh,15000);
 </script></body></html>`;
 
+function dashboardHtmlWithDiagnostics(enabled) {
+  if (!enabled) return DASHBOARD_HTML;
+  return DASHBOARD_HTML.replace('</head>', `<script>${createBrowserDiagnosticsScript()}</script></head>`);
+}
+
  /**
  * Domain-neutral HTTP gateway. Routes, authentication, channels, tools and
  * external services are injected by the host application.
@@ -43,20 +52,68 @@ document.querySelector('#refresh').addEventListener('click',refresh);refresh();s
 export class Gateway extends EventEmitter {
   constructor(config = {}) {
     super();
-    this.config = { host: config.host || '0.0.0.0', port: config.port ?? 3000, cors: config.cors, routes: config.routes || [], middleware: config.middleware || [], health: config.health || (() => ({ ok: true })), webRoot: config.webRoot || config.gateway?.webRoot, web: config.web || config.gateway?.web };
+    this.config = { host: config.host || '0.0.0.0', port: config.port ?? 3000, cors: config.cors, routes: config.routes || [], middleware: config.middleware || [], health: config.health || (() => ({ ok: true })), webRoot: config.webRoot || config.gateway?.webRoot, web: config.web || config.gateway?.web, diagnosticStore: config.diagnosticStore, diagnosticCaptureStore: config.diagnosticCaptureStore, observationProvider: config.observationProvider };
     this.app = express();
     this.server = null;
     const webRoot = resolveWebRoot(this.config);
     const loopbackHost = ['127.0.0.1', 'localhost', '::1'].includes(this.config.host);
     const developmentRequested = this.config.web?.development ?? process.env.NODE_ENV !== 'production';
-    // Live reload is a local developer feature; never expose its event stream on a non-loopback listener.
-    this.webServer = createLiveWebServer({ root: webRoot, development: developmentRequested && loopbackHost });
+    this.diagnosticsEnabled = developmentRequested && loopbackHost;
+    this.diagnosticStore = this.config.diagnosticStore || diagnosticEventStore;
+    this.diagnosticCaptureStore = this.config.diagnosticCaptureStore || diagnosticCaptureStore;
+    this.observationProvider = this.config.observationProvider || browserObservationProvider;
+    this.observationProvider.setEnabled?.(this.diagnosticsEnabled);
+    // Live reload and diagnostic ingestion are local developer features; never expose them on a non-loopback listener.
+    this.webServer = createLiveWebServer({ root: webRoot, development: this.diagnosticsEnabled });
     this._configure();
   }
   _configure() {
     this.app.disable('x-powered-by');
     this.app.use(express.json({ limit: this.config.bodyLimit || '1mb' }));
     for (const middleware of this.config.middleware) this.app.use(middleware);
+
+    if (this.diagnosticsEnabled) {
+      this.app.get('/__agentos/diagnostics/capabilities', (_req, res) => {
+        res.json({ ok: true, browserEvents: true, screenCapture: true, browserNotifications: true, osNotifications: false });
+      });
+      this.app.post('/__agentos/diagnostics/captures', (req, res) => {
+        if (!req.is('application/json')) return res.status(415).json({ ok: false, error: 'JSON_REQUIRED' });
+        const input = req.body;
+        if (!input || typeof input !== 'object' || Array.isArray(input) || typeof input.dataUrl !== 'string') return res.status(400).json({ ok: false, error: 'INVALID_SCREEN_CAPTURE' });
+        try {
+          const saved = this.diagnosticCaptureStore.record({ dataUrl: input.dataUrl, width: input.width, height: input.height, tenantId: req.tenantId || req.user?.tenantId || 'local' });
+          return res.status(202).json({ ok: true, id: saved.id, mediaType: saved.mediaType, width: saved.width, height: saved.height });
+        } catch (error) {
+          const tooLarge = error?.message === 'SCREEN_CAPTURE_TOO_LARGE';
+          return res.status(tooLarge ? 413 : 400).json({ ok: false, error: tooLarge ? 'SCREEN_CAPTURE_TOO_LARGE' : 'INVALID_SCREEN_CAPTURE' });
+        }
+      });
+      this.app.get('/__agentos/diagnostics/captures/latest/metadata', (req, res) => {
+        const capture = this.diagnosticCaptureStore.getLatestMetadata({ tenantId: req.tenantId || req.user?.tenantId || 'local' });
+        if (!capture) return res.status(404).json({ ok: false, error: 'SCREEN_CAPTURE_NOT_FOUND' });
+        return res.set('Cache-Control', 'no-store').json(capture);
+      });
+      this.app.get('/__agentos/diagnostics/captures/latest', (req, res) => {
+        const capture = this.diagnosticCaptureStore.getLatest({ tenantId: req.tenantId || req.user?.tenantId || 'local' });
+        if (!capture) return res.status(404).json({ ok: false, error: 'SCREEN_CAPTURE_NOT_FOUND' });
+        const base64 = capture.dataUrl.slice(capture.dataUrl.indexOf(',') + 1);
+        return res.status(200).set({ 'Content-Type': capture.mediaType, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; sandbox" }).send(Buffer.from(base64, 'base64'));
+      });
+      this.app.post('/__agentos/diagnostics/events', (req, res) => {
+        if (!req.is('application/json')) return res.status(415).json({ ok: false, error: 'JSON_REQUIRED' });
+        const event = req.body;
+        if (!event || typeof event !== 'object' || Array.isArray(event) || typeof event.message !== 'string') {
+          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
+        }
+        try {
+          const stored = this.diagnosticStore.record({ ...event, tenantId: req.tenantId || req.user?.tenantId || 'local' });
+          return res.status(202).json({ ok: true, id: stored.id });
+        } catch (error) {
+          logger.warn('Rejected browser diagnostic event', { error: error.message });
+          return res.status(400).json({ ok: false, error: 'INVALID_DIAGNOSTIC_EVENT' });
+        }
+      });
+    }
 
     this.app.get('/health', async (req, res) => {
       try { res.json(await this.config.health(req)); }
@@ -85,8 +142,8 @@ export class Gateway extends EventEmitter {
         return res.status(404).type('text').send('Not found');
       });
     } else {
-      this.app.get('/', (_req, res) => res.type('html').send(DASHBOARD_HTML));
-      this.app.get('/index.html', (_req, res) => res.type('html').send(DASHBOARD_HTML));
+      this.app.get('/', (_req, res) => res.type('html').send(dashboardHtmlWithDiagnostics(this.diagnosticsEnabled)));
+      this.app.get('/index.html', (_req, res) => res.type('html').send(dashboardHtmlWithDiagnostics(this.diagnosticsEnabled)));
       this.app.use((req, res) => {
         if (req.path === '/api' || req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
         return res.status(404).type('text').send('Not found');
@@ -96,7 +153,7 @@ export class Gateway extends EventEmitter {
   addRoute(path, router) { if (!path || !router) throw new TypeError('path and router are required'); this.app.use(path, router); return this; }
   addMiddleware(middleware) { this.app.use(middleware); return this; }
   async start() { if (this.server) return this.server; this.server = http.createServer(this.app); await new Promise((resolve, reject) => { this.server.once('error', reject); this.server.listen(this.config.port, this.config.host, resolve); }); this.webServer.startWatching?.(); this.emit('started', { host: this.config.host, port: this.config.port, webRoot: this.webServer.root || null }); logger.info(`Gateway listening on ${this.config.host}:${this.config.port}`); return this.server; }
-  async stop() { if (!this.server) return; this.webServer.stop?.(); await new Promise(resolve => this.server.close(() => resolve())); this.server = null; this.emit('stopped'); }
+  async stop() { this.webServer.stop?.(); this.observationProvider.setEnabled?.(false); if (!this.server) return; await new Promise(resolve => this.server.close(() => resolve())); this.server = null; this.emit('stopped'); }
   async close() { return this.stop(); }
   getApp() { return this.app; }
 }

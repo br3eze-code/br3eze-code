@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { logger } from './logger.js';
+import { createBrowserDiagnosticsScript } from '../adapters/diagnostics/browser-observer.js';
 
 const DEFAULT_ROOTS = ['agentos-pwa', 'pwa', 'public', 'dist'];
 
@@ -30,6 +31,7 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
   let app = null;
 
   const liveScript = `<script>(()=>{const es=new EventSource('/__agentos/live');es.addEventListener('reload',()=>location.reload());es.onerror=()=>{};})();</script>`;
+  const diagnosticsScript = `<script>${createBrowserDiagnosticsScript()}</script>`;
   const insideRoot = (file) => file === webRoot || file.startsWith(webRoot + path.sep);
 
   async function serveHtml(req, res, next) {
@@ -50,8 +52,12 @@ export function createLiveWebServer({ root, development = process.env.NODE_ENV !
       if (!fs.existsSync(file) && !hasExtension) file = path.join(webRoot, 'index.html');
       if (!insideRoot(file) || !fs.existsSync(file) || !fs.statSync(file).isFile() || path.extname(file).toLowerCase() !== '.html') return next();
       let html = await fs.promises.readFile(file, 'utf8');
-      if (development && !html.includes("EventSource('/__agentos/live')")) {
-        html = html.includes('</body>') ? html.replace('</body>', `${liveScript}</body>`) : html + liveScript;
+      if (development) {
+        const additions = [
+          !html.includes("EventSource('/__agentos/live')") ? liveScript : '',
+          !html.includes('__agentosDiagnosticsInstalled') ? diagnosticsScript : '',
+        ].filter(Boolean).join('');
+        if (additions) html = html.includes('</head>') ? html.replace('</head>', additions + '</head>') : html.includes('</body>') ? html.replace('</body>', additions + '</body>') : html + additions;
       }
       res.set('Cache-Control', development ? 'no-store' : 'public, max-age=0, must-revalidate');
       return res.type('html').send(html);

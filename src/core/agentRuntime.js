@@ -20,6 +20,9 @@ import { ServiceSupervisor } from './os/ServiceSupervisor.js';
 import { IPCMessageBus } from './os/IPCMessageBus.js';
 import { ApplicationManager } from './os/ApplicationManager.js';
 import { LocalStateStore } from '../adapters/persistence/local-state-store.js';
+import { diagnosticEventStore } from './diagnostics/diagnostic-store.js';
+import { createDiagnosticTools } from './diagnostics/diagnostic-tools.js';
+import { browserObservationProvider } from '../adapters/diagnostics/browser-observation-provider.js';
 
 /** Domain-neutral execution runtime. Tool discovery/execution is supplied by adapters. */
 const APPROVAL_AUTHORIZATION = Symbol('agentos.approval-authorization');
@@ -180,6 +183,16 @@ class AgentRuntime extends EventEmitter {
     this.toolExecutor = this.injectedToolExecutor
       ? config.toolExecutor
       : this.toolRegistry?.execute?.bind(this.toolRegistry) || null;
+    // Diagnostics are tools on the canonical registry, not a second runtime.
+    this.diagnosticStore = config.diagnosticStore || diagnosticEventStore;
+    const existingToolNames = new Set((this.toolRegistry?.getAllTools?.() || [])
+      .map((tool) => tool.fullName || tool.name));
+    for (const diagnosticTool of createDiagnosticTools({
+      store: this.diagnosticStore,
+      provider: config.observationProvider || browserObservationProvider,
+    })) {
+      if (!existingToolNames.has(diagnosticTool.name)) this.registerTool(diagnosticTool);
+    }
     this.verificationEngine = config.verificationEngine || new VerificationEngine(config.verificationChecks || {});
     this.model = config.model || (this.providerManager ? {
       execute: (request) => this.providerManager.execute(request.messages, request.tools, request.context),
