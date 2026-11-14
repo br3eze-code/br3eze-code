@@ -16,6 +16,7 @@ import toolRegistry, { ToolRegistry } from './ToolRegistry.js';
 import { PluginRegistry, PluginLoader } from '../sdk/plugin/index.js';
 import { ApprovalWorkflow } from './approval-gates.js';
 import { HardwareCapabilityRegistry } from './hardware/HardwareCapabilityRegistry.js';
+import { WorldStateRegistry } from './world-state/WorldStateRegistry.js';
 import { ServiceSupervisor } from './os/ServiceSupervisor.js';
 import { IPCMessageBus } from './os/IPCMessageBus.js';
 import { ApplicationManager } from './os/ApplicationManager.js';
@@ -150,7 +151,12 @@ class AgentRuntime extends EventEmitter {
     // AgentRuntime owns capability orchestration; registries are implementation stores.
     this.toolRegistry = config.toolRegistry || new ToolRegistry();
     this.agentIdentityAuthorizer = config.agentIdentityAuthorizer || null;
-    this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry(config.hardwareOptions || {});
+    // Observations are runtime-scoped and volatile: a restart returns state to unknown until refreshed.
+    this.worldState = config.worldState || new WorldStateRegistry(config.worldStateOptions || {});
+    this.hardwareCapabilities = config.hardwareCapabilities || new HardwareCapabilityRegistry({
+      ...(config.hardwareOptions || {}),
+      worldState: this.worldState,
+    });
     // AgentRuntime is the sole lifecycle owner; managers below are stores/adapters.
     this.serviceSupervisor = config.serviceSupervisor || config.applications?.supervisor
       || new ServiceSupervisor({ onEvent: (event) => this.emit('os.lifecycle', event) });
@@ -205,6 +211,15 @@ class AgentRuntime extends EventEmitter {
   setAppState(identity) { return this.localState.set(identity); }
   deleteAppState(identity) { return this.localState.delete(identity); }
   listAppState(identity) { return this.localState.list(identity); }
+
+  /**
+   * Record and query observations of external resources. These facts are not grants:
+   * callers must still authorize actions and require fresh state before acting.
+   */
+  recordWorldObservation(observation) { return this.worldState.record(observation); }
+  getWorldObservation(resourceId, key, options) { return this.worldState.get(resourceId, key, options); }
+  requireFreshWorldObservation(resourceId, key, options) { return this.worldState.requireFresh(resourceId, key, options); }
+  getWorldSnapshot(resourceId, options) { return this.worldState.snapshot(resourceId, options); }
 
   /** IPC authorization is host-owned and fail-closed by default. */
   publishIPC(envelope, payload) { return this.ipc.publish(envelope, payload); }
